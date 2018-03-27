@@ -165,6 +165,10 @@ class DocAnalyzerTest : DriverTest() {
                         @RequiresPermission(allOf = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCOUNT_MANAGER})
                         public void test4() {
                         }
+
+                        @RequiresPermission(value=Manifest.permission.WATCH_APPOPS, conditional=true) // b/73559440
+                        public void test5() {
+                        }
                     }
                     """
                 ),
@@ -177,6 +181,7 @@ class DocAnalyzerTest : DriverTest() {
                             public static final String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                             public static final String ACCESS_FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION";
                             public static final String ACCOUNT_MANAGER = "android.permission.ACCOUNT_MANAGER";
+                            public static final String WATCH_APPOPS = "android.permission.WATCH_APPOPS";
                         }
                     }
                     """
@@ -208,6 +213,7 @@ class DocAnalyzerTest : DriverTest() {
                  * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} and {@link android.Manifest.permission#ACCOUNT_MANAGER}
                  */
                 @android.support.annotation.RequiresPermission(allOf={android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCOUNT_MANAGER}) public void test4() { throw new RuntimeException("Stub!"); }
+                @android.support.annotation.RequiresPermission(value=android.Manifest.permission.WATCH_APPOPS, conditional=true) public void test5() { throw new RuntimeException("Stub!"); }
                 }
                 """
             )
@@ -1116,6 +1122,40 @@ class DocAnalyzerTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class LocationManager {
                 public LocationManager() { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Check RequiresApi handling`() {
+        check(
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.support.annotation.RequiresApi;
+                    @RequiresApi(21)
+                    public class MyClass1 {
+                    }
+                    """
+                ),
+
+                requiresApiSource
+            ),
+            checkCompilation = true,
+            checkDoclava1 = false,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /**
+                 * Requires API level 21
+                 * @since 5.0 Lollipop (21)
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @android.support.annotation.RequiresApi(21) public class MyClass1 {
+                public MyClass1() { throw new RuntimeException("Stub!"); }
                 }
                 """
             )
