@@ -54,7 +54,8 @@ class StubWriter(
     // that are near each other in the source to show up near each other in the documentation
     methodComparator = MethodItem.sourceOrderComparator,
     filterEmit = FilterPredicate(ApiPredicate(codebase)),
-    filterReference = ApiPredicate(codebase, ignoreShown = true)
+    filterReference = ApiPredicate(codebase, ignoreShown = true),
+    includeEmptyOuterClasses = true
 ) {
 
     private val sourceList = StringBuilder(20000)
@@ -135,6 +136,9 @@ class StubWriter(
             ModifierList.writeAnnotations(
                 list = pkg.modifiers,
                 separateLines = true,
+                // Some bug in UAST triggers duplicate nullability annotations
+                // here; make sure the are filtered out
+                filterDuplicates = true,
                 writer = writer
             )
             writer.println("package ${pkg.qualifiedName()};")
@@ -158,7 +162,7 @@ class StubWriter(
     }
 
     private fun getClassFile(classItem: ClassItem): File {
-        assert(classItem.containingClass() == null, { "Should only be called on top level classes" })
+        assert(classItem.containingClass() == null) { "Should only be called on top level classes" }
         // TODO: Look up compilation unit language
         return File(getPackageDir(classItem.containingPackage()), "${classItem.simpleName()}.java")
     }
@@ -557,9 +561,11 @@ class StubWriter(
 
     private fun generateThrowsList(method: MethodItem) {
         // Note that throws types are already sorted internally to help comparison matching
-        val throws = if (preFiltered)
+        val throws = if (preFiltered) {
             method.throwsTypes().asSequence()
-        else method.throwsTypes().asSequence().filter { filterReference.test(it) }
+        } else {
+            method.filteredThrowsTypes(filterReference).asSequence()
+        }
         if (throws.any()) {
             writer.print(" throws ")
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
