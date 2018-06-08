@@ -213,8 +213,13 @@ interface ModifierList {
                     skipNullnessAnnotations = skipNullnessAnnotations,
                     omitCommonPackages = omitCommonPackages,
                     separateLines = false,
-                    writer = writer
+                    writer = writer,
+                    onlyIncludeSignatureAnnotations = onlyIncludeSignatureAnnotations
                 )
+            }
+
+            if (compatibility.doubleSpaceForPackagePrivate && item.isPackagePrivate && item is MemberItem) {
+                writer.write(" ")
             }
 
             // Kotlin order:

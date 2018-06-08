@@ -652,6 +652,10 @@ interface ClassItem : Item {
     }
 
     fun allInnerClasses(includeSelf: Boolean = false): Sequence<ClassItem> {
+        if (!includeSelf && innerClasses().isEmpty()) {
+            return emptySequence()
+        }
+
         val list = ArrayList<ClassItem>()
         if (includeSelf) {
             list.add(this)
@@ -725,6 +729,7 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
                 cls.filteredFields(filterEmit).asSequence()
             } else {
                 cls.fields().asSequence()
+                    .filter { filterEmit.test(it) }
             }
         if (cls.isEnum()) {
             fields = fieldSequence

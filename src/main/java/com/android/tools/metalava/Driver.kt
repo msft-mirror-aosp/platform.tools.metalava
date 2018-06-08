@@ -183,7 +183,8 @@ private fun processFlags() {
     }
 
     // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let { createStubFiles(it, codebase, docStubs = true, writeStubList = true) }
+    options.docStubsDir?.let { createStubFiles(it, codebase, docStubs = true,
+        writeStubList = options.docStubsSourceList != null) }
 
     val currentApiFile = options.currentApi
     if (currentApiFile != null && options.checkCompatibility) {
@@ -295,7 +296,11 @@ private fun processFlags() {
 
         createReportFile(
             codebase, apiFile, "private DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, privateEmit, privateReference) }
+        ) { printWriter ->
+            DexApiWriter(
+                printWriter, privateEmit, privateReference, inlineInheritedFields = false
+            )
+        }
     }
 
     options.proguard?.let { proguard ->
@@ -316,11 +321,11 @@ private fun processFlags() {
     options.stubsDir?.let {
         createStubFiles(
             it, codebase, docStubs = false,
-            writeStubList = options.docStubsDir == null
+            writeStubList = options.stubsSourceList != null
         )
     }
     if (options.docStubsDir == null && options.stubsDir == null) {
-        options.stubsSourceList?.let { file ->
+        val writeStubsFile: (File) -> Unit = { file ->
             val root = File("").absoluteFile
             val sources = options.sources
             val rootPath = root.path
@@ -334,6 +339,8 @@ private fun processFlags() {
             }
             Files.asCharSink(file, UTF_8).write(contents)
         }
+        options.stubsSourceList?.let(writeStubsFile)
+        options.docStubsSourceList?.let(writeStubsFile)
     }
     options.externalAnnotations?.let { extractAnnotations(codebase, it) }
     progress("\n")
@@ -470,7 +477,7 @@ private fun loadFromSources(): Codebase {
     val project = projectEnvironment.project
 
     val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-    KotlinLintAnalyzerFacade.analyze(kotlinFiles, joined, project)
+    KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
 
     val units = Extractor.createUnitsForFiles(project, sources)
     val packageDocs = gatherHiddenPackagesFromJavaDocs(options.sourcePath)
@@ -496,10 +503,8 @@ private fun loadFromSources(): Codebase {
     // General API checks for Android APIs
     AndroidApiChecks().check(codebase)
 
-    val ignoreShown = options.showUnannotated
-
-    val filterEmit = ApiPredicate(codebase, ignoreShown = ignoreShown, ignoreRemoved = false)
-    val apiEmit = ApiPredicate(codebase, ignoreShown = ignoreShown)
+    val filterEmit = ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = false)
+    val apiEmit = ApiPredicate(codebase, ignoreShown = true)
     val apiReference = ApiPredicate(codebase, ignoreShown = true)
 
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary
@@ -541,7 +546,7 @@ private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
     projectEnvironment.registerPaths(listOf(apiJar))
 
     val kotlinFiles = emptyList<File>()
-    KotlinLintAnalyzerFacade.analyze(kotlinFiles, listOf(apiJar), project)
+    KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project)
 
     val codebase = PsiBasedCodebase()
     codebase.description = "Codebase loaded from $apiJar"
@@ -620,7 +625,12 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     if (writeStubList) {
         // Optionally also write out a list of source files that were generated; used
         // for example to point javadoc to the stubs output to generate documentation
-        options.stubsSourceList?.let {
+        val file = if (docStubs) {
+            options.docStubsSourceList ?: options.stubsSourceList
+        } else {
+            options.stubsSourceList
+        }
+        file?.let {
             val root = File("").absoluteFile
             stubWriter.writeSourceList(it, root)
         }
