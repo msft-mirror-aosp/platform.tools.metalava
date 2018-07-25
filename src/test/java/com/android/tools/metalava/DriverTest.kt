@@ -32,8 +32,11 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.doclava1.Errors
 import com.android.utils.FileUtils
+import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
 import com.google.common.base.Charsets
+import com.google.common.io.ByteStreams
+import com.google.common.io.Closeables
 import com.google.common.io.Files
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -45,6 +48,7 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.net.URL
 
 const val CHECK_OLD_DOCLAVA_TOO = false
 const val CHECK_STUB_COMPILATION = false
@@ -129,10 +133,15 @@ abstract class DriverTest {
         privateApi: String? = null,
         /** The private DEX API (corresponds to --private-dex-api) */
         privateDexApi: String? = null,
+        /** The DEX API (corresponds to --dex-api) */
+        dexApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         @Language("JAVA") stubs: Array<String> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
+        /** Whether the stubs should be written as documentation stubs instead of plain stubs. Decides
+         * whether the stubs include @doconly elements, uses rewritten/migration annotations, etc */
+        docStubs: Boolean = false,
         /** Whether to run in doclava1 compat mode */
         compatibilityMode: Boolean = true,
         /** Whether to trim the output (leading/trailing whitespace removal) */
@@ -144,8 +153,12 @@ abstract class DriverTest {
         /** Whether to run doclava1 on the test output and assert that the output is identical */
         checkDoclava1: Boolean = compatibilityMode,
         checkCompilation: Boolean = false,
-        /** Annotations to merge in */
-        @Language("XML") mergeAnnotations: String? = null,
+        /** Annotations to merge in (in .xml format) */
+        @Language("XML") mergeXmlAnnotations: String? = null,
+        /** Annotations to merge in (in .jaif format) */
+        @Language("TEXT") mergeJaifAnnotations: String? = null,
+        /** Annotations to merge in (in .txt/.signature format) */
+        @Language("TEXT") mergeSignatureAnnotations: String? = null,
         /** An optional API signature file content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
@@ -202,17 +215,47 @@ abstract class DriverTest {
         /** Corresponds to SDK constants file features.txt */
         sdk_features: String? = null,
         /** Corresponds to SDK constants file widgets.txt */
-        sdk_widgets: String? = null
+        sdk_widgets: String? = null,
+        /** Map from artifact id to artifact descriptor */
+        artifacts: Map<String, String>? = null,
+        /** Extract annotations and check that the given packages contain the given extracted XML files */
+        extractAnnotations: Map<String, String>? = null,
+        /**
+         * Whether to include source retention annotations in the stubs (in that case they do not
+         * go into the extracted annotations zip file)
+         */
+        includeSourceRetentionAnnotations: Boolean = true
     ) {
-        System.setProperty("METALAVA_TESTS_RUNNING", VALUE_TRUE)
+        System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, VALUE_TRUE)
 
-        if (compatibilityMode && mergeAnnotations != null) {
+        // Ensure different API clients don't interfere with each other
+        try {
+            val method = ApiLookup::class.java.getDeclaredMethod("dispose")
+            method.isAccessible = true
+            method.invoke(null)
+        } catch (ignore: Throwable) {
+            ignore.printStackTrace()
+        }
+
+        if (compatibilityMode && mergeXmlAnnotations != null) {
             fail(
                 "Can't specify both compatibilityMode and mergeAnnotations: there were no " +
                     "annotations output in doclava1"
             )
         }
+        if (compatibilityMode && mergeJaifAnnotations != null) {
+            fail(
+                "Can't specify both compatibilityMode and mergeJaifAnnotations: there were no " +
+                    "annotations output in doclava1"
+            )
+        }
 
+        if (compatibilityMode && mergeSignatureAnnotations != null) {
+            fail(
+                "Can't specify both compatibilityMode and mergeSignatureAnnotations: there were no " +
+                    "annotations output in doclava1"
+            )
+        }
         Errors.resetLevels()
 
         /** Expected output if exiting with an error code */
@@ -261,9 +304,25 @@ abstract class DriverTest {
             }
         }
 
-        val mergeAnnotationsArgs = if (mergeAnnotations != null) {
+        val mergeAnnotationsArgs = if (mergeXmlAnnotations != null) {
             val merged = File(project, "merged-annotations.xml")
-            Files.asCharSink(merged, Charsets.UTF_8).write(mergeAnnotations.trimIndent())
+            Files.asCharSink(merged, Charsets.UTF_8).write(mergeXmlAnnotations.trimIndent())
+            arrayOf("--merge-annotations", merged.path)
+        } else {
+            emptyArray()
+        }
+
+        val jaifAnnotationsArgs = if (mergeJaifAnnotations != null) {
+            val merged = File(project, "merged-annotations.jaif")
+            Files.asCharSink(merged, Charsets.UTF_8).write(mergeJaifAnnotations.trimIndent())
+            arrayOf("--merge-annotations", merged.path)
+        } else {
+            emptyArray()
+        }
+
+        val signatureAnnotationsArgs = if (mergeSignatureAnnotations != null) {
+            val merged = File(project, "merged-annotations.txt")
+            Files.asCharSink(merged, Charsets.UTF_8).write(mergeSignatureAnnotations.trimIndent())
             arrayOf("--merge-annotations", merged.path)
         } else {
             emptyArray()
@@ -362,7 +421,14 @@ abstract class DriverTest {
             if (showUnannotated) {
                 arrayOf("--show-unannotated")
             } else {
-                emptyArray<String>()
+                emptyArray()
+            }
+
+        val includeSourceRetentionAnnotationArgs =
+            if (includeSourceRetentionAnnotations) {
+                arrayOf("--include-source-retention")
+            } else {
+                emptyArray()
             }
 
         var removedApiFile: File? = null
@@ -383,7 +449,7 @@ abstract class DriverTest {
 
         var apiFile: File? = null
         val apiArgs = if (api != null) {
-            apiFile = temporaryFolder.newFile("api.txt")
+            apiFile = temporaryFolder.newFile("public-api.txt")
             arrayOf("--api", apiFile.path)
         } else {
             emptyArray()
@@ -405,6 +471,14 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        var dexApiFile: File? = null
+        val dexApiArgs = if (dexApi != null) {
+            dexApiFile = temporaryFolder.newFile("public-dex.txt")
+            arrayOf("--dex-api", dexApiFile.path)
+        } else {
+            emptyArray()
+        }
+
         var privateDexApiFile: File? = null
         val privateDexApiArgs = if (privateDexApi != null) {
             privateDexApiFile = temporaryFolder.newFile("private-dex.txt")
@@ -416,7 +490,11 @@ abstract class DriverTest {
         var stubsDir: File? = null
         val stubsArgs = if (stubs.isNotEmpty()) {
             stubsDir = temporaryFolder.newFolder("stubs")
-            arrayOf("--stubs", stubsDir.path)
+            if (docStubs) {
+                arrayOf("--doc-stubs", stubsDir.path)
+            } else {
+                arrayOf("--stubs", stubsDir.path)
+            }
         } else {
             emptyArray()
         }
@@ -478,6 +556,32 @@ abstract class DriverTest {
             sdkFilesDir = null
         }
 
+        val artifactArgs = if (artifacts != null) {
+            val args = mutableListOf<String>()
+            var index = 1
+            for ((artifactId, signatures) in artifacts) {
+                val signatureFile = temporaryFolder.newFile("signature-file-$index.txt")
+                Files.asCharSink(signatureFile, Charsets.UTF_8).write(signatures.trimIndent())
+                index++
+
+                args.add("--register-artifact")
+                args.add(signatureFile.path)
+                args.add(artifactId)
+            }
+            args.toTypedArray()
+        } else {
+            emptyArray()
+        }
+
+        val extractedAnnotationsZip: File?
+        val extractAnnotationsArgs = if (extractAnnotations != null) {
+            extractedAnnotationsZip = temporaryFolder.newFile("extracted-annotations.zip")
+            arrayOf("--extract-annotations", extractedAnnotationsZip.path)
+        } else {
+            extractedAnnotationsZip = null
+            emptyArray()
+        }
+
         val actualOutput = runDriver(
             "--no-color",
             "--no-banner",
@@ -502,6 +606,7 @@ abstract class DriverTest {
             *apiArgs,
             *exactApiArgs,
             *privateApiArgs,
+            *dexApiArgs,
             *privateDexApiArgs,
             *stubsArgs,
             *stubsSourceListArgs,
@@ -512,6 +617,8 @@ abstract class DriverTest {
             *coverageStats,
             *quiet,
             *mergeAnnotationsArgs,
+            *jaifAnnotationsArgs,
+            *signatureAnnotationsArgs,
             *previousApiArgs,
             *migrateNullsArguments,
             *checkCompatibilityArguments,
@@ -520,9 +627,12 @@ abstract class DriverTest {
             *applyApiLevelsXmlArgs,
             *showAnnotationArguments,
             *showUnannotatedArgs,
+            *includeSourceRetentionAnnotationArgs,
             *sdkFilesArgs,
             *importedPackageArgs.toTypedArray(),
             *skipEmitPackagesArgs.toTypedArray(),
+            *artifactArgs,
+            *extractAnnotationsArgs,
             *sourceList,
             *extraArguments,
             expectedFail = expectedFail
@@ -572,6 +682,15 @@ abstract class DriverTest {
             )
             val expectedText = readFile(privateApiFile, stripBlankLines, trim)
             assertEquals(stripComments(privateApi, stripLineComments = false).trimIndent(), expectedText)
+        }
+
+        if (dexApi != null && dexApiFile != null) {
+            assertTrue(
+                "${dexApiFile.path} does not exist even though --dex-api was used",
+                dexApiFile.exists()
+            )
+            val expectedText = readFile(dexApiFile, stripBlankLines, trim)
+            assertEquals(stripComments(dexApi, stripLineComments = false).trimIndent(), expectedText)
         }
 
         if (privateDexApi != null && privateDexApiFile != null) {
@@ -632,6 +751,16 @@ abstract class DriverTest {
             )
         }
 
+        if (extractAnnotations != null && extractedAnnotationsZip != null) {
+            assertTrue(
+                "Using --extract-annotations but $extractedAnnotationsZip was not created",
+                extractedAnnotationsZip.isFile
+            )
+            for ((pkg, xml) in extractAnnotations) {
+                assertPackageXml(pkg, extractedAnnotationsZip, xml)
+            }
+        }
+
         if (stubs.isNotEmpty() && stubsDir != null) {
             for (i in 0 until stubs.size) {
                 val stub = stubs[i]
@@ -661,13 +790,6 @@ abstract class DriverTest {
             val generated = gatherSources(listOf(stubsDir)).map { it.path }.toList().toTypedArray()
 
             // Also need to include on the compile path annotation classes referenced in the stubs
-            val supportAnnotationsDir = File("../../frameworks/support/annotations/src/main/java/")
-            if (!supportAnnotationsDir.isDirectory) {
-                fail("Couldn't find $supportAnnotationsDir: Is the pwd set to the root of the metalava source code?")
-            }
-            val supportAnnotations =
-                gatherSources(listOf(supportAnnotationsDir)).map { it.path }.toList().toTypedArray()
-
             val extraAnnotationsDir = File("stub-annotations/src/main/java")
             if (!extraAnnotationsDir.isDirectory) {
                 fail("Couldn't find $extraAnnotationsDir: Is the pwd set to the root of the metalava source code?")
@@ -677,8 +799,7 @@ abstract class DriverTest {
 
             if (!runCommand(
                     "${getJdkPath()}/bin/javac", arrayOf(
-                        "-d", project.path, *generated,
-                        *supportAnnotations, *extraAnnotations
+                        "-d", project.path, *generated, *extraAnnotations
                     )
                 )
             ) {
@@ -840,6 +961,48 @@ abstract class DriverTest {
                 extraArguments = arrayOf("-api", File(privateDexApiFile.parentFile, "dummy-api.txt").path),
                 showUnannotated = showUnannotated
             )
+        }
+
+        if (CHECK_OLD_DOCLAVA_TOO && checkDoclava1 && signatureSource == null &&
+            dexApi != null && dexApiFile != null
+        ) {
+            dexApiFile.delete()
+            checkSignaturesWithDoclava1(
+                api = dexApi,
+                argument = "-dexApi",
+                output = dexApiFile,
+                expected = dexApiFile,
+                sourceList = sourceList,
+                sourcePath = sourcePath,
+                packages = packages,
+                androidJar = androidJar,
+                trim = trim,
+                stripBlankLines = stripBlankLines,
+                showAnnotationArgs = showAnnotationArguments,
+                stubImportPackages = importedPackages,
+                // Workaround: -dexApi is a no-op if you don't also provide -api
+                extraArguments = arrayOf("-api", File(dexApiFile.parentFile, "dummy-api.txt").path),
+                showUnannotated = showUnannotated
+            )
+        }
+    }
+
+    /** Checks that the given zip annotations file contains the given XML package contents */
+    private fun assertPackageXml(pkg: String, output: File, @Language("XML") expected: String) {
+        assertNotNull(output)
+        assertTrue(output.exists())
+        val url = URL(
+            "jar:" + SdkUtils.fileToUrlString(output) + "!/" + pkg.replace('.', '/') +
+                "/annotations.xml"
+        )
+        val stream = url.openStream()
+        try {
+            val bytes = ByteStreams.toByteArray(stream)
+            assertNotNull(bytes)
+            val xml = String(bytes, Charsets.UTF_8).replace("\r\n", "\n")
+            assertEquals(expected.trimIndent().trim(), xml.trimIndent().trim())
+        } finally {
+            Closeables.closeQuietly(stream)
         }
     }
 
@@ -1009,8 +1172,12 @@ abstract class DriverTest {
             val localFile = File("../../prebuilts/sdk/$apiLevel/public/android.jar")
             if (localFile.exists()) {
                 return localFile
+            } else {
+                val androidJar = File("../../prebuilts/sdk/$apiLevel/android.jar")
+                if (androidJar.exists()) {
+                    return androidJar
+                }
             }
-
             return null
         }
 
@@ -1078,6 +1245,23 @@ val intDefAnnotationSource: TestFile = java(
     @Retention(SOURCE)
     @Target({ANNOTATION_TYPE})
     public @interface IntDef {
+        int[] value() default {};
+        boolean flag() default false;
+    }
+    """
+).indented()
+
+val longDefAnnotationSource: TestFile = java(
+    """
+    package android.annotation;
+    import java.lang.annotation.Retention;
+    import java.lang.annotation.RetentionPolicy;
+    import java.lang.annotation.Target;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @Retention(SOURCE)
+    @Target({ANNOTATION_TYPE})
+    public @interface LongDef {
         long[] value() default {};
         boolean flag() default false;
     }
@@ -1108,6 +1292,37 @@ val nonNullSource: TestFile = java(
     """
 ).indented()
 
+val libcoreNonNullSource: TestFile = DriverTest.java(
+    """
+    package libcore.util;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.*;
+    @Documented
+    @Retention(SOURCE)
+    @Target({TYPE_USE})
+    public @interface NonNull {
+       int from() default Integer.MIN_VALUE;
+       int to() default Integer.MAX_VALUE;
+    }
+    """
+).indented()
+
+val libcoreNullableSource: TestFile = DriverTest.java(
+    """
+    package libcore.util;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.*;
+    @Documented
+    @Retention(SOURCE)
+    @Target({TYPE_USE})
+    public @interface Nullable {
+       int from() default Integer.MIN_VALUE;
+       int to() default Integer.MAX_VALUE;
+    }
+    """
+).indented()
 val requiresPermissionSource: TestFile = java(
     """
     package android.annotation;
@@ -1121,8 +1336,16 @@ val requiresPermissionSource: TestFile = java(
         String[] allOf() default {};
         String[] anyOf() default {};
         boolean conditional() default false;
+        @Target({FIELD, METHOD, PARAMETER})
+        @interface Read {
+            RequiresPermission value() default @RequiresPermission;
+        }
+        @Target({FIELD, METHOD, PARAMETER})
+        @interface Write {
+            RequiresPermission value() default @RequiresPermission;
+        }
     }
-                    """
+    """
 ).indented()
 
 val requiresFeatureSource: TestFile = java(
@@ -1136,12 +1359,12 @@ val requiresFeatureSource: TestFile = java(
     public @interface RequiresFeature {
         String value();
     }
-            """
+    """
 ).indented()
 
 val requiresApiSource: TestFile = java(
     """
-    package android.support.annotation;
+    package androidx.annotation;
     import java.lang.annotation.*;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -1151,7 +1374,7 @@ val requiresApiSource: TestFile = java(
         int value() default 1;
         int api() default 1;
     }
-            """
+    """
 ).indented()
 
 val sdkConstantSource: TestFile = java(
@@ -1166,23 +1389,23 @@ val sdkConstantSource: TestFile = java(
         }
         SdkConstantType value();
     }
-        """
+    """
 ).indented()
 
 val broadcastBehaviorSource: TestFile = java(
     """
-        package android.annotation;
-        import java.lang.annotation.*;
-        /** @hide */
-        @Target({ ElementType.FIELD })
-        @Retention(RetentionPolicy.SOURCE)
-        public @interface BroadcastBehavior {
-            boolean explicitOnly() default false;
-            boolean registeredOnly() default false;
-            boolean includeBackground() default false;
-            boolean protectedBroadcast() default false;
-        }
-        """
+    package android.annotation;
+    import java.lang.annotation.*;
+    /** @hide */
+    @Target({ ElementType.FIELD })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface BroadcastBehavior {
+        boolean explicitOnly() default false;
+        boolean registeredOnly() default false;
+        boolean includeBackground() default false;
+        boolean protectedBroadcast() default false;
+    }
+    """
 ).indented()
 
 val nullableSource: TestFile = java(
@@ -1221,17 +1444,17 @@ val supportNonNullSource: TestFile = java(
 
 val supportNullableSource: TestFile = java(
     """
-package android.support.annotation;
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
-@SuppressWarnings("WeakerAccess")
-@Retention(SOURCE)
-@Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-public @interface Nullable {
-}
-                """
-)
+    package android.support.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @SuppressWarnings("WeakerAccess")
+    @Retention(SOURCE)
+    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    public @interface Nullable {
+    }
+    """
+).indented()
 
 val androidxNonNullSource: TestFile = java(
     """
@@ -1249,21 +1472,49 @@ val androidxNonNullSource: TestFile = java(
 
 val androidxNullableSource: TestFile = java(
     """
-package androidx.annotation;
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
-@SuppressWarnings("WeakerAccess")
-@Retention(SOURCE)
-@Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-public @interface Nullable {
-}
-                """
-)
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @SuppressWarnings("WeakerAccess")
+    @Retention(SOURCE)
+    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    public @interface Nullable {
+    }
+    """
+).indented()
+
+val recentlyNonNullSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @SuppressWarnings("WeakerAccess")
+    @Retention(SOURCE)
+    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    public @interface RecentlyNonNull {
+    }
+    """
+).indented()
+
+val recentlyNullableSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @SuppressWarnings("WeakerAccess")
+    @Retention(SOURCE)
+    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    public @interface RecentlyNullable {
+    }
+    """
+).indented()
 
 val supportParameterName: TestFile = java(
     """
-    package android.support.annotation;
+    package androidx.annotation;
     import java.lang.annotation.*;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -1278,7 +1529,7 @@ val supportParameterName: TestFile = java(
 
 val supportDefaultValue: TestFile = java(
     """
-    package android.support.annotation;
+    package androidx.annotation;
     import java.lang.annotation.*;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -1293,7 +1544,7 @@ val supportDefaultValue: TestFile = java(
 
 val uiThreadSource: TestFile = java(
     """
-    package android.support.annotation;
+    package androidx.annotation;
     import java.lang.annotation.*;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -1317,7 +1568,7 @@ val uiThreadSource: TestFile = java(
 
 val workerThreadSource: TestFile = java(
     """
-    package android.support.annotation;
+    package androidx.annotation;
     import java.lang.annotation.*;
     import static java.lang.annotation.ElementType.*;
     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -1338,17 +1589,17 @@ val workerThreadSource: TestFile = java(
 
 val suppressLintSource: TestFile = java(
     """
-package android.annotation;
+    package android.annotation;
 
-import static java.lang.annotation.ElementType.*;
-import java.lang.annotation.*;
-@Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE})
-@Retention(RetentionPolicy.CLASS)
-public @interface SuppressLint {
-    String[] value();
-}
-                """
-)
+    import static java.lang.annotation.ElementType.*;
+    import java.lang.annotation.*;
+    @Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE})
+    @Retention(RetentionPolicy.CLASS)
+    public @interface SuppressLint {
+        String[] value();
+    }
+    """
+).indented()
 
 val systemServiceSource: TestFile = java(
     """

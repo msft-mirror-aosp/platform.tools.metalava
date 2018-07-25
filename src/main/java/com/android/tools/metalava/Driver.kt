@@ -18,17 +18,19 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.ide.common.process.CachedProcessOutputHandler
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.ProcessInfoBuilder
+import com.android.ide.common.process.ProcessOutput
+import com.android.ide.common.process.ProcessOutputHandler
 import com.android.tools.lint.KotlinLintAnalyzerFacade
 import com.android.tools.lint.LintCoreApplicationEnvironment
 import com.android.tools.lint.LintCoreProjectEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
+import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiFile
 import com.android.tools.metalava.doclava1.ApiParseException
@@ -46,11 +48,12 @@ import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
+import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.roots.LanguageLevelProjectExtension
 import com.intellij.openapi.util.Disposer
-import com.intellij.psi.PsiClassOwner
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.util.concurrent.TimeUnit
@@ -87,8 +90,8 @@ fun run(
     setExitCode: Boolean = false
 ): Boolean {
 
-    if (System.getenv("METALAVA_DUMP_ARGV") != null &&
-        !java.lang.Boolean.getBoolean("METALAVA_TESTS_RUNNING")
+    if (System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) != null &&
+        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
     ) {
         stdout.println("---Running $PROGRAM_NAME----")
         stdout.println("pwd=${File("").absolutePath}")
@@ -146,6 +149,22 @@ private fun exit(exitCode: Int = 0) {
 private fun processFlags() {
     val stopwatch = Stopwatch.createStarted()
 
+    // --copy-annotations?
+    val privateAnnotationsSource = options.privateAnnotationsSource
+    val privateAnnotationsTarget = options.privateAnnotationsTarget
+    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
+        val rewrite = RewriteAnnotations()
+        // Support pointing to both stub-annotations and stub-annotations/src/main/java
+        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
+        val source = if (src.isDirectory) src else privateAnnotationsSource
+        source.listFiles()?.forEach { file ->
+            rewrite.modifyAnnotationSources(file, File(privateAnnotationsTarget, file.name))
+        }
+    }
+
+    // --rewrite-annotations?
+    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
+
     val codebase =
         if (options.sources.size == 1 && options.sources[0].path.endsWith(SdkConstants.DOT_TXT)) {
             loadFromSignatureFiles(
@@ -156,8 +175,10 @@ private fun processFlags() {
             loadFromJarFile(options.apiJar!!)
         } else if (options.sources.size == 1 && options.sources[0].path.endsWith(SdkConstants.DOT_JAR)) {
             loadFromJarFile(options.sources[0])
-        } else {
+        } else if (options.sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
             loadFromSources()
+        } else {
+            return
         }
     options.manifest?.let { codebase.manifest = it }
 
@@ -172,7 +193,7 @@ private fun processFlags() {
         ApiGenerator.generate(apiLevelJars, androidApiLevelXml, codebase)
     }
 
-    if (options.stubsDir != null && codebase.supportsDocumentation()) {
+    if ((options.stubsDir != null || options.docStubsDir != null) && codebase.supportsDocumentation()) {
         progress("\nEnhancing docs: ")
         val docAnalyzer = DocAnalyzer(codebase)
         docAnalyzer.enhance()
@@ -184,10 +205,35 @@ private fun processFlags() {
         }
     }
 
+    // Generate the documentation stubs *before* we migrate nullness information.
+    options.docStubsDir?.let {
+        createStubFiles(
+            it, codebase, docStubs = true,
+            writeStubList = options.docStubsSourceList != null
+        )
+    }
+
+    val currentApiFile = options.currentApi
+    if (currentApiFile != null && options.checkCompatibility) {
+        val current =
+            if (currentApiFile.path.endsWith(SdkConstants.DOT_JAR)) {
+                loadFromJarFile(currentApiFile)
+            } else {
+                loadFromSignatureFiles(
+                    currentApiFile, options.inputKotlinStyleNulls,
+                    supportsStagedNullability = true
+                )
+            }
+
+        // If configured, compares the new API with the previous API and reports
+        // any incompatibilities.
+        CompatibilityCheck.checkCompatibility(codebase, current)
+    }
+
     val previousApiFile = options.previousApi
     if (previousApiFile != null) {
         val previous =
-            if (previousApiFile.path.endsWith(DOT_JAR)) {
+            if (previousApiFile.path.endsWith(SdkConstants.DOT_JAR)) {
                 loadFromJarFile(previousApiFile)
             } else {
                 loadFromSignatureFiles(
@@ -198,7 +244,7 @@ private fun processFlags() {
 
         // If configured, compares the new API with the previous API and reports
         // any incompatibilities.
-        if (options.checkCompatibility) {
+        if (options.checkCompatibility && options.currentApi == null) { // otherwise checked against currentApi above
             CompatibilityCheck.checkCompatibility(codebase, previous)
         }
 
@@ -208,11 +254,136 @@ private fun processFlags() {
         // as warnings instead of errors
 
         migrateNulls(codebase, previous)
+
+        previous.dispose()
     }
 
     // Based on the input flags, generates various output files such
     // as signature files and/or stubs files
-    generateOutputs(codebase)
+    options.apiFile?.let { apiFile ->
+        val apiFilter = FilterPredicate(ApiPredicate(codebase))
+        val apiReference = ApiPredicate(codebase, ignoreShown = true)
+        val apiEmit = apiFilter.and(ElidingPredicate(apiReference))
+
+        createReportFile(codebase, apiFile, "API") { printWriter ->
+            val preFiltered = codebase.original != null
+            SignatureWriter(printWriter, apiEmit, apiReference, preFiltered)
+        }
+    }
+
+    options.dexApiFile?.let { apiFile ->
+        val apiFilter = FilterPredicate(ApiPredicate(codebase))
+        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
+        val apiReference = ApiPredicate(codebase, ignoreShown = true)
+        val dexApiEmit = memberIsNotCloned.and(apiFilter)
+
+        createReportFile(
+            codebase, apiFile, "DEX API"
+        ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
+    }
+
+    options.removedApiFile?.let { apiFile ->
+        val unfiltered = codebase.original ?: codebase
+
+        val removedFilter = FilterPredicate(ApiPredicate(codebase, matchRemoved = true))
+        val removedReference = ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = true)
+        val removedEmit = removedFilter.and(ElidingPredicate(removedReference))
+
+        createReportFile(unfiltered, apiFile, "removed API") { printWriter ->
+            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null)
+        }
+    }
+
+    options.removedDexApiFile?.let { apiFile ->
+        val unfiltered = codebase.original ?: codebase
+
+        val removedFilter = FilterPredicate(ApiPredicate(codebase, matchRemoved = true))
+        val removedReference = ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = true)
+        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
+        val removedDexEmit = memberIsNotCloned.and(removedFilter)
+
+        createReportFile(
+            unfiltered, apiFile, "removed DEX API"
+        ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
+    }
+
+    options.privateApiFile?.let { apiFile ->
+        val apiFilter = FilterPredicate(ApiPredicate(codebase))
+        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
+        val privateEmit = memberIsNotCloned.and(apiFilter.negate())
+        val privateReference = Predicate<Item> { true }
+
+        createReportFile(codebase, apiFile, "private API") { printWriter ->
+            SignatureWriter(printWriter, privateEmit, privateReference, codebase.original != null)
+        }
+    }
+
+    options.privateDexApiFile?.let { apiFile ->
+        val apiFilter = FilterPredicate(ApiPredicate(codebase))
+        val privateEmit = apiFilter.negate()
+        val privateReference = Predicate<Item> { true }
+
+        createReportFile(
+            codebase, apiFile, "private DEX API"
+        ) { printWriter ->
+            DexApiWriter(
+                printWriter, privateEmit, privateReference, inlineInheritedFields = false
+            )
+        }
+    }
+
+    options.proguard?.let { proguard ->
+        val apiEmit = FilterPredicate(ApiPredicate(codebase))
+        val apiReference = ApiPredicate(codebase, ignoreShown = true)
+        createReportFile(
+            codebase, proguard, "Proguard file"
+        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
+    }
+
+    options.sdkValueDir?.let { dir ->
+        dir.mkdirs()
+        SdkFileWriter(codebase, dir).generate()
+    }
+
+    // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
+
+    options.stubsDir?.let {
+        createStubFiles(
+            it, codebase, docStubs = false,
+            writeStubList = options.stubsSourceList != null
+        )
+
+        val stubAnnotations = options.copyStubAnnotationsFrom
+        if (stubAnnotations != null) {
+            // Support pointing to both stub-annotations and stub-annotations/src/main/java
+            val src = File(stubAnnotations, "src${File.separator}main${File.separator}java")
+            val source = if (src.isDirectory) src else stubAnnotations
+            source.listFiles()?.forEach { file ->
+                RewriteAnnotations().copyAnnotations(file, File(it, file.name))
+            }
+        }
+    }
+
+    if (options.docStubsDir == null && options.stubsDir == null) {
+        val writeStubsFile: (File) -> Unit = { file ->
+            val root = File("").absoluteFile
+            val sources = options.sources
+            val rootPath = root.path
+            val contents = sources.joinToString(" ") {
+                val path = it.path
+                if (path.startsWith(rootPath)) {
+                    path.substring(rootPath.length)
+                } else {
+                    path
+                }
+            }
+            Files.asCharSink(file, UTF_8).write(contents)
+        }
+        options.stubsSourceList?.let(writeStubsFile)
+        options.docStubsSourceList?.let(writeStubsFile)
+    }
+    options.externalAnnotations?.let { extractAnnotations(codebase, it) }
+    progress("\n")
 
     // Coverage stats?
     if (options.dumpAnnotationStatistics) {
@@ -244,8 +415,8 @@ fun invokeDocumentationTool() {
     if (args.isNotEmpty()) {
         if (!options.quiet) {
             options.stdout.println(
-                "Invoking external documentation tool ${args[0]} with arguments ${
-                args.slice(1 until args.size).joinToString { it }}"
+                "Invoking external documentation tool ${args[0]} with arguments\n\"${
+                args.slice(1 until args.size).joinToString(separator = "\",\n\"") { it }}\""
             )
             options.stdout.flush()
         }
@@ -255,21 +426,51 @@ fun invokeDocumentationTool() {
         builder.setExecutable(File(args[0]))
         builder.addArgs(args.slice(1 until args.size))
 
-        val processOutputHandler = CachedProcessOutputHandler()
+        val processOutputHandler =
+            if (options.quiet) {
+                CachedProcessOutputHandler()
+            } else {
+                object : ProcessOutputHandler {
+                    override fun handleOutput(processOutput: ProcessOutput?) {
+                    }
+
+                    override fun createOutput(): ProcessOutput {
+                        return object : ProcessOutput {
+                            override fun getStandardOutput(): OutputStream {
+                                return System.out
+                            }
+
+                            override fun getErrorOutput(): OutputStream {
+                                return System.err
+                            }
+
+                            override fun close() {
+                                System.out.flush()
+                                System.err.flush()
+                            }
+                        }
+                    }
+                }
+            }
 
         val result = DefaultProcessExecutor(StdLogger(ERROR))
             .execute(builder.createProcess(), processOutputHandler)
-        val output = processOutputHandler.processOutput
-        output.standardOutputAsString
-        output.errorOutputAsString
 
         val exitCode = result.exitValue
-        options.stdout.println("${args[0]} finished with exitCode $exitCode")
-        options.stdout.flush()
+        if (!options.quiet) {
+            options.stdout.println("${args[0]} finished with exitCode $exitCode")
+            options.stdout.flush()
+        }
         if (exitCode != 0) {
+            val stdout = if (processOutputHandler is CachedProcessOutputHandler)
+                processOutputHandler.processOutput.errorOutputAsString
+            else ""
+            val stderr = if (processOutputHandler is CachedProcessOutputHandler)
+                processOutputHandler.processOutput.errorOutputAsString
+            else ""
             throw DriverException(
-                stdout = output.standardOutputAsString,
-                stderr = output.errorOutputAsString,
+                stdout = "Invoking documentation tool ${args[0]} failed with exit code $exitCode\n$stdout",
+                stderr = stderr,
                 exitCode = exitCode
             )
         }
@@ -278,15 +479,18 @@ fun invokeDocumentationTool() {
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
     if (options.migrateNulls) {
-        val prev = previous.supportsStagedNullability
+        val codebaseSupportsNullability = previous.supportsStagedNullability
+        val prevSupportsNullability = previous.supportsStagedNullability
         try {
             previous.supportsStagedNullability = true
+            codebase.supportsStagedNullability = true
             previous.compareWith(
                 NullnessMigration(), codebase,
                 ApiPredicate(codebase)
             )
         } finally {
-            previous.supportsStagedNullability = prev
+            previous.supportsStagedNullability = prevSupportsNullability
+            codebase.supportsStagedNullability = codebaseSupportsNullability
         }
     }
 }
@@ -343,7 +547,7 @@ private fun loadFromSources(): Codebase {
     val project = projectEnvironment.project
 
     val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-    KotlinLintAnalyzerFacade.analyze(kotlinFiles, joined, project)
+    KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
 
     val units = Extractor.createUnitsForFiles(project, sources)
     val packageDocs = gatherHiddenPackagesFromJavaDocs(options.sourcePath)
@@ -369,10 +573,8 @@ private fun loadFromSources(): Codebase {
     // General API checks for Android APIs
     AndroidApiChecks().check(codebase)
 
-    val ignoreShown = options.showUnannotated
-
-    val filterEmit = ApiPredicate(codebase, ignoreShown = ignoreShown, ignoreRemoved = false)
-    val apiEmit = ApiPredicate(codebase, ignoreShown = ignoreShown)
+    val filterEmit = ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = false)
+    val apiEmit = ApiPredicate(codebase, ignoreShown = true)
     val apiReference = ApiPredicate(codebase, ignoreShown = true)
 
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary
@@ -381,7 +583,7 @@ private fun loadFromSources(): Codebase {
 
     // Compute default constructors (and add missing package private constructors
     // to make stubs compilable if necessary)
-    if (options.stubsDir != null) {
+    if (options.stubsDir != null || options.docStubsDir != null) {
         progress("\nInsert missing constructors: ")
         analyzer.addConstructors(filterEmit)
     }
@@ -414,7 +616,7 @@ private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
     projectEnvironment.registerPaths(listOf(apiJar))
 
     val kotlinFiles = emptyList<File>()
-    KotlinLintAnalyzerFacade.analyze(kotlinFiles, listOf(apiJar), project)
+    KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project)
 
     val codebase = PsiBasedCodebase()
     codebase.description = "Codebase loaded from $apiJar"
@@ -431,6 +633,13 @@ private fun createProjectEnvironment(): LintCoreProjectEnvironment {
     ensurePsiFileCapacity()
     val appEnv = LintCoreApplicationEnvironment.get()
     val parentDisposable = Disposer.newDisposable()
+
+    if (!assertionsEnabled() &&
+        System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
+        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)) {
+        DefaultLogger.disableStderrDumping(parentDisposable)
+    }
+
     return LintCoreProjectEnvironment.create(parentDisposable, appEnv)
 }
 
@@ -442,117 +651,32 @@ private fun ensurePsiFileCapacity() {
     }
 }
 
-private fun generateOutputs(codebase: Codebase) {
-
-    options.apiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate(codebase))
-        val apiReference = ApiPredicate(codebase, ignoreShown = true)
-        val apiEmit = apiFilter.and(ElidingPredicate(apiReference))
-
-        createReportFile(codebase, apiFile, "API") { printWriter ->
-            val preFiltered = codebase.original != null
-            SignatureWriter(printWriter, apiEmit, apiReference, preFiltered)
-        }
-    }
-
-    options.removedApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
-        val removedFilter = FilterPredicate(ApiPredicate(codebase, matchRemoved = true))
-        val removedReference = ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = true)
-        val removedEmit = removedFilter.and(ElidingPredicate(removedReference))
-
-        createReportFile(unfiltered, apiFile, "removed API") { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null)
-        }
-    }
-
-    options.removedDexApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
-        val removedFilter = FilterPredicate(ApiPredicate(codebase, matchRemoved = true))
-        val removedReference = ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = true)
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val removedDexEmit = memberIsNotCloned.and(removedFilter)
-
-        createReportFile(
-            unfiltered, apiFile, "removed DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
-    }
-
-    options.privateApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate(codebase))
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val privateEmit = memberIsNotCloned.and(apiFilter.negate())
-        val privateReference = Predicate<Item> { true }
-
-        createReportFile(codebase, apiFile, "private API") { printWriter ->
-            SignatureWriter(printWriter, privateEmit, privateReference, codebase.original != null)
-        }
-    }
-
-    options.privateDexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate(codebase))
-        val privateEmit = apiFilter.negate()
-        val privateReference = Predicate<Item> { true }
-
-        createReportFile(
-            codebase, apiFile, "private DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, privateEmit, privateReference) }
-    }
-
-    options.proguard?.let { proguard ->
-        val apiEmit = FilterPredicate(ApiPredicate(codebase))
-        val apiReference = ApiPredicate(codebase, ignoreShown = true)
-        createReportFile(
-            codebase, proguard, "Proguard file"
-        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
-    }
-
-    options.sdkValueDir?.let { dir ->
-        dir.mkdirs()
-        SdkFileWriter(codebase, dir).generate()
-    }
-
-    options.stubsDir?.let { createStubFiles(it, codebase) }
-    // Otherwise, if we've asked to write out a file list, write out the
-    // input file list instead
-        ?: options.stubsSourceList?.let { file ->
-            val root = File("").absoluteFile
-            val sources = options.sources
-            val rootPath = root.path
-            val contents = sources.joinToString(" ") {
-                val path = it.path
-                if (path.startsWith(rootPath)) {
-                    path.substring(rootPath.length)
-                } else {
-                    path
-                }
-            }
-            Files.asCharSink(file, UTF_8).write(contents)
-        }
-
-    options.externalAnnotations?.let { extractAnnotations(codebase, it) }
-    progress("\n")
-}
-
 private fun extractAnnotations(codebase: Codebase, file: File) {
     val localTimer = Stopwatch.createStarted()
-    val units = codebase.units
 
-    @Suppress("UNCHECKED_CAST")
-    ExtractAnnotations().extractAnnotations(units.asSequence().filter { it is PsiClassOwner }.toList() as List<PsiClassOwner>)
-    if (options.verbose) {
-        options.stdout.print("\n$PROGRAM_NAME extracted annotations into $file in $localTimer")
-        options.stdout.flush()
+    options.externalAnnotations?.let { outputFile ->
+        @Suppress("UNCHECKED_CAST")
+        ExtractAnnotations(
+            codebase,
+            outputFile
+        ).extractAnnotations()
+        if (options.verbose) {
+            options.stdout.print("\n$PROGRAM_NAME extracted annotations into $file in $localTimer")
+            options.stdout.flush()
+        }
     }
 }
 
-private fun createStubFiles(stubDir: File, codebase: Codebase) {
+private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean, writeStubList: Boolean) {
     // Generating stubs from a sig-file-based codebase is problematic
     assert(codebase.supportsDocumentation())
 
-    progress("\nGenerating stub files: ")
+    if (docStubs) {
+        progress("\nGenerating documentation stub files: ")
+    } else {
+        progress("\nGenerating stub files: ")
+    }
+
     val localTimer = Stopwatch.createStarted()
     val prevCompatibility = compatibility
     if (compatibility.compat) {
@@ -565,58 +689,43 @@ private fun createStubFiles(stubDir: File, codebase: Codebase) {
         compatibility.useErasureInThrows = prevCompatibility.useErasureInThrows
     }
 
+    // Fow now, we don't put annotations into documentation stub files, unless you're explicitly
+    // generating only documentation stubs *and* asked to include annotations
+    val generateAnnotations = options.generateAnnotations && (!docStubs || options.stubsDir == null)
+
     val stubWriter =
         StubWriter(
-            codebase = codebase, stubsDir = stubDir, generateAnnotations = options.generateAnnotations,
-            preFiltered = codebase.original != null
+            codebase = codebase,
+            stubsDir = stubDir,
+            generateAnnotations = generateAnnotations,
+            preFiltered = codebase.original != null,
+            docStubs = docStubs
         )
     codebase.accept(stubWriter)
 
-    // Optionally also write out a list of source files that were generated; used
-    // for example to point javadoc to the stubs output to generate documentation
-    options.stubsSourceList?.let {
-        val root = File("").absoluteFile
-        stubWriter.writeSourceList(it, root)
+    if (writeStubList) {
+        // Optionally also write out a list of source files that were generated; used
+        // for example to point javadoc to the stubs output to generate documentation
+        val file = if (docStubs) {
+            options.docStubsSourceList ?: options.stubsSourceList
+        } else {
+            options.stubsSourceList
+        }
+        file?.let {
+            val root = File("").absoluteFile
+            stubWriter.writeSourceList(it, root)
+        }
     }
-
-    /*
-    // Temporary hack: Also write out annotations to make stub compilation work. This is
-    // just temporary: the Makefiles for the platform should be updated to supply a
-    // boot classpath instead.
-    val nullable = File(stubDir, "android/support/annotation/Nullable.java")
-    val nonnull = File(stubDir, "android/support/annotation/NonNull.java")
-    nullable.parentFile.mkdirs()
-    nonnull.parentFile.mkdirs()
-    Files.asCharSink(nullable, UTF_8).write(
-        "package android.support.annotation;\n" +
-                "import java.lang.annotation.*;\n" +
-                "import static java.lang.annotation.ElementType.*;\n" +
-                "import static java.lang.annotation.RetentionPolicy.SOURCE;\n" +
-                "@SuppressWarnings(\"WeakerAccess\")\n" +
-                "@Retention(SOURCE)\n" +
-                "@Target({METHOD, PARAMETER, FIELD})\n" +
-                "public @interface Nullable {\n" +
-                "}\n"
-    )
-    Files.asCharSink(nonnull, UTF_8).write(
-        "package android.support.annotation;\n" +
-                "import java.lang.annotation.*;\n" +
-                "import static java.lang.annotation.ElementType.*;\n" +
-                "import static java.lang.annotation.RetentionPolicy.SOURCE;\n" +
-                "@SuppressWarnings(\"WeakerAccess\")\n" +
-                "@Retention(SOURCE)\n" +
-                "@Target({METHOD, PARAMETER, FIELD})\n" +
-                "public @interface NonNull {\n" +
-                "}\n"
-    )
-    */
 
     compatibility = prevCompatibility
 
-    progress("\n$PROGRAM_NAME wrote stubs directory $stubDir in ${localTimer.elapsed(SECONDS)} seconds")
+    progress(
+        "\n$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
+        localTimer.elapsed(SECONDS)} seconds"
+    )
 }
 
-private fun progress(message: String) {
+fun progress(message: String) {
     if (options.verbose) {
         options.stdout.print(message)
         options.stdout.flush()
@@ -657,6 +766,9 @@ fun resetTicker() {
 fun tick() {
     tick++
     if (tick % 100 == 0) {
+        if (!options.verbose) {
+            return
+        }
         options.stdout.print(".")
         options.stdout.flush()
     }

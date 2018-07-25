@@ -45,6 +45,10 @@ class Compatibility(
     /** Add in explicit `valueOf` and `values` methods into annotation classes  */
     var defaultAnnotationMethods: Boolean = compat
 
+    /** Whether signature files should contain annotation default values (as is already
+     * done for field default values) */
+    var includeAnnotationDefaults: Boolean = !compat
+
     /** In signature files, refer to enums as "class" instead of "enum" */
     var classForEnums: Boolean = compat
 
@@ -54,16 +58,13 @@ class Compatibility(
     var nonstandardModifierOrder: Boolean = compat
 
     /** In signature files, skip the native modifier from the modifier lists */
-    var skipNativeModifier: Boolean = nonstandardModifierOrder
+    var skipNativeModifier: Boolean = false
 
     /** In signature files, skip the strictfp modifier from the modifier lists */
-    var skipStrictFpModifier: Boolean = nonstandardModifierOrder
+    var skipStrictFpModifier: Boolean = false
 
     /** Whether to include instance methods in annotation classes for the annotation properties */
     var skipAnnotationInstanceMethods: Boolean = compat
-
-    /** Include spaces after commas in type strings */
-    var spacesAfterCommas: Boolean = compat
 
     /**
      * In signature files, whether interfaces should also be described as "abstract"

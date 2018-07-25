@@ -75,6 +75,7 @@ open class PsiClassItem(
     }
 
     override var defaultConstructor: ConstructorItem? = null
+    override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
     override fun containingClass(): PsiClassItem? = containingClass
@@ -512,6 +513,9 @@ open class PsiClassItem(
                     psiClass, result,
                     "public static final ${psiClass.qualifiedName}[] values() { return null; }"
                 )
+                // Also add a private constructor; used when emitting the private API
+                val psiMethod = codebase.createConstructor("private ${psiClass.name}", psiClass)
+                result.add(PsiConstructorItem.create(codebase, classItem, psiMethod))
             }
         }
 

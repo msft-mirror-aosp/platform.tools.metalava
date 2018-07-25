@@ -42,7 +42,7 @@ interface MethodItem : MemberItem {
      * e.g. for the method "void create(int x, int y)" the internal name of
      * the constructor is "create" and the desc is "(II)V"
      */
-    fun internalDesc(voidConstructorTypes: Boolean): String {
+    fun internalDesc(voidConstructorTypes: Boolean = false): String {
         val sb = StringBuilder()
         sb.append("(")
 
@@ -378,6 +378,10 @@ interface MethodItem : MemberItem {
     }
 
     override fun hasNullnessInfo(): Boolean {
+        if (!requiresNullnessInfo()) {
+            return true
+        }
+
         if (!isConstructor() && returnType()?.primitive != true) {
             if (!modifiers.hasNullnessInfo()) {
                 return false
@@ -401,6 +405,22 @@ interface MethodItem : MemberItem {
     /** Finds uncaught exceptions actually thrown inside this method (as opposed to ones
      * declared in the signature) */
     fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
+
+    /** If annotation method, returns the default value as a source expression */
+    fun defaultValue(): String = ""
+
+    /**
+     * Check the declared default annotation value and return true if the defaults
+     * are the same. Only defined on two annotation methods; for all other
+     * methods the result is "true".
+     */
+    fun hasSameValue(other: MethodItem): Boolean {
+        if (!containingClass().isAnnotationType() || !other.containingClass().isAnnotationType()) {
+            return true
+        }
+
+        return defaultValue() == other.defaultValue()
+    }
 
     /**
      * Returns true if this method is a signature match for the given method (e.g. can

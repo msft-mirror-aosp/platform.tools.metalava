@@ -88,7 +88,7 @@ class ApiFileTest : DriverTest() {
                 java(
                     """
                     package test.pkg;
-                    import android.support.annotation.ParameterName;
+                    import androidx.annotation.ParameterName;
 
                     public class Foo {
                         public void foo(int javaParameter1, @ParameterName("publicParameterName") int javaParameter2) {
@@ -106,7 +106,7 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                  """,
-            extraArguments = arrayOf("--hide-package", "android.support.annotation"),
+            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             checkDoclava1 = false /* doesn't support parameter names */
         )
     }
@@ -120,7 +120,7 @@ class ApiFileTest : DriverTest() {
                 java(
                     """
                     package test.pkg;
-                    import android.support.annotation.DefaultValue;
+                    import androidx.annotation.DefaultValue;
 
                     public class Foo {
                         public void foo(
@@ -137,11 +137,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(String! = "null", String! = "\"Hello World\"", int = "42");
+                    method public void foo(String! = null, String! = "Hello World", int = 42);
                   }
                 }
                  """,
-            extraArguments = arrayOf("--hide-package", "android.support.annotation"),
+            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             checkDoclava1 = false /* doesn't support default Values */
         )
     }
@@ -157,7 +157,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
 
                     class Foo {
-                        fun error(int: Int = 42, int2: Int? = null, byte: Int = 42) { }
+                        fun error(int: Int = 42, int2: Int? = null, byte: Int = 42, vararg args: String) { }
                     }
                     """
                 )
@@ -166,11 +166,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public void error(int p = "42", Integer? int2 = "null", int p1 = "42");
+                    method public void error(int p = 42, Integer? int2 = null, int p1 = 42, java.lang.String... args);
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "android.support.annotation"),
+            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             checkDoclava1 = false /* doesn't support default Values */
         )
     }
@@ -246,7 +246,7 @@ class ApiFileTest : DriverTest() {
                   public static final class Kotlin.Companion {
                     ctor private Kotlin.Companion();
                   }
-                   internal static final class Kotlin.myHiddenClass extends kotlin.Unit {
+                  internal static final class Kotlin.myHiddenClass extends kotlin.Unit {
                     ctor public Kotlin.myHiddenClass();
                     method internal test.pkg.Kotlin.myHiddenClass copy();
                   }
@@ -339,8 +339,8 @@ class ApiFileTest : DriverTest() {
                     """
                     // Platform nullability Pair in Java
                     package androidx.util;
-                    import android.support.annotation.NonNull;
-                    import android.support.annotation.Nullable;
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
 
                     @SuppressWarnings("WeakerAccess")
                     public class NullableJavaPair<F, S> {
@@ -359,7 +359,7 @@ class ApiFileTest : DriverTest() {
                     // Platform nullability Pair in Java
                     package androidx.util;
 
-                    import android.support.annotation.NonNull;
+                    import androidx.annotation.NonNull;
 
                     @SuppressWarnings("WeakerAccess")
                     public class NonNullableJavaPair<F, S> {
@@ -381,8 +381,8 @@ class ApiFileTest : DriverTest() {
                     inline operator fun <F, S> PlatformJavaPair<F, S>.component1() = first
                     """
                 ),
-                supportNonNullSource,
-                supportNullableSource
+                androidxNonNullSource,
+                androidxNullableSource
             ),
             api = """
                 package androidx.util {
@@ -417,7 +417,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "android.support.annotation"),
+            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             checkDoclava1 = false /* doesn't support Kotlin... */
         )
     }
@@ -460,16 +460,16 @@ class ApiFileTest : DriverTest() {
                 package androidx.content {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static void blahblahblah(String, String firstArg = "\"hello\"", int secondArg = "\"42\"", String thirdArg = "\"world\"");
-                    method public static void blahblahblah(String, String firstArg = "\"hello\"", int secondArg = "\"42\"");
-                    method public static void blahblahblah(String, String firstArg = "\"hello\"");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = "42", String thirdArg = "world");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = "42");
+                    method public static void blahblahblah(String, String firstArg = "hello");
                     method public static void blahblahblah(String);
-                    method public static void edit(android.content.SharedPreferences, boolean commit = "false", kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     method public static void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "android.support.annotation"),
+            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             checkDoclava1 = false /* doesn't support default Values */
         )
     }
@@ -1013,8 +1013,8 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public abstract class Foo {
                         ctor public Foo();
-                        method public static final deprecated synchronized void method1();
-                        method public static final deprecated synchronized void method2();
+                        method public static final deprecated synchronized strictfp void method1();
+                        method public static final native deprecated synchronized void method2();
                       }
                       protected static final deprecated class Foo.Inner1 {
                         ctor protected Foo.Inner1();
@@ -1027,6 +1027,47 @@ class ApiFileTest : DriverTest() {
                         method public static void method4(int);
                       }
                     }
+                """
+        )
+    }
+
+    @Test
+    fun `Warn about findViewById`() {
+        // Include as many modifiers as possible to see which ones are included
+        // in the signature files, and the expected sorting order.
+        // Note that the signature files treat "deprecated" as a fake modifier.
+        // Note also how the "protected" modifier on the interface method gets
+        // promoted to public.
+        check(
+            checkDoclava1 = true,
+            compatibilityMode = false,
+            outputKotlinStyleNulls = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.Nullable;
+
+                    @SuppressWarnings("ALL")
+                    public abstract class Foo {
+                        @Nullable public String findViewById(int id) { return ""; }
+                    }
+                    """
+                ),
+                nullableSource
+            ),
+
+            warnings = """
+                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType:149]
+                """,
+
+            api = """
+                package test.pkg {
+                  public abstract class Foo {
+                    ctor public Foo();
+                    method public String findViewById(int);
+                  }
+                }
                 """
         )
     }
@@ -2027,7 +2068,15 @@ class ApiFileTest : DriverTest() {
                         ctor public Parent();
                       }
                     }
-                    """
+                    """,
+            dexApi = """
+                Ltest/pkg/Child;
+                Ltest/pkg/Child;-><init>()V
+                Ltest/pkg/Child;->toString()Ljava/lang/String;
+                Ltest/pkg/Parent;
+                Ltest/pkg/Parent;-><init>()V
+                Ltest/pkg/Parent;->toString()Ljava/lang/String;
+            """
         )
     }
 
@@ -2220,7 +2269,7 @@ class ApiFileTest : DriverTest() {
                         /** @hide */
                         @SuppressWarnings("UnnecessaryInterfaceModifier")
                         public interface MyInterface {
-                            public static final String MY_CONSTANT = 5;
+                            public static final String MY_CONSTANT = "5";
                         }
                     """
                 )
@@ -2228,18 +2277,18 @@ class ApiFileTest : DriverTest() {
             privateApi = """
                 package test.pkg {
                   public class Class1 implements test.pkg.MyInterface {
-                    ctor Class1(int);
+                    ctor  Class1(int);
                     method public void method1();
-                    method void method2();
+                    method  void method2();
                     method private void method3();
-                    method void myVarargsMethod(int, java.lang.String...);
-                    field int field3;
-                    field float[][] field4;
-                    field long[] field5;
+                    method  void myVarargsMethod(int, java.lang.String...);
+                    field  int field3;
+                    field  float[][] field4;
+                    field  long[] field5;
                     field private int field6;
                   }
                    class Class2 {
-                    ctor Class2();
+                    ctor  Class2();
                     method public void method4();
                   }
                   private class Class2.Class3 {
@@ -2247,11 +2296,11 @@ class ApiFileTest : DriverTest() {
                     method public void method5();
                   }
                    class Class4 {
-                    ctor Class4();
+                    ctor  Class4();
                     method public void method5();
                   }
                   public abstract interface MyInterface {
-                    field public static final java.lang.String MY_CONSTANT;
+                    field public static final java.lang.String MY_CONSTANT = "5";
                   }
                 }
                 """,
@@ -2276,6 +2325,110 @@ class ApiFileTest : DriverTest() {
                 Ltest/pkg/Class4;->method5()V
                 Ltest/pkg/MyInterface;
                 Ltest/pkg/MyInterface;->MY_CONSTANT:Ljava/lang/String;
+                """
+        )
+    }
+
+    @Test
+    fun `Private API signature corner cases`() {
+        // Some corner case scenarios exposed by differences in output from doclava and metalava
+        check(
+            checkDoclava1 = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        import android.os.Parcel;
+                        import android.os.Parcelable;
+                        import java.util.concurrent.FutureTask;
+
+                        public class Class1 extends PrivateParent implements MyInterface {
+                            Class1(int arg) { }
+
+                            @Override public String toString() {
+                                return "Class1";
+                            }
+
+                            private abstract class AmsTask extends FutureTask<String> {
+                                @Override
+                                protected void set(String bundle) {
+                                    super.set(bundle);
+                                }
+                            }
+
+                            /** @hide */
+                            public abstract static class TouchPoint implements Parcelable {
+                            }
+                        }
+                    """
+                ),
+
+                java(
+                    """
+                        package test.pkg;
+                        class PrivateParent {
+                            final String getValue() {
+                                return "";
+                            }
+                        }
+                    """
+                ),
+
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public enum MyEnum {
+                            FOO, BAR
+                        }
+                    """
+                ),
+
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings("UnnecessaryInterfaceModifier")
+                        public interface MyInterface {
+                            public static final String MY_CONSTANT = "5";
+                        }
+                    """
+                )
+            ),
+            privateApi = """
+                package test.pkg {
+                  public class Class1 extends test.pkg.PrivateParent implements test.pkg.MyInterface {
+                    ctor  Class1(int);
+                  }
+                  private abstract class Class1.AmsTask extends java.util.concurrent.FutureTask {
+                  }
+                  public static abstract class Class1.TouchPoint implements android.os.Parcelable {
+                    ctor public Class1.TouchPoint();
+                  }
+                  public final class MyEnum extends java.lang.Enum {
+                    ctor private MyEnum();
+                    enum_constant public static final test.pkg.MyEnum BAR;
+                    enum_constant public static final test.pkg.MyEnum FOO;
+                  }
+                   class PrivateParent {
+                    ctor  PrivateParent();
+                    method  final java.lang.String getValue();
+                  }
+                }
+                """,
+            privateDexApi = """
+                Ltest/pkg/Class1;-><init>(I)V
+                Ltest/pkg/Class1${"$"}AmsTask;
+                Ltest/pkg/Class1${"$"}TouchPoint;
+                Ltest/pkg/Class1${"$"}TouchPoint;-><init>()V
+                Ltest/pkg/MyEnum;
+                Ltest/pkg/MyEnum;-><init>()V
+                Ltest/pkg/MyEnum;->valueOf(Ljava/lang/String;)Ltest/pkg/MyEnum;
+                Ltest/pkg/MyEnum;->values()[Ltest/pkg/MyEnum;
+                Ltest/pkg/MyEnum;->BAR:Ltest/pkg/MyEnum;
+                Ltest/pkg/MyEnum;->FOO:Ltest/pkg/MyEnum;
+                Ltest/pkg/PrivateParent;
+                Ltest/pkg/PrivateParent;-><init>()V
+                Ltest/pkg/PrivateParent;->getValue()Ljava/lang/String;
                 """
         )
     }

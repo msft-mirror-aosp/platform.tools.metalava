@@ -85,6 +85,11 @@ interface ModifierList {
         return annotations().any { it.isNonNull() || it.isNullable() }
     }
 
+    /** Returns true if this modifier list contains any a Nullable annotation */
+    fun isNullable(): Boolean {
+        return annotations().any { it.isNullable() }
+    }
+
     /**
      * Returns true if this modifier list contains any annotations explicitly passed in
      * via [Options.showAnnotations]
@@ -183,7 +188,11 @@ interface ModifierList {
             omitCommonPackages: Boolean = false,
             removeAbstract: Boolean = false,
             removeFinal: Boolean = false,
-            addPublic: Boolean = false
+            addPublic: Boolean = false,
+            separateLines: Boolean = false,
+            onlyIncludeSignatureAnnotations: Boolean = true,
+            onlyIncludeStubAnnotations: Boolean = false,
+            onlyIncludeClassRetentionAnnotations: Boolean = false
         ) {
 
             val list = if (removeAbstract || removeFinal || addPublic) {
@@ -210,9 +219,16 @@ interface ModifierList {
                     list = list,
                     skipNullnessAnnotations = skipNullnessAnnotations,
                     omitCommonPackages = omitCommonPackages,
-                    separateLines = false,
-                    writer = writer
+                    separateLines = separateLines,
+                    writer = writer,
+                    onlyIncludeSignatureAnnotations = onlyIncludeSignatureAnnotations,
+                    onlyIncludeStubAnnotations = onlyIncludeStubAnnotations,
+                    onlyIncludeClassRetentionAnnotations = onlyIncludeClassRetentionAnnotations
                 )
+            }
+
+            if (compatibility.extraSpaceForEmptyModifiers && item.isPackagePrivate && item is MemberItem) {
+                writer.write(" ")
             }
 
             // Kotlin order:
@@ -379,19 +395,28 @@ interface ModifierList {
             omitCommonPackages: Boolean = false,
             separateLines: Boolean = false,
             filterDuplicates: Boolean = false,
-            writer: Writer
+            writer: Writer,
+            onlyIncludeSignatureAnnotations: Boolean = true,
+            onlyIncludeStubAnnotations: Boolean = true,
+            onlyIncludeClassRetentionAnnotations: Boolean = false
         ) {
             val annotations = list.annotations()
             if (annotations.isNotEmpty()) {
                 var index = -1
                 for (annotation in annotations) {
                     index++
-                    if ((annotation.isNonNull() || annotation.isNullable())) {
+                    if (onlyIncludeSignatureAnnotations && !annotation.isSignificantInSignatures()) {
+                        continue
+                    } else if (onlyIncludeStubAnnotations && !annotation.isSignificantInStubs()) {
+                        continue
+                    } else if (onlyIncludeClassRetentionAnnotations && !annotation.hasClassRetention() &&
+                        !options.includeSourceRetentionAnnotations
+                    ) {
+                        continue
+                    } else if ((annotation.isNonNull() || annotation.isNullable())) {
                         if (skipNullnessAnnotations) {
                             continue
                         }
-                    } else if (!annotation.isSignificant()) {
-                        continue
                     }
 
                     // Optionally filter out duplicates

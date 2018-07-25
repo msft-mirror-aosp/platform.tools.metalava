@@ -98,6 +98,17 @@ class SignatureWriter(
         writer.print(method.name())
         writeParameterList(method)
         writeThrowsList(method)
+
+        if (compatibility.includeAnnotationDefaults) {
+            if (method.containingClass().isAnnotationType()) {
+                val default = method.defaultValue()
+                if (default.isNotEmpty()) {
+                    writer.print(" default ")
+                    writer.print(default)
+                }
+            }
+        }
+
         writer.print(";\n")
     }
 
@@ -149,7 +160,10 @@ class SignatureWriter(
             includeDeprecated = true,
             includeAnnotations = compatibility.annotationsInSignatures,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
-            omitCommonPackages = options.omitCommonPackages
+            omitCommonPackages = options.omitCommonPackages,
+            onlyIncludeSignatureAnnotations = true,
+            onlyIncludeStubAnnotations = false,
+            onlyIncludeClassRetentionAnnotations = false
         )
     }
 
@@ -198,9 +212,20 @@ class SignatureWriter(
         }
 
         if (all.any()) {
-            val label = if (isInterface && !compatibility.extendsForInterfaceSuperClass) " extends" else " implements"
+            val label =
+                if (isInterface && !compatibility.extendsForInterfaceSuperClass) {
+                    val superInterface = cls.filteredSuperclass(filterReference)
+                    if (superInterface != null && !superInterface.isJavaLangObject()) {
+                        // For interfaces we've already listed "extends <super interface>"; we don't
+                        // want to repeat "extends " here
+                        ""
+                    } else {
+                        " extends"
+                    }
+                } else {
+                    " implements"
+                }
             writer.print(label)
-
             all.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print(" ")
                 writer.print(item.toTypeString(erased = compatibility.omitTypeParametersInInterfaces))
@@ -235,15 +260,14 @@ class SignatureWriter(
                 }
             }
             if (options.outputDefaultValues && parameter.hasDefaultValue()) {
-                writer.print(" = \"")
+                writer.print(" = ")
                 val defaultValue = parameter.defaultValue()
                 if (defaultValue != null) {
-                    writer.print(javaEscapeString(defaultValue))
+                    writer.print(defaultValue)
                 } else {
                     // null is a valid default value!
                     writer.print("null")
                 }
-                writer.print("\"")
             }
         }
         writer.print(")")

@@ -216,6 +216,12 @@ interface ClassItem : Item {
 
     var hasPrivateConstructor: Boolean
 
+    /**
+     * Maven artifact of this class, if any. (Not used for the Android SDK, but used in
+     * for example support libraries.
+     */
+    var artifact: String?
+
     override fun accept(visitor: ItemVisitor) {
         if (visitor is ApiVisitor) {
             accept(visitor)
@@ -376,6 +382,37 @@ interface ClassItem : Item {
             for (itf in interfaceTypes()) {
                 val cls = itf.asClass() ?: continue
                 cls.findMethod(template, includeSuperClasses, true)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /** Finds a given method in this class matching the VM name signature */
+    fun findMethodByDesc(
+        name: String,
+        desc: String,
+        includeSuperClasses: Boolean = false,
+        includeInterfaces: Boolean = false
+    ): MethodItem? {
+        if (desc.startsWith("<init>")) {
+            constructors().asSequence()
+                .filter { it.internalDesc() == desc }
+                .forEach { return it }
+            return null
+        } else {
+            methods().asSequence()
+                .filter { it.name() == name && it.internalDesc() == desc }
+                .forEach { return it }
+        }
+
+        if (includeSuperClasses) {
+            superClass()?.findMethodByDesc(name, desc, true, includeInterfaces)?.let { return it }
+        }
+
+        if (includeInterfaces) {
+            for (itf in interfaceTypes()) {
+                val cls = itf.asClass() ?: continue
+                cls.findMethodByDesc(name, desc, includeSuperClasses, true)?.let { return it }
             }
         }
         return null
@@ -615,6 +652,10 @@ interface ClassItem : Item {
     }
 
     fun allInnerClasses(includeSelf: Boolean = false): Sequence<ClassItem> {
+        if (!includeSelf && innerClasses().isEmpty()) {
+            return emptySequence()
+        }
+
         val list = ArrayList<ClassItem>()
         if (includeSelf) {
             list.add(this)
@@ -688,6 +729,7 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
                 cls.filteredFields(filterEmit).asSequence()
             } else {
                 cls.fields().asSequence()
+                    .filter { filterEmit.test(it) }
             }
         if (cls.isEnum()) {
             fields = fieldSequence

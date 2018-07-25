@@ -1,9 +1,11 @@
 <component name="ProjectDictionaryState">
   <dictionary name="metalava">
     <words>
+      <w>androidx</w>
       <w>apidocsdir</w>
       <w>argnum</w>
       <w>bootclasspath</w>
+      <w>bytecode</w>
       <w>canonicalized</w>
       <w>codebases</w>
       <w>ctor</w>
@@ -23,6 +25,7 @@
       <w>includeable</w>
       <w>inheritdoc</w>
       <w>interop</w>
+      <w>jaif</w>
       <w>javadocs</w>
       <w>jvmstatic</w>
       <w>knowntags</w>

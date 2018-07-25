@@ -44,7 +44,8 @@ class StubWriter(
     private val codebase: Codebase,
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val preFiltered: Boolean = true
+    private val preFiltered: Boolean = true,
+    docStubs: Boolean
 ) : ApiVisitor(
     visitConstructorsAsMethods = false,
     nestInnerClasses = true,
@@ -53,8 +54,8 @@ class StubWriter(
     // Methods are by default sorted in source order in stubs, to encourage methods
     // that are near each other in the source to show up near each other in the documentation
     methodComparator = MethodItem.sourceOrderComparator,
-    filterEmit = FilterPredicate(ApiPredicate(codebase)),
-    filterReference = ApiPredicate(codebase, ignoreShown = true),
+    filterEmit = FilterPredicate(ApiPredicate(codebase, ignoreShown = true, includeDocOnly = docStubs)),
+    filterReference = ApiPredicate(codebase, ignoreShown = true, includeDocOnly = docStubs),
     includeEmptyOuterClasses = true
 ) {
 
@@ -139,6 +140,9 @@ class StubWriter(
                 // Some bug in UAST triggers duplicate nullability annotations
                 // here; make sure the are filtered out
                 filterDuplicates = true,
+                onlyIncludeSignatureAnnotations = false,
+                onlyIncludeStubAnnotations = true,
+                onlyIncludeClassRetentionAnnotations = true,
                 writer = writer
             )
             writer.println("package ${pkg.qualifiedName()};")
@@ -202,6 +206,8 @@ class StubWriter(
             compilationUnit?.getImportStatements(filterReference)?.let {
                 for (item in it) {
                     when (item) {
+                        is PackageItem ->
+                            writer.println("import ${item.qualifiedName()}.*;")
                         is ClassItem ->
                             writer.println("import ${item.qualifiedName()};")
                         is MemberItem ->
@@ -247,8 +253,9 @@ class StubWriter(
                     if (first) {
                         first = false
                     } else {
-                        writer.write(", ")
+                        writer.write(",\n")
                     }
+                    appendDocumentation(field, writer)
                     writer.write(field.name())
                 }
             }
@@ -293,13 +300,19 @@ class StubWriter(
         removeFinal: Boolean = false,
         addPublic: Boolean = false
     ) {
+        val separateLines = item is ClassItem || item is MethodItem
         if (item.deprecated && generateAnnotations) {
-            writer.write("@Deprecated ")
+            writer.write("@Deprecated")
+            writer.write(if (separateLines) "\n" else " ")
         }
 
         ModifierList.write(
             writer, modifiers, item, removeAbstract = removeAbstract, removeFinal = removeFinal,
-            addPublic = addPublic, includeAnnotations = generateAnnotations
+            addPublic = addPublic, includeAnnotations = generateAnnotations,
+            onlyIncludeSignatureAnnotations = false,
+            onlyIncludeStubAnnotations = true,
+            onlyIncludeClassRetentionAnnotations = true,
+            separateLines = separateLines // not fields or parameters
         )
     }
 
@@ -495,6 +508,14 @@ class StubWriter(
         writer.print(method.name())
         generateParameterList(method)
         generateThrowsList(method)
+
+        if (isAnnotation) {
+            val default = method.defaultValue()
+            if (default.isNotEmpty()) {
+                writer.print(" default ")
+                writer.print(default)
+            }
+        }
 
         if (modifiers.isAbstract() && !removeAbstract && !isEnum || isAnnotation || modifiers.isNative()) {
             writer.println(";")

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
@@ -30,7 +31,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.VisibleItemVisitor
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
@@ -195,7 +195,7 @@ class ApiAnalyzer(
         if (!isLeaf || cls.hasPrivateConstructor || cls.constructors().isNotEmpty()) {
             val constructors = cls.constructors()
             for (constructor in constructors) {
-                if (constructor.parameters().isEmpty() && constructor.isPublic) {
+                if (constructor.parameters().isEmpty() && constructor.isPublic && !constructor.hidden) {
                     cls.defaultConstructor = constructor
                     return
                 }
@@ -274,7 +274,7 @@ class ApiAnalyzer(
         }
 
         val currentUsesAvailableTypes = !referencesExcludedType(current, filter)
-        val nextUsesAvailableTypes = !referencesExcludedType(current, filter)
+        val nextUsesAvailableTypes = !referencesExcludedType(next, filter)
         if (currentUsesAvailableTypes != nextUsesAvailableTypes) {
             return if (currentUsesAvailableTypes) {
                 current
@@ -491,6 +491,9 @@ class ApiAnalyzer(
                     method.documentation
              */
             method.inheritedMethod = true
+            // The documentation may use relative references to classes in import statements
+            // in the original class, so expand the documentation to be fully qualified
+            method.documentation = it.fullyQualifiedDocumentation()
             cls.addMethod(method)
         }
     }
@@ -516,7 +519,7 @@ class ApiAnalyzer(
     fun mergeExternalAnnotations() {
         val mergeAnnotations = options.mergeAnnotations
         if (!mergeAnnotations.isEmpty()) {
-            AnnotationsMerger(codebase, options.apiFilter).merge(mergeAnnotations)
+            AnnotationsMerger(codebase).merge(mergeAnnotations)
         }
     }
 
@@ -550,7 +553,7 @@ class ApiAnalyzer(
                     // Make containing package non-hidden if it contains a show-annotation
                     // class. Doclava does this in PackageInfo.isHidden().
                     cls.containingPackage().hidden = false
-                } else if (cls.modifiers.hasShowAnnotation()) {
+                } else if (cls.modifiers.hasHideAnnotations()) {
                     cls.hidden = true
                 } else if (containingClass != null) {
                     if (containingClass.hidden) {
@@ -620,41 +623,6 @@ class ApiAnalyzer(
                 }
             }
         })
-    }
-
-    private fun applyApiFilter() {
-        options.apiFilter?.let { filter ->
-            packages.accept(object : VisibleItemVisitor() {
-
-                override fun visitPackage(pkg: PackageItem) {
-                    if (!filter.hasPackage(pkg.qualifiedName())) {
-                        pkg.included = false
-                    }
-                }
-
-                override fun visitClass(cls: ClassItem) {
-                    if (!filter.hasClass(cls.qualifiedName())) {
-                        cls.included = false
-                    }
-                }
-
-                override fun visitMethod(method: MethodItem) {
-                    if (!filter.hasMethod(
-                            method.containingClass().qualifiedName(), method.name(),
-                            method.formatParameters()
-                        )
-                    ) {
-                        method.included = false
-                    }
-                }
-
-                override fun visitField(field: FieldItem) {
-                    if (!filter.hasField(field.containingClass().qualifiedName(), field.name())) {
-                        field.included = false
-                    }
-                }
-            })
-        }
     }
 
     private fun checkHiddenTypes() {
@@ -829,14 +797,38 @@ class ApiAnalyzer(
         packages.accept(object : ApiVisitor(codebase) {
             override fun visitItem(item: Item) {
                 // TODO: Check annotations and also mark removed/hidden based on annotations
-                if (item.deprecated && !item.documentation.contains("@deprecated")) {
+                if (item.deprecated && !item.documentation.contains("@deprecated") &&
+                    // Don't warn about this in Kotlin; the Kotlin deprecation annotation includes deprecation
+                    // messages (unlike java.lang.Deprecated which has no attributes). Instead, these
+                    // are added to the documentation by the [DocAnalyzer].
+                    !item.isKotlin()
+                ) {
                     reporter.report(
                         Errors.DEPRECATION_MISMATCH, item,
                         "${item.toString().capitalize()}: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match"
                     )
                 }
+
                 // TODO: Check opposite (doc tag but no annotation)
                 // TODO: Other checks
+            }
+
+            override fun visitMethod(method: MethodItem) {
+                // Make sure we don't annotate findViewById & getSystemService as @Nullable.
+                // See for example 68914170.
+                val name = method.name()
+                if ((name == "findViewById" || name == "getSystemService") && method.parameters().size == 1 &&
+                    method.modifiers.isNullable()
+                ) {
+                    reporter.report(
+                        Errors.EXPECTED_PLATFORM_TYPE, method,
+                        "$method should not be annotated @Nullable; it should be left unspecified to make it a platform type"
+                    )
+                    val annotation = method.modifiers.annotations().find { it.isNullable() }
+                    annotation?.let {
+                        method.mutableModifiers().removeAnnotation(it)
+                    }
+                }
             }
         })
     }
@@ -851,13 +843,15 @@ class ApiAnalyzer(
     private fun handleStripping(stubImportPackages: Set<String>) {
         val notStrippable = HashSet<ClassItem>(5000)
 
+        val filter = ApiPredicate(codebase, ignoreShown = true)
+
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
             .filter { it.checkLevel() && it.emit && !it.hidden() }
             .forEach {
-                cantStripThis(it, notStrippable, stubImportPackages)
+                cantStripThis(it, filter, notStrippable, stubImportPackages)
             }
 
         // complain about anything that looks includeable but is not supposed to
@@ -927,12 +921,17 @@ class ApiAnalyzer(
             } else if (cl.deprecated) {
                 // not hidden, but deprecated
                 reporter.report(Errors.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
+            } else {
+                // Bring this class back
+                cl.hidden = false
+                cl.removed = false
             }
         }
     }
 
     private fun cantStripThis(
         cl: ClassItem,
+        filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
         stubImportPackages: Set<String>?
     ) {
@@ -953,43 +952,36 @@ class ApiAnalyzer(
 
         // cant strip any public fields or their generics
         for (field in cl.fields()) {
-            if (!field.checkLevel()) {
+            if (!filter.test(field)) {
                 continue
             }
             val fieldType = field.type()
             if (!fieldType.primitive) {
                 val typeClass = fieldType.asClass()
                 if (typeClass != null) {
-                    cantStripThis(
-                        typeClass, notStrippable, stubImportPackages
-                    )
+                    cantStripThis(typeClass, filter, notStrippable, stubImportPackages)
                 }
                 for (cls in fieldType.typeArgumentClasses()) {
-                    cantStripThis(
-                        cls, notStrippable, stubImportPackages
-                    )
+                    cantStripThis(cls, filter, notStrippable, stubImportPackages)
                 }
             }
         }
         // cant strip any of the type's generics
         for (cls in cl.typeArgumentClasses()) {
-            cantStripThis(
-                cls, notStrippable, stubImportPackages
-            )
+            cantStripThis(cls, filter, notStrippable, stubImportPackages)
         }
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
-        cantStripThis(cl.methods(), notStrippable, stubImportPackages)
-        cantStripThis(cl.constructors(), notStrippable, stubImportPackages)
+        cantStripThis(cl.methods(), filter, notStrippable, stubImportPackages)
+        cantStripThis(cl.constructors(), filter, notStrippable, stubImportPackages)
         // blow the outer class open if this is an inner class
         val containingClass = cl.containingClass()
         if (containingClass != null) {
-            cantStripThis(
-                containingClass, notStrippable, stubImportPackages
-            )
+            cantStripThis(containingClass, filter, notStrippable, stubImportPackages)
         }
         // blow open super class and interfaces
+        // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
         val superClass = cl.superClass()
         if (superClass != null) {
             if (superClass.isHiddenOrRemoved()) {
@@ -1007,9 +999,7 @@ class ApiAnalyzer(
                     )
                 }
             } else {
-                cantStripThis(
-                    superClass, notStrippable, stubImportPackages
-                )
+                cantStripThis(superClass, filter, notStrippable, stubImportPackages)
                 if (superClass.isPrivate && !superClass.isFromClassPath()) {
                     reporter.report(
                         Errors.PRIVATE_SUPERCLASS, cl, "Public class " +
@@ -1022,26 +1012,22 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         methods: List<MethodItem>,
+        filter: Predicate<Item>,
         notStrippable: MutableSet<ClassItem>,
         stubImportPackages: Set<String>?
     ) {
         // for each method, blow open the parameters, throws and return types. also blow open their
         // generics
         for (method in methods) {
-            if (!method.checkLevel()) {
+            if (!filter.test(method)) {
                 continue
             }
             for (typeParameterClass in method.typeArgumentClasses()) {
-                cantStripThis(
-                    typeParameterClass, notStrippable,
-                    stubImportPackages
-                )
+                cantStripThis(typeParameterClass, filter, notStrippable, stubImportPackages)
             }
             for (parameter in method.parameters()) {
                 for (parameterTypeClass in parameter.type().typeArgumentClasses()) {
-                    cantStripThis(
-                        parameterTypeClass, notStrippable, stubImportPackages
-                    )
+                    cantStripThis(parameterTypeClass, filter, notStrippable, stubImportPackages)
                     for (tcl in parameter.type().typeArgumentClasses()) {
                         if (tcl.isHiddenOrRemoved()) {
                             reporter.report(
@@ -1050,32 +1036,21 @@ class ApiAnalyzer(
                                     "in ${method.containingClass().qualifiedName()}.${method.name()}()"
                             )
                         } else {
-                            cantStripThis(
-                                tcl, notStrippable,
-                                stubImportPackages
-                            )
+                            cantStripThis(tcl, filter, notStrippable, stubImportPackages)
                         }
                     }
                 }
             }
             for (thrown in method.throwsTypes()) {
-                cantStripThis(
-                    thrown, notStrippable, stubImportPackages
-                )
+                cantStripThis(thrown, filter, notStrippable, stubImportPackages)
             }
             val returnType = method.returnType()
             if (returnType != null && !returnType.primitive) {
                 val returnTypeClass = returnType.asClass()
                 if (returnTypeClass != null) {
-                    cantStripThis(
-                        returnTypeClass, notStrippable,
-                        stubImportPackages
-                    )
+                    cantStripThis(returnTypeClass, filter, notStrippable, stubImportPackages)
                     for (tyItem in returnType.typeArgumentClasses()) {
-                        cantStripThis(
-                            tyItem, notStrippable,
-                            stubImportPackages
-                        )
+                        cantStripThis(tyItem, filter, notStrippable, stubImportPackages)
                     }
                 }
             }

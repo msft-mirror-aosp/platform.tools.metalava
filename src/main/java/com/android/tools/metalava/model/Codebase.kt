@@ -139,6 +139,11 @@ interface Codebase {
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing
 
+    /** Discards this model */
+    fun dispose() {
+        description += " [disposed]"
+    }
+
     /** Whether this codebase supports staged nullability (RecentlyNullable etc) */
     var supportsStagedNullability: Boolean
 
@@ -155,7 +160,7 @@ abstract class DefaultCodebase : Codebase {
     override var manifest: File? = null
     private var permissions: Map<String, String>? = null
     override var original: Codebase? = null
-    override var supportsStagedNullability: Boolean = false
+    override var supportsStagedNullability: Boolean = true
     override var units: List<PsiFile> = emptyList()
     override var apiLevel: Int = -1
 
