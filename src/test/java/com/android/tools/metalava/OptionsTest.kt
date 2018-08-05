@@ -55,7 +55,8 @@ API sources:
                                        the sources, or a directory of such files. Formats
                                        supported are: IntelliJ's external annotations
                                        database format, .jar or .zip files containing
-                                       those, and Android signature files.
+                                       those, Android signature files, and Java stub
+                                       files.
 --input-api-jar <file>                 A .jar file to read APIs from directly
 --manifest <file>                      A manifest file, used to for check permissions to
                                        cross check APIs
@@ -101,6 +102,9 @@ Extracting Signature Files:
                                        kotlin.* in signature files, along with packages
                                        for well known annotations like @Nullable and
                                        @NonNull.
+--include-signature-version[=yes|no]   Whether the signature files should include a
+                                       comment listing the format version of the signature
+                                       file.
 --proguard <file>                      Write a ProGuard keep file for the API
 --sdk-values <dir>                     Write SDK values files to the given directory
 

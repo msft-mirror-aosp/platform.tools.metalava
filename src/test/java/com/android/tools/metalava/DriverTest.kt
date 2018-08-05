@@ -157,6 +157,8 @@ abstract class DriverTest {
         @Language("XML") mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
         @Language("TEXT") mergeSignatureAnnotations: String? = null,
+        /** Annotations to merge in (in Java stub format) */
+        @Language("JAVA") mergeJavaStubAnnotations: String? = null,
         /** An optional API signature file content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
@@ -222,7 +224,11 @@ abstract class DriverTest {
          * Whether to include source retention annotations in the stubs (in that case they do not
          * go into the extracted annotations zip file)
          */
-        includeSourceRetentionAnnotations: Boolean = true
+        includeSourceRetentionAnnotations: Boolean = true,
+        /**
+         * Whether to include the signature version in signatures
+         */
+        includeSignatureVersion: Boolean = false
     ) {
         System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, VALUE_TRUE)
 
@@ -243,8 +249,14 @@ abstract class DriverTest {
         }
         if (compatibilityMode && mergeSignatureAnnotations != null) {
             fail(
-                "Can't specify both compatibilityMode and mergeSignatureAnnotations: there were no " +
-                    "annotations output in doclava1"
+                    "Can't specify both compatibilityMode and mergeSignatureAnnotations: there were no " +
+                            "annotations output in doclava1"
+            )
+        }
+        if (compatibilityMode && mergeJavaStubAnnotations != null) {
+            fail(
+                    "Can't specify both compatibilityMode and mergeJavaStubAnnotations: there were no " +
+                            "annotations output in doclava1"
             )
         }
         Errors.resetLevels()
@@ -306,6 +318,14 @@ abstract class DriverTest {
         val signatureAnnotationsArgs = if (mergeSignatureAnnotations != null) {
             val merged = File(project, "merged-annotations.txt")
             Files.asCharSink(merged, Charsets.UTF_8).write(mergeSignatureAnnotations.trimIndent())
+            arrayOf("--merge-annotations", merged.path)
+        } else {
+            emptyArray()
+        }
+
+        val javaStubAnnotationsArgs = if (mergeJavaStubAnnotations != null) {
+            val merged = File(project, "merged-annotations.java")
+            Files.asCharSink(merged, Charsets.UTF_8).write(mergeJavaStubAnnotations.trimIndent())
             arrayOf("--merge-annotations", merged.path)
         } else {
             emptyArray()
@@ -597,10 +617,12 @@ abstract class DriverTest {
             "--output-kotlin-nulls=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "--input-kotlin-nulls=${if (inputKotlinStyleNulls) "yes" else "no"}",
             "--omit-common-packages=${if (omitCommonPackages) "yes" else "no"}",
+            "--include-signature-version=${if (includeSignatureVersion) "yes" else "no"}",
             *coverageStats,
             *quiet,
             *mergeAnnotationsArgs,
             *signatureAnnotationsArgs,
+            *javaStubAnnotationsArgs,
             *previousApiArgs,
             *migrateNullsArguments,
             *checkCompatibilityArguments,

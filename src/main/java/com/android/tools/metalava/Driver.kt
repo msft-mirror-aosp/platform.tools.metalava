@@ -51,6 +51,7 @@ import com.google.common.io.Files
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.roots.LanguageLevelProjectExtension
 import com.intellij.openapi.util.Disposer
+import com.intellij.util.execution.ParametersListUtil
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -106,7 +107,9 @@ fun run(
             if (args.isEmpty()) {
                 arrayOf("--help")
             } else {
-                args
+                val prepend = envVarToArgs(ENV_VAR_METALAVA_PREPEND_ARGS)
+                val append = envVarToArgs(ENV_VAR_METALAVA_APPEND_ARGS)
+                prepend + args + append
             }
 
         compatibility = Compatibility(compat = Options.useCompatMode(args))
@@ -137,6 +140,15 @@ fun run(
     return false
 }
 
+/**
+ * Given an environment variable name pointing to a shell argument string,
+ * returns the parsed argument strings (or empty array if not set)
+ */
+private fun envVarToArgs(varName: String): Array<String> {
+    val value = System.getenv(varName) ?: return emptyArray()
+    return ParametersListUtil.parse(value).toTypedArray()
+}
+
 private fun exit(exitCode: Int = 0) {
     if (options.verbose) {
         options.stdout.println("$PROGRAM_NAME exiting with exit code $exitCode")
@@ -158,7 +170,7 @@ private fun processFlags() {
         val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
         val source = if (src.isDirectory) src else privateAnnotationsSource
         source.listFiles()?.forEach { file ->
-            rewrite.modifyAnnotationSources(file, File(privateAnnotationsTarget, file.name))
+            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
         }
     }
 
@@ -359,7 +371,7 @@ private fun processFlags() {
             val src = File(stubAnnotations, "src${File.separator}main${File.separator}java")
             val source = if (src.isDirectory) src else stubAnnotations
             source.listFiles()?.forEach { file ->
-                RewriteAnnotations().copyAnnotations(file, File(it, file.name))
+                RewriteAnnotations().copyAnnotations(codebase, file, File(it, file.name))
             }
         }
     }
@@ -519,16 +531,10 @@ private fun loadFromSignatureFiles(
 }
 
 private fun loadFromSources(): Codebase {
-    val projectEnvironment = createProjectEnvironment()
-
-    // Push language level to PSI handler
-    projectEnvironment.project.getComponent(LanguageLevelProjectExtension::class.java)?.languageLevel =
-        options.javaLanguageLevel
-
     progress("\nProcessing sources: ")
 
     val sources = if (options.sources.isEmpty()) {
-        if (!options.quiet) {
+        if (options.verbose) {
             options.stdout.println("No source files specified: recursively including all sources found in the source path")
         }
         gatherSources(options.sourcePath)
@@ -536,28 +542,8 @@ private fun loadFromSources(): Codebase {
         options.sources
     }
 
-    val joined = mutableListOf<File>()
-    joined.addAll(options.sourcePath.map { it.absoluteFile })
-    joined.addAll(options.classpath.map { it.absoluteFile })
-    // Add in source roots implied by the source files
-    extractRoots(sources, joined)
-
-    // Create project environment with those paths
-    projectEnvironment.registerPaths(joined)
-    val project = projectEnvironment.project
-
-    val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-    KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
-
-    val units = Extractor.createUnitsForFiles(project, sources)
-    val packageDocs = gatherHiddenPackagesFromJavaDocs(options.sourcePath)
-
     progress("\nReading Codebase: ")
-
-    val codebase = PsiBasedCodebase("Codebase loaded from source folders")
-    codebase.initialize(project, units, packageDocs)
-    codebase.manifest = options.manifest
-    codebase.apiLevel = options.currentApiLevel
+    val codebase = parseSources(sources, "Codebase loaded from source folders")
 
     progress("\nAnalyzing API: ")
 
@@ -591,6 +577,41 @@ private fun loadFromSources(): Codebase {
     progress("\nPerforming misc API checks: ")
     analyzer.performChecks()
 
+    return codebase
+}
+
+/**
+ * Returns a codebase initialized from the given Java or Kotlin source files, with the given
+ * description. The codebase will use a project environment initialized according to the current
+ * [options].
+ */
+internal fun parseSources(sources: List<File>, description: String): PsiBasedCodebase {
+    val projectEnvironment = createProjectEnvironment()
+    val project = projectEnvironment.project
+
+    // Push language level to PSI handler
+    project.getComponent(LanguageLevelProjectExtension::class.java)?.languageLevel =
+            options.javaLanguageLevel
+
+    val joined = mutableListOf<File>()
+    joined.addAll(options.sourcePath.map { it.absoluteFile })
+    joined.addAll(options.classpath.map { it.absoluteFile })
+    // Add in source roots implied by the source files
+    extractRoots(options.sources, joined)
+
+    // Create project environment with those paths
+    projectEnvironment.registerPaths(joined)
+
+    val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
+    KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
+
+    val units = Extractor.createUnitsForFiles(project, sources)
+    val packageDocs = gatherHiddenPackagesFromJavaDocs(options.sourcePath)
+
+    val codebase = PsiBasedCodebase(description)
+    codebase.initialize(project, units, packageDocs)
+    codebase.manifest = options.manifest
+    codebase.apiLevel = options.currentApiLevel
     return codebase
 }
 

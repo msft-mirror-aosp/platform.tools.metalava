@@ -23,6 +23,7 @@ class AnnotationsMergerTest : DriverTest() {
     // TODO: Test what happens when we have conflicting data
     //   - NULLABLE_SOURCE on one non null on the other
     //   - annotation specified with different parameters (e.g @Size(4) vs @Size(6))
+    // Test with jar file
 
     @Test
     fun `Signature files contain annotations`() {
@@ -159,6 +160,43 @@ class AnnotationsMergerTest : DriverTest() {
                   public interface RandomClass {
                     method public test.pkg.Appendable append(java.lang.CharSequence);
                   }
+                }
+                """,
+            api = """
+                package test.pkg {
+                  public interface Appendable {
+                    method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Merge Java stub files`() {
+        check(
+            sourceFiles = *arrayOf(
+                    java(
+                            """
+                package test.pkg;
+
+                public interface Appendable {
+                    Appendable append(CharSequence csq) throws IOException;
+                }
+                """
+                    )
+            ),
+            compatibilityMode = false,
+            outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
+            mergeJavaStubAnnotations = """
+                package test.pkg;
+
+                import libcore.util.NonNull;
+                import libcore.util.Nullable;
+
+                public interface Appendable {
+                    @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
             api = """
