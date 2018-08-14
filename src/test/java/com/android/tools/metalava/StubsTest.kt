@@ -449,7 +449,7 @@ class StubsTest : DriverTest() {
                 public abstract class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 @Deprecated
-                public static final synchronized strictfp void method1() { throw new RuntimeException("Stub!"); }
+                public static final synchronized void method1() { throw new RuntimeException("Stub!"); }
                 @Deprecated
                 public static final synchronized native void method2();
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -520,6 +520,49 @@ class StubsTest : DriverTest() {
                 public int field2 = 2; // 0x2
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Skip hidden enum constants in stubs`() {
+        checkStubs(
+            checkDoclava1 = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public enum Alignment {
+                        ALIGN_NORMAL,
+                        ALIGN_OPPOSITE,
+                        ALIGN_CENTER,
+                        /** @hide */
+                        ALIGN_LEFT,
+                        /** @hide */
+                        ALIGN_RIGHT
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class Alignment extends java.lang.Enum {
+                    method public static test.pkg.Alignment valueOf(java.lang.String);
+                    method public static final test.pkg.Alignment[] values();
+                    enum_constant public static final test.pkg.Alignment ALIGN_CENTER;
+                    enum_constant public static final test.pkg.Alignment ALIGN_NORMAL;
+                    enum_constant public static final test.pkg.Alignment ALIGN_OPPOSITE;
+                  }
+                }
+            """,
+            source = """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public enum Alignment {
+                ALIGN_NORMAL,
+                ALIGN_OPPOSITE,
+                ALIGN_CENTER;
+                }
+            """
         )
     }
 
@@ -3118,7 +3161,7 @@ class StubsTest : DriverTest() {
                     method public abstract boolean hasAdjacentMapping() default false;
                     method public abstract int integer() default 1;
                     method public abstract double large_floating() default 1.0;
-                    method public abstract long large_integer() default 1;
+                    method public abstract long large_integer() default 1L;
                     method public abstract char letter() default 'a';
                     method public abstract char[]! letters1() default {};
                     method public abstract char[]! letters2() default {'a', 'b', 'c'};
@@ -3169,7 +3212,7 @@ class StubsTest : DriverTest() {
                 public test.pkg.ExportedProperty.InnerAnnotation value() default @test.pkg.ExportedProperty.InnerAnnotation;
                 public char letter() default 'a';
                 public int integer() default 1;
-                public long large_integer() default 1;
+                public long large_integer() default 1L;
                 public float floating() default 1.0f;
                 public double large_floating() default 1.0;
                 public byte small() default 1;

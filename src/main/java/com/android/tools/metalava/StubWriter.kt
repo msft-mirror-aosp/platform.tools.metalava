@@ -46,7 +46,7 @@ class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    docStubs: Boolean
+    private val docStubs: Boolean
 ) : ApiVisitor(
     visitConstructorsAsMethods = false,
     nestInnerClasses = true,
@@ -94,10 +94,36 @@ class StubWriter(
 
         writePackageInfo(pkg)
 
-        codebase.getPackageDocs()?.getDocs(pkg)?.let { writeDocOverview(pkg, it) }
+        if (docStubs) {
+            codebase.getPackageDocs()?.let { packageDocs ->
+                packageDocs.getOverviewDocumentation(pkg)?.let { writeDocOverview(pkg, it) }
+                packageDocs.getPackageDocumentation(pkg)?.let { writePackageDocs(pkg, it) }
+            }
+        }
     }
 
-    private fun writeDocOverview(pkg: PackageItem, content: String) {
+    private fun writePackageDocs(pkg: PackageItem, content: String) {
+        if (content.isBlank()) {
+            return
+        }
+
+        val sourceFile = File(getPackageDir(pkg), "package.html")
+        val writer = try {
+            PrintWriter(BufferedWriter(FileWriter(sourceFile)))
+        } catch (e: IOException) {
+            reporter.report(Errors.IO_ERROR, sourceFile, "Cannot open file for write.")
+            return
+        }
+
+        // Should we include this in our stub list?
+        //     startFile(sourceFile)
+
+        writer.println(content)
+        writer.flush()
+        writer.close()
+    }
+
+    fun writeDocOverview(pkg: PackageItem, content: String) {
         if (content.isBlank()) {
             return
         }
@@ -247,7 +273,7 @@ class StubWriter(
         if (cls.isEnum()) {
             var first = true
             // Enums should preserve the original source order, not alphabetical etc sort
-            for (field in cls.fields().sortedBy { it.sortingRank }) {
+            for (field in cls.filteredFields(filterReference, true).sortedBy { it.sortingRank }) {
                 if (field.isEnumConstant()) {
                     if (first) {
                         first = false
@@ -432,7 +458,7 @@ class StubWriter(
                         writer.write(", ")
                     }
                     val type = parameter.type()
-                    val typeString = type.toErasedTypeString()
+                    val typeString = type.toErasedTypeString(it)
                     if (!type.primitive) {
                         if (includeCasts) {
                             writer.write("(")
@@ -502,7 +528,12 @@ class StubWriter(
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
-        writer.print(returnType?.toTypeString(outerAnnotations = false, innerAnnotations = generateAnnotations))
+        writer.print(
+            returnType?.toTypeString(
+                outerAnnotations = false,
+                innerAnnotations = generateAnnotations
+            )
+        )
 
         writer.print(' ')
         writer.print(method.name())
@@ -536,7 +567,12 @@ class StubWriter(
 
         appendDocumentation(field, writer)
         appendModifiers(field, false, false)
-        writer.print(field.type().toTypeString(outerAnnotations = false, innerAnnotations = generateAnnotations))
+        writer.print(
+            field.type().toTypeString(
+                outerAnnotations = false,
+                innerAnnotations = generateAnnotations
+            )
+        )
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =

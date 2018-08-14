@@ -35,6 +35,9 @@ import java.util.function.Predicate
 /** Current signature format. */
 const val SIGNATURE_FORMAT = "2.0"
 
+/** Marker comment at the beginning of the signature file */
+const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
+
 class SignatureWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
@@ -47,11 +50,13 @@ class SignatureWriter(
     methodComparator = MethodItem.comparator,
     fieldComparator = FieldItem.comparator,
     filterEmit = filterEmit,
-    filterReference = filterReference
+    filterReference = filterReference,
+    showUnannotated = options.showUnannotated
 ) {
     init {
         if (options.includeSignatureFormatVersion) {
-            writer.println("// Signature format: $SIGNATURE_FORMAT\n")
+            writer.print(SIGNATURE_FORMAT_PREFIX)
+            writer.println(SIGNATURE_FORMAT)
         }
     }
 
@@ -198,7 +203,10 @@ class SignatureWriter(
         else cls.filteredSuperClassType(filterReference)
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
-                superClass.toTypeString(erased = compatibility.omitTypeParametersInInterfaces)
+                superClass.toTypeString(
+                    erased = compatibility.omitTypeParametersInInterfaces,
+                    context = superClass.asClass()
+                )
             writer.print(" extends ")
             writer.print(superClassString)
         }
@@ -244,7 +252,8 @@ class SignatureWriter(
             writer.print(label)
             all.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print(" ")
-                writer.print(item.toTypeString(erased = compatibility.omitTypeParametersInInterfaces))
+                writer.print(item.toTypeString(erased = compatibility.omitTypeParametersInInterfaces,
+                    context = item.asClass()))
             }
         }
     }
@@ -297,9 +306,9 @@ class SignatureWriter(
         type ?: return
 
         var typeString = type.toTypeString(
-            erased = false,
             outerAnnotations = false,
-            innerAnnotations = compatibility.annotationsInSignatures
+            innerAnnotations = compatibility.annotationsInSignatures,
+            erased = false
         )
 
         // Strip java.lang. prefix?

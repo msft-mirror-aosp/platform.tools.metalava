@@ -21,12 +21,14 @@ import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 import java.util.function.Predicate
@@ -34,17 +36,10 @@ import java.util.function.Predicate
 open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
-    isPublic: Boolean = false,
-    isProtected: Boolean = false,
-    isPrivate: Boolean = false,
-    isInternal: Boolean = false,
-    isStatic: Boolean = false,
+    modifiers: TextModifiers,
     private var isInterface: Boolean = false,
-    isAbstract: Boolean = false,
     private var isEnum: Boolean = false,
     private var isAnnotation: Boolean = false,
-    isFinal: Boolean = false,
-    isSealed: Boolean = false,
     val qualifiedName: String = "",
     private val qualifiedTypeName: String = qualifiedName,
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
@@ -52,16 +47,11 @@ open class TextClassItem(
 ) : TextItem(
     codebase = codebase,
     position = position,
-    modifiers = TextModifiers(
-        codebase = codebase,
-        annotationStrings = annotations,
-        public = isPublic, protected = isProtected, private = isPrivate, internal = isInternal,
-        static = isStatic, abstract = isAbstract, final = isFinal, sealed = isSealed
-    )
-), ClassItem, TypeParameterListOwner {
+    modifiers = modifiers), ClassItem, TypeParameterListOwner {
+
     init {
         @Suppress("LeakingThis")
-        (modifiers as TextModifiers).owner = this
+        modifiers.setOwner(this)
     }
 
     override val isTypeParameter: Boolean = false
@@ -137,14 +127,26 @@ open class TextClassItem(
             val s = typeInfo.toString()
             // TODO: No, handle List<String>[]  (though it's not likely for type parameters)
             val index = s.indexOf('<')
-            if (index != -1) {
-                typeParameterList = TextTypeParameterList.create(codebase, this, s.substring(index))
+            typeParameterList = if (index != -1) {
+                TextTypeParameterList.create(codebase, this, s.substring(index))
             } else {
-                typeParameterList = TypeParameterList.NONE
+                TypeParameterList.NONE
             }
         }
 
         return typeParameterList!!
+    }
+
+    override fun resolveParameter(variable: String): TypeParameterItem? {
+        if (hasTypeVariables()) {
+            for (t in typeParameterList().typeParameters()) {
+                if (t.simpleName() == variable) {
+                    return t
+                }
+            }
+        }
+
+        return null
     }
 
     private var superClass: ClassItem? = null
@@ -187,10 +189,6 @@ open class TextClassItem(
 
     fun addInterface(itf: TypeItem) {
         interfaceTypes.add(itf)
-    }
-
-    fun addInterface(itf: TextClassItem) {
-        interfaceTypes.add(itf.toType())
     }
 
     fun addConstructor(constructor: TextConstructorItem) {
@@ -252,14 +250,14 @@ open class TextClassItem(
         fun createInterfaceStub(codebase: TextCodebase, name: String): TextClassItem =
             createStub(codebase, name, isInterface = true)
 
-        fun createStub(codebase: TextCodebase, name: String, isInterface: Boolean): TextClassItem {
+        private fun createStub(codebase: TextCodebase, name: String, isInterface: Boolean): TextClassItem {
             val index = if (name.endsWith(">")) name.indexOf('<') else -1
             val qualifiedName = if (index == -1) name else name.substring(0, index)
             val cls = TextClassItem(
                 codebase = codebase,
                 qualifiedName = qualifiedName,
                 isInterface = isInterface,
-                isPublic = true
+                modifiers = TextModifiers(codebase, DefaultModifierList.PUBLIC)
             )
 
             addStubPackage(name, codebase, cls)
@@ -277,7 +275,7 @@ open class TextClassItem(
             textClassItem: TextClassItem
         ) {
             val endIndex = name.lastIndexOf('.')
-            val pkgPath = name.substring(0, endIndex)
+            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
             val pkg = codebase.findPackage(pkgPath) as? TextPackageItem ?: TextPackageItem(
                 codebase,
                 pkgPath,

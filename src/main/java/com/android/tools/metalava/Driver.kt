@@ -254,12 +254,6 @@ private fun processFlags() {
                 )
             }
 
-        // If configured, compares the new API with the previous API and reports
-        // any incompatibilities.
-        if (options.checkCompatibility && options.currentApi == null) { // otherwise checked against currentApi above
-            CompatibilityCheck.checkCompatibility(codebase, previous)
-        }
-
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements
         // as migrated (which will cause the Kotlin compiler to treat problems
@@ -591,7 +585,7 @@ internal fun parseSources(sources: List<File>, description: String): PsiBasedCod
 
     // Push language level to PSI handler
     project.getComponent(LanguageLevelProjectExtension::class.java)?.languageLevel =
-            options.javaLanguageLevel
+        options.javaLanguageLevel
 
     val joined = mutableListOf<File>()
     joined.addAll(options.sourcePath.map { it.absoluteFile })
@@ -603,7 +597,7 @@ internal fun parseSources(sources: List<File>, description: String): PsiBasedCod
     projectEnvironment.registerPaths(joined)
 
     val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-    KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
+    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
 
     val units = Extractor.createUnitsForFiles(project, sources)
     val packageDocs = gatherHiddenPackagesFromJavaDocs(options.sourcePath)
@@ -612,19 +606,8 @@ internal fun parseSources(sources: List<File>, description: String): PsiBasedCod
     codebase.initialize(project, units, packageDocs)
     codebase.manifest = options.manifest
     codebase.apiLevel = options.currentApiLevel
+    codebase.bindingContext = trace.bindingContext
     return codebase
-}
-
-@Suppress("unused") // Planning to restore for performance optimizations
-private fun filterCodebase(codebase: PsiBasedCodebase): Codebase {
-    val ignoreShown = options.showAnnotations.isEmpty()
-
-    // We ignore removals when limiting the API
-    val apiFilter = FilterPredicate(ApiPredicate(codebase, ignoreShown = ignoreShown))
-    val apiReference = ApiPredicate(codebase, ignoreShown = true)
-    val apiEmit = apiFilter.and(ElidingPredicate(apiReference))
-
-    return codebase.filter(apiEmit, apiReference)
 }
 
 private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
@@ -637,7 +620,7 @@ private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
     projectEnvironment.registerPaths(listOf(apiJar))
 
     val kotlinFiles = emptyList<File>()
-    KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project)
+    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project)
 
     val codebase = PsiBasedCodebase()
     codebase.description = "Codebase loaded from $apiJar"
@@ -647,6 +630,7 @@ private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
     }
     val analyzer = ApiAnalyzer(codebase)
     analyzer.mergeExternalAnnotations()
+    codebase.bindingContext = trace.bindingContext
     return codebase
 }
 
@@ -657,7 +641,8 @@ private fun createProjectEnvironment(): LintCoreProjectEnvironment {
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)) {
+        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+    ) {
         DefaultLogger.disableStderrDumping(parentDisposable)
     }
 
@@ -723,6 +708,16 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
             docStubs = docStubs
         )
     codebase.accept(stubWriter)
+
+    if (docStubs) {
+        // Overview docs? These are generally in the empty package.
+        codebase.findPackage("")?.let { empty ->
+            val overview = codebase.getPackageDocs()?.getOverviewDocumentation(empty)
+            if (overview != null && overview.isNotBlank()) {
+                stubWriter.writeDocOverview(empty, overview)
+            }
+        }
+    }
 
     if (writeStubList) {
         // Optionally also write out a list of source files that were generated; used
@@ -820,6 +815,7 @@ fun gatherSources(sourcePath: List<File>): List<File> {
 
 private fun addHiddenPackages(
     packageToDoc: MutableMap<String, String>,
+    packageToOverview: MutableMap<String, String>,
     hiddenPackages: MutableSet<String>,
     file: File,
     pkg: String
@@ -834,12 +830,19 @@ private fun addHiddenPackages(
                             child.name
                         else pkg + "." + child.name
                     else pkg
-                addHiddenPackages(packageToDoc, hiddenPackages, child, subPkg)
+                addHiddenPackages(packageToDoc, packageToOverview, hiddenPackages, child, subPkg)
             }
         }
-    } else if (file.isFile && (file.name == "package.html" || file.name == "overview.html")) {
+    } else if (file.isFile) {
+        val map = when {
+            file.name == "package.html" -> packageToDoc
+            file.name == "overview.html" -> {
+                packageToOverview
+            }
+            else -> return
+        }
         val contents = Files.asCharSource(file, Charsets.UTF_8).read()
-        packageToDoc[pkg] = contents + (packageToDoc[pkg] ?: "") // Concatenate in case package has both files
+        map[pkg] = contents
         if (contents.contains("@hide")) {
             hiddenPackages.add(pkg)
         }
@@ -847,12 +850,13 @@ private fun addHiddenPackages(
 }
 
 private fun gatherHiddenPackagesFromJavaDocs(sourcePath: List<File>): PackageDocs {
-    val map = HashMap<String, String>(100)
+    val packageHtml = HashMap<String, String>(100)
+    val overviewHtml = HashMap<String, String>(10)
     val set = HashSet<String>(100)
     for (file in sourcePath) {
-        addHiddenPackages(map, set, file, "")
+        addHiddenPackages(packageHtml, overviewHtml, set, file, "")
     }
-    return PackageDocs(map, set)
+    return PackageDocs(packageHtml, overviewHtml, set)
 }
 
 private fun extractRoots(sources: List<File>, sourceRoots: MutableList<File> = mutableListOf()): List<File> {

@@ -121,21 +121,25 @@ class DocAnalyzerTest : DriverTest() {
                 java(
                     """
                     package test.pkg;
-                    /** This is an API for Andriod */
+                    /** This is an API for Andriod. Replace all occurrences: Andriod. */
                     public class Foo {
+                        /** Ignore matches within words: xAndriodx */
+                        public Foo() {
+                        }
                     }
                     """
                 )
             ),
             checkCompilation = true,
             checkDoclava1 = false,
-            warnings = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in documentation for class test.pkg.Foo [Typo:131]",
+            warnings = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo:131]",
             stubs = arrayOf(
                 """
                 package test.pkg;
-                /** This is an API for Android */
+                /** This is an API for Android. Replace all occurrences: Android. */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
+                /** Ignore matches within words: xAndriodx */
                 public Foo() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -1159,7 +1163,8 @@ class DocAnalyzerTest : DriverTest() {
         check(
             checkDoclava1 = false,
             sourceFiles = *arrayOf(
-                source("src/test/visible/overview.html", "<html>My docs</html>"),
+                source("src/overview.html", "<html>My overview docs</html>"),
+                source("src/test/visible/package.html", "<html>My package docs</html>"),
                 java(
                     """
                     package test.visible;
@@ -1169,9 +1174,13 @@ class DocAnalyzerTest : DriverTest() {
                     """
                 )
             ),
+            docStubs = true,
             stubs = arrayOf(
                 """
-                <html>My docs</html>
+                <html>My overview docs</html>
+                """,
+                """
+                <html>My package docs</html>
                 """,
                 """
                 package test.visible;
