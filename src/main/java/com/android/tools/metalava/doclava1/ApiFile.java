@@ -19,6 +19,7 @@ package com.android.tools.metalava.doclava1;
 import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.lint.checks.infrastructure.ClassNameKt;
 import com.android.tools.metalava.model.AnnotationItem;
+import com.android.tools.metalava.model.DefaultModifierList;
 import com.android.tools.metalava.model.TypeParameterList;
 import com.android.tools.metalava.model.text.TextClassItem;
 import com.android.tools.metalava.model.text.TextConstructorItem;
@@ -89,6 +90,7 @@ public class ApiFile {
 
         final Tokenizer tokenizer = new Tokenizer(filename, apiText.toCharArray());
         final TextCodebase api = new TextCodebase();
+        api.setDescription("Codebase loaded from " + filename);
         if (format != null) {
             api.setFormat(format);
         }
@@ -119,9 +121,20 @@ public class ApiFile {
         TextPackageItem pkg;
 
         token = tokenizer.requireToken();
+
+        // Metalava: including annotations in file now
+        List<String> annotations = getAnnotations(tokenizer, token);
+        TextModifiers modifiers = new TextModifiers(api, DefaultModifierList.PUBLIC, null);
+        if (annotations != null) {
+            modifiers.addAnnotations(annotations);
+        }
+
+        token = tokenizer.getCurrent();
+
         assertIdent(tokenizer, token);
         name = token;
-        pkg = new TextPackageItem(api, name, tokenizer.pos());
+        pkg = new TextPackageItem(api, name, modifiers, tokenizer.pos());
+
         token = tokenizer.requireToken();
         if (!"{".equals(token)) {
             throw new ApiParseException("expected '{' got " + token, tokenizer);

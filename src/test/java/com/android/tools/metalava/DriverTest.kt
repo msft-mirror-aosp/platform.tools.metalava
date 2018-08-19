@@ -46,6 +46,7 @@ import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URL
@@ -420,6 +421,10 @@ abstract class DriverTest {
                 args.add("--show-annotation")
                 args.add("android.annotation.SystemService")
             }
+            if (includeSystemApiAnnotations && !args.contains("android.annotation.TestApi")) {
+                args.add("--show-annotation")
+                args.add("android.annotation.TestApi")
+            }
             args.toTypedArray()
         } else {
             emptyArray()
@@ -755,7 +760,7 @@ abstract class DriverTest {
                 reportedWarnings.toString().replace(project.path, "TESTROOT").replace(
                     project.canonicalPath,
                     "TESTROOT"
-                ).trim()
+                ).replace(temporaryFolder.root.path, "TESTROOT").trim()
             )
         }
 
@@ -771,7 +776,7 @@ abstract class DriverTest {
 
         if (stubs.isNotEmpty() && stubsDir != null) {
             for (i in 0 until stubs.size) {
-                val stub = stubs[i]
+                var stub = stubs[i].trimIndent()
                 val sourceFile = sourceFiles[i]
                 val targetPath = if (sourceFile.targetPath.endsWith(DOT_KT)) {
                     // Kotlin source stubs are rewritten as .java files for now
@@ -779,9 +784,33 @@ abstract class DriverTest {
                 } else {
                     sourceFile.targetPath
                 }
-                val stubFile = File(stubsDir, targetPath.substring("src/".length))
+                var stubFile = File(stubsDir, targetPath.substring("src/".length))
+                if (!stubFile.isFile) {
+                    if (stub.startsWith("[") && stub.contains("]")) {
+                        val pathEnd = stub.indexOf("]\n")
+                        val path = stub.substring(1, pathEnd)
+                        stubFile = File(stubsDir, path)
+                        if (stubFile.isFile) {
+                            stub = stub.substring(pathEnd + 2)
+                        }
+                    }
+                    if (!stubFile.exists()) {
+                        /* Example:
+                            stubs = arrayOf(
+                                """
+                                [test/visible/package-info.java]
+                                <html>My package docs</html>
+                                package test.visible;
+                                """,
+                                ...
+                           Here the stub will be read from $stubsDir/test/visible/package-info.java.
+                         */
+                        throw FileNotFoundException("Could not find generated stub for $targetPath; consider " +
+                            "setting target relative path in stub header as prefix surrounded by []")
+                    }
+                }
                 val expectedText = readFile(stubFile, stripBlankLines, trim)
-                assertEquals(stub.trimIndent(), expectedText)
+                assertEquals(stub, expectedText)
             }
         }
 
@@ -1139,6 +1168,20 @@ abstract class DriverTest {
         ) {
             return
         }
+
+        // If there's a discrepancy between doclava1 and metalava, you can debug
+        // doclava; to do this, open the Doclava project, and take all the
+        // metalava arguments, drop the ones that don't apply and use the
+        // doclava-style names instead of metalava (e.g. -stubs instead of --stubs,
+        // -showAnnotation instead of --show-annotation, -sourcepath instead of
+        // --sourcepath, and so on. Finally, and most importantly, add these
+        // 4 arguments at the beginning:
+        //   "-doclet",
+        //   "com.google.doclava.Doclava",
+        //   "-docletpath",
+        //   "out/host/linux-x86/framework/jsilver.jar:out/host/linux-x86/framework/doclava.jar",
+        // ..and finally from your Main entry point take this array of strings
+        // and call Doclava.main(newArgs)
 
         val expectedText = readFile(expected, stripBlankLines, trim)
         assertEquals(stripComments(api, stripLineComments = false).trimIndent(), expectedText)
@@ -1654,6 +1697,29 @@ val widgetSource: TestFile = java(
     @Target({ ElementType.TYPE })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Widget {
+    }
+    """
+).indented()
+
+val restrictToSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.*;
+    @SuppressWarnings("WeakerAccess")
+    @Retention(CLASS)
+    @Target({ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE})
+    public @interface RestrictTo {
+        Scope[] value();
+        enum Scope {
+            LIBRARY,
+            LIBRARY_GROUP,
+            @Deprecated
+            GROUP_ID,
+            TESTS,
+            SUBCLASSES,
+        }
     }
     """
 ).indented()

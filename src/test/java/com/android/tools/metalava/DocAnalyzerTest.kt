@@ -1164,7 +1164,20 @@ class DocAnalyzerTest : DriverTest() {
             checkDoclava1 = false,
             sourceFiles = *arrayOf(
                 source("src/overview.html", "<html>My overview docs</html>"),
-                source("src/test/visible/package.html", "<html>My package docs</html>"),
+                source("src/test/visible/package.html",
+                    """
+                    <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+                    <!-- not a body tag: <body> -->
+                    <html>
+                    <body bgcolor="white">
+                    My package docs<br>
+                    <!-- comment -->
+                    Sample code: /** code here */
+                    Another line.<br>
+                    </BODY>
+                    </html>
+                    """
+                ).indented(),
                 java(
                     """
                     package test.visible;
@@ -1180,7 +1193,14 @@ class DocAnalyzerTest : DriverTest() {
                 <html>My overview docs</html>
                 """,
                 """
-                <html>My package docs</html>
+                [test/visible/package-info.java]
+                /**
+                 * My package docs<br>
+                 * <!-- comment -->
+                 * Sample code: /** code here &#42;/
+                 * Another line.<br>
+                 */
+                package test.visible;
                 """,
                 """
                 package test.visible;
