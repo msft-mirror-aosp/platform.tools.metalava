@@ -246,7 +246,9 @@ class ExtractAnnotations(
                         classToAnnotationHolder[className] = result
                         addItem(item, result)
 
-                        if (item is PsiMethodItem && result.uAnnotation != null) {
+                        if (item is PsiMethodItem && result.uAnnotation != null &&
+                            !reporter.isSuppressed(Errors.RETURNING_UNEXPECTED_CONSTANT)
+                        ) {
                             verifyReturnedConstants(item, result.uAnnotation, result, className)
                         }
 
@@ -340,8 +342,10 @@ class ExtractAnnotations(
         if ("java.lang.annotation.Retention" == qualifiedName || "kotlin.annotation.Retention" == qualifiedName) {
             val attributes = annotation.attributeValues
             if (attributes.size != 1) {
-                reporter.report(Severity.ERROR, null as PsiElement?,
-                    "Expected exactly one parameter passed to @Retention", Errors.ANNOTATION_EXTRACTION)
+                reporter.report(
+                    Severity.ERROR, null as PsiElement?,
+                    "Expected exactly one parameter passed to @Retention", Errors.ANNOTATION_EXTRACTION
+                )
                 return false
             }
             val value = attributes[0].expression

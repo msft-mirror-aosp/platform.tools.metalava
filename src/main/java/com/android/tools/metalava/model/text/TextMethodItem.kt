@@ -130,8 +130,10 @@ open class TextMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
-        val duplicated = TextMethodItem(codebase, name(), targetContainingClass as TextClassItem,
-            modifiers.duplicate(), returnType, position)
+        val duplicated = TextMethodItem(
+            codebase, name(), targetContainingClass as TextClassItem,
+            modifiers.duplicate(), returnType, position
+        )
         duplicated.inheritedFrom = containingClass()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
@@ -196,7 +198,7 @@ open class TextMethodItem(
     override var inheritedFrom: ClassItem? = null
 
     override fun toString(): String =
-        "${if (isConstructor()) "Constructor" else "Method"} ${containingClass().qualifiedName()}.${name()}(${parameters().joinToString {
+        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${name()}(${parameters().joinToString {
             it.type().toSimpleType()
         }})"
 

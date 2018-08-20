@@ -61,7 +61,9 @@ class SignatureWriter(
     }
 
     override fun visitPackage(pkg: PackageItem) {
-        writer.print("package ${pkg.qualifiedName()} {\n\n")
+        writer.print("package ")
+        writeModifiers(pkg)
+        writer.print("${pkg.qualifiedName()} {\n\n")
     }
 
     override fun afterVisitPackage(pkg: PackageItem) {
@@ -252,8 +254,12 @@ class SignatureWriter(
             writer.print(label)
             all.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print(" ")
-                writer.print(item.toTypeString(erased = compatibility.omitTypeParametersInInterfaces,
-                    context = item.asClass()))
+                writer.print(
+                    item.toTypeString(
+                        erased = compatibility.omitTypeParametersInInterfaces,
+                        context = item.asClass()
+                    )
+                )
             }
         }
     }
@@ -348,7 +354,7 @@ class SignatureWriter(
             when (nullable) {
                 null -> writer.write("!")
                 true -> writer.write("?")
-            // else: non-null: nothing to write
+                // else: non-null: nothing to write
             }
         }
     }
