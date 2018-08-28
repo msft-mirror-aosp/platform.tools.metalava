@@ -269,7 +269,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public enum Foo {
-                        A, B;
+                        A, /** @deprecated */ @Deprecated B;
                     }
                     """
                 )
@@ -279,6 +279,8 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum Foo {
                 A,
+                /** @deprecated */
+                @Deprecated
                 B;
                 }
                 """
@@ -3336,7 +3338,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Test package-info documentation`() {
         check(
-            checkDoclava1 = true,
+            checkDoclava1 = false,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -3530,6 +3532,8 @@ class StubsTest : DriverTest() {
                     @Deprecated
                     public class Foo {
                         private Foo() {}
+                        protected int foo;
+                        public void bar();
                     }
                     """
                 ),
@@ -3574,6 +3578,9 @@ class StubsTest : DriverTest() {
                 @test.pkg.MyRuntimeRetentionAnnotation
                 public class Foo {
                 Foo() { throw new RuntimeException("Stub!"); }
+                @Deprecated
+                public void bar() { throw new RuntimeException("Stub!"); }
+                @Deprecated protected int foo;
                 }
                 """
             )
