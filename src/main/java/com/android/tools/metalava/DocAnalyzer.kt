@@ -210,8 +210,9 @@ class DocAnalyzer(
                             "Unbounded recursion, processing annotation " +
                                 "${annotation.toSource()} in $item in ${item.compilationUnit()} "
                         )
+                    } else if (nested.qualifiedName() != annotation.qualifiedName()) {
+                        handleAnnotation(nested, item, depth + 1)
                     }
-                    handleAnnotation(nested, item, depth + 1)
                 }
             }
 
