@@ -106,7 +106,7 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                  """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             checkDoclava1 = false /* doesn't support parameter names */
         )
     }
@@ -141,7 +141,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                  """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             checkDoclava1 = false /* doesn't support default Values */
         )
     }
@@ -210,7 +210,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation", "--hide-package", "some.other.pkg"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "some.other.pkg"),
             includeSignatureVersion = true,
             checkDoclava1 = false /* doesn't support default Values */
         )
@@ -286,7 +286,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation", "--hide-package", "androidx.collection"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "androidx.collection"),
             includeSignatureVersion = true,
             checkDoclava1 = false /* doesn't support default Values */
         )
@@ -547,7 +547,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             checkDoclava1 = false /* doesn't support Kotlin... */
         )
     }
@@ -634,7 +634,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             checkDoclava1 = false /* doesn't support Kotlin... */
         )
     }
@@ -668,7 +668,7 @@ class ApiFileTest : DriverTest() {
                         }
 
                         @JvmOverloads
-                        fun String.blahblahblah(firstArg: String = "hello", secondArg: Int = "42", thirdArg: String = "world") {
+                        fun String.blahblahblah(firstArg: String = "hello", secondArg: Int = 42, thirdArg: String = "world") {
                         }
                     """
                 )
@@ -677,8 +677,8 @@ class ApiFileTest : DriverTest() {
                 package androidx.content {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = "42", String thirdArg = "world");
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = "42");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
                     method public static void blahblahblah(String, String firstArg = "hello");
                     method public static void blahblahblah(String);
                     method public static void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
@@ -686,7 +686,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation"),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             checkDoclava1 = false /* doesn't support default Values */
         )
     }
@@ -778,7 +778,7 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf("--hide", "KotlinKeyword")
+            extraArguments = arrayOf(ARG_HIDE, "KotlinKeyword")
         )
     }
 
@@ -1265,7 +1265,7 @@ class ApiFileTest : DriverTest() {
             warnings = """
                 src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType:149]
                 """,
-            extraArguments = arrayOf("--warning", "ExpectedPlatformType"),
+            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
             api = """
                 package test.pkg {
                   public abstract class Foo {
@@ -2248,7 +2248,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
-            checkDoclava1 = true,
+            checkDoclava1 = false, // line numbers differ; they include comments; we point straight to modifier list
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -2408,7 +2408,7 @@ class ApiFileTest : DriverTest() {
         check(
             checkDoclava1 = true,
             extraArguments = arrayOf(
-                "--hide-package", "com.squareup.okhttp"
+                ARG_HIDE_PACKAGE, "com.squareup.okhttp"
             ),
             sourceFiles = *arrayOf(
                 java(

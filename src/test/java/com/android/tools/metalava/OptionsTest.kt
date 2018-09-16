@@ -174,6 +174,13 @@ Diffs and Checks:
                                          lint-severity
 --hide <id>                              Hide/skip issues of the given id
 
+JDiff:
+--api-xml <file>                         Like --api, but emits the API in the JDiff XML
+                                         format instead
+--convert-to-jdiff <sig> <xml>           Reads in the given signature file, and writes it
+                                         out in the JDiff XML format. Can be specified
+                                         multiple times.
+
 Statistics:
 --annotation-coverage-stats              Whether metalava should emit coverage statistics
                                          for annotations, listing the percentage of the
@@ -243,7 +250,7 @@ METALAVA_APPEND_ARGS                     One or more arguments (concatenated by 
 
     @Test
     fun `Test invalid arguments`() {
-        val args = listOf("--no-color", "--blah-blah-blah")
+        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
 
         val stdout = StringWriter()
         val stderr = StringWriter()
@@ -266,7 +273,7 @@ $FLAGS
 
     @Test
     fun `Test help`() {
-        val args = listOf("--no-color", "--help")
+        val args = listOf(ARG_NO_COLOR, "--help")
 
         val stdout = StringWriter()
         val stderr = StringWriter()

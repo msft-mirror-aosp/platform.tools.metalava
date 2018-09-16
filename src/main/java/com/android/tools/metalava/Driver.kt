@@ -181,27 +181,7 @@ private fun exit(exitCode: Int = 0) {
 private fun processFlags() {
     val stopwatch = Stopwatch.createStarted()
 
-    // --copy-annotations?
-    val privateAnnotationsSource = options.privateAnnotationsSource
-    val privateAnnotationsTarget = options.privateAnnotationsTarget
-    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
-        val rewrite = RewriteAnnotations()
-        // Support pointing to both stub-annotations and stub-annotations/src/main/java
-        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
-        val source = if (src.isDirectory) src else privateAnnotationsSource
-        source.listFiles()?.forEach { file ->
-            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
-        }
-    }
-
-    // --rewrite-annotations?
-    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
-
-    // Convert android.jar files?
-    options.androidJarSignatureFiles?.let { root ->
-        // Generate API signature files for all the historical JAR files
-        ConvertJarsToSignatureFiles().convertJars(root)
-    }
+    processNonCodebaseFlags()
 
     val codebase =
         if (options.sources.size == 1 && options.sources[0].path.endsWith(SdkConstants.DOT_TXT)) {
@@ -296,6 +276,16 @@ private fun processFlags() {
         createReportFile(
             codebase, apiFile, "DEX API"
         ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
+    }
+
+    options.apiXmlFile?.let { apiFile ->
+        val apiType = ApiType.PUBLIC_API
+        val apiEmit = apiType.getEmitFilter()
+        val apiReference = apiType.getReferenceFilter()
+
+        createReportFile(codebase, apiFile, "XML API") { printWriter ->
+            JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+        }
     }
 
     options.dexApiMappingFile?.let { apiFile ->
@@ -439,6 +429,46 @@ private fun processFlags() {
     }
 
     invokeDocumentationTool()
+}
+
+fun processNonCodebaseFlags() {
+    // --copy-annotations?
+    val privateAnnotationsSource = options.privateAnnotationsSource
+    val privateAnnotationsTarget = options.privateAnnotationsTarget
+    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
+        val rewrite = RewriteAnnotations()
+        // Support pointing to both stub-annotations and stub-annotations/src/main/java
+        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
+        val source = if (src.isDirectory) src else privateAnnotationsSource
+        source.listFiles()?.forEach { file ->
+            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
+        }
+    }
+
+    // --rewrite-annotations?
+    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
+
+    // Convert android.jar files?
+    options.androidJarSignatureFiles?.let { root ->
+        // Generate API signature files for all the historical JAR files
+        ConvertJarsToSignatureFiles().convertJars(root)
+    }
+
+    for ((signatureFile, jDiffFile) in options.convertToXmlFiles) {
+        val apiType = ApiType.ALL
+        val apiEmit = apiType.getEmitFilter()
+        val apiReference = apiType.getReferenceFilter()
+
+        val signatureApi = SignatureFileLoader.load(
+            file = signatureFile,
+            kotlinStyleNulls = options.inputKotlinStyleNulls,
+            supportsStagedNullability = true
+        )
+
+        createReportFile(signatureApi, jDiffFile, "JDiff File") { printWriter ->
+            JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered)
+        }
+    }
 }
 
 /**
@@ -601,20 +631,18 @@ fun invokeDocumentationTool() {
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    if (options.migrateNulls) {
-        val codebaseSupportsNullability = previous.supportsStagedNullability
-        val prevSupportsNullability = previous.supportsStagedNullability
-        try {
-            previous.supportsStagedNullability = true
-            codebase.supportsStagedNullability = true
-            previous.compareWith(
-                NullnessMigration(), codebase,
-                ApiPredicate()
-            )
-        } finally {
-            previous.supportsStagedNullability = prevSupportsNullability
-            codebase.supportsStagedNullability = codebaseSupportsNullability
-        }
+    val codebaseSupportsNullability = codebase.supportsStagedNullability
+    val prevSupportsNullability = previous.supportsStagedNullability
+    try {
+        previous.supportsStagedNullability = true
+        codebase.supportsStagedNullability = true
+        previous.compareWith(
+            NullnessMigration(), codebase,
+            ApiPredicate()
+        )
+    } finally {
+        previous.supportsStagedNullability = prevSupportsNullability
+        codebase.supportsStagedNullability = codebaseSupportsNullability
     }
 }
 
