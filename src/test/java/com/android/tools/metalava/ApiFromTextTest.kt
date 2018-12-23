@@ -45,7 +45,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle lambas as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: $CURRENT_SIGNATURE_FORMAT
             package androidx.collection {
               public final class LruCacheKt {
                 ctor public LruCacheKt();
@@ -66,7 +66,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle enum constants as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: $CURRENT_SIGNATURE_FORMAT
             package test.pkg {
               public final class Foo {
                 ctor public Foo();
@@ -100,7 +100,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle complex expressions as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: $CURRENT_SIGNATURE_FORMAT
             package androidx.paging {
               public final class PagedListConfigKt {
                 ctor public PagedListConfigKt();
@@ -509,7 +509,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 package test.pkg {
-                  public final class Foo extends java.lang.Enum {
+                  public static final class Foo extends java.lang.Enum {
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -646,7 +646,7 @@ class ApiFromTextTest : DriverTest() {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method public abstract androidx.annotation.RestrictTo.Scope[] value();
                   }
-                  public static enum RestrictTo.Scope {
+                  public enum RestrictTo.Scope {
                     enum_constant @Deprecated public static final androidx.annotation.RestrictTo.Scope GROUP_ID;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
@@ -744,6 +744,23 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             compatibilityMode = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Complicated annotations`() {
+        val source = """
+                package android.app {
+                  public static class ActionBar {
+                    field @android.view.ViewDebug.ExportedProperty(category="layout", mapping={@android.view.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.LEFT, to="LEFT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.RIGHT, to="RIGHT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.START, to="START"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.END, to="END"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_VERTICAL, to="CENTER_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_VERTICAL, to="FILL_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_HORIZONTAL, to="CENTER_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_HORIZONTAL, to="FILL_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER, to="CENTER"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL, to="FILL")}) public int gravity;
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = false,
             signatureSource = source,
             api = source
         )

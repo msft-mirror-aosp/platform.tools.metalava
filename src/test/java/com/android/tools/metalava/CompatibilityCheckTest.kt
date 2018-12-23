@@ -1773,6 +1773,59 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Partial text file which adds methods to show-annotation API`() {
+        // This happens in system and test files where we only include APIs that differ
+        // from the base IDE. When parsing these code bases we need to gracefully handle
+        // references to inner classes.
+        check(
+            includeSystemApiAnnotations = true,
+            warnings = """
+                TESTROOT/current-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod:9]
+                src/android/rolecontrollerservice/RoleControllerService.java:7: warning: Added method android.rolecontrollerservice.RoleControllerService.onGrantDefaultRoles() to the system API [AddedAbstractMethod:31]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.rolecontrollerservice;
+
+                    public class Service {
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package android.rolecontrollerservice;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    @SystemApi
+                    public abstract class RoleControllerService extends Service {
+                        public abstract void onGrantDefaultRoles();
+                    }
+                    """
+                ),
+                systemApiSource
+            ),
+
+            extraArguments = arrayOf(
+                ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
+                ARG_HIDE_PACKAGE, "android.annotation",
+                ARG_HIDE_PACKAGE, "android.support.annotation"
+            ),
+
+            checkCompatibilityApi =
+                """
+                package android.rolecontrollerservice {
+                  public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
+                    ctor public RoleControllerService();
+                    method public abstract void onClearRoleHolders();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Test verifying simple removed API`() {
         check(
             warnings = """
@@ -1879,6 +1932,67 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Regression test for bug 120847535`() {
+        // Regression test for
+        // 120847535: check-api doesn't fail on method that is in current.txt, but marked @hide @TestApi
+        check(
+            warnings = """
+                TESTROOT/current-api.txt:6: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod:9]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.view;
+                    import android.annotation.TestApi;
+                    public final class ViewTreeObserver {
+                         /**
+                         * @hide
+                         */
+                        @TestApi
+                        public void registerFrameCommitCallback(Runnable callback) {
+                        }
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.view;
+                    public final class View {
+                        private View() { }
+                    }
+                    """
+                ).indented(),
+                testApiSource
+            ),
+
+            api = """
+                package test.view {
+                  public final class View {
+                  }
+                  public final class ViewTreeObserver {
+                    ctor public ViewTreeObserver();
+                  }
+                }
+            """,
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "android.annotation",
+                ARG_HIDE_PACKAGE, "android.support.annotation"
+            ),
+
+            checkCompatibilityApi = """
+                package test.view {
+                  public final class View {
+                  }
+                  public final class ViewTreeObserver {
+                    ctor public ViewTreeObserver();
+                    method public void registerFrameCommitCallback(java.lang.Runnable);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Test release compatibility checking`() {
         // Different checks are enforced for current vs release API comparisons:
         // we don't flag AddedClasses etc. Removed classes *are* enforced.
@@ -1970,6 +2084,35 @@ CompatibilityCheckTest : DriverTest() {
     fun `Implicit nullness`() {
         check(
             compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                // Signature format: 2.0
+                package androidx.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
+                    method public abstract androidx.annotation.RestrictTo.Scope[] value();
+                  }
+
+                  public enum RestrictTo.Scope {
+                    enum_constant @Deprecated public static final androidx.annotation.RestrictTo.Scope GROUP_ID;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
+                  }
+                }
+                """,
+
+            sourceFiles = *arrayOf(
+                restrictToSource
+            )
+        )
+    }
+
+    @Test
+    fun `Implicit nullness in compat format`() {
+        // Make sure we put "static" in enum modifier lists when in v1/compat mode
+        check(
+            compatibilityMode = true,
             inputKotlinStyleNulls = true,
             checkCompatibilityApi = """
                 // Signature format: 2.0
@@ -2076,6 +2219,32 @@ CompatibilityCheckTest : DriverTest() {
                     }
                     """
                 ).indented()
+            )
+        )
+    }
+
+    @Test
+    fun `Comparing annotations with methods with v1 signature files`() {
+        check(
+            compatibilityMode = true,
+            checkCompatibilityApi = """
+                package androidx.annotation {
+                  public abstract class RestrictTo implements java.lang.annotation.Annotation {
+                  }
+                  public static final class RestrictTo.Scope extends java.lang.Enum {
+                    method public static androidx.annotation.RestrictTo.Scope valueOf(java.lang.String);
+                    method public static final androidx.annotation.RestrictTo.Scope[] values();
+                    enum_constant public static final deprecated androidx.annotation.RestrictTo.Scope GROUP_ID;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
+                  }
+                }
+                """,
+
+            sourceFiles = *arrayOf(
+                restrictToSource
             )
         )
     }
