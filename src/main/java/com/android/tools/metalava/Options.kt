@@ -50,6 +50,7 @@ const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
+const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_PRIVATE_API = "--private-api"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_PRIVATE_DEX_API = "--private-dex-api"
@@ -131,6 +132,7 @@ const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_BASELINE = "--baseline"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
+const val ARG_CONVERT_XML = "--convert-signature-to-xml"
 
 class Options(
     args: Array<String>,
@@ -165,7 +167,7 @@ class Options(
     /** Internal list backing [skipEmitPackages] */
     private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
     /** Internal list backing [convertToXmlFiles] */
-    private val mutableConvertToXmlFiles: MutableList<Pair<File, File>> = mutableListOf()
+    private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
 
     /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
     private val alreadyWarned: MutableSet<String> = mutableSetOf()
@@ -493,7 +495,15 @@ class Options(
     val artifactRegistrations = ArtifactTagger()
 
     /** List of signature files to export as JDiff files */
-    val convertToXmlFiles: List<Pair<File, File>> = mutableConvertToXmlFiles
+    val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
+
+    /** JDiff file conversion candidates */
+    data class ConvertFile(
+        val fromApiFile: File,
+        val toXmlFile: File,
+        val baseApiFile: File? = null,
+        val strip: Boolean
+    )
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
@@ -788,6 +798,30 @@ class Options(
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
                 }
 
+                // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
+                "--check-api-files" -> {
+                    val stableApiFile = stringToExistingFile(getValue(args, ++index))
+                    val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
+                    val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
+                    val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
+                    mutableCompatibilityChecks.add(
+                        CheckRequest(
+                            stableApiFile,
+                            ApiType.PUBLIC_API,
+                            ReleaseType.RELEASED,
+                            apiFileToBeTested
+                        )
+                    )
+                    mutableCompatibilityChecks.add(
+                        CheckRequest(
+                            stableRemovedApiFile,
+                            ApiType.REMOVED,
+                            ReleaseType.RELEASED,
+                            removedApiFileToBeTested
+                        )
+                    )
+                }
+
                 ARG_ANNOTATION_COVERAGE_STATS -> dumpAnnotationStatistics = true
                 ARG_ANNOTATION_COVERAGE_OF -> mutableAnnotationCoverageOf.addAll(
                     stringToExistingDirsOrJars(
@@ -917,10 +951,23 @@ class Options(
                     artifactRegistrations.register(artifactId, descriptor)
                 }
 
-                ARG_CONVERT_TO_JDIFF -> {
+                ARG_CONVERT_TO_JDIFF, "-convert2xml", "-convert2xmlnostrip" -> {
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(Pair(signatureFile, jDiffFile))
+                    val strip = arg == "-convert2xml"
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, null, strip))
+                }
+
+                ARG_CONVERT_NEW_TO_JDIFF, "-new_api", "-new_api_no_strip" -> {
+                    val baseFile = stringToExistingFile(getValue(args, ++index))
+                    val signatureFile = stringToExistingFile(getValue(args, ++index))
+                    val jDiffFile = stringToNewFile(getValue(args, ++index))
+                    val strip = arg == "-new_api"
+                    if (arg != ARG_CONVERT_NEW_TO_JDIFF) {
+                        // Using old doclava flags: Compatibility behavior: don't include fields in the output
+                        compatibility.includeFieldsInApiDiff = false
+                    }
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip))
                 }
 
                 "--write-android-jar-signatures" -> {
@@ -1684,6 +1731,8 @@ class Options(
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",
             "$ARG_CONVERT_TO_JDIFF <sig> <xml>", "Reads in the given signature file, and writes it out " +
                 "in the JDiff XML format. Can be specified multiple times.",
+            "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>", "Reads in the given old and new api files, " +
+                "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
 
             "", "\nStatistics:",
             ARG_ANNOTATION_COVERAGE_STATS, "Whether $PROGRAM_NAME should emit coverage statistics for " +

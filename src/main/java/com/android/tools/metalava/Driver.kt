@@ -458,18 +458,45 @@ fun processNonCodebaseFlags() {
         ConvertJarsToSignatureFiles().convertJars(root)
     }
 
-    for ((signatureFile, jDiffFile) in options.convertToXmlFiles) {
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
-
+    for (convert in options.convertToXmlFiles) {
         val signatureApi = SignatureFileLoader.load(
-            file = signatureFile,
+            file = convert.fromApiFile,
             kotlinStyleNulls = options.inputKotlinStyleNulls
         )
 
-        createReportFile(signatureApi, jDiffFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered)
+        val apiType = ApiType.ALL
+        val apiEmit = apiType.getEmitFilter()
+        val strip = convert.strip
+        val apiReference = if (strip) apiType.getEmitFilter() else apiType.getReferenceFilter()
+        val baseFile = convert.baseApiFile
+
+        val outputApi =
+            if (baseFile != null) {
+                // Convert base on a diff
+                val baseApi = SignatureFileLoader.load(
+                    file = baseFile,
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
+                )
+
+                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
+            } else {
+                signatureApi
+            }
+
+        if (outputApi.isEmpty() && baseFile != null) {
+            // doclava compatibility: emits error warning instead of emitting empty <api/> element
+            options.stdout.println("No API change detected, not generating diff")
+        } else {
+            val output = convert.toXmlFile
+            if (output.path.endsWith(DOT_TXT)) {
+                createReportFile(outputApi, output, "Diff API File") { printWriter ->
+                    SignatureWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip)
+                }
+            } else {
+                createReportFile(outputApi, output, "JDiff File") { printWriter ->
+                    JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip)
+                }
+            }
         }
     }
 }
@@ -511,7 +538,12 @@ fun checkCompatibility(
     // file. If we've only emitted one for the new API, use it directly, if not, generate
     // it first
     val new =
-        if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
+        if (check.codebase != null) {
+            SignatureFileLoader.load(
+                file = check.codebase,
+                kotlinStyleNulls = options.inputKotlinStyleNulls
+            )
+        } else if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
             val apiFile = apiType.getOptionFile() ?: run {
                 val tempFile = createTempFile("compat-check-signatures-$apiType", DOT_TXT)
                 tempFile.deleteOnExit()
@@ -949,8 +981,10 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
             return
         }
         if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
-            reporter.report(Errors.IGNORING_SYMLINK, file,
-                "Ignoring symlink during source file discovery directory traversal")
+            reporter.report(
+                Errors.IGNORING_SYMLINK, file,
+                "Ignoring symlink during source file discovery directory traversal"
+            )
             return
         }
         val files = file.listFiles()
@@ -991,8 +1025,10 @@ private fun addHiddenPackages(
         }
         // Ignore symbolic links during traversal
         if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
-            reporter.report(Errors.IGNORING_SYMLINK, file,
-                "Ignoring symlink during package.html discovery directory traversal")
+            reporter.report(
+                Errors.IGNORING_SYMLINK, file,
+                "Ignoring symlink during package.html discovery directory traversal"
+            )
             return
         }
         val files = file.listFiles()
@@ -1056,15 +1092,15 @@ private fun addHiddenPackages(
 private fun gatherHiddenPackagesFromJavaDocs(sourcePath: List<File>): PackageDocs {
     val packageComments = HashMap<String, String>(100)
     val overviewHtml = HashMap<String, String>(10)
-    val set = HashSet<String>(100)
+    val hiddenPackages = HashSet<String>(100)
     for (file in sourcePath) {
         if (file.path.isBlank()) {
             // Ignoring empty paths, which means "no source path search". Use "." for current directory.
             continue
         }
-        addHiddenPackages(packageComments, overviewHtml, set, file, "")
+        addHiddenPackages(packageComments, overviewHtml, hiddenPackages, file, "")
     }
-    return PackageDocs(packageComments, overviewHtml, set)
+    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
 }
 
 private fun extractRoots(sources: List<File>, sourceRoots: MutableList<File> = mutableListOf()): List<File> {
