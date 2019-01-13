@@ -3199,4 +3199,136 @@ class ApiFileTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Test Visible For Testing`() {
+        // Use the otherwise= visibility in signatures
+        // Regression test for issue 118763806
+        check(
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import androidx.annotation.VisibleForTesting;
+
+                    @SuppressWarnings({"ClassNameDiffersFromFileName", "WeakerAccess"})
+                    public class ProductionCode {
+                        private ProductionCode() { }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+                        public void shouldBeProtected() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        protected void shouldBePrivate1() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        public void shouldBePrivate2() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        public void shouldBePackagePrivate() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+                        public void shouldBeHidden() {
+                        }
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    import androidx.annotation.VisibleForTesting
+
+                    open class ProductionCode2 private constructor() {
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+                        fun shouldBeProtected() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        protected fun shouldBePrivate1() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        fun shouldBePrivate2() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        fun shouldBePackagePrivate() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+                        fun shouldBeHidden() {
+                        }
+                    }
+                    """
+                ).indented(),
+                visibleForTestingSource
+            ),
+            api = """
+                package test.pkg {
+                  public class ProductionCode {
+                    method protected void shouldBeProtected();
+                  }
+                  public class ProductionCode2 {
+                    method protected final void shouldBeProtected();
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `References Deprecated`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_ERROR, "ReferencesDeprecated",
+                ARG_ERROR, "ExtendsDeprecated"
+            ),
+            warnings = """
+            src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
+            src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
+            """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public class DeprecatedClass {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public interface DeprecatedInterface {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class MyClass extends DeprecatedClass implements DeprecatedInterface {
+                        public void method1(DeprecatedClass p, int i) { }
+                        public DeprecatedInterface method2(int i) { return null; }
+
+                        /** @deprecated */
+                        @Deprecated
+                        public void method3(DeprecatedClass p, int i) { }
+                    }
+                    """
+                )
+            )
+        )
+    }
 }

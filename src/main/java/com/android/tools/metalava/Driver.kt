@@ -913,6 +913,11 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     // Generating stubs from a sig-file-based codebase is problematic
     assert(codebase.supportsDocumentation())
 
+    // Temporary bug workaround for org.chromium.arc
+    if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {
+        codebase.findClass("org.chromium.mojo.bindings.Callbacks")?.hidden = true
+    }
+
     if (docStubs) {
         progress("\nGenerating documentation stub files: ")
     } else {
@@ -937,29 +942,6 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
             docStubs = docStubs
         )
     codebase.accept(stubWriter)
-
-    // Visit any package private classes that were forced visible by references from public API
-    // to make sure we emit the class needed to compile the stubs
-    codebase.getPackages().allTopLevelClasses().forEach { cls ->
-        if (cls.notStrippable &&
-            options.stubPackages?.matches(cls.containingPackage()) != false) {
-
-            // Here we only visit the class itself; not its methods and fields; this class
-            // is package private and should not be usable in the regular way; it's just passed
-            // around as a type
-
-            stubWriter.visitClass(cls)
-
-            val clsDefaultConstructor = cls.defaultConstructor
-            if (clsDefaultConstructor != null) {
-                clsDefaultConstructor.mutableModifiers().setPackagePrivate(true)
-                stubWriter.visitConstructor(clsDefaultConstructor)
-                stubWriter.afterVisitConstructor(clsDefaultConstructor)
-            }
-
-            stubWriter.afterVisitClass(cls)
-        }
-    }
 
     if (docStubs) {
         // Overview docs? These are generally in the empty package.

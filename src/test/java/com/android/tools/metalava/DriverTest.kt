@@ -191,8 +191,6 @@ abstract class DriverTest {
     )
 
     protected fun check(
-        /** The source files to pass to the analyzer */
-        vararg sourceFiles: TestFile,
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
@@ -337,11 +335,15 @@ abstract class DriverTest {
         baseline: String? = null,
         /** Whether to create the baseline if it does not exist. Requires [baseline] to be set. */
         updateBaseline: Boolean = false,
+        /** Merge instead of replacing the baseline */
+        mergeBaseline: String? = null,
         /**
          * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
          * are linted.
          */
-        @Language("TEXT") apiLint: String? = null
+        @Language("TEXT") apiLint: String? = null,
+        /** The source files to pass to the analyzer */
+        vararg sourceFiles: TestFile
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -817,10 +819,13 @@ abstract class DriverTest {
         val baselineArgs = if (baseline != null) {
             baselineFile = temporaryFolder.newFile("baseline.txt")
             baselineFile?.writeText(baseline.trimIndent())
-            if (!updateBaseline) {
+            if (!(updateBaseline || mergeBaseline != null)) {
                 arrayOf(ARG_BASELINE, baselineFile.path)
             } else {
-                arrayOf(ARG_BASELINE, baselineFile.path, ARG_UPDATE_BASELINE, baselineFile.path)
+                arrayOf(ARG_BASELINE,
+                    baselineFile.path,
+                    if (mergeBaseline != null) ARG_MERGE_BASELINE else ARG_UPDATE_BASELINE,
+                    baselineFile.path)
             }
         } else {
             emptyArray()
@@ -1027,7 +1032,8 @@ abstract class DriverTest {
                 baselineFile.exists()
             )
             val actualText = readFile(baselineFile, stripBlankLines, trim)
-            assertEquals(stripComments(baseline, stripLineComments = false).trimIndent(), actualText)
+            val sourceFile = mergeBaseline ?: baseline
+            assertEquals(stripComments(sourceFile, stripLineComments = false).trimIndent(), actualText)
         }
 
         if (convertFiles.isNotEmpty()) {
@@ -2350,6 +2356,23 @@ val restrictToSource: TestFile = java(
             TESTS,
             SUBCLASSES,
         }
+    }
+    """
+).indented()
+
+val visibleForTestingSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import static java.lang.annotation.RetentionPolicy.CLASS;
+    import java.lang.annotation.Retention;
+    @Retention(CLASS)
+    @SuppressWarnings("WeakerAccess")
+    public @interface VisibleForTesting {
+        int otherwise() default PRIVATE;
+        int PRIVATE = 2;
+        int PACKAGE_PRIVATE = 3;
+        int PROTECTED = 4;
+        int NONE = 5;
     }
     """
 ).indented()
