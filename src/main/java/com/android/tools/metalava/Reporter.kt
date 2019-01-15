@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.Severity.ERROR
 import com.android.tools.metalava.Severity.HIDDEN
+import com.android.tools.metalava.Severity.INFO
 import com.android.tools.metalava.Severity.INHERIT
 import com.android.tools.metalava.Severity.LINT
 import com.android.tools.metalava.Severity.WARNING
@@ -26,7 +27,6 @@ import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.configuration
-import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextItem
 import com.intellij.openapi.util.TextRange
@@ -35,6 +35,7 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.impl.light.LightElement
 import java.io.File
 
@@ -44,6 +45,12 @@ enum class Severity(private val displayName: String) {
     INHERIT("inherit"),
 
     HIDDEN("hidden"),
+
+    /**
+     * Information level are for issues that are informational only; may or
+     * may not be a problem.
+     */
+    INFO("info"),
 
     /**
      * Lint level means that we encountered inconsistent or broken documentation.
@@ -67,60 +74,87 @@ enum class Severity(private val displayName: String) {
 }
 
 open class Reporter(private val rootFolder: File? = null) {
+    var errorCount = 0
+        private set
+    var warningCount = 0
+        private set
+    val totalCount get() = errorCount + warningCount
+
     private var hasErrors = false
 
-    fun error(item: Item?, message: String, id: Errors.Error? = null): Boolean {
-        return error(item?.psi(), message, id)
-    }
-
-    fun warning(item: Item?, message: String, id: Errors.Error? = null): Boolean {
-        return warning(item?.psi(), message, id)
-    }
-
-    fun error(element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
-        // Using lowercase since that's the convention doclava1 is using
-        return report(ERROR, element, message, id)
-    }
-
-    fun warning(element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
-        return report(WARNING, element, message, id)
-    }
-
     fun report(id: Errors.Error, element: PsiElement?, message: String): Boolean {
-        return report(configuration.getSeverity(id), element, message, id)
+        val severity = configuration.getSeverity(id)
+
+        if (severity == HIDDEN) {
+            return false
+        }
+
+        val baseline = options.baseline
+        if (element != null && baseline != null && baseline.mark(element, message, id)) {
+            return false
+        }
+
+        return report(severity, element, message, id)
     }
 
     fun report(id: Errors.Error, file: File?, message: String): Boolean {
-        return report(configuration.getSeverity(id), file?.path, message, id)
+        val severity = configuration.getSeverity(id)
+
+        if (severity == HIDDEN) {
+            return false
+        }
+
+        val baseline = options.baseline
+        if (file != null && baseline != null && baseline.mark(file, message, id)) {
+            return false
+        }
+
+        return report(severity, file?.path, message, id)
     }
 
-    fun report(id: Errors.Error, item: Item?, message: String): Boolean {
-        if (isSuppressed(id, item)) {
+    fun report(id: Errors.Error, item: Item?, message: String, psi: PsiElement? = null): Boolean {
+        if (isSuppressed(id, item, message)) {
             return false
         }
 
         val severity = configuration.getSeverity(id)
-        return when (item) {
-            is PsiItem -> {
-                var psi = item.psi()
 
-                // If no PSI element, is this a synthetic/implicit constructor? If so
-                // grab the parent class' PSI element instead for file/location purposes
+        if (severity == HIDDEN) {
+            return false
+        }
 
-                if (item is PsiConstructorItem && item.implicitConstructor &&
-                    psi?.containingFile?.virtualFile == null
-                ) {
-                    psi = item.containingClass().psi()
+        // If we are only emitting some packages (--stub-packages), don't report
+        // issues from other packages
+        if (item != null) {
+            val packageFilter = options.stubPackages
+            if (packageFilter != null) {
+                val pkg = item.containingPackage(false)
+                if (pkg != null && !packageFilter.matches(pkg)) {
+                    return false
                 }
+            }
+        }
 
+        val baseline = options.baseline
+        if (item != null && baseline != null && baseline.mark(item, message, id)) {
+            return false
+        } else if (psi != null && baseline != null && baseline.mark(psi, message, id)) {
+            return false
+        }
+
+        return when {
+            psi != null -> {
                 report(severity, psi, message, id)
             }
-            is TextItem -> report(severity, (item as? TextItem)?.position.toString(), message, id)
-            else -> report(severity, "<unknown location>", message, id)
+            item is PsiItem -> {
+                report(severity, item.psi(), message, id)
+            }
+            item is TextItem -> report(severity, (item as? TextItem)?.position.toString(), message, id)
+            else -> report(severity, null as String?, message, id)
         }
     }
 
-    fun isSuppressed(id: Errors.Error, item: Item? = null): Boolean {
+    fun isSuppressed(id: Errors.Error, item: Item? = null, message: String? = null): Boolean {
         val severity = configuration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
@@ -129,30 +163,48 @@ open class Reporter(private val rootFolder: File? = null) {
         item ?: return false
 
         if (severity == LINT || severity == WARNING || severity == ERROR) {
-            val id1 = "Doclava${id.code}"
-            val id2 = id.name
             val annotation = item.modifiers.findAnnotation("android.annotation.SuppressLint")
             if (annotation != null) {
                 val attribute = annotation.findAttribute(ATTR_VALUE)
                 if (attribute != null) {
+                    val id1 = "Doclava${id.code}"
+                    val id2 = id.name
                     val value = attribute.value
                     if (value is AnnotationArrayAttributeValue) {
                         // Example: @SuppressLint({"DocLava1", "DocLava2"})
                         for (innerValue in value.values) {
-                            val string = innerValue.value()
-                            if (id1 == string || id2 != null && id2 == string) {
+                            val string = innerValue.value()?.toString() ?: continue
+                            if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
                                 return true
                             }
                         }
                     } else {
                         // Example: @SuppressLint("DocLava1")
-                        val string = value.value()
-                        if (id1 == string || id2 != null && id2 == string) {
+                        val string = value.value()?.toString()
+                        if (string != null && (
+                                suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
+                        ) {
                             return true
                         }
                     }
                 }
             }
+        }
+
+        return false
+    }
+
+    private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
+        id ?: return false
+
+        if (value == id) {
+            return true
+        }
+
+        if (message != null && value.startsWith(id) && value.endsWith(message) &&
+            (value == "$id:$message" || value == "$id: $message")
+        ) {
+            return true
         }
 
         return false
@@ -175,7 +227,7 @@ open class Reporter(private val rootFolder: File? = null) {
         return range
     }
 
-    private fun elementToLocation(element: PsiElement?): String? {
+    fun elementToLocation(element: PsiElement?, includeDocs: Boolean = true): String? {
         element ?: return null
         val psiFile = element.containingFile ?: return null
         val virtualFile = psiFile.virtualFile ?: return null
@@ -189,14 +241,21 @@ open class Reporter(private val rootFolder: File? = null) {
                 file.path
             }
 
-        val range = getTextRange(element)
-        return if (range == null) {
-            // No source offsets, just use filename
-            path
+        // Skip doc comments for classes, methods and fields; we usually want to point right to
+        // the class/method/field definition
+        val rangeElement = if (!includeDocs && element is PsiModifierListOwner) {
+            element.modifierList ?: element
+        } else
+            element
+
+        val range = getTextRange(rangeElement)
+        val lineNumber = if (range == null) {
+            // No source offsets, use invalid line number
+            -1
         } else {
-            val lineNumber = getLineNumber(psiFile.text, range.startOffset) + 1
-            "$path:$lineNumber"
+            getLineNumber(psiFile.text, range.startOffset) + 1
         }
+        return if (lineNumber > 0) "$path:$lineNumber" else path
     }
 
     /** Returns the 0-based line number */
@@ -212,7 +271,7 @@ open class Reporter(private val rootFolder: File? = null) {
         return line
     }
 
-    open fun report(severity: Severity, element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
+    private fun report(severity: Severity, element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
         if (severity == HIDDEN) {
             return false
         }
@@ -242,6 +301,9 @@ open class Reporter(private val rootFolder: File? = null) {
 
         if (severity == ERROR) {
             hasErrors = true
+            errorCount++
+        } else if (severity == WARNING) {
+            warningCount++
         }
 
         val sb = StringBuilder(100)
@@ -249,10 +311,13 @@ open class Reporter(private val rootFolder: File? = null) {
         if (color) {
             sb.append(terminalAttributes(bold = true))
             if (!options.omitLocations) {
-                location?.let { sb.append(it).append(": ") }
+                location?.let {
+                    sb.append(it).append(": ")
+                }
             }
             when (effectiveSeverity) {
                 LINT -> sb.append(terminalAttributes(foreground = TerminalColor.CYAN)).append("lint: ")
+                INFO -> sb.append(terminalAttributes(foreground = TerminalColor.CYAN)).append("info: ")
                 WARNING -> sb.append(terminalAttributes(foreground = TerminalColor.YELLOW)).append("warning: ")
                 ERROR -> sb.append(terminalAttributes(foreground = TerminalColor.RED)).append("error: ")
                 INHERIT, HIDDEN -> {
@@ -269,6 +334,7 @@ open class Reporter(private val rootFolder: File? = null) {
                 // according to doclava1 there are some people or tools parsing old format
                 when (effectiveSeverity) {
                     LINT -> sb.append("lint ")
+                    INFO -> sb.append("info ")
                     WARNING -> sb.append("warning ")
                     ERROR -> sb.append("error ")
                     INHERIT, HIDDEN -> {
@@ -279,6 +345,7 @@ open class Reporter(private val rootFolder: File? = null) {
             } else {
                 when (effectiveSeverity) {
                     LINT -> sb.append("lint: ")
+                    INFO -> sb.append("info: ")
                     WARNING -> sb.append("warning: ")
                     ERROR -> sb.append("error: ")
                     INHERIT, HIDDEN -> {
@@ -288,10 +355,23 @@ open class Reporter(private val rootFolder: File? = null) {
                 id?.let {
                     sb.append(" [")
                     if (it.name != null) {
-                        sb.append(it.name).append(":")
+                        sb.append(it.name)
                     }
-                    sb.append(it.code)
+                    if (compatibility.includeExitCode || it.name == null) {
+                        if (it.name != null) {
+                            sb.append(":")
+                        }
+                        sb.append(it.code)
+                    }
                     sb.append("]")
+                    if (it.rule != null) {
+                        sb.append(" [Rule ").append(it.rule)
+                        val link = it.category.ruleLink
+                        if (link != null) {
+                            sb.append(" in ").append(link)
+                        }
+                        sb.append("]")
+                    }
                 }
             }
         }

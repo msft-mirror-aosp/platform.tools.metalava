@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.options
 import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
@@ -80,6 +79,7 @@ open class PsiClassItem(
     }
 
     override var defaultConstructor: ConstructorItem? = null
+    override var notStrippable = false
     override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
@@ -217,6 +217,16 @@ open class PsiClassItem(
             inner.finishInitialization()
         }
 
+        // Delay initializing super classes and implemented interfaces for all inner classes: they may refer
+        // to *other* inner classes in this class, which would lead to an attempt to construct
+        // recursively. Instead, we wait until all the inner classes have been constructed, and at
+        // the very end, initialize super classes and interfaces recursively.
+        if (psiClass.containingClass == null) {
+            initializeSuperClasses()
+        }
+    }
+
+    private fun initializeSuperClasses() {
         val extendsListTypes = psiClass.extendsListTypes
         if (!extendsListTypes.isEmpty()) {
             val type = PsiTypeItem.create(codebase, extendsListTypes[0])
@@ -246,6 +256,10 @@ open class PsiClassItem(
             interfaces.mapTo(result) { create(it) }
             result
         })
+
+        for (inner in innerClasses) {
+            inner.initializeSuperClasses()
+        }
     }
 
     protected fun initialize(
@@ -262,7 +276,7 @@ open class PsiClassItem(
         this.fields = fields
     }
 
-    override fun mapTypeVariables(target: ClassItem, reverse: Boolean): Map<String, String> {
+    override fun mapTypeVariables(target: ClassItem): Map<String, String> {
         val targetPsi = target.psi() as PsiClass
         val maps = mapTypeVariablesToSuperclass(
             psiClass, targetPsi, considerSuperClasses = true,
@@ -311,8 +325,7 @@ open class PsiClassItem(
     override fun createMethod(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
 
-        val replacementMap = mapTypeVariables(template.containingClass(), reverse = true)
-
+        val replacementMap = mapTypeVariables(template.containingClass())
         val newMethod: PsiMethodItem
         if (replacementMap.isEmpty()) {
             newMethod = PsiMethodItem.create(codebase, this, method)
@@ -395,7 +408,7 @@ open class PsiClassItem(
 
             if (classType == ClassType.ENUM) {
                 addEnumMethods(codebase, item, psiClass, methods)
-            } else if (classType == ClassType.ANNOTATION_TYPE && !options.compatOutput &&
+            } else if (classType == ClassType.ANNOTATION_TYPE && compatibility.explicitlyListClassRetention &&
                 modifiers.findAnnotation("java.lang.annotation.Retention") == null
             ) {
                 // By policy, include explicit retention policy annotation if missing
@@ -506,7 +519,7 @@ open class PsiClassItem(
             //    method public static android.graphics.ColorSpace.Adaptation valueOf(java.lang.String);
             //    method public static final android.graphics.ColorSpace.Adaptation[] values();
 
-            if (compatibility.defaultAnnotationMethods) {
+            if (compatibility.defaultEnumMethods) {
                 // TODO: Skip if we already have these methods here (but that shouldn't happen; nobody would
                 // type this by hand)
                 addEnumMethod(
@@ -540,7 +553,7 @@ open class PsiClassItem(
          * Computes the "full" class name; this is not the qualified class name (e.g. with package)
          * but for an inner class it includes all the outer classes
          */
-        private fun computeFullClassName(cls: PsiClass): String {
+        fun computeFullClassName(cls: PsiClass): String {
             if (cls.containingClass == null) {
                 val name = cls.name
                 return name!!

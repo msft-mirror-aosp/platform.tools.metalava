@@ -51,15 +51,17 @@ import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
+import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.utils.XmlUtils
 import com.google.common.base.Charsets
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
@@ -79,49 +81,92 @@ import java.util.zip.ZipEntry
 class AnnotationsMerger(
     private val codebase: Codebase
 ) {
-    fun merge(mergeAnnotations: List<File>) {
+
+    /** Merge annotations which will appear in the output API. */
+    fun mergeQualifierAnnotations(files: List<File>) {
+        mergeAll(
+            files,
+            ::mergeQualifierAnnotationsFromFile,
+            ::mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase
+        )
+    }
+
+    /** Merge annotations which control what is included in the output API. */
+    fun mergeInclusionAnnotations(files: List<File>) {
+        mergeAll(
+            files,
+            {
+                throw DriverException(
+                    "External inclusion annotations files must be .java, found ${it.path}"
+                )
+            },
+            ::mergeInclusionAnnotationsFromCodebase
+        )
+    }
+
+    private fun mergeAll(
+        mergeAnnotations: List<File>,
+        mergeFile: (File) -> Unit,
+        mergeJavaStubsCodebase: (PsiBasedCodebase) -> Unit
+    ) {
         val javaStubFiles = mutableListOf<File>()
-        mergeAnnotations.forEach { mergeExisting(it, javaStubFiles) }
-        mergeAnnotationsFromJavaStubFiles(javaStubFiles)
+        mergeAnnotations.forEach { it ->
+            mergeFileOrDir(it, mergeFile, javaStubFiles)
+        }
+        if (javaStubFiles.isNotEmpty()) {
+            // TODO: We really want to fail, or at least issue a warning, if there are errors.
+            val javaStubsCodebase = parseSources(javaStubFiles, "Codebase loaded from stubs")
+            mergeJavaStubsCodebase(javaStubsCodebase)
+        }
     }
 
     /**
      * Merges annotations from `file`, or from all the files under it if `file` is a directory.
-     * Exception: Java stub files are not merged by this method, instead they are added to
-     * `javaStubFiles` and should be merged by [mergeAnnotationsFromJavaStubFiles] later (so that
-     * all the Java stubs can be loaded as a single codebase).
+     * All files apart from Java stub files are merged using [mergeFile]. Java stub files are not
+     * merged by this method, instead they are added to [javaStubFiles] and should be merged later
+     * (so that all the Java stubs can be loaded as a single codebase).
      */
-    private fun mergeExisting(file: File, javaStubFiles: MutableList<File>) {
+    private fun mergeFileOrDir(
+        file: File,
+        mergeFile: (File) -> Unit,
+        javaStubFiles: MutableList<File>
+    ) {
         if (file.isDirectory) {
             val files = file.listFiles()
             if (files != null) {
                 for (child in files) {
-                    mergeExisting(child, javaStubFiles)
+                    mergeFileOrDir(child, mergeFile, javaStubFiles)
                 }
             }
         } else if (file.isFile) {
-            if (file.path.endsWith(DOT_JAR) || file.path.endsWith(DOT_ZIP)) {
-                mergeFromJar(file)
-            } else if (file.path.endsWith(DOT_XML)) {
-                try {
-                    val xml = Files.asCharSource(file, Charsets.UTF_8).read()
-                    mergeAnnotationsXml(file.path, xml)
-                } catch (e: IOException) {
-                    error("Aborting: I/O problem during transform: " + e.toString())
-                }
-            } else if (file.path.endsWith(".java")) {
+            if (file.path.endsWith(".java")) {
                 javaStubFiles.add(file)
-            } else if (file.path.endsWith(".txt") ||
-                file.path.endsWith(".signatures") ||
-                file.path.endsWith(".api")
-            ) {
-                try {
-                    // .txt: Old style signature files
-                    // Others: new signature files (e.g. kotlin-style nullness info)
-                    mergeAnnotationsSignatureFile(file.path)
-                } catch (e: IOException) {
-                    error("Aborting: I/O problem during transform: " + e.toString())
-                }
+            } else {
+                mergeFile(file)
+            }
+        }
+    }
+
+    private fun mergeQualifierAnnotationsFromFile(file: File) {
+        if (file.path.endsWith(DOT_JAR) || file.path.endsWith(DOT_ZIP)) {
+            mergeFromJar(file)
+        } else if (file.path.endsWith(DOT_XML)) {
+            try {
+                val xml = Files.asCharSource(file, Charsets.UTF_8).read()
+                mergeAnnotationsXml(file.path, xml)
+            } catch (e: IOException) {
+                error("Aborting: I/O problem during transform: " + e.toString())
+            }
+        } else if (file.path.endsWith(".txt") ||
+            file.path.endsWith(".signatures") ||
+            file.path.endsWith(".api")
+        ) {
+            try {
+                // .txt: Old style signature files
+                // Others: new signature files (e.g. kotlin-style nullness info)
+                mergeAnnotationsSignatureFile(file.path)
+            } catch (e: IOException) {
+                error("Aborting: I/O problem during transform: " + e.toString())
             }
         }
     }
@@ -155,7 +200,7 @@ class AnnotationsMerger(
 
     private fun mergeAnnotationsXml(path: String, xml: String) {
         try {
-            val document = XmlUtils.parseDocument(xml, false)
+            val document = parseDocument(xml, false)
             mergeDocument(document)
         } catch (e: Exception) {
             var message = "Failed to merge " + path + ": " + e.toString()
@@ -171,26 +216,26 @@ class AnnotationsMerger(
 
     private fun mergeAnnotationsSignatureFile(path: String) {
         try {
-            // Old style signature files don't support annotations anyway, so we might as well
-            // accept
-            val kotlinStyleNulls = true
-            val supportsStagedNullability = true
-            val signatureCodebase = ApiFile.parseApi(File(path), kotlinStyleNulls, supportsStagedNullability)
+            val signatureCodebase = ApiFile.parseApi(File(path), options.inputKotlinStyleNulls)
             signatureCodebase.description = "Signature files for annotation merger: loaded from $path"
-            mergeAnnotationsFromCodebase(signatureCodebase)
+            mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $path: ${ex.message}"
             throw DriverException(message)
         }
     }
 
-    private fun mergeAnnotationsFromJavaStubFiles(sources: List<File>) {
-        // TODO: We really want to fail, or at least issue a warning, if there are errors in the sources.
-        val externalCodebase = parseSources(sources, "Codebase loaded from stubs")
-        mergeAnnotationsFromCodebase(externalCodebase)
+    private fun mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase(javaStubsCodebase: PsiBasedCodebase) {
+        mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
+        if (options.validateNullabilityFromMergedStubs) {
+            options.nullabilityAnnotationsValidator?.validateAll(
+                codebase,
+                javaStubsCodebase.getTopLevelClassesFromSource().map(ClassItem::qualifiedName)
+            )
+        }
     }
 
-    private fun mergeAnnotationsFromCodebase(externalCodebase: Codebase) {
+    private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
         val visitor = object : ComparisonVisitor() {
             override fun compare(old: Item, new: Item) {
                 val newModifiers = new.modifiers
@@ -224,6 +269,31 @@ class AnnotationsMerger(
         CodebaseComparator().compare(
             visitor, externalCodebase, codebase, ApiPredicate()
         )
+    }
+
+    private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
+        val inclusionAnnotations = options.showAnnotations union options.hideAnnotations
+        if (inclusionAnnotations.isNotEmpty()) {
+            val visitor = object : ComparisonVisitor() {
+                override fun compare(old: Item, new: Item) {
+                    // Transfer any show/hide annotations from the external to the main codebase.
+                    for (annotation in old.modifiers.annotations()) {
+                        if (inclusionAnnotations.contains(annotation.qualifiedName())) {
+                            new.mutableModifiers().addAnnotation(annotation)
+                        }
+                    }
+                    // The hidden field in the main codebase is already initialized. So if the
+                    // element is hidden in the external codebase, hide it in the main codebase too.
+                    if (old.hidden) {
+                        new.hidden = true
+                    }
+                    if (old.originallyHidden) {
+                        new.originallyHidden = true
+                    }
+                }
+            }
+            CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        }
     }
 
     internal fun error(message: String) {
@@ -508,7 +578,7 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
-                            val filterEmit = ApiVisitor(codebase).filterEmit
+                            val filterEmit = ApiVisitor().filterEmit
 
                             // Attempt with reflection
                             var first = true
@@ -614,7 +684,7 @@ class AnnotationsMerger(
                 }
             }
 
-            isNonNull(name) -> return codebase.createAnnotation("@$ANDROIDX_NOTNULL")
+            isNonNull(name) -> return codebase.createAnnotation("@$ANDROIDX_NONNULL")
 
             isNullable(name) -> return codebase.createAnnotation("@$ANDROIDX_NULLABLE")
 
@@ -640,7 +710,7 @@ class AnnotationsMerger(
     private fun isNonNull(name: String): Boolean {
         return name == IDEA_NOTNULL ||
             name == ANDROID_NOTNULL ||
-            name == ANDROIDX_NOTNULL ||
+            name == ANDROIDX_NONNULL ||
             name == SUPPORT_NOTNULL
     }
 
@@ -680,12 +750,14 @@ class XmlBackedAnnotationItem(
     private val qualifiedName: String,
     private val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
+
+    override fun originalName(): String? = qualifiedName
     override fun qualifiedName(): String? = AnnotationItem.mapName(codebase, qualifiedName)
 
     override fun attributes() = attributes
 
-    override fun toSource(): String {
-        val qualifiedName = qualifiedName() ?: return ""
+    override fun toSource(target: AnnotationTarget): String {
+        val qualifiedName = AnnotationItem.mapName(codebase, qualifiedName, null, target) ?: return ""
 
         if (attributes.isEmpty()) {
             return "@$qualifiedName"

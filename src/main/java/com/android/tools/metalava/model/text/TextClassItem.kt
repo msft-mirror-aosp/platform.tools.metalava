@@ -57,6 +57,8 @@ open class TextClassItem(
 
     override val isTypeParameter: Boolean = false
 
+    override var notStrippable = false
+
     override var artifact: String? = null
 
     override fun equals(other: Any?): Boolean {
@@ -111,12 +113,15 @@ open class TextClassItem(
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage ?: error(this)
 
-    override fun toType(): TypeItem = codebase.obtainTypeFromString(
-        if (typeParameterList().toString().isNotEmpty())
-            // TODO: No, handle List<String>[], though this is highly unlikely in a class
-            qualifiedName() + "<" + typeParameterList() + ">"
-        else qualifiedName()
-    )
+    override fun toType(): TypeItem {
+        val typeParameterListString = typeParameterList().toString()
+        return codebase.obtainTypeFromString(
+            if (typeParameterListString.isNotEmpty()) {
+                // TODO: No, handle List<String>[], though this is highly unlikely in a class
+                qualifiedName() + typeParameterListString
+            } else qualifiedName()
+        )
+    }
 
     override fun hasTypeVariables(): Boolean {
         return typeInfo?.hasTypeArguments() ?: false
@@ -137,6 +142,10 @@ open class TextClassItem(
         }
 
         return typeParameterList!!
+    }
+
+    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
+        return containingClass
     }
 
     override fun resolveParameter(variable: String): TypeParameterItem? {

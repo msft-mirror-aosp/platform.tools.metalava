@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
@@ -52,10 +53,13 @@ class TextModifiers(
         val annotations = ArrayList<AnnotationItem>(annotationSources.size)
         annotationSources.forEach { source ->
             val index = source.indexOf('(')
-            val qualifiedName = AnnotationItem.mapName(
-                codebase,
-                if (index == -1) source.substring(1) else source.substring(1, index)
-            )
+            val originalName = if (index == -1) source.substring(1) else source.substring(1, index)
+            val qualifiedName = AnnotationItem.mapName(codebase, originalName)
+
+            // @Deprecated is also treated as a "modifier"
+            if (qualifiedName == JAVA_LANG_DEPRECATED) {
+                setDeprecated(true)
+            }
 
             val attributes =
                 if (index == -1) {
@@ -66,8 +70,9 @@ class TextModifiers(
             val codebase = codebase
             val item = object : DefaultAnnotationItem(codebase) {
                 override fun attributes(): List<AnnotationAttribute> = attributes
+                override fun originalName(): String? = originalName
                 override fun qualifiedName(): String? = qualifiedName
-                override fun toSource(): String = source
+                override fun toSource(target: AnnotationTarget): String = source
             }
             annotations.add(item)
         }
@@ -77,7 +82,7 @@ class TextModifiers(
     override fun toString(): String {
         val item = owner()
         val writer = StringWriter()
-        ModifierList.write(writer, this, item, target = AnnotationTarget.STUBS_FILE)
+        ModifierList.write(writer, this, item, target = AnnotationTarget.SDK_STUBS_FILE)
         return writer.toString()
     }
 }

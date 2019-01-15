@@ -45,7 +45,6 @@ import java.util.zip.ZipOutputStream
  * package private when compiled and packaged on their own such that annotation processors
  * can find them. See b/110532131 for details.
  */
-
 class RewriteAnnotations {
     /** Modifies annotation source files such that they are package private */
     fun modifyAnnotationSources(codebase: Codebase?, source: File, target: File, pkg: String = "") {
@@ -241,7 +240,7 @@ class RewriteAnnotations {
                     name.indexOf("$") == -1 &&
                     !entry.isDirectory
                 ) {
-                    val bytes = zis.readBytes(entry.size.toInt())
+                    val bytes = zis.readBytes()
                     val rewritten = rewriteClass(bytes, name)
                     if (rewritten != null) {
                         zos.write(rewritten)

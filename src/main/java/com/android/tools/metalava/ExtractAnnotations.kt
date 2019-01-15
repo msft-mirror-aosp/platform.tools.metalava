@@ -70,7 +70,7 @@ import java.util.jar.JarOutputStream
 class ExtractAnnotations(
     private val codebase: Codebase,
     private val outputFile: File
-) : ApiVisitor(codebase) {
+) : ApiVisitor() {
     // Used linked hash map for order such that we always emit parameters after their surrounding method etc
     private val packageToAnnotationPairs = LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationHolder>>>()
 
@@ -343,8 +343,8 @@ class ExtractAnnotations(
             val attributes = annotation.attributeValues
             if (attributes.size != 1) {
                 reporter.report(
-                    Severity.ERROR, null as PsiElement?,
-                    "Expected exactly one parameter passed to @Retention", Errors.ANNOTATION_EXTRACTION
+                    Errors.ANNOTATION_EXTRACTION, annotation.sourcePsi,
+                    "Expected exactly one parameter passed to @Retention"
                 )
                 return false
             }

@@ -22,11 +22,14 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.intellij.psi.PsiDocCommentOwner
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
-import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiReferenceExpression
 import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.uast.UMethod
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -35,10 +38,7 @@ class PsiModifierItem(
 ) : DefaultModifierList(codebase, flags, annotations), ModifierList, MutableModifierList {
     companion object {
         fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner, documentation: String?): PsiModifierItem {
-            val modifiers = create(
-                codebase,
-                element.modifierList
-            )
+            val modifiers = create(codebase, element)
 
             if (documentation?.contains("@deprecated") == true ||
                 // Check for @Deprecated annotation
@@ -50,8 +50,8 @@ class PsiModifierItem(
             return modifiers
         }
 
-        fun create(codebase: PsiBasedCodebase, modifierList: PsiModifierList?): PsiModifierItem {
-            modifierList ?: return PsiModifierItem(codebase)
+        private fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner): PsiModifierItem {
+            val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
 
             var flags = 0
             if (modifierList.hasModifierProperty(PsiModifier.PUBLIC)) {
@@ -115,6 +115,26 @@ class PsiModifierItem(
                     }
                     if (ktModifierList.hasModifier(KtTokens.INLINE_KEYWORD)) {
                         flags = flags or INLINE
+
+                        // Workaround for b/117565118:
+                        if ((flags or PRIVATE) != 0 && element is PsiMethod) {
+                            val t =
+                                ((element as? UMethod)?.sourcePsi as? KtNamedFunction)?.typeParameterList?.text ?: ""
+                            if (t.contains("reified") &&
+                                !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
+                                !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
+                            ) {
+                                // Switch back from private to public
+                                flags = (flags and PRIVATE.inv()) or PUBLIC
+                            }
+                        }
+                    }
+                    if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
+                        flags = flags or SUSPEND
+
+                        // Workaround for b/117565118:
+                        // Switch back from private to public
+                        flags = (flags and PRIVATE.inv()) or PUBLIC
                     }
                 }
             }
@@ -124,7 +144,28 @@ class PsiModifierItem(
                 PsiModifierItem(codebase, flags)
             } else {
                 val annotations: MutableList<AnnotationItem> =
-                    psiAnnotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
+                    psiAnnotations.map {
+                        val qualifiedName = it.qualifiedName
+                        // TODO: com.android.internal.annotations.VisibleForTesting?
+                        if (qualifiedName == "androidx.annotation.VisibleForTesting" ||
+                            qualifiedName == "android.support.annotation.VisibleForTesting") {
+                            val otherwise = it.findAttributeValue("otherwise")
+                            val ref = when {
+                                otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
+                                otherwise != null -> otherwise.text
+                                else -> ""
+                            }
+                            if (ref.endsWith("PROTECTED")) {
+                                flags = (flags and PUBLIC.inv() and PRIVATE.inv() and INTERNAL.inv()) or PROTECTED
+                            } else if (ref.endsWith("PACKAGE_PRIVATE")) {
+                                flags = (flags and PUBLIC.inv() and PRIVATE.inv() and INTERNAL.inv() and PROTECTED.inv())
+                            } else if (ref.endsWith("PRIVATE") || ref.endsWith("NONE")) {
+                                flags = (flags and PUBLIC.inv() and PROTECTED.inv() and INTERNAL.inv()) or PRIVATE
+                            }
+                        }
+
+                        PsiAnnotationItem.create(codebase, it, qualifiedName)
+                    }.toMutableList()
                 PsiModifierItem(codebase, flags, annotations)
             }
         }

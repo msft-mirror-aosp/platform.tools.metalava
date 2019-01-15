@@ -18,10 +18,10 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.options
 import java.util.function.Predicate
 
 open class ApiVisitor(
@@ -73,7 +73,6 @@ open class ApiVisitor(
     val showUnannotated: Boolean = true
 ) : ItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
     constructor(
-        codebase: Codebase,
         /**
          * Whether constructors should be visited as part of a [#visitMethod] call
          * instead of just a [#visitConstructor] call. Helps simplify visitors that
@@ -110,5 +109,12 @@ open class ApiVisitor(
     // this property keeps track of whether we've already visited the current package
     var visitingPackage = false
 
-    open fun include(cls: ClassItem): Boolean = cls.emit
+    open fun include(cls: ClassItem): Boolean {
+        val filter = options.stubPackages
+        if (filter != null && !filter.matches(cls.containingPackage())) {
+            return false
+        }
+
+        return cls.emit
+    }
 }

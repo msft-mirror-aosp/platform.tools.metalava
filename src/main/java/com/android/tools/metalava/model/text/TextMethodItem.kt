@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.doclava1.SourcePositionInfo
 import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.ClassItem
@@ -119,6 +120,10 @@ open class TextMethodItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
+    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
+        return containingClass() as TextClassItem?
+    }
+
     override fun resolveParameter(variable: String): TypeParameterItem? {
         for (t in typeParameterList.typeParameters()) {
             if (t.simpleName() == variable) {
@@ -146,9 +151,12 @@ open class TextMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
+        if (targetContainingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+            duplicated.deprecated = true
+        }
 
         duplicated.varargs = varargs
-        duplicated.setDeprecated(deprecated)
+        duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
         duplicated.throwsTypes.addAll(throwsTypes)
         duplicated.throwsClasses = throwsClasses

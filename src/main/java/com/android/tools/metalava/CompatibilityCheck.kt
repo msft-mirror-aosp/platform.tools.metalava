@@ -25,9 +25,9 @@ import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ErrorConfiguration
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -46,7 +46,7 @@ import java.util.function.Predicate
  */
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
-    oldCodebase: Codebase,
+    private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null
 ) : ComparisonVisitor() {
@@ -54,13 +54,21 @@ class CompatibilityCheck(
     /**
      * Request for compatibility checks.
      * [file] represents the signature file to be checked. [apiType] represents which
-     * part of the API should be checked.
-     * If [released] is false the signature file represents the current,
-     * unreleased API level; if it is true, it represents a previously released API
-     * level (different compatibility checks apply; e.g. within a release we can change
-     * our minds about some things that we cannot once something has been released.)
+     * part of the API should be checked, [releaseType] represents what kind of codebase
+     * we are comparing it against. If [codebase] is specified, compare the signature file
+     * against the codebase instead of metalava's current source tree configured via the
+     * normal source path flags.
      */
-    data class CheckRequest(val file: File, val released: Boolean, val apiType: ApiType)
+    data class CheckRequest(
+        val file: File,
+        val apiType: ApiType,
+        val releaseType: ReleaseType,
+        val codebase: File? = null
+    ) {
+        override fun toString(): String {
+            return "--check-compatibility:${apiType.flagName}:${releaseType.flagName} $file"
+        }
+    }
 
     /** In old signature files, methods inherited from hidden super classes
      * are not included. An example of this is StringBuilder.setLength.
@@ -69,17 +77,42 @@ class CompatibilityCheck(
      * so in these cases we want to ignore certain changes such as considering
      * StringBuilder.setLength a newly added method.
      */
-    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format.major < 2
+    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1
 
     var foundProblems = false
 
     override fun compare(old: Item, new: Item) {
+        val oldModifiers = old.modifiers
+        val newModifiers = new.modifiers
+        if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
+            report(
+                Errors.OPERATOR_REMOVAL,
+                new,
+                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change"
+            )
+        }
+
+        if (oldModifiers.isInfix() && !newModifiers.isInfix()) {
+            report(
+                Errors.INFIX_REMOVAL,
+                new,
+                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
+            )
+        }
+
         // Should not remove nullness information
         // Can't change information incompatibly
         val oldNullnessAnnotation = findNullnessAnnotation(old)
         if (oldNullnessAnnotation != null) {
             val newNullnessAnnotation = findNullnessAnnotation(new)
             if (newNullnessAnnotation == null) {
+                val implicitNullness = AnnotationItem.getImplicitNullness(new)
+                if (implicitNullness == true && isNullable(old)) {
+                    return
+                }
+                if (implicitNullness == false && !isNullable(old)) {
+                    return
+                }
                 val name = AnnotationItem.simpleName(oldNullnessAnnotation)
                 report(
                     Errors.INVALID_NULL_CONVERSION, new,
@@ -110,24 +143,6 @@ class CompatibilityCheck(
                     }
                 }
             }
-        }
-
-        val oldModifiers = old.modifiers
-        val newModifiers = new.modifiers
-        if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
-            report(
-                Errors.OPERATOR_REMOVAL,
-                new,
-                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change"
-            )
-        }
-
-        if (oldModifiers.isInfix() && !newModifiers.isInfix()) {
-            report(
-                Errors.INFIX_REMOVAL,
-                new,
-                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
-            )
         }
     }
 
@@ -494,6 +509,23 @@ class CompatibilityCheck(
                 }
             }
         }
+
+        if (new.modifiers.isInline() && new.isKotlin()) {
+            val oldTypes = old.typeParameterList().typeParameters()
+            val newTypes = new.typeParameterList().typeParameters()
+            for (i in 0 until oldTypes.size) {
+                if (i == newTypes.size) {
+                    break
+                }
+                if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
+                    val message = "${describe(
+                        new,
+                        capitalize = true
+                    )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
+                    report(Errors.CHANGED_THROWS, new, message)
+                }
+            }
+        }
     }
 
     private fun describeBounds(
@@ -536,7 +568,14 @@ class CompatibilityCheck(
                     new,
                     capitalize = true
                 )} has changed value from $prevString to $newString"
-                report(Errors.CHANGED_VALUE, new, message)
+
+                if (message == "Field android.telephony.data.ApnSetting.TYPE_DEFAULT has changed value from 17 to 1") {
+                    // Temporarily ignore: this value changed incompatibly from 28.txt to current.txt.
+                    // It's not clear yet whether this value change needs to be reverted, or suppressed
+                    // permanently in the source code, but suppressing from metalava so we can unblock
+                    // getting the compatibility checks enabled.
+                } else
+                    report(Errors.CHANGED_VALUE, new, message)
             }
         }
 
@@ -592,6 +631,13 @@ class CompatibilityCheck(
     }
 
     private fun handleAdded(error: Error, item: Item) {
+        if (item.originallyHidden) {
+            // This is an element which is hidden but is referenced from
+            // some public API. This is an error, but some existing code
+            // is doing this. This is not an API addition.
+            return
+        }
+
         var message = "Added ${describe(item)}"
 
         // Clarify error message for removed API to make it less ambiguous
@@ -618,6 +664,13 @@ class CompatibilityCheck(
     }
 
     private fun handleRemoved(error: Error, item: Item) {
+        if (!item.emit) {
+            // It's a stub; this can happen when analyzing partial APIs
+            // such as a signature file for a library referencing types
+            // from the upstream library dependencies.
+            return
+        }
+
         if (base != null) {
             // We're diffing "overlay" APIs, such as system or test API files,
             // where the signature files only list a delta from the full, "base" API.
@@ -664,19 +717,6 @@ class CompatibilityCheck(
         val error = if (new.isInterface()) {
             Errors.ADDED_INTERFACE
         } else {
-            if (compatibility.compat &&
-                new.qualifiedName() == "android.telephony.ims.feature.ImsFeature.Capabilities"
-            ) {
-                // Special case: Doclava and metalava signature files for the system api
-                // differ in only one way: Metalava believes ImsFeature.Capabilities should
-                // be in the signature file for @SystemApi, and doclava does not. However,
-                // this API is referenced from other system APIs that doclava does include
-                // (MmTelFeature.MmTelCapabilities's constructor) so it is clearly part of the
-                // API even if it's not listed in the signature file and we should not list
-                // this as an incompatible, added API.
-                return
-            }
-
             Errors.ADDED_CLASS
         }
         handleAdded(error, new)
@@ -714,22 +754,27 @@ class CompatibilityCheck(
                 includeInterfaces = false
             )
         }
-        if (inherited != null && !inherited.modifiers.isAbstract()) {
+
+        // Builtin annotation methods: just a difference in signature file
+        if ((new.name() == "values" && new.parameters().isEmpty() || new.name() == "valueOf" &&
+                new.parameters().size == 1) && new.containingClass().isEnum()
+        ) {
+            return
+        }
+
+        // In old signature files, annotation methods are missing! This will show up as an added method.
+        if (new.containingClass().isAnnotationType() && oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1) {
+            return
+        }
+
+        if (inherited == null || inherited == new || !inherited.modifiers.isAbstract()) {
             val error = if (new.modifiers.isAbstract()) Errors.ADDED_ABSTRACT_METHOD else Errors.ADDED_METHOD
             handleAdded(error, new)
         }
     }
 
     override fun added(new: FieldItem) {
-        val codebase = new.codebase
-        if (new.inheritedFrom != null &&
-            // In old signature files, methods inherited from hidden super classes
-            // are not included. An example of this is StringBuilder.setLength.
-            // More details about this are listed in Compatibility.skipInheritedMethods.
-            // We may see these in the codebase but not in the (old) signature files,
-            // so skip these -- they're not really "added".
-            (codebase is TextCodebase && codebase.format.major < 2)
-        ) {
+        if (new.inheritedFrom != null && comparingWithPartialSignatures) {
             return
         }
 
@@ -755,13 +800,14 @@ class CompatibilityCheck(
         val inherited = if (old.isConstructor()) {
             null
         } else {
+            // This can also return self, specially handled below
             from?.findMethod(
                 old,
                 includeSuperClasses = true,
                 includeInterfaces = from.isInterface()
             )
         }
-        if (inherited == null) {
+        if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
             val error = if (old.deprecated) Errors.REMOVED_DEPRECATED_METHOD else Errors.REMOVED_METHOD
             handleRemoved(error, old)
         }
@@ -779,124 +825,12 @@ class CompatibilityCheck(
         }
     }
 
-    private fun describe(item: Item, capitalize: Boolean = false): String {
-        return when (item) {
-            is PackageItem -> describe(item, capitalize = capitalize)
-            is ClassItem -> describe(item, capitalize = capitalize)
-            is FieldItem -> describe(item, capitalize = capitalize)
-            is MethodItem -> describe(
-                item,
-                includeParameterNames = false,
-                includeParameterTypes = true,
-                capitalize = capitalize
-            )
-            is ParameterItem -> describe(
-                item,
-                includeParameterNames = true,
-                includeParameterTypes = true,
-                capitalize = capitalize
-            )
-            else -> item.toString()
-        }
-    }
-
-    private fun describe(
-        item: MethodItem,
-        includeParameterNames: Boolean = false,
-        includeParameterTypes: Boolean = false,
-        includeReturnValue: Boolean = false,
-        capitalize: Boolean = false
-    ): String {
-        val builder = StringBuilder()
-        if (item.isConstructor()) {
-            builder.append(if (capitalize) "Constructor" else "constructor")
-        } else {
-            builder.append(if (capitalize) "Method" else "method")
-        }
-        builder.append(' ')
-        if (includeReturnValue && !item.isConstructor()) {
-            builder.append(item.returnType()?.toSimpleType())
-            builder.append(' ')
-        }
-        appendMethodSignature(builder, item, includeParameterNames, includeParameterTypes)
-        return builder.toString()
-    }
-
-    private fun describe(
-        item: ParameterItem,
-        includeParameterNames: Boolean = false,
-        includeParameterTypes: Boolean = false,
-        capitalize: Boolean = false
-    ): String {
-        val builder = StringBuilder()
-        builder.append(if (capitalize) "Parameter" else "parameter")
-        builder.append(' ')
-        builder.append(item.name())
-        builder.append(" in ")
-        val method = item.containingMethod()
-        appendMethodSignature(builder, method, includeParameterNames, includeParameterTypes)
-        return builder.toString()
-    }
-
-    private fun appendMethodSignature(
-        builder: StringBuilder,
-        item: MethodItem,
-        includeParameterNames: Boolean,
-        includeParameterTypes: Boolean
-    ) {
-        builder.append(item.containingClass().qualifiedName())
-        if (!item.isConstructor()) {
-            builder.append('.')
-            builder.append(item.name())
-        }
-        if (includeParameterNames || includeParameterTypes) {
-            builder.append('(')
-            var first = true
-            for (parameter in item.parameters()) {
-                if (first) {
-                    first = false
-                } else {
-                    builder.append(',')
-                    if (includeParameterNames && includeParameterTypes) {
-                        builder.append(' ')
-                    }
-                }
-                if (includeParameterTypes) {
-                    builder.append(parameter.type().toSimpleType())
-                    if (includeParameterNames) {
-                        builder.append(' ')
-                    }
-                }
-                if (includeParameterNames) {
-                    builder.append(parameter.publicName() ?: parameter.name())
-                }
-            }
-            builder.append(')')
-        }
-    }
-
-    private fun describe(item: FieldItem, capitalize: Boolean = false): String {
-        return if (item.isEnumConstant()) {
-            "${if (capitalize) "Enum" else "enum"} constant ${item.containingClass().qualifiedName()}.${item.name()}"
-        } else {
-            "${if (capitalize) "Field" else "field"} ${item.containingClass().qualifiedName()}.${item.name()}"
-        }
-    }
-
-    private fun describe(item: ClassItem, capitalize: Boolean = false): String {
-        return "${if (capitalize) "Class" else "class"} ${item.qualifiedName()}"
-    }
-
-    private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-        return "${if (capitalize) "Package" else "package"} ${item.qualifiedName()}"
-    }
-
     private fun report(
         error: Error,
         item: Item,
         message: String
     ) {
-        if (reporter.report(error, item, message)) {
+        if (reporter.report(error, item, message) && configuration.getSeverity(error) == Severity.ERROR) {
             foundProblems = true
         }
     }
@@ -905,32 +839,26 @@ class CompatibilityCheck(
         fun checkCompatibility(
             codebase: Codebase,
             previous: Codebase,
-            released: Boolean,
+            releaseType: ReleaseType,
             apiType: ApiType,
             base: Codebase? = null
         ) {
             val filter = apiType.getEmitFilter()
             val checker = CompatibilityCheck(filter, previous, apiType, base)
-            val errorConfiguration = if (released) {
-                ErrorConfiguration.releasedCompatibilityCheckConfiguration
-            } else {
-                ErrorConfiguration.currentCompatibilityCheckConfiguration
-            }
-
+            val errorConfiguration = releaseType.getErrorConfiguration()
             val previousConfiguration = configuration
             try {
                 configuration = errorConfiguration
-
                 CodebaseComparator().compare(checker, previous, codebase, filter)
             } finally {
                 configuration = previousConfiguration
             }
 
+            val message = "Aborting: Found compatibility problems checking " +
+                "the ${apiType.displayName} API against the API in ${previous.location}"
+
             if (checker.foundProblems) {
-                throw DriverException(
-                    exitCode = -1,
-                    stderr = "Aborting: Found compatibility problems with --check-compatibility"
-                )
+                throw DriverException(exitCode = -1, stderr = message)
             }
         }
     }

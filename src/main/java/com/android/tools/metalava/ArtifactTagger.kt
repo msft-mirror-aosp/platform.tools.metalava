@@ -38,6 +38,9 @@ class ArtifactTagger {
     /** Any registered artifacts? */
     fun any() = artifacts.isNotEmpty()
 
+    /** Remove all registrations */
+    fun clear() = artifacts.clear()
+
     /** Returns the artifacts */
     private fun getRegistrations(): Collection<Map.Entry<File, String>> = artifacts.entries
 
@@ -61,7 +64,7 @@ class ArtifactTagger {
             val specApi: TextCodebase
             try {
                 val kotlinStyleNulls = options.inputKotlinStyleNulls
-                specApi = ApiFile.parseApi(xmlFile, kotlinStyleNulls, false)
+                specApi = ApiFile.parseApi(xmlFile, kotlinStyleNulls)
             } catch (e: ApiParseException) {
                 reporter.report(
                     Errors.BROKEN_ARTIFACT_FILE, xmlFile,
@@ -74,7 +77,7 @@ class ArtifactTagger {
         }
 
         if (warnAboutMissing) {
-            codebase.accept(object : ApiVisitor(codebase) {
+            codebase.accept(object : ApiVisitor() {
                 override fun visitClass(cls: ClassItem) {
                     if (cls.artifact == null && cls.isTopLevelClass()) {
                         reporter.report(

@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.doclava1;
 
-import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.lint.checks.infrastructure.ClassNameKt;
+import com.android.tools.metalava.FileFormat;
 import com.android.tools.metalava.model.AnnotationItem;
 import com.android.tools.metalava.model.DefaultModifierList;
 import com.android.tools.metalava.model.TypeParameterList;
@@ -32,9 +32,11 @@ import com.android.tools.metalava.model.text.TextParameterItemKt;
 import com.android.tools.metalava.model.text.TextPropertyItem;
 import com.android.tools.metalava.model.text.TextTypeItem;
 import com.android.tools.metalava.model.text.TextTypeParameterList;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import kotlin.Pair;
+import kotlin.text.StringsKt;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -42,12 +44,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NOTNULL;
+import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NONNULL;
 import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NULLABLE;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_ANNOTATION;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_ENUM;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_STRING;
-import static com.android.tools.metalava.SignatureWriterKt.SIGNATURE_FORMAT_PREFIX;
 import static com.android.tools.metalava.model.FieldItemKt.javaUnescapeString;
 
 //
@@ -55,33 +56,34 @@ import static com.android.tools.metalava.model.FieldItemKt.javaUnescapeString;
 // metalava's richer files, e.g. annotations)
 //
 public class ApiFile {
+    public static TextCodebase parseApi(File file) throws ApiParseException {
+        return parseApi(file, null);
+    }
+
     public static TextCodebase parseApi(File file,
-                                        boolean kotlinStyleNulls,
-                                        boolean supportsStagedNullability) throws ApiParseException {
+                                        Boolean kotlinStyleNulls) throws ApiParseException {
         try {
             String apiText = Files.asCharSource(file, Charsets.UTF_8).read();
-            return parseApi(file.getPath(), apiText, kotlinStyleNulls, supportsStagedNullability);
+            return parseApi(file.getPath(), apiText, kotlinStyleNulls);
         } catch (IOException ex) {
             throw new ApiParseException("Error reading API file", ex);
         }
     }
 
+    @SuppressWarnings("StatementWithEmptyBody")
+    @VisibleForTesting
     public static TextCodebase parseApi(String filename, String apiText,
-                                        boolean kotlinStyleNulls,
-                                        boolean supportsStagedNullability) throws ApiParseException {
-        GradleVersion format = null;
-        if (apiText.startsWith(SIGNATURE_FORMAT_PREFIX)) {
-            int begin = SIGNATURE_FORMAT_PREFIX.length();
-            int end = apiText.indexOf('\n', begin);
-            if (end == -1) {
-                end = apiText.length();
-            } else if (end > 0 && apiText.charAt(end - 1) == '\r') {
-                end--;
+                                        Boolean kotlinStyleNulls) throws ApiParseException {
+        FileFormat format = FileFormat.Companion.parseHeader(apiText);
+        if (format.isSignatureFormat()) {
+            if (kotlinStyleNulls == null || !kotlinStyleNulls) {
+                kotlinStyleNulls = format.useKotlinStyleNulls();
             }
-            String formatString = apiText.substring(begin, end).trim();
-            if (!formatString.isEmpty()) {
-                format = GradleVersion.tryParse(formatString);
-            }
+        } else if (StringsKt.isBlank(apiText)) {
+            // Signature files are sometimes blank, particularly with show annotations
+            kotlinStyleNulls = false;
+        } else {
+            throw new ApiParseException("Unknown file format of " + filename);
         }
 
         if (apiText.contains("/*")) {
@@ -89,12 +91,9 @@ public class ApiFile {
         }
 
         final Tokenizer tokenizer = new Tokenizer(filename, apiText.toCharArray());
-        final TextCodebase api = new TextCodebase();
+        final TextCodebase api = new TextCodebase(new File(filename));
         api.setDescription("Codebase loaded from " + filename);
-        if (format != null) {
-            api.setFormat(format);
-        }
-        api.setSupportsStagedNullability(supportsStagedNullability);
+        api.setFormat(format);
         api.setKotlinStyleNulls(kotlinStyleNulls);
 
         while (true) {
@@ -171,6 +170,7 @@ public class ApiFile {
             token = tokenizer.requireToken();
         } else if ("interface".equals(token)) {
             isInterface = true;
+            modifiers.setAbstract(true);
             token = tokenizer.requireToken();
         } else if ("@interface".equals(token)) {
             // Annotation
@@ -180,6 +180,7 @@ public class ApiFile {
         } else if ("enum".equals(token)) {
             isEnum = true;
             modifiers.setFinal(true);
+            modifiers.setStatic(true);
             ext = JAVA_LANG_ENUM;
             token = tokenizer.requireToken();
         } else {
@@ -232,6 +233,10 @@ public class ApiFile {
         }
         if (JAVA_LANG_ENUM.equals(ext)) {
             cl.setIsEnum(true);
+            // Above we marked all enums as static but for a top level class it's implicit
+            if (!cl.fullName().contains(".")) {
+                cl.getModifiers().setStatic(false);
+            }
         } else if (isAnnotation) {
             api.mapClassToInterface(cl, JAVA_LANG_ANNOTATION);
         } else if (api.implementsInterface(cl, JAVA_LANG_ANNOTATION)) {
@@ -276,14 +281,13 @@ public class ApiFile {
                 type = type.substring(0, type.length() - 1);
             } else if (!type.endsWith("!")) {
                 if (!TextTypeItem.Companion.isPrimitive(type)) { // Don't add nullness on primitive types like void
-                    annotations = mergeAnnotations(annotations, ANDROIDX_NOTNULL);
+                    annotations = mergeAnnotations(annotations, ANDROIDX_NONNULL);
                 }
             }
         } else if (type.endsWith("?") || type.endsWith("!")) {
             throw new ApiParseException("Did you forget to supply --input-kotlin-nulls? Found Kotlin-style null type suffix when parser was not configured " +
                 "to interpret signature file that way: " + type);
         }
-        //noinspection unchecked
         return new Pair<>(type, annotations);
     }
 
@@ -300,9 +304,18 @@ public class ApiFile {
                 }
                 token = tokenizer.requireToken();
                 if (token.equals("(")) {
-                    // Annotation arguments
+                    // Annotation arguments; potentially nested
+                    int balance = 0;
                     int start = tokenizer.offset() - 1;
-                    while (!token.equals(")")) {
+                    while (true) {
+                        if (token.equals("(")) {
+                            balance++;
+                        } else if (token.equals(")")) {
+                            balance--;
+                            if (balance == 0) {
+                                break;
+                            }
+                        }
                         token = tokenizer.requireToken();
                     }
                     annotation += tokenizer.getStringFromOffset(start);
@@ -381,7 +394,6 @@ public class ApiFile {
 
         if (returnTypeString.contains("@") && (returnTypeString.indexOf('<') == -1 ||
                 returnTypeString.indexOf('@') < returnTypeString.indexOf('<'))) {
-            //noinspection StringConcatenationInLoop
             returnTypeString += " " + token;
             token = tokenizer.requireToken();
         }
@@ -406,6 +418,9 @@ public class ApiFile {
         name = token;
         method = new TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos());
         method.setDeprecated(modifiers.isDeprecated());
+        if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
+            modifiers.setAbstract(true);
+        }
         method.setTypeParameterList(typeParameterList);
         if (typeParameterList instanceof TextTypeParameterList) {
             ((TextTypeParameterList) typeParameterList).setOwner(method);
@@ -563,6 +578,10 @@ public class ApiFile {
                     modifiers.setInline(true);
                     token = tokenizer.requireToken();
                     break;
+                case "suspend":
+                    modifiers.setSuspend(true);
+                    token = tokenizer.requireToken();
+                    break;
                 case "vararg":
                     modifiers.setVarArg(true);
                     token = tokenizer.requireToken();
@@ -581,51 +600,61 @@ public class ApiFile {
 
     private static Object parseValue(String type, String val) {
         if (val != null) {
-            if ("boolean".equals(type)) {
-                return "true".equals(val) ? Boolean.TRUE : Boolean.FALSE;
-            } else if ("byte".equals(type)) {
-                return Integer.valueOf(val);
-            } else if ("short".equals(type)) {
-                return Integer.valueOf(val);
-            } else if ("int".equals(type)) {
-                return Integer.valueOf(val);
-            } else if ("long".equals(type)) {
-                return Long.valueOf(val.substring(0, val.length() - 1));
-            } else if ("float".equals(type)) {
-                if ("(1.0f/0.0f)".equals(val) || "(1.0f / 0.0f)".equals(val)) {
-                    return Float.POSITIVE_INFINITY;
-                } else if ("(-1.0f/0.0f)".equals(val) || "(-1.0f / 0.0f)".equals(val)) {
-                    return Float.NEGATIVE_INFINITY;
-                } else if ("(0.0f/0.0f)".equals(val) || "(0.0f / 0.0f)".equals(val)) {
-                    return Float.NaN;
-                } else {
-                    return Float.valueOf(val);
-                }
-            } else if ("double".equals(type)) {
-                if ("(1.0/0.0)".equals(val) || "(1.0 / 0.0)".equals(val)) {
-                    return Double.POSITIVE_INFINITY;
-                } else if ("(-1.0/0.0)".equals(val) || "(-1.0 / 0.0)".equals(val)) {
-                    return Double.NEGATIVE_INFINITY;
-                } else if ("(0.0/0.0)".equals(val) || "(0.0 / 0.0)".equals(val)) {
-                    return Double.NaN;
-                } else {
-                    return Double.valueOf(val);
-                }
-            } else if ("char".equals(type)) {
-                return (char) Integer.parseInt(val);
-            } else if (JAVA_LANG_STRING.equals(type)) {
-                if ("null".equals(val)) {
+            switch (type) {
+                case "boolean":
+                    return "true".equals(val) ? Boolean.TRUE : Boolean.FALSE;
+                case "byte":
+                    return Integer.valueOf(val);
+                case "short":
+                    return Integer.valueOf(val);
+                case "int":
+                    return Integer.valueOf(val);
+                case "long":
+                    return Long.valueOf(val.substring(0, val.length() - 1));
+                case "float":
+                    switch (val) {
+                        case "(1.0f/0.0f)":
+                        case "(1.0f / 0.0f)":
+                            return Float.POSITIVE_INFINITY;
+                        case "(-1.0f/0.0f)":
+                        case "(-1.0f / 0.0f)":
+                            return Float.NEGATIVE_INFINITY;
+                        case "(0.0f/0.0f)":
+                        case "(0.0f / 0.0f)":
+                            return Float.NaN;
+                        default:
+                            return Float.valueOf(val);
+                    }
+                case "double":
+                    switch (val) {
+                        case "(1.0/0.0)":
+                        case "(1.0 / 0.0)":
+                            return Double.POSITIVE_INFINITY;
+                        case "(-1.0/0.0)":
+                        case "(-1.0 / 0.0)":
+                            return Double.NEGATIVE_INFINITY;
+                        case "(0.0/0.0)":
+                        case "(0.0 / 0.0)":
+                            return Double.NaN;
+                        default:
+                            return Double.valueOf(val);
+                    }
+                case "char":
+                    return (char) Integer.parseInt(val);
+                case JAVA_LANG_STRING:
+                case "String":
+                    if ("null".equals(val)) {
+                        return null;
+                    } else {
+                        return javaUnescapeString(val.substring(1, val.length() - 1));
+                    }
+                case "null":
                     return null;
-                } else {
-                    return javaUnescapeString(val.substring(1, val.length() - 1));
-                }
+                default:
+                    return val;
             }
         }
-        if ("null".equals(val)) {
-            return null;
-        } else {
-            return val;
-        }
+        return null;
     }
 
     private static void parseProperty(TextCodebase api, Tokenizer tokenizer, TextClassItem cl, String token)
@@ -723,7 +752,9 @@ public class ApiFile {
             if (typeString.endsWith("...")) {
                 modifiers.setVarArg(true);
             }
-            TextTypeItem typeInfo = api.obtainTypeFromString(typeString);
+            TextTypeItem typeInfo = api.obtainTypeFromString(typeString,
+                (TextClassItem) method.containingClass(),
+                method.typeParameterList());
 
             String name;
             String publicName;

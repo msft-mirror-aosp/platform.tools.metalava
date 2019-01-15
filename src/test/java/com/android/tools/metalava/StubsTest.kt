@@ -22,6 +22,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import org.intellij.lang.annotations.Language
 import org.junit.Test
+import java.io.FileNotFoundException
 
 @SuppressWarnings("ALL")
 class StubsTest : DriverTest() {
@@ -42,7 +43,7 @@ class StubsTest : DriverTest() {
         vararg sourceFiles: TestFile
     ) {
         check(
-            *sourceFiles,
+            sourceFiles = *sourceFiles,
             showAnnotations = showAnnotations,
             stubs = arrayOf(source),
             compatibilityMode = compatibilityMode,
@@ -63,6 +64,10 @@ class StubsTest : DriverTest() {
             sourceFiles = *arrayOf(
                 java(
                     """
+                    /*
+                     * This is the copyright header.
+                     */
+
                     package test.pkg;
                     /** This is the documentation for the class */
                     @SuppressWarnings("ALL")
@@ -90,6 +95,9 @@ class StubsTest : DriverTest() {
                 )
             ),
             source = """
+                /*
+                 * This is the copyright header.
+                 */
                 package test.pkg;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -269,7 +277,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public enum Foo {
-                        A, B;
+                        A, /** @deprecated */ @Deprecated B;
                     }
                     """
                 )
@@ -279,6 +287,8 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum Foo {
                 A,
+                /** @deprecated */
+                @Deprecated
                 B;
                 }
                 """
@@ -741,6 +751,12 @@ class StubsTest : DriverTest() {
                         public static final String CONSTANT = "MyConstant";
                         protected int mContext;
                         public void method3() { }
+                        // Static: should be included
+                        public static void method3b() { }
+                        // References hidden type: don't inherit
+                        public void method3c(HiddenParent p) { }
+                        // References hidden type: don't inherit
+                        public void method3d(java.util.List<HiddenParent> p) { }
                     }
                     """
                 ), java(
@@ -768,9 +784,15 @@ class StubsTest : DriverTest() {
                 public class MyClass extends test.pkg.PublicParent {
                 public MyClass() { throw new RuntimeException("Stub!"); }
                 public void method4() { throw new RuntimeException("Stub!"); }
+                public static void method3b() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                public void method3() { throw new RuntimeException("Stub!"); }
+                public static final java.lang.String CONSTANT = "MyConstant";
                 }
                 """,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass:111]"
+            warnings = """
+                src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]
+                """
         )
     }
 
@@ -809,6 +831,7 @@ class StubsTest : DriverTest() {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public void method1() { throw new RuntimeException("Stub!"); }
                     public void method2() { throw new RuntimeException("Stub!"); }
+                    public static final java.lang.String CONSTANT = "MyConstant";
                     }
                 """
         )
@@ -1186,7 +1209,7 @@ class StubsTest : DriverTest() {
                 ),
                 requiresPermissionSource
             ),
-            warnings = "src/test/pkg/HiddenPermission.java:7: lint: Permission android.Manifest.permission.INTERACT_ACROSS_USERS required by method test.pkg.HiddenPermission.removeStickyBroadcast(Object) is hidden or removed [MissingPermission:132]",
+            warnings = "src/test/pkg/HiddenPermission.java:7: lint: Permission android.Manifest.permission.INTERACT_ACROSS_USERS required by method test.pkg.HiddenPermission.removeStickyBroadcast(Object) is hidden or removed [MissingPermission]",
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1418,7 +1441,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>!);
+                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>);
                   }
                 }
                 """
@@ -1427,7 +1450,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>!);
+                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>);
                   }
                 }
                 """
@@ -2219,18 +2242,18 @@ class StubsTest : DriverTest() {
                   }
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>>! createMap(java.util.List<X>!) throws java.io.IOException;
-                    method public java.util.List<X>! foo();
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
+                    method public java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A,java.util.Map<B,java.lang.String>>! createMap(java.util.List<A>!) throws java.io.IOException;
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
-                    method protected abstract java.util.List<A>! foo();
+                    method protected abstract java.util.List<A> foo();
                   }
                 }
-                    """,
+                """,
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -2986,107 +3009,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Rewrite relative documentation links`() {
-        // When generating casts in super constructor calls, use raw types
-        checkStubs(
-            checkDoclava1 = false,
-            sourceFiles =
-            *arrayOf(
-                java(
-                    """
-                    package test.pkg1;
-                    import java.io.IOException;
-                    import test.pkg2.OtherClass;
-
-                    /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
-                     *   boolean)}.
-                     *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link #importance}.
-                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
-                     *
-                     *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
-                     */
-                    @SuppressWarnings("all")
-                    public class SomeClass {
-                       /**
-                       * My method.
-                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                       * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
-                       */
-                       public void baz(int focus) throws IOException;
-                       public boolean importance;
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg2;
-
-                    @SuppressWarnings("all")
-                    public class OtherClass {
-                        public static final int FOCUS_INPUT = 1;
-                        public static final int FOCUS_ACCESSIBILITY = 2;
-                        public int foo;
-                        public void bar(int baz, boolean bar);
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg1;
-
-                    @SuppressWarnings("all")
-                    public class LocalClass {
-                    }
-                    """
-                )
-            ),
-            warnings = "",
-            source = """
-                    package test.pkg1;
-                    import test.pkg2.OtherClass;
-                    import java.io.IOException;
-                    /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
-                     *   boolean)}.
-                     *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link #importance}.
-                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
-                     *
-                     *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @Deprecated
-                    public class SomeClass {
-                    public SomeClass() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * My method.
-                     * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                     *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                     * @throws IOException when blah blah blah
-                     * @throws {@link RuntimeException} when blah blah blah
-                     */
-                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-                    public boolean importance;
-                    }
-                    """
-        )
-    }
-
-    @Test
     fun `Annotation default values`() {
         checkStubs(
             compatibilityMode = false,
@@ -3153,7 +3075,7 @@ class StubsTest : DriverTest() {
             api = """
                 package test.pkg {
                   @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExportedProperty {
-                    method public abstract String! category() default "";
+                    method public abstract String category() default "";
                     method public abstract float floating() default 1.0f;
                     method public abstract boolean formatToHexString() default false;
                     method public abstract double from() default java.lang.Double.NEGATIVE_INFINITY;
@@ -3163,16 +3085,16 @@ class StubsTest : DriverTest() {
                     method public abstract double large_floating() default 1.0;
                     method public abstract long large_integer() default 1L;
                     method public abstract char letter() default 'a';
-                    method public abstract char[]! letters1() default {};
-                    method public abstract char[]! letters2() default {'a', 'b', 'c'};
+                    method public abstract char[] letters1() default {};
+                    method public abstract char[] letters2() default {'a', 'b', 'c'};
                     method public abstract int math() default 7;
                     method public abstract short medium() default 1;
-                    method public abstract Class<? extends java.lang.Number>! myCls() default java.lang.Integer.class;
-                    method public abstract String! prefix() default "";
+                    method public abstract Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
+                    method public abstract String prefix() default "";
                     method public abstract boolean resolveId() default false;
                     method public abstract byte small() default 1;
                     method @test.pkg.ExportedProperty.InnerAnnotation public abstract int unit() default test.pkg.ExportedProperty.PX;
-                    method public abstract test.pkg.ExportedProperty.InnerAnnotation! value() default @test.pkg.ExportedProperty.InnerAnnotation;
+                    method public abstract test.pkg.ExportedProperty.InnerAnnotation value() default @test.pkg.ExportedProperty.InnerAnnotation;
                     field public static final int DP = 0; // 0x0
                     field public static final int PX = 1; // 0x1
                     field public static final int SP = 2; // 0x2
@@ -3329,14 +3251,14 @@ class StubsTest : DriverTest() {
                 @androidx.annotation.Nullable
                 package test.pkg;
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation")
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
     @Test
     fun `Test package-info documentation`() {
         check(
-            checkDoclava1 = true,
+            checkDoclava1 = false,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -3407,14 +3329,14 @@ class StubsTest : DriverTest() {
                 }
                 """
             ),
-            extraArguments = arrayOf("--hide-package", "androidx.annotation")
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
     @Test
-    fun `Ensure we emit both deprecated javadoc and annotation with exlude-annotations`() {
+    fun `Ensure we emit both deprecated javadoc and annotation with exclude-annotations`() {
         check(
-            extraArguments = arrayOf("--exclude-annotations"),
+            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = *arrayOf(
                 java(
@@ -3449,10 +3371,599 @@ class StubsTest : DriverTest() {
         )
     }
 
-// TODO: Add in some type variables in method signatures and constructors!
-// TODO: Test what happens when a class extends a hidden extends a public in separate packages,
-// and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
-// check for this and fail build.
+    @Test
+    fun `Ensure we emit runtime and deprecated annotations in stubs with exclude-annotations`() {
+        check(
+            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @MySourceRetentionAnnotation
+                    @MyClassRetentionAnnotation
+                    @MyRuntimeRetentionAnnotation
+                    @Deprecated
+                    public class Foo {
+                        private Foo() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+                    @Retention(SOURCE)
+                    public @interface MySourceRetentionAnnotation {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import static java.lang.annotation.RetentionPolicy.CLASS;
+                    @Retention(CLASS)
+                    public @interface MyClassRetentionAnnotation {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import static java.lang.annotation.RetentionPolicy.RUNTIME;
+                    @Retention(RUNTIME)
+                    public @interface MyRuntimeRetentionAnnotation {
+                    }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /** @deprecated */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @Deprecated
+                @test.pkg.MyRuntimeRetentionAnnotation
+                public class Foo {
+                Foo() { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
 
-// TODO: Test -stubPackages
+    @Test
+    fun `Ensure we include class and runtime and not source annotations in stubs with include-annotations`() {
+        check(
+            extraArguments = arrayOf("--include-annotations"),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @MySourceRetentionAnnotation
+                    @MyClassRetentionAnnotation
+                    @MyRuntimeRetentionAnnotation
+                    @Deprecated
+                    public class Foo {
+                        private Foo() {}
+                        protected int foo;
+                        public void bar();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+                    @Retention(SOURCE)
+                    public @interface MySourceRetentionAnnotation {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import static java.lang.annotation.RetentionPolicy.CLASS;
+                    @Retention(CLASS)
+                    public @interface MyClassRetentionAnnotation {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import java.lang.annotation.Retention;
+                    import static java.lang.annotation.RetentionPolicy.RUNTIME;
+                    @Retention(RUNTIME)
+                    public @interface MyRuntimeRetentionAnnotation {
+                    }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /** @deprecated */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @Deprecated
+                @test.pkg.MyClassRetentionAnnotation
+                @test.pkg.MyRuntimeRetentionAnnotation
+                public class Foo {
+                Foo() { throw new RuntimeException("Stub!"); }
+                @Deprecated
+                public void bar() { throw new RuntimeException("Stub!"); }
+                @Deprecated protected int foo;
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Generate stubs with --exclude-documentation-from-stubs`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    /*
+                     * This is the copyright header.
+                     */
+
+                    package test.pkg;
+
+                    /** This is the documentation for the class */
+                    public class Foo {
+
+                        /** My field doc */
+                        protected static final String field = "a\nb\n\"test\"";
+
+                        /**
+                         * Method documentation.
+                         */
+                        protected static void onCreate(String parameter1) {
+                            // This is not in the stub
+                            System.out.println(parameter1);
+                        }
+                    }
+                    """
+                )
+            ),
+            // Excludes javadoc because of ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS:
+            source = """
+                /*
+                 * This is the copyright header.
+                 */
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                protected static final java.lang.String field = "a\nb\n\"test\"";
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Generate documentation stubs with --exclude-documentation-from-stubs`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    /*
+                     * This is the copyright header.
+                     */
+
+                    package test.pkg;
+
+                    /** This is the documentation for the class */
+                    public class Foo {
+
+                        /** My field doc */
+                        protected static final String field = "a\nb\n\"test\"";
+
+                        /**
+                         * Method documentation.
+                         */
+                        protected static void onCreate(String parameter1) {
+                            // This is not in the stub
+                            System.out.println(parameter1);
+                        }
+                    }
+                    """
+                )
+            ),
+            docStubs = true,
+            // Includes javadoc despite ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, because of docStubs:
+            source = """
+                /*
+                 * This is the copyright header.
+                 */
+                package test.pkg;
+                /** This is the documentation for the class */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Method documentation.
+                 */
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                /** My field doc */
+                protected static final java.lang.String field = "a\nb\n\"test\"";
+                }
+                """
+        )
+    }
+
+    @Test(expected = FileNotFoundException::class)
+    fun `Test update-api should not generate stubs`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_UPDATE_API,
+                ARG_EXCLUDE_ANNOTATIONS
+            ),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Foo {
+                        /**
+                         * @deprecated Use checkPermission instead.
+                         */
+                        @Deprecated
+                        protected boolean inClass(String name) {
+                            return false;
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+            package test.pkg {
+              public class Foo {
+                ctor public Foo();
+                method @Deprecated protected boolean inClass(String);
+              }
+            }
+            """,
+            stubs = arrayOf(
+                """
+                This file should not be generated since --update-api is supplied.
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Include package private classes referenced from public API`() {
+        // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
+        check(
+            compatibilityMode = false,
+            warnings = """
+                src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
+                src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
+                src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4 returns unavailable type HiddenType4 [UnavailableSymbol]
+                src/test/pkg/PublicApi.java:4: warning: Method test.pkg.PublicApi.getHiddenType() references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
+                src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4() references hidden type test.pkg.HiddenType4. [HiddenTypeParameter]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class PublicApi {
+                        public HiddenType getHiddenType() { return null; }
+                        public HiddenType4 getHiddenType4() { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class PublicInterface {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    // Class exposed via public api above
+                    final class HiddenType extends HiddenType2 implements HiddenType3, PublicInterface {
+                        HiddenType(int i1, int i2) { }
+                        public HiddenType2 getHiddenType2() { return null; }
+                        public int field;
+                        @Override public String toString() { return "hello"; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    /** @hide */
+                    public class HiddenType4 {
+                        void foo();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    // Class not exposed; only referenced from HiddenType
+                    class HiddenType2 {
+                        HiddenType2(float f) { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    // Class not exposed; only referenced from HiddenType
+                    interface HiddenType3 {
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class PublicApi {
+                    ctor public PublicApi();
+                    method public test.pkg.HiddenType getHiddenType();
+                    method public test.pkg.HiddenType4 getHiddenType4();
+                  }
+                  public class PublicInterface {
+                    ctor public PublicInterface();
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicApi {
+                public PublicApi() { throw new RuntimeException("Stub!"); }
+                public test.pkg.HiddenType getHiddenType() { throw new RuntimeException("Stub!"); }
+                public test.pkg.HiddenType4 getHiddenType4() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicInterface {
+                public PublicInterface() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                final class HiddenType {
+                }
+                """,
+                """
+                package test.pkg;
+                /** @hide */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class HiddenType4 {
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Include hidden inner classes referenced from public API`() {
+        // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in android.car-system-stubs
+        // referenced from outer class constructor
+        check(
+            compatibilityMode = false,
+            warnings = """
+                src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (as parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
+                src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class PublicApi {
+                        public PublicApi(HiddenInner inner) { }
+                        /** @hide */
+                        public static class HiddenInner {
+                           public void someHiddenMethod(); // should not be in stub
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class PublicApi {
+                    ctor public PublicApi(test.pkg.PublicApi.HiddenInner);
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicApi {
+                public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
+                /** @hide */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class HiddenInner {
+                }
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Use type argument in constructor cast`() {
+        check(
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public class BasicPoolEntryRef extends WeakRef<BasicPoolEntry> {
+                        public BasicPoolEntryRef(BasicPoolEntry entry) {
+                            super(entry);
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class WeakRef<T> {
+                        public WeakRef(T foo) {
+                        }
+                        // need to have more than one constructor to trigger casts in stubs
+                        public WeakRef(T foo, int size) {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class BasicPoolEntry {
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class BasicPoolEntry {
+                    ctor public BasicPoolEntry();
+                  }
+                  @Deprecated public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
+                    ctor @Deprecated public BasicPoolEntryRef(test.pkg.BasicPoolEntry);
+                  }
+                  public class WeakRef<T> {
+                    ctor public WeakRef(T);
+                    ctor public WeakRef(T, int);
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /** @deprecated */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @Deprecated
+                public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
+                @Deprecated
+                public BasicPoolEntryRef(test.pkg.BasicPoolEntry entry) { super((test.pkg.BasicPoolEntry)null); throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Regression test for 116777737`() {
+        // Regression test for 116777737: Stub generation broken for Bouncycastle
+        // """
+        //    It appears as though metalava does not handle the case where:
+        //    1) class Alpha extends Beta<Orange>.
+        //    2) class Beta<T> extends Charlie<T>.
+        //    3) class Beta is hidden.
+        //
+        //    It should result in a stub where Alpha extends Charlie<Orange> but
+        //    instead results in a stub where Alpha extends Charlie<T>, so the
+        //    type substitution of Orange for T is lost.
+        // """
+        check(
+            compatibilityMode = false,
+            warnings = "src/test/pkg/Alpha.java:2: warning: Public class test.pkg.Alpha stripped of unavailable superclass test.pkg.Beta [HiddenSuperclass]",
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Orange {
+                        private Orange() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class Alpha extends Beta<Orange> {
+                        private Alpha() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    public class Beta<T> extends Charlie<T> {
+                        private Beta() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class Charlie<T> {
+                        private Charlie() { }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                  }
+                  public class Charlie<T> {
+                  }
+                  public class Orange {
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Orange {
+                Orange() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                Alpha() { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
+
+    // TODO: Test what happens when a class extends a hidden extends a public in separate packages,
+    // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
+    // check for this and fail build.
 }

@@ -45,7 +45,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle lambas as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: 3.0
             package androidx.collection {
               public final class LruCacheKt {
                 ctor public LruCacheKt();
@@ -55,6 +55,7 @@ class ApiFromTextTest : DriverTest() {
         """
 
         check(
+            format = FileFormat.V3,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
@@ -66,7 +67,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle enum constants as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: 3.0
             package test.pkg {
               public final class Foo {
                 ctor public Foo();
@@ -89,6 +90,7 @@ class ApiFromTextTest : DriverTest() {
             """
 
         check(
+            format = FileFormat.V3,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
@@ -100,7 +102,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle complex expressions as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: 3.0
             package androidx.paging {
               public final class PagedListConfigKt {
                 ctor public PagedListConfigKt();
@@ -122,6 +124,7 @@ class ApiFromTextTest : DriverTest() {
         """
 
         check(
+            format = FileFormat.V3,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
@@ -286,7 +289,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public deprecated class MyTest {
                     ctor public deprecated MyTest(int, int);
-                    method public static final deprecated void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static final deprecated void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit>);
                     field public static deprecated java.util.List<java.lang.String> LIST;
                   }
                 }
@@ -330,7 +333,7 @@ class ApiFromTextTest : DriverTest() {
                 field public static java.util.List<java.lang.String> LIST;
               }
             }
-                """
+            """
 
         check(
             compatibilityMode = true,
@@ -387,7 +390,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                   protected static abstract deprecated interface Foo.Inner3 {
                     method public default void method3();
-                    method public static void method4(int);
+                    method public static abstract void method4(int);
                   }
                 }
                 """
@@ -421,20 +424,19 @@ class ApiFromTextTest : DriverTest() {
     fun `Loading a signature file with annotations on classes, fields, methods and parameters`() {
         @Language("TEXT")
         val source = """
+                // Signature format: 3.0
                 package test.pkg {
-                  @androidx.annotation.UiThread public class MyTest {
+                  @UiThread public class MyTest {
                     ctor public MyTest();
-                    method @androidx.annotation.IntRange(from=10, to=20) public int clamp(int);
-                    method public java.lang.Double? convert(java.lang.Float myPublicName);
-                    field public java.lang.Number? myNumber;
+                    method @IntRange(from=10, to=20) public int clamp(int);
+                    method public Double? convert(Float myPublicName);
+                    field public Number? myNumber;
                   }
                 }
                 """
 
         check(
-            compatibilityMode = false,
-            inputKotlinStyleNulls = true,
-            omitCommonPackages = false,
+            format = FileFormat.V3,
             signatureSource = source,
             api = source
         )
@@ -551,22 +553,21 @@ class ApiFromTextTest : DriverTest() {
     fun `Loading a signature file with default values`() {
         @Language("TEXT")
         val source = """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public final void error(int p = 42, java.lang.Integer? int2 = null);
+                    method public final void error(int p = 42, Integer? int2 = null);
                   }
                   public class Foo2 {
                     ctor public Foo2();
-                    method public void foo(java.lang.String! = null, java.lang.String! = "(Hello) World", int = 42);
+                    method public void foo(String! = null, String! = "(Hello) World", int = 42);
                   }
                 }
                 """
 
         check(
-            compatibilityMode = false,
-            inputKotlinStyleNulls = true,
-            omitCommonPackages = false,
+            format = FileFormat.V3,
             signatureSource = source,
             api = source
         )
@@ -575,19 +576,19 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Signatures with default annotation method values`() {
         val source = """
+                // Signature format: 3.0
                 package libcore.util {
                   public @interface NonNull {
                     method public abstract int from() default java.lang.Integer.MIN_VALUE;
                     method public abstract double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
-                    method public abstract String! myString() default "This is a \"string\"";
+                    method public abstract String myString() default "This is a \"string\"";
                     method public abstract int to() default java.lang.Integer.MAX_VALUE;
                   }
                 }
                 """
 
         check(
-            inputKotlinStyleNulls = true,
-            compatibilityMode = false,
+            format = FileFormat.V3,
             signatureSource = source,
             api = source
         )
@@ -596,6 +597,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Signatures with many annotations`() {
         val source = """
+            // Signature format: 2.0
             package libcore.util {
               @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
                 method public abstract int from() default java.lang.Integer.MIN_VALUE;
@@ -611,9 +613,9 @@ class ApiFromTextTest : DriverTest() {
         """
 
         check(
+            format = FileFormat.V2,
             compatibilityMode = false,
             signatureSource = source,
-            outputKotlinStyleNulls = false,
             api = source
         )
     }
@@ -621,19 +623,147 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Kotlin Properties`() {
         val source = """
+                // Signature format: 2.0
                 package test.pkg {
                   public final class Kotlin {
-                    ctor public Kotlin(java.lang.String property1, int arg2);
-                    method public java.lang.String getProperty1();
-                    method public java.lang.String getProperty2();
-                    method public void setProperty2(java.lang.String p);
-                    property public final java.lang.String property2;
+                    ctor public Kotlin(String property1, int arg2);
+                    method public String getProperty1();
+                    method public String getProperty2();
+                    method public void setProperty2(String p);
+                    property public final String property2;
+                  }
+                }
+                """
+
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Deprecated enum constant`() {
+        val source = """
+                package androidx.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
+                    method public abstract androidx.annotation.RestrictTo.Scope[] value();
+                  }
+                  public enum RestrictTo.Scope {
+                    enum_constant @Deprecated public static final androidx.annotation.RestrictTo.Scope GROUP_ID;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            outputKotlinStyleNulls = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Type parameters in v2 format`() {
+        val source = """
+                package androidx.collection {
+                  public class Constants {
+                    field public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
+                    field public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
+                    field protected int field00;
+                    field public static final boolean field01 = true;
+                    field public static final int field02 = 42; // 0x2a
+                    field public static final String field09 = "String with \"escapes\" and \u00a9...";
+                  }
+                  public class MyMap<Key, Value> {
+                    method public Key! getReplacement(Key!);
+                  }
+                }
+                package androidx.paging {
+                  public abstract class DataSource<Key, Value> {
+                    method @AnyThread public void addInvalidatedCallback(androidx.paging.DataSource.InvalidatedCallback);
+                    method @AnyThread public void invalidate();
+                    method @WorkerThread public boolean isInvalid();
+                    method public abstract <ToValue> androidx.paging.DataSource<Key,ToValue> map(androidx.arch.core.util.Function<Value,ToValue>);
+                    method public abstract <ToValue> androidx.paging.DataSource<Key,ToValue> mapByPage(androidx.arch.core.util.Function<java.util.List<Value>,java.util.List<ToValue>>);
+                    method @AnyThread public void removeInvalidatedCallback(androidx.paging.DataSource.InvalidatedCallback);
+                  }
+                  public abstract class ItemKeyedDataSource<Key, Value> extends androidx.paging.DataSource<Key, Value> {
+                    method public abstract Key getKey(Value);
+                    method public boolean isContiguous();
+                    method public abstract void loadAfter(androidx.paging.ItemKeyedDataSource.LoadParams<Key>, androidx.paging.ItemKeyedDataSource.LoadCallback<Value>);
+                    method public abstract void loadBefore(androidx.paging.ItemKeyedDataSource.LoadParams<Key>, androidx.paging.ItemKeyedDataSource.LoadCallback<Value>);
+                    method public abstract void loadInitial(androidx.paging.ItemKeyedDataSource.LoadInitialParams<Key>, androidx.paging.ItemKeyedDataSource.LoadInitialCallback<Value>);
+                    method public final <ToValue> androidx.paging.ItemKeyedDataSource<Key,ToValue> map(androidx.arch.core.util.Function<Value,ToValue>);
+                    method public final <ToValue> androidx.paging.ItemKeyedDataSource<Key,ToValue> mapByPage(androidx.arch.core.util.Function<java.util.List<Value>,java.util.List<ToValue>>);
+                  }
+                }
+                """
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            outputKotlinStyleNulls = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Signatures with reified in type parameters`() {
+        val source = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static inline <T> void a(T);
+                    method public static inline <reified T> void b(T);
+                    method public static inline <reified T> void e(T);
+                    method public static inline <reified T> void f(T, T);
                   }
                 }
                 """
 
         check(
             compatibilityMode = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Suspended methods`() {
+        val source = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static suspend inline java.lang.Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Complicated annotations`() {
+        val source = """
+                package android.app {
+                  public static class ActionBar {
+                    field @android.view.ViewDebug.ExportedProperty(category="layout", mapping={@android.view.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.LEFT, to="LEFT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.RIGHT, to="RIGHT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.START, to="START"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.END, to="END"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_VERTICAL, to="CENTER_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_VERTICAL, to="FILL_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_HORIZONTAL, to="CENTER_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_HORIZONTAL, to="FILL_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER, to="CENTER"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL, to="FILL")}) public int gravity;
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = false,
             signatureSource = source,
             api = source
         )
