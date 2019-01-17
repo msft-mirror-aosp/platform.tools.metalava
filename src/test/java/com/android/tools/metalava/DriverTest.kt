@@ -97,7 +97,9 @@ abstract class DriverTest {
             val writer = PrintWriter(sw)
             if (!com.android.tools.metalava.run(arrayOf(*args), writer, writer)) {
                 val actualFail = cleanupString(sw.toString(), null)
-                if (expectedFail != actualFail.replace(".", "").trim()) {
+                if (cleanupString(expectedFail, null).replace(".", "").trim() !=
+                    actualFail.replace(".", "").trim()
+                ) {
                     if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
                         actualFail.startsWith("Aborting: Found compatibility problems checking the ")
                     ) {
@@ -106,6 +108,7 @@ abstract class DriverTest {
                         // the signature was passed at the same time
                         // ignore
                     } else {
+                        assertEquals(expectedFail, actualFail)
                         fail(actualFail)
                     }
                 }
@@ -254,6 +257,7 @@ abstract class DriverTest {
         /** An optional API signature to check the last released removed API's compatibility with */
         @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to compute nullness migration status from */
+        allowCompatibleDifferences: Boolean = true,
         @Language("TEXT") migrateNullsApi: String? = null,
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
@@ -273,6 +277,8 @@ abstract class DriverTest {
         omitCommonPackages: Boolean = !compatibilityMode,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
+        /** Expected fail message and state, if any */
+        expectedFail: String? = null,
         /** List of extra jar files to record annotation coverage from */
         coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
@@ -379,8 +385,8 @@ abstract class DriverTest {
         }
         Errors.resetLevels()
 
-        /** Expected output if exiting with an error code */
-        val expectedFail = if (checkCompatibilityApi != null ||
+        @Suppress("NAME_SHADOWING")
+        val expectedFail = expectedFail ?: if (checkCompatibilityApi != null ||
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
             checkCompatibilityRemovedApiReleased != null
@@ -567,7 +573,12 @@ abstract class DriverTest {
         }
 
         val checkCompatibilityArguments = if (checkCompatibilityApiFile != null) {
-            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path)
+            val extra: Array<String> = if (allowCompatibleDifferences) {
+                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
+            } else {
+                emptyArray()
+            }
+            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path, *extra)
         } else {
             emptyArray()
         }
@@ -579,7 +590,12 @@ abstract class DriverTest {
         }
 
         val checkCompatibilityRemovedCurrentArguments = if (checkCompatibilityRemovedApiCurrentFile != null) {
-            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path)
+            val extra: Array<String> = if (allowCompatibleDifferences) {
+                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
+            } else {
+                emptyArray()
+            }
+            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path, *extra)
         } else {
             emptyArray()
         }
