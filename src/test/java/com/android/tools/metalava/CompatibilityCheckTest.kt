@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import org.junit.Ignore
 import org.junit.Test
 import java.io.File
+import kotlin.text.Charsets.UTF_8
 
 class
 CompatibilityCheckTest : DriverTest() {
@@ -280,6 +281,32 @@ CompatibilityCheckTest : DriverTest() {
                     """
                 )
             )
+        )
+    }
+
+    @Test
+    fun `Kotlin Coroutines`() {
+        check(
+            warnings = "",
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            outputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static suspend inline java.lang.Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
+                  }
+                }
+                """
         )
     }
 
@@ -2421,7 +2448,7 @@ CompatibilityCheckTest : DriverTest() {
                     println("Couldn't find $signatureFile: Check that pwd for test is correct. Skipping this test.")
                     return
                 }
-                val previousSignatureApi = signatureFile.readText(Charsets.UTF_8)
+                val previousSignatureApi = signatureFile.readText(UTF_8)
 
                 check(
                     checkDoclava1 = false,
