@@ -149,6 +149,11 @@ CompatibilityCheckTest : DriverTest() {
                     method @NonNull public Double convert4(@NonNull Float);
                     method @Nullable public Double convert5(@Nullable Float);
                     method @NonNull public Double convert6(@NonNull Float);
+                    // booleans cannot reasonably be annotated with @Nullable/@NonNull but
+                    // the compiler accepts it and we had a few of these accidentally annotated
+                    // that way in API 28, such as Boolean.getBoolean. Make sure we don't flag
+                    // these as incompatible changes when they're dropped.
+                    method public void convert7(@NonNull boolean);
                   }
                 }
                 """,
@@ -162,6 +167,7 @@ CompatibilityCheckTest : DriverTest() {
                     method public Double convert4(Float);
                     method @NonNull public Double convert5(@NonNull Float);
                     method @Nullable public Double convert6(@Nullable Float);
+                    method public void convert7(boolean);
                   }
                 }
                 """
@@ -2272,6 +2278,30 @@ CompatibilityCheckTest : DriverTest() {
             sourceFiles = *arrayOf(
                 restrictToSource
             )
+        )
+    }
+
+    @Test
+    fun `Insignificant type formatting differences`() {
+        check(
+            checkCompatibilityApi = """
+                package test.pkg {
+                  public final class UsageStatsManager {
+                    method public java.util.Map<java.lang.String, java.lang.Integer> getAppStandbyBuckets();
+                    method public void setAppStandbyBuckets(java.util.Map<java.lang.String, java.lang.Integer>);
+                    field public java.util.Map<java.lang.String, java.lang.Integer> map;
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public final class UsageStatsManager {
+                    method public java.util.Map<java.lang.String,java.lang.Integer> getAppStandbyBuckets();
+                    method public void setAppStandbyBuckets(java.util.Map<java.lang.String,java.lang.Integer>);
+                    field public java.util.Map<java.lang.String,java.lang.Integer> map;
+                  }
+                }
+                """
         )
     }
 

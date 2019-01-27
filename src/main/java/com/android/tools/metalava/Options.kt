@@ -148,7 +148,7 @@ const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 
 class Options(
-    args: Array<String>,
+    private val args: Array<String>,
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     /** Writer to direct error messages to */
@@ -577,6 +577,7 @@ class Options(
         var baselineFile: File? = null
         var mergeBaseline = false
         var delayedCheckApiFiles = false
+        var skipGenerateAnnotations = false
 
         var index = 0
         while (index < args.size) {
@@ -1248,18 +1249,19 @@ class Options(
                             true
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
-                        when (arg) {
+                        outputFormat = when (arg) {
                             "$ARG_FORMAT=v1" -> {
-                                FileFormat.V1.configureOptions(this, compatibility)
+                                FileFormat.V1
                             }
                             "$ARG_FORMAT=v2" -> {
-                                FileFormat.V2.configureOptions(this, compatibility)
+                                FileFormat.V2
                             }
                             "$ARG_FORMAT=v3" -> {
-                                FileFormat.V3.configureOptions(this, compatibility)
+                                FileFormat.V3
                             }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
                         }
+                        outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
                         // Compatibility flag; map to mutable properties in the Compatibility
                         // class and assign it
@@ -1304,6 +1306,12 @@ class Options(
                         } else {
                             // All args that don't start with "-" are taken to be filenames
                             mutableSources.addAll(stringToExistingFiles(arg))
+
+                            // Temporary workaround for
+                            // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
+                            if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
+                                skipGenerateAnnotations = true
+                            }
                         }
                     }
                 }
@@ -1313,13 +1321,19 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            if (androidJarPatterns == null) {
-                androidJarPatterns = mutableListOf(
-                    "prebuilts/tools/common/api-versions/android-%/android.jar",
-                    "prebuilts/sdk/%/public/android.jar"
-                )
+            val patterns = androidJarPatterns ?: run {
+                mutableListOf<String>()
             }
-            apiLevelJars = findAndroidJars(androidJarPatterns!!, currentApiLevel, currentCodeName, currentJar)
+            // Fallbacks
+            patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
+            patterns.add("prebuilts/sdk/%/public/android.jar")
+            apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
+        }
+
+        // outputKotlinStyleNulls implies format=v3
+        if (outputKotlinStyleNulls) {
+            outputFormat = FileFormat.V3
+            outputFormat.configureOptions(this, compatibility)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1330,6 +1344,10 @@ class Options(
 
         if (noUnknownClasses) {
             allowReferencingUnknownClasses = false
+        }
+
+        if (skipGenerateAnnotations) {
+            generateAnnotations = false
         }
 
         if (updateApi) {
@@ -1457,6 +1475,19 @@ class Options(
                     if (verbose) {
                         stdout.println("Last API level found: ${apiLevel - 1}")
                     }
+
+                    if (apiLevel < 28) {
+                        // Clearly something is wrong with the patterns; this should result in a build error
+                        val argList = mutableListOf<String>()
+                        args.forEachIndexed { index, arg ->
+                            if (arg == ARG_ANDROID_JAR_PATTERN) {
+                                argList.add(args[index + 1])
+                            }
+                        }
+                        throw DriverException(stderr = "Could not find android.jar for API level $apiLevel; the " +
+                            "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}")
+                    }
+
                     break
                 }
                 if (verbose) {
