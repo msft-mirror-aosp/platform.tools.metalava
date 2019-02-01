@@ -35,10 +35,10 @@ import com.android.tools.metalava.model.parseDocument
 import com.android.utils.FileUtils
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
-import com.google.common.base.Charsets
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
 import com.google.common.io.Files
+import com.intellij.openapi.util.Disposer
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -95,9 +95,14 @@ abstract class DriverTest {
 
             val sw = StringWriter()
             val writer = PrintWriter(sw)
+
+            Disposer.setDebugMode(true)
+
             if (!com.android.tools.metalava.run(arrayOf(*args), writer, writer)) {
                 val actualFail = cleanupString(sw.toString(), null)
-                if (expectedFail != actualFail.replace(".", "").trim()) {
+                if (cleanupString(expectedFail, null).replace(".", "").trim() !=
+                    actualFail.replace(".", "").trim()
+                ) {
                     if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
                         actualFail.startsWith("Aborting: Found compatibility problems checking the ")
                     ) {
@@ -106,6 +111,7 @@ abstract class DriverTest {
                         // the signature was passed at the same time
                         // ignore
                     } else {
+                        assertEquals(expectedFail, actualFail)
                         fail(actualFail)
                     }
                 }
@@ -122,6 +128,8 @@ abstract class DriverTest {
                 fail("Printed newlines with nothing else")
             }
 
+            Disposer.assertIsEmpty(true)
+
             return printedOutput
         } finally {
             System.setOut(previousOut)
@@ -129,6 +137,9 @@ abstract class DriverTest {
         }
     }
 
+    // This is here to make sure we don't have any unexpected random println's
+    // in the source that are left behind after debugging and ends up polluting
+    // the production output
     class OutputForbiddenWriter(private val stream: String) : ByteArrayOutputStream() {
         override fun write(b: ByteArray?, off: Int, len: Int) {
             fail("Unexpected write directly to $stream")
@@ -254,6 +265,7 @@ abstract class DriverTest {
         /** An optional API signature to check the last released removed API's compatibility with */
         @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to compute nullness migration status from */
+        allowCompatibleDifferences: Boolean = true,
         @Language("TEXT") migrateNullsApi: String? = null,
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
@@ -273,6 +285,8 @@ abstract class DriverTest {
         omitCommonPackages: Boolean = !compatibilityMode,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
+        /** Expected fail message and state, if any */
+        expectedFail: String? = null,
         /** List of extra jar files to record annotation coverage from */
         coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
@@ -379,8 +393,8 @@ abstract class DriverTest {
         }
         Errors.resetLevels()
 
-        /** Expected output if exiting with an error code */
-        val expectedFail = if (checkCompatibilityApi != null ||
+        @Suppress("NAME_SHADOWING")
+        val expectedFail = expectedFail ?: if (checkCompatibilityApi != null ||
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
             checkCompatibilityRemovedApiReleased != null
@@ -567,7 +581,12 @@ abstract class DriverTest {
         }
 
         val checkCompatibilityArguments = if (checkCompatibilityApiFile != null) {
-            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path)
+            val extra: Array<String> = if (allowCompatibleDifferences) {
+                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
+            } else {
+                emptyArray()
+            }
+            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path, *extra)
         } else {
             emptyArray()
         }
@@ -579,7 +598,12 @@ abstract class DriverTest {
         }
 
         val checkCompatibilityRemovedCurrentArguments = if (checkCompatibilityRemovedApiCurrentFile != null) {
-            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path)
+            val extra: Array<String> = if (allowCompatibleDifferences) {
+                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
+            } else {
+                emptyArray()
+            }
+            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path, *extra)
         } else {
             emptyArray()
         }
@@ -745,12 +769,12 @@ abstract class DriverTest {
                 val signature = convert.fromApi
                 val base = convert.baseApi
                 val convertSig = temporaryFolder.newFile("convert-signatures$index.txt")
-                convertSig.writeText(signature.trimIndent(), Charsets.UTF_8)
+                convertSig.writeText(signature.trimIndent(), UTF_8)
                 val extension = convert.format.preferredExtension()
                 val output = temporaryFolder.newFile("convert-output$index$extension")
                 val baseFile = if (base != null) {
                     val baseFile = temporaryFolder.newFile("convert-signatures$index-base.txt")
-                    baseFile.writeText(base.trimIndent(), Charsets.UTF_8)
+                    baseFile.writeText(base.trimIndent(), UTF_8)
                     baseFile
                 } else {
                     null
@@ -1023,7 +1047,7 @@ abstract class DriverTest {
             val actualText = readFile(apiXmlFile, stripBlankLines, trim)
             assertEquals(stripComments(apiXml, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
-            parseDocument(apiXmlFile.readText(Charsets.UTF_8), false)
+            parseDocument(apiXmlFile.readText(UTF_8), false)
         }
 
         if (baseline != null && baselineFile != null) {
@@ -1189,7 +1213,7 @@ abstract class DriverTest {
                 validateNullabilityTxt.isFile
             )
             val actualReport =
-                Files.asCharSource(validateNullabilityTxt, Charsets.UTF_8).readLines().map(String::trim).toSet()
+                Files.asCharSource(validateNullabilityTxt, UTF_8).readLines().map(String::trim).toSet()
             assertEquals(validateNullability, actualReport)
         }
 
@@ -1304,7 +1328,7 @@ abstract class DriverTest {
             val signatureFile: File =
                 apiFile ?: if (signatureSource != null) {
                     val temp = temporaryFolder.newFile("jdiff-doclava-api.txt")
-                    temp.writeText(signatureSource.trimIndent(), Charsets.UTF_8)
+                    temp.writeText(signatureSource.trimIndent(), UTF_8)
                     temp
                 } else {
                     fail("When verifying XML files with doclava you must either specify signatureSource or api")
@@ -1333,11 +1357,11 @@ abstract class DriverTest {
                 val base = convert.baseApi
                 val strip = convert.strip
                 val convertSig = temporaryFolder.newFile("doclava-jdiff-signatures$index.txt")
-                convertSig.writeText(signature.trimIndent(), Charsets.UTF_8)
+                convertSig.writeText(signature.trimIndent(), UTF_8)
                 val output = temporaryFolder.newFile("doclava-jdiff-output$index.xml")
                 val baseFile = if (base != null) {
                     val baseFile = temporaryFolder.newFile("doclava-jdiff-signatures$index-base.txt")
-                    baseFile.writeText(base.trimIndent(), Charsets.UTF_8)
+                    baseFile.writeText(base.trimIndent(), UTF_8)
                     baseFile
                 } else {
                     null
@@ -1554,7 +1578,7 @@ abstract class DriverTest {
         try {
             val bytes = ByteStreams.toByteArray(stream)
             assertNotNull(bytes)
-            val xml = String(bytes, Charsets.UTF_8).replace("\r\n", "\n")
+            val xml = String(bytes, UTF_8).replace("\r\n", "\n")
             assertEquals(expected.trimIndent().trim(), xml.trimIndent().trim())
         } finally {
             Closeables.closeQuietly(stream)
@@ -1878,6 +1902,10 @@ abstract class DriverTest {
             }
         }
 
+        fun java(to: String, @Language("JAVA") source: String): LintDetectorTest.TestFile {
+            return TestFiles.java(to, source.trimIndent())
+        }
+
         fun java(@Language("JAVA") source: String): LintDetectorTest.TestFile {
             return TestFiles.java(source.trimIndent())
         }
@@ -1891,7 +1919,7 @@ abstract class DriverTest {
         }
 
         private fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {
-            var apiLines: List<String> = Files.asCharSource(file, Charsets.UTF_8).readLines()
+            var apiLines: List<String> = Files.asCharSource(file, UTF_8).readLines()
             if (stripBlankLines) {
                 apiLines = apiLines.asSequence().filter { it.isNotBlank() }.toList()
             }

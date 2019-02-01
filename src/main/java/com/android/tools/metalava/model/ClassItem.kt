@@ -198,6 +198,8 @@ interface ClassItem : Item {
     /** Gets the type for this class */
     fun toType(): TypeItem
 
+    override fun type(): TypeItem? = null
+
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
 
@@ -858,7 +860,7 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
             return
         }
 
-        val emitThis = if (visitor.includeEmptyOuterClasses) emit else emitClass
+        val emitThis = cls.emit && if (visitor.includeEmptyOuterClasses) emit else emitClass
         if (emitThis) {
             if (!visitor.visitingPackage) {
                 visitor.visitingPackage = true

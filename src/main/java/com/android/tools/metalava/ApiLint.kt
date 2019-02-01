@@ -71,6 +71,7 @@ import com.android.tools.metalava.doclava1.Errors.EXCEPTION_NAME
 import com.android.tools.metalava.doclava1.Errors.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.doclava1.Errors.EXTENDS_ERROR
 import com.android.tools.metalava.doclava1.Errors.Error
+import com.android.tools.metalava.doclava1.Errors.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.doclava1.Errors.FRACTION_FLOAT
 import com.android.tools.metalava.doclava1.Errors.GENERIC_EXCEPTION
 import com.android.tools.metalava.doclava1.Errors.GETTER_SETTER_NAMES
@@ -196,22 +197,26 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         if (apiLintIssues > 0) {
             // We've reported API lint violations; emit some verbiage to explain
             // how to suppress the error rules.
-            options.stdout.println("\n$apiLintIssues new API lint issues were found. See tools/metalava/API-LINT.md for how to handle these.")
+            options.stdout.println("\n$apiLintIssues new API lint issues were found.")
             val baseline = options.baseline
             if (baseline?.updateFile != null && baseline.file != null && !baseline.silentUpdate) {
                 options.stdout.println("""
-                ******************************
+                ************************************************************
                 Your API changes are triggering API Lint warnings or errors.
                 To make these errors go away, you have two choices:
-                   1. You can suppress the errors with @SuppressLint("<id>")
-                   2. You can update the baseline by executing the following command:
-                         cp \
-                         ${baseline.updateFile} \
-                         ${baseline.file}
-                      To submit the revised baseline.txt to the main Android repository,
-                      you will need approval.
-                ******************************
+
+                1. You can suppress the errors with @SuppressLint("<id>")
+                2. You can update the baseline by executing the following
+                   command:
+                       cp \
+                       ${baseline.updateFile} \
+                       ${baseline.file}
+                   To submit the revised baseline.txt to the main Android
+                   repository, you will need approval.
+                ************************************************************
                 """.trimIndent())
+            } else {
+                options.stdout.println("See tools/metalava/API-LINT.md for how to handle these.")
             }
         }
     }
@@ -309,6 +314,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkUserHandle(cls, methods)
         checkParams(cls)
         checkSingleton(cls, methods, constructors)
+        checkExtends(cls)
 
         // TODO: Not yet working
         // checkOverloadArgs(cls, methods)
@@ -3229,6 +3235,23 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     "Singleton classes should use `getInstance()` methods: `${cls.simpleName()}`"
                 )
             }
+        }
+    }
+
+    private fun checkExtends(cls: ClassItem) {
+        // Call cls.superClass().extends() instead of cls.extends() since extends returns true for self
+        val superCls = cls.superClass() ?: return
+        if (superCls.extends("android.os.AsyncTask")) {
+            report(
+                FORBIDDEN_SUPER_CLASS, cls,
+                "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
+            )
+        }
+        if (superCls.extends("android.app.Activity")) {
+            report(
+                FORBIDDEN_SUPER_CLASS, cls,
+                "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
+            )
         }
     }
 

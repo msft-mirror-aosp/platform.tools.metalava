@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import kotlin.text.Charsets.UTF_8
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
 class DocAnalyzerTest : DriverTest() {
@@ -1332,7 +1333,7 @@ class DocAnalyzerTest : DriverTest() {
                  * @deprecated Blah blah blah 1
                  */
                 @Deprecated
-                @androidx.annotation.NonNull
+                @android.annotation.NonNull
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 /**
                  * My description
@@ -1472,6 +1473,13 @@ class DocAnalyzerTest : DriverTest() {
             println("Ignoring external doc test: JDK not found")
             return
         }
+
+        val version = System.getProperty("java.version")
+        if (!version.startsWith("1.8.")) {
+            println("Javadoc invocation test does not work on Java 1.9 and later; bootclasspath not supported")
+            return
+        }
+
         val javadoc = File(jdkPath, "bin/javadoc")
         if (!javadoc.isFile) {
             println("Ignoring external doc test: javadoc not found *or* not running on Linux/OSX")
@@ -1545,7 +1553,7 @@ class DocAnalyzerTest : DriverTest() {
             )
         )
 
-        val doc = File(html, "test/pkg/LocationManager.html").readText(Charsets.UTF_8)
+        val doc = File(html, "test/pkg/LocationManager.html").readText(UTF_8)
         assertTrue(
             "Did not find matching javadoc fragment in LocationManager.html: actual content is\n$doc",
             doc.contains(

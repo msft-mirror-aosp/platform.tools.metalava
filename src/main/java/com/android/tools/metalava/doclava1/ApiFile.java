@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.text.TextPropertyItem;
 import com.android.tools.metalava.model.text.TextTypeItem;
 import com.android.tools.metalava.model.text.TextTypeParameterList;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import kotlin.Pair;
 import kotlin.text.StringsKt;
@@ -42,7 +41,9 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NONNULL;
 import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NULLABLE;
@@ -50,6 +51,7 @@ import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_ANNOTATION;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_ENUM;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_STRING;
 import static com.android.tools.metalava.model.FieldItemKt.javaUnescapeString;
+import static kotlin.text.Charsets.UTF_8;
 
 //
 // Copied from doclava1, but adapted to metalava's code model (plus tweaks to handle
@@ -63,7 +65,7 @@ public class ApiFile {
     public static TextCodebase parseApi(File file,
                                         Boolean kotlinStyleNulls) throws ApiParseException {
         try {
-            String apiText = Files.asCharSource(file, Charsets.UTF_8).read();
+            String apiText = Files.asCharSource(file, UTF_8).read();
             return parseApi(file.getPath(), apiText, kotlinStyleNulls);
         } catch (IOException ex) {
             throw new ApiParseException("Error reading API file", ex);

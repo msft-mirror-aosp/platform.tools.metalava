@@ -110,7 +110,10 @@ class ApiLintTest : DriverTest() {
                     """
                 )
             ),
-            expectedOutput = "9 new API lint issues were found. See tools/metalava/API-LINT.md for how to handle these."
+            expectedOutput = """
+                9 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """
         )
     }
 
@@ -693,9 +696,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
+                src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should be `<Foo>Provider`, was `MyClass2` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should be `<Foo>Service`, was `MyClass3` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
+                src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -1451,7 +1456,7 @@ class ApiLintTest : DriverTest() {
                     import java.io.InputStream;
 
                     public class CheckFiles {
-                        public MyClass(Context context, File file) {
+                        public CheckFiles(Context context, File file) {
                         }
                         public void ok(int i, File file) { }
                         public void ok(int i, InputStream stream) { }
@@ -1482,7 +1487,7 @@ class ApiLintTest : DriverTest() {
                     import java.io.InputStream;
 
                     public class CheckFiles {
-                        public MyClass(Context context, File file) {
+                        public CheckFiles(Context context, File file) {
                         }
                         public void ok(int i, File file) { }
                         public void ok(int i, InputStream stream) { }
@@ -2024,6 +2029,45 @@ class ApiLintTest : DriverTest() {
                         public static MySingleton2 getMyInstance() { return null; }
                         private MySingleton2() { } // OK, private
                         public void foo() { }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Check forbidden super-classes`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/FirstActivity.java:2: error: FirstActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
+                src/android/pkg/IndirectActivity.java:2: error: IndirectActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
+                src/android/pkg/MyTask.java:2: error: MyTask should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead [ForbiddenSuperClass]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+                    public abstract class FirstActivity extends android.app.Activity {
+                        private FirstActivity() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+                    public abstract class IndirectActivity extends android.app.ListActivity {
+                        private IndirectActivity() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+                    public abstract class MyTask extends android.os.AsyncTask<String,String,String> {
+                        private MyTask() { }
                     }
                     """
                 )

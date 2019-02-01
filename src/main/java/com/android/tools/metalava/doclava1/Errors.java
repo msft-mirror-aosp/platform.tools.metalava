@@ -206,7 +206,7 @@ public class Errors {
     public static final Error UNAVAILABLE_SYMBOL = new Error(110, WARNING, Category.DOCUMENTATION);
     public static final Error HIDDEN_SUPERCLASS = new Error(111, WARNING, Category.DOCUMENTATION);
     public static final Error DEPRECATED = new Error(112, HIDDEN, Category.DOCUMENTATION);
-    public static final Error DEPRECATION_MISMATCH = new Error(113, WARNING, Category.DOCUMENTATION);
+    public static final Error DEPRECATION_MISMATCH = new Error(113, ERROR, Category.DOCUMENTATION);
     public static final Error MISSING_COMMENT = new Error(114, LINT, Category.DOCUMENTATION);
     public static final Error IO_ERROR = new Error(115, ERROR);
     public static final Error NO_SINCE_DATA = new Error(116, HIDDEN, Category.DOCUMENTATION);
@@ -342,6 +342,7 @@ public class Errors {
     public static final Error MISSING_JVMSTATIC = new Error(381, WARNING, Category.API_LINT); // Formerly 143
     public static final Error DEFAULT_VALUE_CHANGE = new Error(382, ERROR, Category.API_LINT); // Formerly 144
     public static final Error DOCUMENT_EXCEPTIONS = new Error(383, ERROR, Category.API_LINT); // Formerly 145
+    public static final Error FORBIDDEN_SUPER_CLASS = new Error(384, ERROR, Category.API_LINT);
 
     static {
         // Attempt to initialize error names based on the field names

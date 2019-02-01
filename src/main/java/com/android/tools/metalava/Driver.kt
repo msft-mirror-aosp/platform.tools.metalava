@@ -20,7 +20,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
-import com.android.SdkConstants.DOT_TXT
 import com.android.ide.common.process.CachedProcessOutputHandler
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.ProcessInfoBuilder
@@ -49,9 +48,13 @@ import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
+import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
+import com.intellij.openapi.extensions.Extensions
 import com.intellij.openapi.roots.LanguageLevelProjectExtension
 import com.intellij.openapi.util.Disposer
+import com.intellij.psi.javadoc.CustomJavadocTagProvider
+import com.intellij.psi.javadoc.JavadocTagInfo
 import com.intellij.util.execution.ParametersListUtil
 import java.io.File
 import java.io.IOException
@@ -92,8 +95,7 @@ fun run(
     setExitCode: Boolean = false
 ): Boolean {
 
-    if (System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) != null &&
-        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+    if (System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) != null && !isUnderTest()
     ) {
         stdout.println("---Running $PROGRAM_NAME----")
         stdout.println("pwd=${File("").absolutePath}")
@@ -131,6 +133,7 @@ fun run(
                             stdout.println("\"$arg\",")
                         }
                         stdout.println("----------------------------")
+                        stdout.flush()
                     }
                     newArgs
                 }
@@ -140,11 +143,13 @@ fun run(
         options = Options(modifiedArgs, stdout, stderr)
         processFlags()
 
-        if (reporter.hasErrors() && !options.updateBaseline) {
+        if (reporter.hasErrors() && !options.passBaselineUpdates) {
             exitCode = -1
         }
         exitValue = true
     } catch (e: DriverException) {
+        stdout.flush()
+        stderr.flush()
         if (e.stderr.isNotBlank()) {
             stderr.println("\n${e.stderr}")
         }
@@ -153,20 +158,24 @@ fun run(
         }
         exitCode = e.exitCode
         exitValue = false
+    } finally {
+        Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
     }
 
     if (options.updateBaseline) {
         if (options.verbose) {
             options.baseline?.dumpStats(options.stdout)
         }
-        stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.file}")
+        if (!options.quiet) {
+            stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.updateFile}")
+        }
     }
     options.baseline?.close()
 
     stdout.flush()
     stderr.flush()
 
-    if (setExitCode && reporter.hasErrors()) {
+    if (setExitCode) {
         exit(exitCode)
     }
 
@@ -431,8 +440,6 @@ private fun processFlags() {
         AnnotationStatistics(codebase).measureCoverageOf(options.annotationCoverageOf)
     }
 
-    Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
-
     if (options.verbose) {
         val packageCount = codebase.size()
         options.stdout.println("\n$PROGRAM_NAME finished handling $packageCount packages in $stopwatch")
@@ -578,18 +585,7 @@ fun checkCompatibility(
                 kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         } else if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
-            val apiFile = apiType.getOptionFile() ?: run {
-                val tempFile = createTempFile("compat-check-signatures-$apiType", DOT_TXT)
-                tempFile.deleteOnExit()
-                val apiEmit = apiType.getEmitFilter()
-                val apiReference = apiType.getReferenceFilter()
-
-                createReportFile(codebase, tempFile, null) { printWriter ->
-                    SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
-                }
-
-                tempFile
-            }
+            val apiFile = apiType.getSignatureFile(codebase, "compat-check-signatures-$apiType")
 
             // Fast path: if the signature files are identical, we're already good!
             if (apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
@@ -615,6 +611,41 @@ fun checkCompatibility(
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, base)
+
+    // Make sure the text files are identical too? (only applies for *current.txt;
+    // last-released is expected to differ)
+    if (releaseType == ReleaseType.DEV && !options.allowCompatibleDifferences) {
+        val apiFile = if (new.location.isFile)
+            new.location
+        else
+            apiType.getSignatureFile(codebase, "compat-diff-signatures-$apiType")
+
+        fun getCanonicalSignatures(file: File): String {
+            // Get rid of trailing newlines and Windows line endings
+            val text = file.readText(UTF_8)
+            return text.replace("\r\n", "\n").trim()
+        }
+        val currentTxt = getCanonicalSignatures(signatureFile)
+        val newTxt = getCanonicalSignatures(apiFile)
+        if (newTxt != currentTxt) {
+            val diff = getNativeDiff(signatureFile, apiFile) ?: getDiff(currentTxt, newTxt, 1)
+            val updateApi = if (isBuildingAndroid())
+                "Run make update-api to update.\n"
+            else
+                ""
+            val message =
+                """
+                    Aborting: Your changes have resulted in differences in the signature file
+                    for the ${apiType.displayName} API.
+
+                    The changes may be compatible, but the signature file needs to be updated.
+                    $updateApi
+                    Diffs:
+                """.trimIndent() + "\n" + diff
+
+            throw DriverException(exitCode = -1, stderr = message)
+        }
+    }
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
@@ -706,7 +737,7 @@ fun invokeDocumentationTool() {
 class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() {
 
     override fun write(b: ByteArray) {
-        writer.write(String(b, Charsets.UTF_8))
+        writer.write(String(b, UTF_8))
     }
 
     override fun write(b: Int) {
@@ -714,7 +745,7 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
     }
 
     override fun write(b: ByteArray, off: Int, len: Int) {
-        writer.write(String(b, off, len, Charsets.UTF_8))
+        writer.write(String(b, off, len, UTF_8))
     }
 
     override fun flush() {
@@ -873,16 +904,29 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
 private fun createProjectEnvironment(): LintCoreProjectEnvironment {
     ensurePsiFileCapacity()
     val appEnv = LintCoreApplicationEnvironment.get()
-    val parentDisposable = Disposer.newDisposable()
+    val parentDisposable = appEnv.parentDisposable
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+        !isUnderTest()
     ) {
         DefaultLogger.disableStderrDumping(parentDisposable)
     }
 
-    return LintCoreProjectEnvironment.create(parentDisposable, appEnv)
+    val environment = LintCoreProjectEnvironment.create(parentDisposable, appEnv)
+
+    // Missing service needed in metalava but not in lint: javadoc handling
+    environment.project.registerService(
+        com.intellij.psi.javadoc.JavadocManager::class.java,
+        com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
+    )
+    environment.registerProjectExtensionPoint(JavadocTagInfo.EP_NAME,
+        com.intellij.psi.javadoc.JavadocTagInfo::class.java)
+    CoreApplicationEnvironment.registerExtensionPoint(
+        Extensions.getRootArea(), CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
+    )
+
+    return environment
 }
 
 private fun ensurePsiFileCapacity() {
@@ -993,7 +1037,7 @@ fun createReportFile(
     }
     val localTimer = Stopwatch.createStarted()
     try {
-        val writer = PrintWriter(Files.asCharSink(apiFile, Charsets.UTF_8).openBufferedStream())
+        val writer = PrintWriter(Files.asCharSink(apiFile, UTF_8).openBufferedStream())
         writer.use { printWriter ->
             val apiWriter = createVisitor(printWriter)
             codebase.accept(apiWriter)
@@ -1114,7 +1158,7 @@ private fun addHiddenPackages(
             }
             else -> return
         }
-        var contents = Files.asCharSource(file, Charsets.UTF_8).read()
+        var contents = Files.asCharSource(file, UTF_8).read()
         if (javadoc) {
             contents = packageHtmlToJavadoc(contents)
         }
@@ -1201,7 +1245,7 @@ private fun findRoot(file: File): File? {
 
 /** Finds the package of the given Java/Kotlin source file, if possible */
 fun findPackage(file: File): String? {
-    val source = Files.asCharSource(file, Charsets.UTF_8).read()
+    val source = Files.asCharSource(file, UTF_8).read()
     return findPackage(source)
 }
 
@@ -1209,3 +1253,9 @@ fun findPackage(file: File): String? {
 fun findPackage(source: String): String? {
     return ClassName(source).packageName
 }
+
+/** Whether metalava is running unit tests */
+fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+
+/** Whether metalava is being invoked as part of an Android platform build */
+fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
