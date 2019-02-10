@@ -1995,7 +1995,13 @@ class StubsTest : DriverTest() {
                 public MySubClass2() { super(0); throw new RuntimeException("Stub!"); }
                 }
                 """
-            )
+            ),
+            stubsSourceList = """
+                TESTROOT/stubs/test/pkg/MyClass1.java
+                TESTROOT/stubs/test/pkg/MyClass2.java
+                TESTROOT/stubs/test/pkg/MySubClass1.java
+                TESTROOT/stubs/test/pkg/MySubClass2.java
+            """
         )
     }
 
@@ -3712,6 +3718,41 @@ class StubsTest : DriverTest() {
                 This file should not be generated since --update-api is supplied.
                 """
             )
+        )
+    }
+
+    @Test(expected = AssertionError::class)
+    fun `Test check-api should not generate stubs or API files`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_CHECK_API,
+                ARG_EXCLUDE_ANNOTATIONS
+            ),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Foo {
+                        /**
+                         * @deprecated Use checkPermission instead.
+                         */
+                        @Deprecated
+                        protected boolean inClass(String name) {
+                            return false;
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+            package test.pkg {
+              public class Foo {
+                ctor public Foo();
+                method @Deprecated protected boolean inClass(String);
+              }
+            }
+            """
         )
     }
 
