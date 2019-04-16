@@ -148,6 +148,7 @@ const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_SUBTRACT_API = "--subtract-api"
+const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
 class Options(
     private val args: Array<String>,
@@ -505,6 +506,9 @@ class Options(
     /** The api level of the codebase, or -1 if not known/specified */
     var currentApiLevel = -1
 
+    /** The codename of the codebase, if it's a preview, or null if not specified */
+    var currentCodeName: String? = null
+
     /** API level XML file to generate */
     var generateApiLevelXml: File? = null
 
@@ -553,6 +557,15 @@ class Options(
     /** List of signature files to export as JDiff files */
     val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
 
+    enum class TypedefMode {
+        NONE,
+        REFERENCE,
+        INLINE
+    }
+
+    /** How to handle typedef annotations in signature files; corresponds to $ARG_TYPEDEFS_IN_SIGNATURES */
+    var typedefMode = TypedefMode.NONE
+
     /** File conversion tasks */
     data class ConvertFile(
         val fromApiFile: File,
@@ -589,7 +602,6 @@ class Options(
         }
 
         var androidJarPatterns: MutableList<String>? = null
-        var currentCodeName: String? = null
         var currentJar: File? = null
         var updateBaselineFile: File? = null
         var baselineFile: File? = null
@@ -765,6 +777,17 @@ class Options(
                 "--skip-emit-packages" -> {
                     val packages = getValue(args, ++index)
                     mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
+                }
+
+                ARG_TYPEDEFS_IN_SIGNATURES -> {
+                    val type = getValue(args, ++index)
+                    typedefMode = when (type) {
+                        "ref" -> TypedefMode.REFERENCE
+                        "inline" -> TypedefMode.INLINE
+                        "none" -> TypedefMode.NONE
+                        else -> throw DriverException(
+                            stderr = "$ARG_TYPEDEFS_IN_SIGNATURES must be one of ref, inline, none; was $type")
+                    }
                 }
 
                 ARG_BASELINE -> {
@@ -1920,6 +1943,12 @@ class Options(
             "$ARG_SUBTRACT_API <api file>", "Subtracts the API in the given signature or jar file from the " +
                 "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
                 "Note that the subtraction only applies to classes; it does not subtract members.",
+            "$ARG_TYPEDEFS_IN_SIGNATURES <ref|inline>", "Whether to include typedef annotations in signature " +
+                "files. `$ARG_TYPEDEFS_IN_SIGNATURES ref` will include just a reference to the typedef class, " +
+                "which is not itself part of the API and is not included as a class, and " +
+                "`$ARG_TYPEDEFS_IN_SIGNATURES inline` will include the constants themselves into each usage " +
+                "site. You can also supply `$ARG_TYPEDEFS_IN_SIGNATURES none` to explicitly turn it off, if the " +
+                "default ever changes.",
 
             "", "\nDocumentation:",
             ARG_PUBLIC, "Only include elements that are public",
