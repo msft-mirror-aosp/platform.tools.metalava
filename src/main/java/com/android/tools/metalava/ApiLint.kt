@@ -1679,7 +1679,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         else -> {
                             report(
                                 RETHROW_REMOTE_EXCEPTION, method,
-                                "Methods calling into system server should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
+                                "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
                             )
                         }
                     }
@@ -2770,7 +2770,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
 
         for (method in methods) {
-            if (method.modifiers.isStatic()) {
+            if (method.modifiers.isStatic() || method.modifiers.isOperator() || method.superMethods().isNotEmpty()) {
                 continue
             }
             val name = method.name()

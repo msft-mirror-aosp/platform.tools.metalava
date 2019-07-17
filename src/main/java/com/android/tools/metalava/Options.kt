@@ -101,6 +101,7 @@ const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
+const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
@@ -141,6 +142,7 @@ const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
+const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_MERGE_BASELINE = "--merge-baseline"
@@ -170,6 +172,8 @@ class Options(
     private val mutableShowSingleAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [hideAnnotations] */
     private val mutableHideAnnotations: MutableList<String> = mutableListOf()
+    /** Internal list backing [hideMetaAnnotations] */
+    private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -345,6 +349,9 @@ class Options(
 
     /** Annotations to hide */
     var hideAnnotations: List<String> = mutableHideAnnotations
+
+    /** Meta-annotations to hide */
+    var hideMetaAnnotations: List<String> = mutableHideMetaAnnotations
 
     /** Whether to report warnings and other diagnostics along the way */
     var quiet = false
@@ -535,6 +542,11 @@ class Options(
 
     /** Whether the baseline should only contain errors */
     var baselineErrorsOnly = false
+
+    /**
+     * DocReplacements to apply to the documentation.
+     */
+    var docReplacements = mutableListOf<DocReplacement>()
 
     /**
      * Whether to omit locations for warnings and errors. This is not a flag exposed to users
@@ -733,6 +745,8 @@ class Options(
 
                 ARG_HIDE_ANNOTATION, "--hideAnnotations", "-hideAnnotation" ->
                     mutableHideAnnotations.add(getValue(args, ++index))
+                ARG_HIDE_META_ANNOTATION, "--hideMetaAnnotations", "-hideMetaAnnotation" ->
+                    mutableHideMetaAnnotations.add(getValue(args, ++index))
 
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
@@ -1072,6 +1086,14 @@ class Options(
                     }.toTypedArray()
 
                     index = args.size // jump to end of argument loop
+                }
+
+                ARG_REPLACE_DOCUMENTATION -> {
+                    val packageNames = args[++index].split(":")
+                    val regex = Regex(args[++index])
+                    val replacement = args[++index]
+                    val docReplacement = DocReplacement(packageNames, regex, replacement)
+                    docReplacements.add(docReplacement)
                 }
 
                 ARG_REGISTER_ARTIFACT, "-artifact" -> {
@@ -1924,6 +1946,12 @@ class Options(
 
             "$ARG_MANIFEST <file>", "A manifest file, used to for check permissions to cross check APIs",
 
+            "$ARG_REPLACE_DOCUMENTATION <p> <r> <t>", "Amongst nonempty documentation of items from Java " +
+                "packages <p> and their subpackages, replaces any matches of regular expression <r> " +
+                "with replacement text <t>. <p> is given as a nonempty list of Java package names separated " +
+                "by ':' (e.g. \"java:android.util\"); <t> may contain backreferences (\$1, \$2 etc.) to " +
+                "matching groups from <r>.",
+
             "$ARG_HIDE_PACKAGE <package>", "Remove the given packages from the API even if they have not been " +
                 "marked with @hide",
 
@@ -1933,6 +1961,8 @@ class Options(
                 "to members; these must also be explicitly annotated",
             "$ARG_HIDE_ANNOTATION <annotation class>", "Treat any elements annotated with the given annotation " +
                 "as hidden",
+            "$ARG_HIDE_META_ANNOTATION <meta-annotation class>", "Treat as hidden any elements annotated with an " +
+                "annotation which is itself annotated with the given meta-annotation",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
             "$ARG_STUB_PACKAGES <package-list>", "List of packages (separated by ${File.pathSeparator}) which will " +

@@ -1015,7 +1015,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:9: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.IllegalArgumentException` [IllegalStateException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.NullPointerException` [IllegalStateException] [Rule S1 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:11: error: Methods calling into system server should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [Rule FW9 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [Rule FW9 in go/android-api-guidelines]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -2069,6 +2069,67 @@ class ApiLintTest : DriverTest() {
                     public abstract class MyTask extends android.os.AsyncTask<String,String,String> {
                         private MyTask() { }
                     }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `KotlinOperator check only applies to java`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            // Note, src/android/pkg/FontFamily.kt:3 warning should not be there, it is a bug in PSI
+            // https://youtrack.jetbrains.com/issue/KT-32556
+            warnings = """
+                src/android/pkg/A.kt:3: info: Method can be invoked with an indexing operator from Kotlin: `get` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
+                src/android/pkg/FontFamily.kt:1: info: Method can be invoked as a "in" operator from Kotlin: `contains` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
+                src/android/pkg/Foo.java:4: info: Method can be invoked as a binary operator from Kotlin: `div` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                        package android.pkg;
+                        public class Foo {
+                            private Foo() { }
+                            public Foo div(int value) { }
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package android.pkg
+                        class Bar {
+                            operator fun div(value: Int): Bar { }
+                            // "fun div(value: Int): Bar { }" is also disallowed but that's already enforced by the kotlin compiler
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package android.pkg
+                        class FontFamily(val fonts: List<String>) : List<String> by fonts
+                    """
+                ),
+                kotlin(
+                    """
+                        package android.pkg
+                        class B: A() {
+                            override fun get(i: Int): A {
+                                return A()
+                            }
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package android.pkg
+                        open class A {
+                            open fun get(i: Int): A {
+                                return A()
+                            }
+                        }
                     """
                 )
             )
