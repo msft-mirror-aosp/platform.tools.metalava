@@ -91,6 +91,7 @@ import com.android.tools.metalava.doclava1.Errors.METHOD_NAME_TENSE
 import com.android.tools.metalava.doclava1.Errors.METHOD_NAME_UNITS
 import com.android.tools.metalava.doclava1.Errors.MIN_MAX_CONSTANT
 import com.android.tools.metalava.doclava1.Errors.MISSING_BUILD
+import com.android.tools.metalava.doclava1.Errors.MISSING_NULLABILITY
 import com.android.tools.metalava.doclava1.Errors.NOT_CLOSEABLE
 import com.android.tools.metalava.doclava1.Errors.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.doclava1.Errors.NO_CLONE
@@ -229,8 +230,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     // run independently as well; therefore, only run them here if not running separately)
     private val kotlinInterop = if (!options.checkKotlinInterop) KotlinInteropChecks() else null
 
-    private var isKotlin = false
-
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
         val fields = cls.filteredFields(filterReference, showUnannotated).asSequence()
@@ -242,8 +241,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             cls, methods, constructors, allMethods, fields, superClass, interfaces,
             filterReference
         )
-
-        isKotlin = cls.isKotlin()
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -255,13 +252,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
         }
-        kotlinInterop?.checkMethod(method, isKotlin)
+        kotlinInterop?.checkMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
         checkField(field)
         checkType(field.type(), field)
-        kotlinInterop?.checkField(field, isKotlin)
+        kotlinInterop?.checkField(field)
     }
 
     private fun checkType(type: TypeItem, item: Item) {
@@ -273,6 +270,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
         checkBitSet(type, typeString, item)
+        checkHasNullability(item)
     }
 
     private fun checkClass(
@@ -1780,6 +1778,25 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
+    private fun checkHasNullability(item: Item) {
+        if (item.requiresNullnessInfo() && !item.hasNullnessInfo()) {
+            val where = when (item) {
+                is ParameterItem -> "parameter `${item.name()}` in method `${item.parent()?.name()}`"
+                is FieldItem -> "field `${item.name()}` in class `${item.parent()}`"
+                is ConstructorItem -> "constructor `${item.name()}` return"
+                is MethodItem -> {
+                    // For methods requiresNullnessInfo and hasNullnessInfo considers both parameters and return,
+                    // only warn about non-annotated returns here as parameters will get visited individually.
+                    if (item.isConstructor() || item.returnType()?.primitive == true) return
+                    if (item.modifiers.hasNullnessInfo()) return
+                    "method `${item.name()}` return"
+                }
+                else -> throw IllegalStateException("Unexpected item type: $item")
+            }
+            report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+        }
+    }
+
     private fun checkBoxed(type: TypeItem, item: Item) {
         /*
             def verify_boxed(clazz):
@@ -2763,10 +2780,16 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
          */
 
         fun flagKotlinOperator(method: MethodItem, message: String) {
-            report(
-                KOTLIN_OPERATOR, method,
-                "$message (this is usually desirable; just make sure it makes sense for this type of object)"
-            )
+            if (method.isKotlin()) {
+                report(
+                    KOTLIN_OPERATOR, method,
+                    "Note that adding the `operator` keyword would allow calling this method using operator syntax")
+            } else {
+                report(
+                    KOTLIN_OPERATOR, method,
+                    "$message (this is usually desirable; just make sure it makes sense for this type of object)"
+                )
+            }
         }
 
         for (method in methods) {
