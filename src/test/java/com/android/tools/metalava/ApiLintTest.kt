@@ -801,8 +801,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/MyClass.java:6: warning: Methods must return the builder object (return type Builder instead of void): method android.pkg.MyClass.Builder.setSomething(int) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:6: warning: Builder methods names should use setFoo() style: method android.pkg.MyClass.Builder.withFoo(int) [BuilderSetStyle]
+                src/android/pkg/MyClass.java:9: warning: Methods must return the builder object (return type android.pkg.MyClass.Builder<T> instead of void): method android.pkg.MyClass.Builder.setSomething(int) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: warning: Builder methods names should use setFoo() style: method android.pkg.MyClass.Builder.withFoo(int) [BuilderSetStyle]
                 src/android/pkg/MyClass.java:6: warning: Missing `build()` method in android.pkg.MyClass.Builder [MissingBuild]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Missing `build()` method in android.pkg.TopLevelBuilder [MissingBuild]
@@ -823,14 +823,14 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.NonNull;
 
                     public class MyClass {
-                        public class Builder {
+                        public class Builder<T> {
                             public void clearAll() { }
                             public int getSomething() { return 0; }
                             public void setSomething(int s) { }
                             @NonNull
-                            public Builder withFoo(int s) { return this; }
+                            public Builder<T> withFoo(int s) { return this; }
                             @NonNull
-                            public Builder setOk(int s) { return this; }
+                            public Builder<T> setOk(int s) { return this; }
                         }
                     }
                     """
@@ -2258,7 +2258,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
                 src/android/pkg/Foo.java:12: error: Missing nullability on parameter `value` in method `setBadValue` [MissingNullability]
                 src/android/pkg/Foo.java:13: error: Missing nullability on method `getBadValue` return [MissingNullability]
-                src/android/pkg/Foo.java:19: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
+                src/android/pkg/Foo.java:20: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
                 src/android/pkg/Foo.java:7: error: Missing nullability on field `badField` in class `class android.pkg.Foo` [MissingNullability]
                 """,
             sourceFiles = *arrayOf(
@@ -2269,7 +2269,7 @@ class ApiLintTest : DriverTest() {
                         import androidx.annotation.NonNull;
                         import androidx.annotation.Nullable;
 
-                        public class Foo {
+                        public class Foo<T> {
                             public Foo badField;
                             @Nullable
                             public Foo goodField;
@@ -2278,9 +2278,10 @@ class ApiLintTest : DriverTest() {
                             public void setBadValue(Foo value) { }
                             public Foo getBadValue(int number) { throw UnsupportedOperationExceptions(); }
                             public void setGoodValue(@Nullable Foo value) { }
+                            public void setGoodIgnoredGenericValue(T value) { }
                             @NonNull
                             public Foo getGoodValue(int number) { throw UnsupportedOperationExceptions(); }
-                            
+
                             @NonNull
                             public Foo methodMissingParamAnnotations(java.time.Duration duration) {
                                 throw UnsupportedOperationException();

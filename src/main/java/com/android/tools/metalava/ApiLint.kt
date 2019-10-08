@@ -1237,15 +1237,15 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 continue
             } else if (name.startsWith("with")) {
                 report(
-                    BUILDER_SET_STYLE, cls,
+                    BUILDER_SET_STYLE, method,
                     "Builder methods names should use setFoo() style: ${method.describe()}"
                 )
             } else if (name.startsWith("set")) {
                 val returnType = method.returnType()?.toTypeString() ?: ""
-                if (returnType != cls.qualifiedName()) {
+                if (returnType != cls.toType().toTypeString()) {
                     report(
-                        SETTER_RETURNS_THIS, cls,
-                        "Methods must return the builder object (return type ${cls.simpleName()} instead of $returnType): ${method.describe()}"
+                        SETTER_RETURNS_THIS, method,
+                        "Methods must return the builder object (return type ${cls.toType().toTypeString()} instead of $returnType): ${method.describe()}"
                     )
                 }
             }
@@ -1780,6 +1780,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkHasNullability(item: Item) {
         if (item.requiresNullnessInfo() && !item.hasNullnessInfo()) {
+            val type = item.type()
+            if (type != null && type.isTypeParameter()) {
+              // Generic types should have declarations of nullability set at the site of where
+              // the type is set, so that for Foo<T>, T does not need to specify nullability, but
+              // for Foo<Bar>, Bar does.
+              return // Do not enforce nullability for generics
+            }
             val where = when (item) {
                 is ParameterItem -> "parameter `${item.name()}` in method `${item.parent()?.name()}`"
                 is FieldItem -> "field `${item.name()}` in class `${item.parent()}`"

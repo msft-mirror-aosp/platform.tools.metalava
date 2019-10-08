@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.trimDocIndent
@@ -495,10 +496,9 @@ class StubWriter(
     private fun generateMissingConstructors(cls: ClassItem) {
         val clsStubConstructor = cls.stubConstructor
         val constructors = cls.filteredConstructors(filterEmit)
+        // If the default stub constructor is not publicly visible then it won't be output during the normal visiting
+        // so visit it specially to ensure that it is output.
         if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            if (!clsStubConstructor.isPrivate) {
-                clsStubConstructor.mutableModifiers().setPackagePrivate(true)
-            }
             visitConstructor(clsStubConstructor)
             return
         }

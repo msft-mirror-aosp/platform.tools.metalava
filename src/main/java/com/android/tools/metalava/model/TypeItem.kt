@@ -134,21 +134,6 @@ interface TypeItem {
         }
     }
 
-    /** Returns true if this type references a type not matched by the given predicate */
-    fun referencesExcludedType(filter: Predicate<Item>): Boolean {
-        if (primitive) {
-            return false
-        }
-
-        for (item in typeArgumentClasses()) {
-            if (!filter.test(item)) {
-                return true
-            }
-        }
-
-        return false
-    }
-
     fun defaultValueString(): String = defaultValue()?.toString() ?: "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
@@ -160,6 +145,11 @@ interface TypeItem {
      * used in a method that was specified on the class.
      */
     fun asTypeParameter(context: MemberItem? = null): TypeParameterItem?
+
+    /**
+     * Whether this type is a type parameter.
+     */
+    fun isTypeParameter(context: MemberItem? = null): Boolean = asTypeParameter(context) != null
 
     /**
      * Mark nullness annotations in the type as recent.
