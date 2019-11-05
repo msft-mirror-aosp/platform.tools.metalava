@@ -572,9 +572,126 @@ class ApiLintTest : DriverTest() {
                         public void ok() { }
                         protected void finalize() { } // OK
                         protected void wrong() { }
-                        public int ok = 42;
-                        protected int wrong = 5;
+                        public final int ok = 42;
+                        protected final int wrong = 5;
                         private int ok2 = 2;
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Fields must be final and properly named`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower] [Rule S1 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper] [Rule C2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower] [Rule S1 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: error: Bare field BAD_CONSTANT must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: error: Constant BAD_CONSTANT must be marked static final [AllUpper] [Rule C2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:5: error: Bare field badMutable must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:9: error: Bare field badStaticMutable must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:6: error: Internal field mBadName must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:8: error: Constant field names must be named with only upper case characters: `android.pkg.MyClass#sBadStaticName`, should be `S_BAD_STATIC_NAME`? [AllUpper] [Rule C2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:8: error: Internal field sBadStaticName must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:15: error: Internal field mBad must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public class MyClass {
+                        private int mOk;
+                        public int badMutable;
+                        public final int mBadName;
+                        public final int AlsoBadName;
+                        public static final int sBadStaticName;
+                        public static int badStaticMutable;
+                        public static int BAD_CONSTANT;
+                        public final int ALSO_BAD_CONSTANT;
+
+                        public static class LayoutParams {
+                            public int ok;
+                            public int mBad;
+                        }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Only android_net_Uri allowed`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:7: error: Use android.net.Uri instead of java.net.URL (method android.pkg.MyClass.bad1()) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:8: error: Use android.net.Uri instead of java.net.URI (parameter param in android.pkg.MyClass.bad2(java.util.List<java.net.URI> param)) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import java.util.List;
+                    import androidx.annotation.Nullable;
+
+                    public final class MyClass {
+                        public @Nullable java.net.URL bad1() { return null; }
+                        public void bad2(@Nullable List<java.net.URI> param) { }
+                        public void bad3(@Nullable android.net.URL param) { }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Typedef must be hidden`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:15: error: Don't expose @IntDef: SomeInt must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:20: error: Don't expose @LongDef: SomeLong must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public final class MyClass {
+                            private MyClass() {}
+
+                            public static final String SOME_STRING = "abc";
+                            public static final int SOME_INT = 1;
+                            public static final long SOME_LONG = 1L;
+
+                            @StringDef(value = {
+                                    SOME_STRING
+                            })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface SomeString {}
+                            @IntDef(value = {
+                                    SOME_INT
+                            })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface SomeInt {}
+                            @LongDef(value = {
+                                    SOME_LONG
+                            })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface SomeLong {}
                     }
                     """
                 )
@@ -935,11 +1052,11 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass1 {
                         @Nullable
-                        public View view = null;
+                        public final View view = null;
                         @Nullable
-                        public Drawable drawable = null;
+                        public final Drawable drawable = null;
                         @Nullable
-                        public Bitmap bitmap = null;
+                        public final Bitmap bitmap = null;
                         @Nullable
                         public View ok(@Nullable View view, @Nullable Drawable drawable) { return null; }
                         @Nullable
@@ -957,14 +1074,13 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/MyClass.java:8: error: Symmetric method for `setProp4` must be named `getProp4`; was `isProp4` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:12: error: Symmetric method for `hasError1` must be named `setHasError1`; was `setError1` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:11: error: Symmetric method for `setError1` must be named `getError1`; was `hasError1` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:14: error: Symmetric method for `isError2` must be named `setIsError2`; was `setHasError2` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:18: error: Symmetric method for `getError3` must be named `setError3`; was `setIsError3` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:16: error: Symmetric method for `getError3` must be named `setError3`; was `setHasError3` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:20: error: Symmetric method for `hasError5` must be named `setHasError5`; was `setError5` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:19: error: Symmetric method for `setError5` must be named `getError5`; was `hasError5` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:20: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:24: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:28: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:31: error: Symmetric method for `setCanRecordBad` must be named `canRecordBad`; was `isCanRecordBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:34: error: Symmetric method for `setShouldFitWidthBad` must be named `shouldFitWidthBad`; was `isShouldFitWidthBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:37: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:40: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -972,23 +1088,43 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public class MyClass {
-                        public int getProp1() { return 0; }
-                        public boolean getProp2() { return false; }
-                        public boolean getProp3() { return false; }
-                        public void setProp3(boolean s) { }
-                        public boolean isProp4() { return false; }
-                        public void setProp4(boolean s) { }
+                        // Correct
+                        public void setVisible(boolean visible) {}
+                        public boolean isVisible() { return false; }
 
-                        public boolean hasError1() { return false; }
-                        public void setError1(boolean s) { }
-                        public boolean isError2() { return false; }
-                        public void setHasError2(boolean s) { }
-                        public boolean getError3() { return false; }
-                        public void setHasError3(boolean s) { }
-                        public boolean isError4() { return false; }
-                        public void setIsError3(boolean s) { }
-                        public boolean hasError5() { return false; }
-                        public void setError5(boolean s) { }
+                        public void setHasTransientState(boolean hasTransientState) {}
+                        public boolean hasTransientState() { return false; }
+
+                        public void setCanRecord(boolean canRecord) {}
+                        public boolean canRecord() { return false; }
+
+                        public void setShouldFitWidth(boolean shouldFitWidth) {}
+                        public boolean shouldFitWidth() { return false; }
+
+                        public void setWiFiRoamingSettingEnabled(boolean enabled) {}
+                        public boolean isWiFiRoamingSettingEnabled() { return false; }
+
+                        // Bad
+                        public void setIsVisibleBad(boolean visible) {}
+                        public boolean isVisibleBad() { return false; }
+
+                        public void setTransientStateBad(boolean hasTransientState) {}
+                        public boolean hasTransientStateBad() { return false; }
+
+                        public void setHasTransientStateAlsoBad(boolean hasTransientState) {}
+                        public boolean isHasTransientStateAlsoBad() { return false; }
+
+                        public void setCanRecordBad(boolean canRecord) {}
+                        public boolean isCanRecordBad() { return false; }
+
+                        public void setShouldFitWidthBad(boolean shouldFitWidth) {}
+                        public boolean isShouldFitWidthBad() { return false; }
+
+                        public void setWiFiRoamingSettingEnabledBad(boolean enabled) {}
+                        public boolean getWiFiRoamingSettingEnabledBad() { return false; }
+
+                        public void setEnabledBad(boolean enabled) {}
+                        public boolean getEnabledBad() { return false; }
                     }
                     """
                 )
@@ -1147,7 +1283,7 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass {
                         @Nullable
-                        public BitSet bitset;
+                        public final BitSet bitset;
                         @Nullable
                         public BitSet reverse(@Nullable BitSet bitset) { return null; }
                     }
@@ -1217,8 +1353,8 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass {
                         @Nullable
-                        public Integer integer1;
-                        public int integer2;
+                        public final Integer integer1;
+                        public final int integer2;
                         public MyClass(@Nullable Long l) {
                         }
                         @Nullable
@@ -1286,7 +1422,7 @@ class ApiLintTest : DriverTest() {
 
                     public class MyUtils5 {
                         // OK: instance field
-                        public int foo = 42;
+                        public final int foo = 42;
                         public static void foo() { }
                     }
                     """
@@ -1415,8 +1551,6 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration] [Rule L1 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:11: warning: SAM-compatible parameters (such as parameter 1, "executor", in android.pkg.MyClass.registerStreamEventCallback) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast]
-                src/android/pkg/MyClass.java:13: warning: SAM-compatible parameters (such as parameter 1, "executor", in android.pkg.MyClass.unregisterStreamEventCallback) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -1787,6 +1921,79 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Check closeable for minSdkVersion 19`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+            """,
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <uses-sdk android:minSdkVersion="19" />
+                </manifest>
+            """.trimIndent(),
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass1 {
+                        public void close() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass2 {
+                        public void finalize() {}
+                        public void shutdown() {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Do not check closeable for minSdkVersion less than 19`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = "",
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <uses-sdk android:minSdkVersion="18" />
+                </manifest>
+            """.trimIndent(),
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass1 {
+                        public void close() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass2 {
+                        public void finalize() {}
+                        public void shutdown() {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Check Kotlin keywords`() {
         check(
             apiLint = "", // enabled
@@ -1802,10 +2009,10 @@ class ApiLintTest : DriverTest() {
 
                     public class KotlinKeywordTest {
                         public void okay();
-                        public int okay = 0;
+                        public final int okay = 0;
 
                         public void fun() {} // error
-                        public int as = 0; // error
+                        public final int as = 0; // error
                     }
                     """
                 )
@@ -2059,7 +2266,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/PdfTest.java:6: error: Must use ParcelFileDescriptor instead of FileDescriptor in parameter fd in android.pkg.PdfTest.error1(java.io.FileDescriptor fd) [NoClone]
+                src/android/pkg/PdfTest.java:6: error: Must use ParcelFileDescriptor instead of FileDescriptor in parameter fd in android.pkg.PdfTest.error1(java.io.FileDescriptor fd) [UseParcelFileDescriptor] [Rule FW11 in go/android-api-guidelines]
                 src/android/pkg/PdfTest.java:7: error: Must use ParcelFileDescriptor instead of FileDescriptor in method android.pkg.PdfTest.getFileDescriptor() [UseParcelFileDescriptor] [Rule FW11 in go/android-api-guidelines]
                 """,
             sourceFiles = *arrayOf(
@@ -2073,6 +2280,29 @@ class ApiLintTest : DriverTest() {
                         public void error1(@Nullable java.io.FileDescriptor fd) { }
                         public int getFileDescriptor() { return -1; }
                         public void ok(@Nullable android.os.ParcelFileDescriptor fd) { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.system;
+
+                    public class Os {
+                        public void ok(@Nullable java.io.FileDescriptor fd) { }
+                        public int getFileDescriptor() { return -1; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.yada;
+
+                    import com.android.annotations.NonNull;
+
+                    public class YadaService extends android.app.Service {
+                        @Override
+                        public final void dump(@NonNull java.io.FileDescriptor fd, @NonNull java.io.PrintWriter pw, @NonNull String[] args) {
+                        }
                     }
                     """
                 )
@@ -2271,9 +2501,9 @@ class ApiLintTest : DriverTest() {
                         import androidx.annotation.Nullable;
 
                         public class Foo<T> {
-                            public Foo badField;
+                            public final Foo badField;
                             @Nullable
-                            public Foo goodField;
+                            public final Foo goodField;
 
                             public Foo(String name, int number) { }
                             public void setBadValue(Foo value) { }
