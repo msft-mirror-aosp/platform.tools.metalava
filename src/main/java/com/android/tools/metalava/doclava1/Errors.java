@@ -291,7 +291,7 @@ public class Errors {
     public static final Error INTERFACE_CONSTANT = new Error(326, ERROR, Category.API_LINT, "C4");
     public static final Error ON_NAME_EXPECTED = new Error(327, WARNING, Category.API_LINT);
     public static final Error TOP_LEVEL_BUILDER = new Error(328, WARNING, Category.API_LINT);
-    public static final Error MISSING_BUILD = new Error(329, WARNING, Category.API_LINT);
+    public static final Error MISSING_BUILD_METHOD = new Error(329, WARNING, Category.API_LINT);
     public static final Error BUILDER_SET_STYLE = new Error(330, WARNING, Category.API_LINT);
     public static final Error SETTER_RETURNS_THIS = new Error(331, WARNING, Category.API_LINT, "M4");
     public static final Error RAW_AIDL = new Error(332, ERROR, Category.API_LINT);
@@ -347,6 +347,10 @@ public class Errors {
     public static final Error DOCUMENT_EXCEPTIONS = new Error(383, ERROR, Category.API_LINT); // Formerly 145
     public static final Error FORBIDDEN_SUPER_CLASS = new Error(384, ERROR, Category.API_LINT);
     public static final Error MISSING_NULLABILITY = new Error(385, ERROR, Category.API_LINT);
+    public static final Error MUTABLE_BARE_FIELD = new Error(386, ERROR, Category.API_LINT, "F2");
+    public static final Error INTERNAL_FIELD = new Error(387, ERROR, Category.API_LINT, "F2");
+    public static final Error PUBLIC_TYPEDEF = new Error(388, ERROR, Category.API_LINT, "FW15");
+    public static final Error ANDROID_URI = new Error(389, ERROR, Category.API_LINT, "FW14");
 
     static {
         // Attempt to initialize error names based on the field names
