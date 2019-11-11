@@ -174,6 +174,7 @@ fun run(
         }
     }
     options.baseline?.close()
+    options.reportEvenIfSuppressedWriter?.close()
 
     stdout.flush()
     stderr.flush()
@@ -784,7 +785,7 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase, ApiPredicate())
+    previous.compareWith(NullnessMigration(), codebase)
 }
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
