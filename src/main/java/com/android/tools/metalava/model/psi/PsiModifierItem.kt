@@ -17,13 +17,16 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.ANDROIDX_VISIBLE_FOR_TESTING
+import com.android.tools.metalava.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+import com.android.tools.metalava.ATTR_ALLOW_IN
 import com.android.tools.metalava.ATTR_OTHERWISE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.options
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierList
@@ -310,7 +313,7 @@ class PsiModifierItem(
                         }
 
                         PsiAnnotationItem.create(codebase, it, qualifiedName)
-                    }.toMutableList()
+                    }.filter { !it.isDeprecatedForSdk() }.toMutableList()
                 PsiModifierItem(codebase, flags, annotations)
             }
         }
@@ -368,7 +371,7 @@ class PsiModifierItem(
                         }
 
                         UAnnotationItem.create(codebase, it, qualifiedName)
-                    }.toMutableList()
+                    }.filter { !it.isDeprecatedForSdk() }.toMutableList()
 
                 if (!isPrimitiveVariable) {
                     val psiAnnotations = modifierList.annotations
@@ -382,6 +385,24 @@ class PsiModifierItem(
 
                 PsiModifierItem(codebase, flags, annotations)
             }
+        }
+
+        /** Returns whether this is a `@DeprecatedForSdk` annotation **that should be skipped**. */
+        private fun AnnotationItem.isDeprecatedForSdk(): Boolean {
+            if (originalName != ANDROID_DEPRECATED_FOR_SDK) {
+                return false
+            }
+
+            val allowIn = findAttribute(ATTR_ALLOW_IN) ?: return false
+
+            for (api in allowIn.leafValues()) {
+                val annotationName = api.value() as? String ?: continue
+                if (options.showAnnotations.matchesAnnotationName(annotationName)) {
+                    return true
+                }
+            }
+
+            return false
         }
 
         private val NOT_NULL = NotNull::class.qualifiedName
