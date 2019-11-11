@@ -138,6 +138,9 @@ API sources:
                                              and `--typedefs-in-signatures inline` will include the constants themselves
                                              into each usage site. You can also supply `--typedefs-in-signatures none`
                                              to explicitly turn it off, if the default ever changes.
+--ignore-classes-on-classpath                
+                                             Prevents references to classes on the classpath from being added to the
+                                             generated stub files.
 
 
 Documentation:
@@ -261,6 +264,9 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>                                  
                                              Hide/skip issues of the given id
+--report-even-if-suppressed <file>           
+                                             Write all issues into the given file, even if suppressed (via annotation or
+                                             baseline) but not if hidden (by '--hide')
 --baseline <file>                            
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist

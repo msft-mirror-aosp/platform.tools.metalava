@@ -146,6 +146,7 @@ const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
+const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
@@ -154,6 +155,7 @@ const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS = "--force-convert-to-warning-nullability-annotations"
+const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 
 class Options(
     private val args: Array<String>,
@@ -358,6 +360,14 @@ class Options(
     /** Meta-annotations to hide */
     var hideMetaAnnotations: List<String> = mutableHideMetaAnnotations
 
+    /** Whether the generated API can contain classes that are not present in the source but are present on the
+     * classpath. Defaults to true for backwards compatibility but is set to false if any API signatures are imported
+     * as they must provide a complete set of all classes required but not provided by the generated API.
+     *
+     * Once all APIs are either self contained or imported all the required references this will be removed and no
+     * classes will be allowed from the classpath JARs. */
+    var allowClassesFromClasspath = true
+
     /** Whether to report warnings and other diagnostics along the way */
     var quiet = false
 
@@ -556,6 +566,10 @@ class Options(
 
     /** Whether the baseline should only contain errors */
     var baselineErrorsOnly = false
+
+    /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
+    var reportEvenIfSuppressed: File? = null
+    var reportEvenIfSuppressedWriter: PrintWriter? = null
 
     /**
      * DocReplacements to apply to the documentation.
@@ -825,10 +839,23 @@ class Options(
                     }
                 }
 
+                ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
+                    allowClassesFromClasspath = false
+                }
+
                 ARG_BASELINE -> {
                     val relative = getValue(args, ++index)
                     assert(baselineFile == null) { "Only one baseline is allowed; found both $baselineFile and $relative" }
                     baselineFile = stringToExistingFile(relative)
+                }
+
+                ARG_REPORT_EVEN_IF_SUPPRESSED -> {
+                    val relative = getValue(args, ++index)
+                    if (reportEvenIfSuppressed != null) {
+                        throw DriverException("Only one $ARG_REPORT_EVEN_IF_SUPPRESSED is allowed; found both $reportEvenIfSuppressed and $relative")
+                    }
+                    reportEvenIfSuppressed = stringToNewOrExistingFile(relative)
+                    reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
 
                 ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> {
@@ -2000,6 +2027,8 @@ class Options(
                 "`$ARG_TYPEDEFS_IN_SIGNATURES inline` will include the constants themselves into each usage " +
                 "site. You can also supply `$ARG_TYPEDEFS_IN_SIGNATURES none` to explicitly turn it off, if the " +
                 "default ever changes.",
+            ARG_IGNORE_CLASSES_ON_CLASSPATH, "Prevents references to classes on the classpath from being added to " +
+                "the generated stub files.",
 
             "", "\nDocumentation:",
             ARG_PUBLIC, "Only include elements that are public",
@@ -2081,6 +2110,7 @@ class Options(
             "$ARG_WARNING <id>", "Report issues of the given id as warnings",
             "$ARG_LINT <id>", "Report issues of the given id as having lint-severity",
             "$ARG_HIDE <id>", "Hide/skip issues of the given id",
+            "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>", "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE')",
             "$ARG_BASELINE <file>", "Filter out any errors already reported in the given baseline file, or " +
                 "create if it does not already exist",
             "$ARG_UPDATE_BASELINE [file]", "Rewrite the existing baseline file with the current set of warnings. " +
