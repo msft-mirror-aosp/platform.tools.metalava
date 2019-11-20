@@ -785,7 +785,7 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase, ApiPredicate())
+    previous.compareWith(NullnessMigration(), codebase)
 }
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
@@ -1221,7 +1221,7 @@ private fun addHiddenPackages(
             if (sibling.path.endsWith(DOT_JAVA)) {
                 val javaPkg = ClassName(sibling.readText()).packageName
                 if (javaPkg != null) {
-                    realPkg = pkg
+                    realPkg = javaPkg
                     break
                 }
             }
@@ -1245,6 +1245,7 @@ private fun gatherHiddenPackagesFromJavaDocs(sourcePath: List<File>): PackageDoc
         }
         addHiddenPackages(packageComments, overviewHtml, hiddenPackages, file, "")
     }
+
     return PackageDocs(packageComments, overviewHtml, hiddenPackages)
 }
 
