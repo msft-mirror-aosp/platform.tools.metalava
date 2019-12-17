@@ -388,7 +388,6 @@ CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class TestKt {
-                    ctor public TestKt();
                     method public static final void method1(int[] x);
                     method public static final void method2(int... x);
                   }
@@ -1558,7 +1557,6 @@ CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApi = """
                 package androidx.content {
                   public final class ContentValuesKt {
-                    ctor public ContentValuesKt();
                     method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,?>... pairs);
                   }
                 }
@@ -2423,7 +2421,6 @@ CompatibilityCheckTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    ctor public TestKt();
                     method public static void fun1(String? str1, String str2, java.util.List<java.lang.String!> list);
                   }
                 }
@@ -2454,7 +2451,6 @@ CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class TestKt {
-                    ctor public TestKt();
                     method public static inline <T> void add(T! t);
                     method public static inline <reified T> void remove(T! t);
                     method public static inline <reified T> void unchanged(T! t);
@@ -2994,6 +2990,49 @@ CompatibilityCheckTest : DriverTest() {
                     """
                 )
             )
+        )
+    }
+
+    @Test
+    fun `Changing static qualifier on inner classes with no public constructors`() {
+        check(
+            warnings = """
+                TESTROOT/load-api.txt:11: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
+                TESTROOT/load-api.txt:8: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
+            """,
+            compatibilityMode = false,
+            checkCompatibilityApi = """
+                package test.pkg {
+                  public class ParentClass {
+                  }
+                  public static class ParentClass.OkInnerClass {
+                  }
+                  public class ParentClass.AnotherOkInnerClass {
+                  }
+                  public static class ParentClass.BadInnerClass {
+                    ctor public BadInnerClass();
+                  }
+                  public class ParentClass.AnotherBadInnerClass {
+                    ctor public AnotherBadInnerClass();
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public class ParentClass {
+                  }
+                  public class ParentClass.OkInnerClass {
+                  }
+                  public static class ParentClass.AnotherOkInnerClass {
+                  }
+                  public class ParentClass.BadInnerClass {
+                    ctor public BadInnerClass();
+                  }
+                  public static class ParentClass.AnotherBadInnerClass {
+                    ctor public AnotherBadInnerClass();
+                  }
+                }
+                """
         )
     }
 

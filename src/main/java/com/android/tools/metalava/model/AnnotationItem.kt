@@ -60,7 +60,10 @@ interface AnnotationItem {
     fun originalName(): String?
 
     /** Generates source code for this annotation (using fully qualified names) */
-    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
+    fun toSource(
+        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
+        showDefaultAttrs: Boolean = true
+    ): String
 
     /** The applicable targets for this annotation */
     fun targets(): Set<AnnotationTarget>
@@ -290,17 +293,18 @@ interface AnnotationItem {
                 "android.annotation.UserIdInt",
                 "android.annotation.BytesLong",
 
-                    // These aren't support annotations
+                // These aren't support annotations
                 "android.annotation.AppIdInt",
                 "android.annotation.SuppressAutoDoc",
                 "android.annotation.SystemApi",
                 "android.annotation.TestApi",
                 "android.annotation.CallbackExecutor",
                 "android.annotation.Condemned",
+                "android.annotation.Hide",
 
                 "android.annotation.Widget" -> {
                     // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                    return if (options.showAnnotations.contains(qualifiedName)) {
+                    return if (options.showAnnotations.matches(qualifiedName)) {
                         qualifiedName
                     } else if (filter != null) {
                         val cls = codebase.findClass(qualifiedName)
@@ -342,7 +346,7 @@ interface AnnotationItem {
                         // Unknown Android platform annotations
                         qualifiedName.startsWith("android.annotation.") -> {
                             // Remove, unless specifically included in --showAnnotations
-                            return if (options.showAnnotations.contains(qualifiedName)) {
+                            return if (options.showAnnotations.matches(qualifiedName)) {
                                 qualifiedName
                             } else {
                                 null
@@ -360,7 +364,7 @@ interface AnnotationItem {
 
                         else -> {
                             // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                            return if (options.showAnnotations.contains(qualifiedName)) {
+                            return if (options.showAnnotations.matches(qualifiedName)) {
                                 qualifiedName
                             } else if (filter != null) {
                                 val cls = codebase.findClass(qualifiedName)
