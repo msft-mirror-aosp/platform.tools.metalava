@@ -281,7 +281,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -416,11 +416,27 @@ class ApiFileTest : DriverTest() {
                     method public final <T> T getSystemService(java.lang.Class<T>);
                   }
                   public final class _java_Kt {
-                    method public static inline <reified T> T systemService1(test.pkg.Context);
+                    method public inline <T> T systemService1();
                     method public static inline java.lang.String systemService2(test.pkg.Context);
                   }
                 }
                 """
+// b/152039666 parameters from methods using reified types are dropped
+// API should contain <reified T>
+// Actual expected output:
+//          api = """
+//                package test.pkg {
+//                  public class Context {
+//                    ctor public Context();
+//                    method public final <T> T getSystemService(java.lang.Class<T>);
+//                  }
+//                  public final class _java_Kt {
+//                    method public static inline <reified T> T systemService1(test.pkg.Context);
+//                    method public static inline java.lang.String systemService2(test.pkg.Context);
+//                  }
+//                }
+//                """
+
         )
     }
 
@@ -448,12 +464,25 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void a(@Nullable T t);
-                    method public static inline <reified T> void b(@Nullable T t);
-                    method public static inline <reified T> void e(@Nullable T t);
-                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
+                    method public inline <T> void b();
+                    method public inline <T> void e();
+                    method public inline <T> void f();
                   }
                 }
                 """
+// b/152039666 parameters from methods using reified types are dropped
+// API should contain <reified T>
+// Actual expected output:
+//          api = """
+//                package test.pkg {
+//                  public final class TestKt {
+//                    method public static inline <T> void a(@Nullable T t);
+//                    method public static inline <reified T> void b(@Nullable T t);
+//                    method public static inline <reified T> void e(@Nullable T t);
+//                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
+//                  }
+//                }
+//                """
         )
     }
 
@@ -474,7 +503,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
+                    method @Nullable public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
                   }
                 }
                 """
@@ -585,10 +614,21 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+                    method @UiThread public inline <Args> test.pkg2.NavArgsLazy<Args>! navArgs();
                   }
                 }
                 """,
+// b/152039666 parameters from methods using reified types are dropped
+// API should contain <reified T>
+// Actual expected output:
+//            api = """
+//                // Signature format: 3.0
+//                package test.pkg {
+//                  public final class TestKt {
+//                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+//                  }
+//                }
+//                """,
             format = FileFormat.V3,
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "androidx.annotation",
@@ -3092,6 +3132,7 @@ class ApiFileTest : DriverTest() {
                     ctor Class1(int);
                   }
                   private abstract class Class1.AmsTask extends java.util.concurrent.FutureTask {
+                    ctor private Class1.AmsTask();
                   }
                   public static abstract class Class1.TouchPoint implements android.os.Parcelable {
                     ctor public Class1.TouchPoint();
@@ -3110,6 +3151,7 @@ class ApiFileTest : DriverTest() {
             privateDexApi = """
                 Ltest/pkg/Class1;-><init>(I)V
                 Ltest/pkg/Class1${"$"}AmsTask;
+                Ltest/pkg/Class1${"$"}AmsTask;-><init>()V
                 Ltest/pkg/Class1${"$"}TouchPoint;
                 Ltest/pkg/Class1${"$"}TouchPoint;-><init>()V
                 Ltest/pkg/MyEnum;
