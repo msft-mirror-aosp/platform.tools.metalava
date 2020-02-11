@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -106,13 +106,13 @@ class KotlinInteropChecks {
                     }
                 }
                 reporter.report(
-                    Errors.DOCUMENT_EXCEPTIONS, method,
+                    Issues.DOCUMENT_EXCEPTIONS, method,
                     "Method ${method.containingClass().simpleName()}.${method.name()} appears to be throwing ${exception.qualifiedName()}; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions"
                 )
             } else {
                 if (!doc.contains(exception.simpleName())) {
                     reporter.report(
-                        Errors.DOCUMENT_EXCEPTIONS, method,
+                        Issues.DOCUMENT_EXCEPTIONS, method,
                         "Method ${method.containingClass().simpleName()}.${method.name()} appears to be throwing ${exception.qualifiedName()}; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions"
                     )
                 }
@@ -132,17 +132,19 @@ class KotlinInteropChecks {
                 if (sourcePsi is KtProperty) {
                     val companionClassName = sourcePsi.containingClassOrObject?.name
                     if (companionClassName == "Companion") {
-                        // TODO and const?
-                        if (modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
-                            reporter.report(
-                                Errors.MISSING_JVMSTATIC, field,
-                                "Companion object constants like ${field.name()} should be marked @JvmField for Java interoperability; see https://android.github.io/kotlin-guides/interop.html#companion-constants"
-                            )
-                        } else if (modifiers.findAnnotation("kotlin.jvm.JvmStatic") != null) {
-                            reporter.report(
-                                Errors.MISSING_JVMSTATIC, field,
-                                "Companion object constants like ${field.name()} should be using @JvmField, not @JvmStatic; see https://android.github.io/kotlin-guides/interop.html#companion-constants"
-                            )
+                        // JvmField cannot be applied to const property (https://github.com/JetBrains/kotlin/blob/dc7b1fbff946d1476cc9652710df85f65664baee/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/checkers/JvmFieldApplicabilityChecker.kt#L46)
+                        if (!modifiers.isConst()) {
+                            if (modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
+                                reporter.report(
+                                    Issues.MISSING_JVMSTATIC, field,
+                                    "Companion object constants like ${field.name()} should be marked @JvmField for Java interoperability; see https://android.github.io/kotlin-guides/interop.html#companion-constants"
+                                )
+                            } else if (modifiers.findAnnotation("kotlin.jvm.JvmStatic") != null) {
+                                reporter.report(
+                                    Issues.MISSING_JVMSTATIC, field,
+                                    "Companion object constants like ${field.name()} should be using @JvmField, not @JvmStatic; see https://android.github.io/kotlin-guides/interop.html#companion-constants"
+                                )
+                            }
                         }
                     }
                 }
@@ -165,7 +167,7 @@ class KotlinInteropChecks {
                             method.containingClass().qualifiedName()}.${method.name()
                             }) should be last to improve Kotlin interoperability; see " +
                                 "https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions"
-                        reporter.report(Errors.SAM_SHOULD_BE_LAST, method, message)
+                        reporter.report(Issues.SAM_SHOULD_BE_LAST, method, message)
                         break
                     }
                 }
@@ -212,7 +214,7 @@ class KotlinInteropChecks {
                     */
             } else if (method.modifiers.findAnnotation("kotlin.jvm.JvmStatic") == null) {
                 reporter.report(
-                    Errors.MISSING_JVMSTATIC, method,
+                    Issues.MISSING_JVMSTATIC, method,
                     "Companion object methods like ${method.name()} should be marked @JvmStatic for Java interoperability; see https://android.github.io/kotlin-guides/interop.html#companion-functions"
                 )
             }
@@ -231,6 +233,11 @@ class KotlinInteropChecks {
         if (!method.isKotlin()) {
             // Rule does not apply for Java, e.g. if you specify @DefaultValue
             // in Java you still don't have the option of adding @JvmOverloads
+            return
+        }
+        if (method.containingClass().isInterface()) {
+            // '@JvmOverloads' annotation cannot be used on interface methods
+            // (https://github.com/JetBrains/kotlin/blob/dc7b1fbff946d1476cc9652710df85f65664baee/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/diagnostics/DefaultErrorMessagesJvm.java#L50)
             return
         }
         val parameters = method.parameters()
@@ -255,7 +262,7 @@ class KotlinInteropChecks {
             !method.isExtensionMethod() && !method.modifiers.isInline()
         ) {
             reporter.report(
-                Errors.MISSING_JVMSTATIC, method,
+                Issues.MISSING_JVMSTATIC, method,
                 "A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults"
             )
         }
@@ -277,12 +284,12 @@ class KotlinInteropChecks {
     private fun checkKotlinKeyword(name: String, typeLabel: String, item: Item) {
         if (isKotlinHardKeyword(name)) {
             reporter.report(
-                Errors.KOTLIN_KEYWORD, item,
+                Issues.KOTLIN_KEYWORD, item,
                 "Avoid $typeLabel names that are Kotlin hard keywords (\"$name\"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords"
             )
         } else if (isJavaKeyword(name)) {
             reporter.report(
-                Errors.KOTLIN_KEYWORD, item,
+                Issues.KOTLIN_KEYWORD, item,
                 "Avoid $typeLabel names that are Java keywords (\"$name\"); this makes it harder to use the API from Java"
             )
         }
@@ -303,7 +310,7 @@ class KotlinInteropChecks {
             return false
         }
 
-        if (cls.methods().size != 1) {
+        if (cls.methods().filter { !it.modifiers.isDefault() }.size != 1) {
             return false
         }
 
@@ -311,6 +318,13 @@ class KotlinInteropChecks {
             return false
         }
 
+        // Some interfaces, while they have a single method are not considered to be SAM that we
+        // want to be the last argument because often it leads to unexpected behavior of the
+        // trailing lambda.
+        when (cls.qualifiedName()) {
+            "java.util.concurrent.Executor",
+            "java.lang.Iterable" -> return false
+        }
         return true
     }
 

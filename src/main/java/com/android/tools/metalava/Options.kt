@@ -19,7 +19,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
-import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.doclava1.Issues
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -38,7 +38,8 @@ import kotlin.text.Charsets.UTF_8
 /** Global options for the metadata extraction tool */
 var options = Options(emptyArray())
 
-private const val MAX_LINE_WIDTH = 90
+private const val MAX_LINE_WIDTH = 120
+private const val INDENT_WIDTH = 45
 
 const val ARG_COMPAT_OUTPUT = "--compatible-output"
 const val ARG_FORMAT = "--format"
@@ -123,6 +124,7 @@ const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_CHECK_KOTLIN_INTEROP = "--check-kotlin-interop"
 const val ARG_API_LINT = "--api-lint"
+const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_PUBLIC = "--public"
 const val ARG_PROTECTED = "--protected"
 const val ARG_PACKAGE = "--package"
@@ -145,6 +147,7 @@ const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
+const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
@@ -152,6 +155,8 @@ const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
+const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS = "--force-convert-to-warning-nullability-annotations"
+const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 
 class Options(
     private val args: Array<String>,
@@ -168,11 +173,11 @@ class Options(
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
     /** Internal list backing [showAnnotations] */
-    private val mutableShowAnnotations: MutableList<String> = mutableListOf()
+    private val mutableShowAnnotations = MutableAnnotationFilter()
     /** Internal list backing [showSingleAnnotations] */
-    private val mutableShowSingleAnnotations: MutableList<String> = mutableListOf()
+    private val mutableShowSingleAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideAnnotations] */
-    private val mutableHideAnnotations: MutableList<String> = mutableListOf()
+    private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [stubImportPackages] */
@@ -312,14 +317,14 @@ class Options(
     var sources: List<File> = mutableSources
 
     /** Whether to include APIs with annotations (intended for documentation purposes) */
-    var showAnnotations: List<String> = mutableShowAnnotations
+    var showAnnotations: AnnotationFilter = mutableShowAnnotations
 
     /**
      * Like [showAnnotations], but does not work recursively. Note that
      * these annotations are *also* show annotations and will be added to the above list;
      * this is a subset.
      */
-    val showSingleAnnotations: List<String> = mutableShowSingleAnnotations
+    val showSingleAnnotations: AnnotationFilter = mutableShowSingleAnnotations
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set.
@@ -329,6 +334,8 @@ class Options(
 
     /** Whether to validate the API for best practices */
     var checkApi = false
+
+    val checkApiIgnorePrefix: MutableList<String> = mutableListOf()
 
     /** If non null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
@@ -351,10 +358,18 @@ class Options(
     var showAnnotationOverridesVisibility: Boolean = false
 
     /** Annotations to hide */
-    var hideAnnotations: List<String> = mutableHideAnnotations
+    var hideAnnotations: AnnotationFilter = mutableHideAnnotations
 
     /** Meta-annotations to hide */
-    var hideMetaAnnotations: List<String> = mutableHideMetaAnnotations
+    var hideMetaAnnotations = mutableHideMetaAnnotations
+
+    /** Whether the generated API can contain classes that are not present in the source but are present on the
+     * classpath. Defaults to true for backwards compatibility but is set to false if any API signatures are imported
+     * as they must provide a complete set of all classes required but not provided by the generated API.
+     *
+     * Once all APIs are either self contained or imported all the required references this will be removed and no
+     * classes will be allowed from the classpath JARs. */
+    var allowClassesFromClasspath = true
 
     /** Whether to report warnings and other diagnostics along the way */
     var quiet = false
@@ -474,6 +489,12 @@ class Options(
     var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
+    /**
+     * We modify the annotations on these APIs to ask kotlinc to treat it as only a warning
+     * if a caller of one of these APIs makes an incorrect assumption about its nullability.
+     */
+    var forceConvertToWarningNullabilityAnnotations: PackageFilter? = null
+
     /** Set of jars and class files for existing apps that we want to measure coverage of */
     var annotationCoverageOf: List<File> = mutableAnnotationCoverageOf
 
@@ -548,6 +569,10 @@ class Options(
 
     /** Whether the baseline should only contain errors */
     var baselineErrorsOnly = false
+
+    /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
+    var reportEvenIfSuppressed: File? = null
+    var reportEvenIfSuppressedWriter: PrintWriter? = null
 
     /**
      * DocReplacements to apply to the documentation.
@@ -699,6 +724,11 @@ class Options(
                     )
                 )
 
+                ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS -> {
+                    val nextArg = getValue(args, ++index)
+                    forceConvertToWarningNullabilityAnnotations = PackageFilter.parse(nextArg)
+                }
+
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
                     nullabilityAnnotationsValidator =
@@ -768,7 +798,12 @@ class Options(
                 // (--annotations-in-signatures)
                 ARG_INCLUDE_ANNOTATIONS -> generateAnnotations = true
 
-                ARG_PASS_THROUGH_ANNOTATION -> mutablePassThroughAnnotations.add(getValue(args, ++index))
+                ARG_PASS_THROUGH_ANNOTATION -> {
+                    val annotations = getValue(args, ++index)
+                    annotations.split(",").forEach { path ->
+                        mutablePassThroughAnnotations.add(path)
+                    }
+                }
 
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
@@ -812,10 +847,23 @@ class Options(
                     }
                 }
 
+                ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
+                    allowClassesFromClasspath = false
+                }
+
                 ARG_BASELINE -> {
                     val relative = getValue(args, ++index)
                     assert(baselineFile == null) { "Only one baseline is allowed; found both $baselineFile and $relative" }
                     baselineFile = stringToExistingFile(relative)
+                }
+
+                ARG_REPORT_EVEN_IF_SUPPRESSED -> {
+                    val relative = getValue(args, ++index)
+                    if (reportEvenIfSuppressed != null) {
+                        throw DriverException("Only one $ARG_REPORT_EVEN_IF_SUPPRESSED is allowed; found both $reportEvenIfSuppressed and $relative")
+                    }
+                    reportEvenIfSuppressed = stringToNewOrExistingFile(relative)
+                    reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
 
                 ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> {
@@ -853,7 +901,7 @@ class Options(
                 "--previous-api" -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
                     reporter.report(
-                        Errors.DEPRECATED_OPTION, null as File?,
+                        Issues.DEPRECATED_OPTION, null as File?,
                         "--previous-api is deprecated; instead " +
                             "use $ARG_MIGRATE_NULLNESS $migrateNullsFrom"
                     )
@@ -877,7 +925,7 @@ class Options(
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
                     reporter.report(
-                        Errors.DEPRECATED_OPTION, null as File?,
+                        Issues.DEPRECATED_OPTION, null as File?,
                         "--current-api is deprecated; instead " +
                             "use $ARG_CHECK_COMPATIBILITY_API_CURRENT"
                     )
@@ -971,10 +1019,10 @@ class Options(
                     annotationCoverageMemberReport = stringToNewFile(getValue(args, ++index))
                 }
 
-                ARG_ERROR, "-error" -> Errors.setErrorLevel(getValue(args, ++index), Severity.ERROR, true)
-                ARG_WARNING, "-warning" -> Errors.setErrorLevel(getValue(args, ++index), Severity.WARNING, true)
-                ARG_LINT, "-lint" -> Errors.setErrorLevel(getValue(args, ++index), Severity.LINT, true)
-                ARG_HIDE, "-hide" -> Errors.setErrorLevel(getValue(args, ++index), Severity.HIDDEN, true)
+                ARG_ERROR, "-error" -> Issues.setIssueLevel(getValue(args, ++index), Severity.ERROR, true)
+                ARG_WARNING, "-warning" -> Issues.setIssueLevel(getValue(args, ++index), Severity.WARNING, true)
+                ARG_LINT, "-lint" -> Issues.setIssueLevel(getValue(args, ++index), Severity.LINT, true)
+                ARG_HIDE, "-hide" -> Issues.setIssueLevel(getValue(args, ++index), Severity.HIDDEN, true)
 
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -1001,6 +1049,9 @@ class Options(
                             }
                         }
                     }
+                }
+                ARG_API_LINT_IGNORE_PREFIX -> {
+                    checkApiIgnorePrefix.add(getValue(args, ++index))
                 }
 
                 ARG_CHECK_KOTLIN_INTEROP -> checkKotlinInterop = true
@@ -1548,7 +1599,7 @@ class Options(
                 return name.toLowerCase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
-            showAnnotations.forEach { sb.append(annotationToPrefix(it)) }
+            showAnnotations.getIncludedAnnotationNames().forEach { sb.append(annotationToPrefix(it)) }
             sb.append(DEFAULT_BASELINE_NAME)
             var base = sourcePath[0]
             // Convention: in AOSP, signature files are often in sourcepath/api: let's place baseline
@@ -1987,6 +2038,8 @@ class Options(
                 "`$ARG_TYPEDEFS_IN_SIGNATURES inline` will include the constants themselves into each usage " +
                 "site. You can also supply `$ARG_TYPEDEFS_IN_SIGNATURES none` to explicitly turn it off, if the " +
                 "default ever changes.",
+            ARG_IGNORE_CLASSES_ON_CLASSPATH, "Prevents references to classes on the classpath from being added to " +
+                "the generated stub files.",
 
             "", "\nDocumentation:",
             ARG_PUBLIC, "Only include elements that are public",
@@ -2031,8 +2084,8 @@ class Options(
                 "documentation stubs, but not regular stubs, etc.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
             ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
-            "$ARG_PASS_THROUGH_ANNOTATION <annotation class>", "The fully qualified name of an annotation class that" +
-                " must be passed through unchanged.",
+            "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of" +
+                " annotation classes that must be passed through unchanged.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                 "Documentation stubs (--doc-stubs) are not affected.)",
@@ -2058,6 +2111,8 @@ class Options(
                 "$ARG_CHECK_COMPATIBILITY:api:current.",
             "$ARG_API_LINT [api file]", "Check API for Android API best practices. If a signature file is " +
                 "provided, only the APIs that are new since the API will be checked.",
+            "$ARG_API_LINT_IGNORE_PREFIX [prefix]", "A list of package prefixes to ignore API issues in " +
+                "when running with $ARG_API_LINT.",
             ARG_CHECK_KOTLIN_INTEROP, "Check API intended to be used from both Kotlin and Java for interoperability " +
                 "issues",
             "$ARG_MIGRATE_NULLNESS <api file>", "Compare nullness information with the previous stable API " +
@@ -2068,6 +2123,7 @@ class Options(
             "$ARG_WARNING <id>", "Report issues of the given id as warnings",
             "$ARG_LINT <id>", "Report issues of the given id as having lint-severity",
             "$ARG_HIDE <id>", "Hide/skip issues of the given id",
+            "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>", "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE')",
             "$ARG_BASELINE <file>", "Filter out any errors already reported in the given baseline file, or " +
                 "create if it does not already exist",
             "$ARG_UPDATE_BASELINE [file]", "Rewrite the existing baseline file with the current set of warnings. " +
@@ -2121,6 +2177,10 @@ class Options(
                 "generated stub sources; <dir> is typically $PROGRAM_NAME/stub-annotations/src/main/java/.",
             "$ARG_REWRITE_ANNOTATIONS <dir/jar>", "For a bytecode folder or output jar, rewrites the " +
                 "androidx annotations to be package private",
+            "$ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS <package1:-package2:...>", "On every API declared " +
+                "in a class referenced by the given filter, makes nullability issues appear to callers as warnings " +
+                "rather than errors by replacing @Nullable/@NonNull in these APIs with " +
+                "@RecentlyNullable/@RecentlyNonNull",
             "$ARG_COPY_ANNOTATIONS <source> <dest>", "For a source folder full of annotation " +
                 "sources, generates corresponding package private versions of the same annotations.",
             ARG_INCLUDE_SOURCE_RETENTION, "If true, include source-retention annotations in the stub files. Does " +
@@ -2149,25 +2209,17 @@ class Options(
                 "end of the command line, after the generate documentation flags."
         )
 
-        var argWidth = 0
-        var i = 0
-        while (i < args.size) {
-            val arg = args[i]
-            argWidth = Math.max(argWidth, arg.length)
-            i += 2
-        }
-        argWidth += 2
-        val sb = StringBuilder(20)
-        for (indent in 0 until argWidth) {
+        val sb = StringBuilder(INDENT_WIDTH)
+        for (indent in 0 until INDENT_WIDTH) {
             sb.append(' ')
         }
         val indent = sb.toString()
-        val formatString = "%1$-" + argWidth + "s%2\$s"
+        val formatString = "%1$-" + INDENT_WIDTH + "s%2\$s"
 
-        i = 0
+        var i = 0
         while (i < args.size) {
             val arg = args[i]
-            val description = args[i + 1]
+            val description = "\n" + args[i + 1]
             if (arg.isEmpty()) {
                 if (colorize) {
                     out.println(colorized(description, TerminalColor.YELLOW))
@@ -2180,7 +2232,7 @@ class Options(
                     val invisibleChars = colorArg.length - arg.length
                     // +invisibleChars: the extra chars in the above are counted but don't contribute to width
                     // so allow more space
-                    val colorFormatString = "%1$-" + (argWidth + invisibleChars) + "s%2\$s"
+                    val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
 
                     out.print(
                         wrap(

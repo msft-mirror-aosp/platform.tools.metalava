@@ -35,7 +35,7 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.doclava1.FilterPredicate
 import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.ClassItem
@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.stub.StubWriter
 import com.android.utils.StdLogger
 import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
@@ -174,6 +175,7 @@ fun run(
         }
     }
     options.baseline?.close()
+    options.reportEvenIfSuppressedWriter?.close()
 
     stdout.flush()
     stderr.flush()
@@ -396,6 +398,8 @@ private fun processFlags() {
 
         previous.dispose()
     }
+
+    convertToWarningNullabilityAnnotations(codebase, options.forceConvertToWarningNullabilityAnnotations)
 
     // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
 
@@ -782,7 +786,17 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase, ApiPredicate())
+    previous.compareWith(NullnessMigration(), codebase)
+}
+
+private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
+    if (filter != null) {
+        // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
+        // their callers make incorrect nullness assumptions (for example, calling a function on a
+        // reference of nullable type). The way to communicate this to kotlinc is to mark these
+        // APIs as RecentlyNullable/RecentlyNonNull
+        codebase.accept(MarkPackagesAsRecent(filter))
+    }
 }
 
 private fun loadFromSources(): Codebase {
@@ -805,6 +819,17 @@ private fun loadFromSources(): Codebase {
     val analyzer = ApiAnalyzer(codebase)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
+
+    val filterEmit = ApiPredicate(ignoreShown = true, ignoreRemoved = false)
+    val apiEmit = ApiPredicate(ignoreShown = true)
+    val apiReference = ApiPredicate(ignoreShown = true)
+
+    // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
+    // this before merging annotations or performing checks on the API to ensure that these methods
+    // can have annotations added and are checked properly.
+    progress("\nInsert missing stubs methods: ")
+    analyzer.generateInheritedStubs(apiEmit, apiReference)
+
     analyzer.mergeExternalQualifierAnnotations()
     options.nullabilityAnnotationsValidator?.validateAllFrom(codebase, options.validateNullabilityFromList)
     options.nullabilityAnnotationsValidator?.report()
@@ -834,16 +859,9 @@ private fun loadFromSources(): Codebase {
         progress("\n$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds")
     }
 
-    val filterEmit = ApiPredicate(ignoreShown = true, ignoreRemoved = false)
-    val apiEmit = ApiPredicate(ignoreShown = true)
-    val apiReference = ApiPredicate(ignoreShown = true)
-
-    // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary
-    progress("\nInsert missing stubs methods: ")
-    analyzer.generateInheritedStubs(apiEmit, apiReference)
-
     // Compute default constructors (and add missing package private constructors
-    // to make stubs compilable if necessary)
+    // to make stubs compilable if necessary). Do this after all the checks as
+    // these are not part of the API.
     if (options.stubsDir != null || options.docStubsDir != null) {
         progress("\nInsert missing constructors: ")
         analyzer.addConstructors(filterEmit)
@@ -1074,7 +1092,7 @@ fun createReportFile(
             codebase.accept(apiWriter)
         }
     } catch (e: IOException) {
-        reporter.report(Errors.IO_ERROR, apiFile, "Cannot open file for write.")
+        reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
     }
     if (description != null && options.verbose) {
         options.stdout.print("\n$PROGRAM_NAME wrote $description file $apiFile in ${localTimer.elapsed(SECONDS)} seconds")
@@ -1110,7 +1128,7 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
         }
         if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
             reporter.report(
-                Errors.IGNORING_SYMLINK, file,
+                Issues.IGNORING_SYMLINK, file,
                 "Ignoring symlink during source file discovery directory traversal"
             )
             return
@@ -1137,7 +1155,7 @@ fun gatherSources(sourcePath: List<File>): List<File> {
         }
         addSourceFiles(sources, file.absoluteFile)
     }
-    return sources
+    return sources.sortedWith(compareBy({ it.name }))
 }
 
 private fun addHiddenPackages(
@@ -1154,7 +1172,7 @@ private fun addHiddenPackages(
         // Ignore symbolic links during traversal
         if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
             reporter.report(
-                Errors.IGNORING_SYMLINK, file,
+                Issues.IGNORING_SYMLINK, file,
                 "Ignoring symlink during package.html discovery directory traversal"
             )
             return
@@ -1204,7 +1222,7 @@ private fun addHiddenPackages(
             if (sibling.path.endsWith(DOT_JAVA)) {
                 val javaPkg = ClassName(sibling.readText()).packageName
                 if (javaPkg != null) {
-                    realPkg = pkg
+                    realPkg = javaPkg
                     break
                 }
             }
@@ -1228,6 +1246,7 @@ private fun gatherHiddenPackagesFromJavaDocs(sourcePath: List<File>): PackageDoc
         }
         addHiddenPackages(packageComments, overviewHtml, hiddenPackages, file, "")
     }
+
     return PackageDocs(packageComments, overviewHtml, hiddenPackages)
 }
 
@@ -1268,7 +1287,7 @@ private fun findRoot(file: File): File? {
             return File(path.substring(0, endIndex))
         } else {
             reporter.report(
-                Errors.IO_ERROR, file, "$PROGRAM_NAME was unable to determine the package name. " +
+                Issues.IO_ERROR, file, "$PROGRAM_NAME was unable to determine the package name. " +
                     "This usually means that a source file was where the directory does not seem to match the package " +
                     "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
             )

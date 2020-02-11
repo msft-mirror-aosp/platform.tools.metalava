@@ -51,8 +51,9 @@ interface ModifierList {
 
     // Kotlin
     fun isSealed(): Boolean = false
-
+    fun isCompanion(): Boolean = false
     fun isInfix(): Boolean = false
+    fun isConst(): Boolean = false
     fun isSuspend(): Boolean = false
     fun isOperator(): Boolean = false
     fun isInline(): Boolean = false
@@ -99,7 +100,7 @@ interface ModifierList {
             return false
         }
         return annotations().any {
-            options.showAnnotations.contains(it.qualifiedName())
+            options.showAnnotations.matches(it)
         }
     }
 
@@ -113,7 +114,7 @@ interface ModifierList {
             return false
         }
         return annotations().any {
-            options.showSingleAnnotations.contains(it.qualifiedName())
+            options.showSingleAnnotations.matches(it)
         }
     }
 
@@ -129,7 +130,7 @@ interface ModifierList {
             return false
         }
         return annotations().any { annotation ->
-            options.hideAnnotations.contains(annotation.qualifiedName()) ||
+            options.hideAnnotations.matches(annotation) ||
                 annotation.resolve()?.hasHideMetaAnnotation() ?: false
         }
     }
@@ -487,7 +488,7 @@ interface ModifierList {
             var annotations = list.annotations()
 
             // Ensure stable signature file order
-            if (annotations.size > 2) {
+            if (annotations.size > 1) {
                 annotations = annotations.sortedBy { it.qualifiedName() }
             }
 
@@ -545,7 +546,7 @@ interface ModifierList {
                         }
                     }
 
-                    val source = printAnnotation.toSource(target)
+                    val source = printAnnotation.toSource(target, showDefaultAttrs = false)
 
                     if (omitCommonPackages) {
                         writer.write(AnnotationItem.shortenAnnotation(source))

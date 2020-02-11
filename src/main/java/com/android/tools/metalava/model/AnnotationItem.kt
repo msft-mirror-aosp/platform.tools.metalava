@@ -60,7 +60,10 @@ interface AnnotationItem {
     fun originalName(): String?
 
     /** Generates source code for this annotation (using fully qualified names) */
-    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
+    fun toSource(
+        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
+        showDefaultAttrs: Boolean = true
+    ): String
 
     /** The applicable targets for this annotation */
     fun targets(): Set<AnnotationTarget>
@@ -257,13 +260,13 @@ interface AnnotationItem {
                 ANDROID_NULLABLE,
                 "android.support.annotation.Nullable",
                 "libcore.util.Nullable",
-                "org.jetbrains.annotations.Nullable" -> return if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NULLABLE else ANDROIDX_NULLABLE
+                "org.jetbrains.annotations.Nullable" -> return nullableAnnotationName(target)
 
                 ANDROIDX_NONNULL,
                 ANDROID_NONNULL,
                 "android.support.annotation.NonNull",
                 "libcore.util.NonNull",
-                "org.jetbrains.annotations.NotNull" -> return if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
+                "org.jetbrains.annotations.NotNull" -> return nonNullAnnotationName(target)
 
                 // Typedefs
                 "android.support.annotation.IntDef",
@@ -290,17 +293,18 @@ interface AnnotationItem {
                 "android.annotation.UserIdInt",
                 "android.annotation.BytesLong",
 
-                    // These aren't support annotations
+                // These aren't support annotations
                 "android.annotation.AppIdInt",
                 "android.annotation.SuppressAutoDoc",
                 "android.annotation.SystemApi",
                 "android.annotation.TestApi",
                 "android.annotation.CallbackExecutor",
                 "android.annotation.Condemned",
+                "android.annotation.Hide",
 
                 "android.annotation.Widget" -> {
                     // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                    return if (options.showAnnotations.contains(qualifiedName)) {
+                    return if (options.showAnnotations.matches(qualifiedName)) {
                         qualifiedName
                     } else if (filter != null) {
                         val cls = codebase.findClass(qualifiedName)
@@ -332,8 +336,8 @@ interface AnnotationItem {
                             "kotlin.annotations.jvm.internal${qualifiedName.substring(qualifiedName.lastIndexOf('.'))}"
 
                         // Other third party nullness annotations?
-                        isNullableAnnotation(qualifiedName) -> ANDROIDX_NULLABLE
-                        isNonNullAnnotation(qualifiedName) -> ANDROIDX_NONNULL
+                        isNullableAnnotation(qualifiedName) -> nullableAnnotationName(target)
+                        isNonNullAnnotation(qualifiedName) -> nonNullAnnotationName(target)
 
                         // Support library annotations are all included, as is the built-in stuff like @Retention
                         qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> return qualifiedName
@@ -342,7 +346,7 @@ interface AnnotationItem {
                         // Unknown Android platform annotations
                         qualifiedName.startsWith("android.annotation.") -> {
                             // Remove, unless specifically included in --showAnnotations
-                            return if (options.showAnnotations.contains(qualifiedName)) {
+                            return if (options.showAnnotations.matches(qualifiedName)) {
                                 qualifiedName
                             } else {
                                 null
@@ -360,7 +364,7 @@ interface AnnotationItem {
 
                         else -> {
                             // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                            return if (options.showAnnotations.contains(qualifiedName)) {
+                            return if (options.showAnnotations.matches(qualifiedName)) {
                                 qualifiedName
                             } else if (filter != null) {
                                 val cls = codebase.findClass(qualifiedName)
@@ -377,6 +381,12 @@ interface AnnotationItem {
                 }
             }
         }
+
+        private fun nullableAnnotationName(target: AnnotationTarget) =
+            if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NULLABLE else ANDROIDX_NULLABLE
+
+        private fun nonNullAnnotationName(target: AnnotationTarget) =
+            if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
         /** The applicable targets for this annotation */
         fun computeTargets(annotation: AnnotationItem, codebase: Codebase): Set<AnnotationTarget> {

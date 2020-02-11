@@ -25,6 +25,12 @@ class ApiLintTest : DriverTest() {
         // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
+            extraArguments = arrayOf(
+                ARG_API_LINT_IGNORE_PREFIX,
+                "android.icu.",
+                ARG_API_LINT_IGNORE_PREFIX,
+                "java."
+            ),
             compatibilityMode = false,
             warnings = """
                 src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName] [Rule S1 in go/android-api-guidelines]
@@ -37,7 +43,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/badlyNamedClass.java:11: warning: Acronyms should not be capitalized in method names: was `getID`, should this be `getId`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -87,7 +93,7 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ApiLint#isInteresting)
+                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
                     public class badlyNamedClass {
                         public static final int BadlyNamedField = 1;
                         public void BadlyNamedMethod1() { }
@@ -106,7 +112,26 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ApiLint#isInteresting)
+                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
+                    public class badlyNamedClass {
+                        public static final int BadlyNamedField = 1;
+                        public void BadlyNamedMethod1() { }
+
+                        public void toXML() { }
+                        @Nullable
+                        public String getID() { return null; }
+                        public void setZOrderOnTop() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package java;
+
+                    import androidx.annotation.Nullable;
+
+                    // Same as above android.pkg.badlyNamedClass but in a package
+                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
                     public class badlyNamedClass {
                         public static final int BadlyNamedField = 1;
                         public void BadlyNamedMethod1() { }
@@ -149,7 +174,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg2/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg2/HTMLWriter.java:4: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -189,7 +214,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/Constants.java:9: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#myStrings`, should be `MY_STRINGS`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 src/android/pkg/Constants.java:7: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#strings`, should be `STRINGS`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -221,7 +246,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum] [Rule F5 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -246,7 +271,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyInterfaceCallback.java:3: error: Callbacks must be abstract class instead of interface to enable extension in future API levels: MyInterfaceCallback [CallbackInterface] [Rule CL3 in go/android-api-guidelines]
                 src/android/pkg/MyObserver.java:3: warning: Class should be named MyCallback [CallbackName] [Rule L1 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -298,7 +323,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyClassListener.java:3: error: Listeners should be an interface, or otherwise renamed Callback: MyClassListener [ListenerInterface] [Rule L1 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -359,7 +384,7 @@ class ApiLintTest : DriverTest() {
                 src/android/accounts/Actions.java:6: error: Inconsistent action value; expected `android.accounts.action.ACCOUNT_OPENED`, was `android.accounts.ACCOUNT_OPENED` [ActionValue] [Rule C4 in go/android-api-guidelines]
                 src/android/accounts/Actions.java:8: error: Intent action constant name must be ACTION_FOO: SOMETHING [IntentName] [Rule C3 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.accounts;
@@ -387,7 +412,7 @@ class ApiLintTest : DriverTest() {
                 src/android/accounts/Extras.java:7: error: Intent extra constant name must be EXTRA_FOO: RULE_ID [IntentName] [Rule C3 in go/android-api-guidelines]
                 src/android/accounts/Extras.java:6: error: Intent extra constant name must be EXTRA_FOO: SOMETHING_EXTRA [IntentName] [Rule C3 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.accounts;
@@ -413,7 +438,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MissingEquals.java:4: error: Must override both equals and hashCode; missing one in android.pkg.MissingEquals [EqualsAndHashCode] [Rule M8 in go/android-api-guidelines]
                 src/android/pkg/MissingHashCode.java:7: error: Must override both equals and hashCode; missing one in android.pkg.MissingHashCode [EqualsAndHashCode] [Rule M8 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -439,7 +464,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
@@ -451,7 +476,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class UnrelatedEquals {
@@ -478,11 +503,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/NonFinalParcelable.java:5: error: Parcelable classes must be final: android.pkg.NonFinalParcelable is not final [ParcelNotFinal] [Rule FW8 in go/android-api-guidelines]
                 src/android/pkg/ParcelableConstructor.java:6: error: Parcelable inflation is exposed through CREATOR, not raw constructors, in android.pkg.ParcelableConstructor [ParcelConstructor] [Rule FW3 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public final class ParcelableConstructor implements android.os.Parcelable {
@@ -497,7 +522,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class NonFinalParcelable implements android.os.Parcelable {
@@ -512,7 +537,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public final class MissingCreator implements android.os.Parcelable {
@@ -525,7 +550,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public final class MissingDescribeContents implements android.os.Parcelable {
@@ -563,7 +588,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:6: error: Protected methods not allowed; must be public: method android.pkg.MyClass.wrong()} [ProtectedMember] [Rule M7 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:8: error: Protected fields not allowed; must be public: field android.pkg.MyClass.wrong} [ProtectedMember] [Rule M7 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -572,9 +597,126 @@ class ApiLintTest : DriverTest() {
                         public void ok() { }
                         protected void finalize() { } // OK
                         protected void wrong() { }
-                        public int ok = 42;
-                        protected int wrong = 5;
+                        public final int ok = 42;
+                        protected final int wrong = 5;
                         private int ok2 = 2;
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Fields must be final and properly named`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower] [Rule S1 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper] [Rule C2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower] [Rule S1 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: error: Bare field BAD_CONSTANT must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: error: Constant BAD_CONSTANT must be marked static final [AllUpper] [Rule C2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:5: error: Bare field badMutable must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:9: error: Bare field badStaticMutable must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:6: error: Internal field mBadName must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:8: error: Constant field names must be named with only upper case characters: `android.pkg.MyClass#sBadStaticName`, should be `S_BAD_STATIC_NAME`? [AllUpper] [Rule C2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:8: error: Internal field sBadStaticName must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:15: error: Internal field mBad must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public class MyClass {
+                        private int mOk;
+                        public int badMutable;
+                        public final int mBadName;
+                        public final int AlsoBadName;
+                        public static final int sBadStaticName;
+                        public static int badStaticMutable;
+                        public static int BAD_CONSTANT;
+                        public final int ALSO_BAD_CONSTANT;
+
+                        public static class LayoutParams {
+                            public int ok;
+                            public int mBad;
+                        }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Only android_net_Uri allowed`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:7: error: Use android.net.Uri instead of java.net.URL (method android.pkg.MyClass.bad1()) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:8: error: Use android.net.Uri instead of java.net.URI (parameter param in android.pkg.MyClass.bad2(java.util.List<java.net.URI> param)) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import java.util.List;
+                    import androidx.annotation.Nullable;
+
+                    public final class MyClass {
+                        public @Nullable java.net.URL bad1() { return null; }
+                        public void bad2(@Nullable List<java.net.URI> param) { }
+                        public void bad3(@Nullable android.net.URL param) { }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Typedef must be hidden`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:15: error: Don't expose @IntDef: SomeInt must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:20: error: Don't expose @LongDef: SomeLong must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:10: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public final class MyClass {
+                            private MyClass() {}
+
+                            public static final String SOME_STRING = "abc";
+                            public static final int SOME_INT = 1;
+                            public static final long SOME_LONG = 1L;
+
+                            @android.annotation.StringDef(value = {
+                                    SOME_STRING
+                            })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface SomeString {}
+                            @android.annotation.IntDef(value = {
+                                    SOME_INT
+                            })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface SomeInt {}
+                            @android.annotation.LongDef(value = {
+                                    SOME_LONG
+                            })
+                            @Retention(RetentionPolicy.SOURCE)
+                            public @interface SomeLong {}
                     }
                     """
                 )
@@ -595,11 +737,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/RegistrationMethods.java:16: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
                 src/android/pkg/RegistrationMethods.java:17: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName] [Rule L3 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class RegistrationMethods {
@@ -637,11 +779,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/CheckSynchronization2.kt:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization2.kt:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class CheckSynchronization {
@@ -671,7 +813,7 @@ class ApiLintTest : DriverTest() {
                 ),
                 kotlin(
                     """
-                    package android.pkg;
+                    package android.pkg
 
                     class CheckSynchronization2 {
                         fun errorMethod1() {
@@ -710,7 +852,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/IntentBuilderNames.java:8: warning: Methods creating an Intent should be named `create<Foo>Intent()`, was `makeMyIntent` [IntentBuilderName] [Rule FW1 in go/android-api-guidelines]
                 src/android/pkg/IntentBuilderNames.java:10: warning: Methods creating an Intent should be named `create<Foo>Intent()`, was `createIntentNow` [IntentBuilderName] [Rule FW1 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -746,7 +888,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -756,6 +898,7 @@ class ApiLintTest : DriverTest() {
                         public final void ok() { }
                         public abstract void badlyNamedAbstractMethod();
                         public void badlyNamedMethod() { }
+                        public static void staticOk() { }
                     }
                     """
                 ),
@@ -764,6 +907,8 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public class MyClass2 extends android.content.ContentProvider {
+                        public static final String PROVIDER_INTERFACE = "android.pkg.MyClass2";
+                        public final void ok();
                     }
                     """
                 ),
@@ -772,6 +917,8 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public class MyClass3 extends android.app.Service {
+                        public static final String SERVICE_INTERFACE = "android.pkg.MyClass3";
+                        public final void ok();
                     }
                     """
                 ),
@@ -807,7 +954,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -819,7 +966,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.NonNull;
 
                     public class MyClass {
@@ -838,7 +985,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.NonNull;
 
                     public class Ok {
@@ -862,7 +1009,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass1.java:3: error: Raw AIDL interfaces must not be exposed: MyClass1 extends Binder [RawAidl]
                 src/android/pkg/MyClass2.java:3: error: Raw AIDL interfaces must not be exposed: MyClass2 implements IInterface [RawAidl]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -899,7 +1046,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/com/android/pkg/MyClass.java:3: error: Internal classes must not be exposed [InternalClasses]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package com.android.pkg;
@@ -923,7 +1070,7 @@ class ApiLintTest : DriverTest() {
                 src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering] [Rule FW6 in go/android-api-guidelines]
                 src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering] [Rule FW6 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.content;
@@ -935,11 +1082,11 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass1 {
                         @Nullable
-                        public View view = null;
+                        public final View view = null;
                         @Nullable
-                        public Drawable drawable = null;
+                        public final Drawable drawable = null;
                         @Nullable
-                        public Bitmap bitmap = null;
+                        public final Bitmap bitmap = null;
                         @Nullable
                         public View ok(@Nullable View view, @Nullable Drawable drawable) { return null; }
                         @Nullable
@@ -957,38 +1104,57 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/MyClass.java:8: error: Symmetric method for `setProp4` must be named `getProp4`; was `isProp4` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:12: error: Symmetric method for `hasError1` must be named `setHasError1`; was `setError1` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:11: error: Symmetric method for `setError1` must be named `getError1`; was `hasError1` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:14: error: Symmetric method for `isError2` must be named `setIsError2`; was `setHasError2` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:18: error: Symmetric method for `getError3` must be named `setError3`; was `setIsError3` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:16: error: Symmetric method for `getError3` must be named `setError3`; was `setHasError3` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:20: error: Symmetric method for `hasError5` must be named `setHasError5`; was `setError5` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:19: error: Symmetric method for `setError5` must be named `getError5`; was `hasError5` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:20: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:24: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:28: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:31: error: Symmetric method for `setCanRecordBad` must be named `canRecordBad`; was `isCanRecordBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:34: error: Symmetric method for `setShouldFitWidthBad` must be named `shouldFitWidthBad`; was `isShouldFitWidthBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:37: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
+                    src/android/pkg/MyClass.java:40: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
 
                     public class MyClass {
-                        public int getProp1() { return 0; }
-                        public boolean getProp2() { return false; }
-                        public boolean getProp3() { return false; }
-                        public void setProp3(boolean s) { }
-                        public boolean isProp4() { return false; }
-                        public void setProp4(boolean s) { }
+                        // Correct
+                        public void setVisible(boolean visible) {}
+                        public boolean isVisible() { return false; }
 
-                        public boolean hasError1() { return false; }
-                        public void setError1(boolean s) { }
-                        public boolean isError2() { return false; }
-                        public void setHasError2(boolean s) { }
-                        public boolean getError3() { return false; }
-                        public void setHasError3(boolean s) { }
-                        public boolean isError4() { return false; }
-                        public void setIsError3(boolean s) { }
-                        public boolean hasError5() { return false; }
-                        public void setError5(boolean s) { }
+                        public void setHasTransientState(boolean hasTransientState) {}
+                        public boolean hasTransientState() { return false; }
+
+                        public void setCanRecord(boolean canRecord) {}
+                        public boolean canRecord() { return false; }
+
+                        public void setShouldFitWidth(boolean shouldFitWidth) {}
+                        public boolean shouldFitWidth() { return false; }
+
+                        public void setWiFiRoamingSettingEnabled(boolean enabled) {}
+                        public boolean isWiFiRoamingSettingEnabled() { return false; }
+
+                        // Bad
+                        public void setIsVisibleBad(boolean visible) {}
+                        public boolean isVisibleBad() { return false; }
+
+                        public void setTransientStateBad(boolean hasTransientState) {}
+                        public boolean hasTransientStateBad() { return false; }
+
+                        public void setHasTransientStateAlsoBad(boolean hasTransientState) {}
+                        public boolean isHasTransientStateAlsoBad() { return false; }
+
+                        public void setCanRecordBad(boolean canRecord) {}
+                        public boolean isCanRecordBad() { return false; }
+
+                        public void setShouldFitWidthBad(boolean shouldFitWidth) {}
+                        public boolean isShouldFitWidthBad() { return false; }
+
+                        public void setWiFiRoamingSettingEnabledBad(boolean enabled) {}
+                        public boolean getWiFiRoamingSettingEnabledBad() { return false; }
+
+                        public void setEnabledBad(boolean enabled) {}
+                        public boolean getEnabledBad() { return false; }
                     }
                     """
                 )
@@ -1006,11 +1172,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:9: error: Return type is concrete collection (`java.util.Vector`); must be higher-level interface [ConcreteCollection] [Rule CL2 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: error: Parameter type is concrete collection (`java.util.LinkedList`); must be higher-level interface [ConcreteCollection] [Rule CL2 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class MyClass {
@@ -1036,7 +1202,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/accounts/OverlappingFlags.java:19: warning: Found overlapping flag constant values: `TEST1_FLAG_SECOND` with value 3 (0x3) and overlapping flag value 1 (0x1) from `TEST1_FLAG_FIRST` [OverlappingConstants] [Rule C1 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.accounts;
@@ -1081,7 +1247,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:10: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.NullPointerException` [IllegalStateException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [Rule FW9 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1112,7 +1278,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:4: error: Must never reference Google (`MyGoogleService`) [MentionsGoogle]
                 src/android/pkg/MyClass.java:5: error: Must never reference Google (`callGoogle`) [MentionsGoogle]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1138,7 +1304,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
                 src/android/pkg/MyClass.java:6: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1147,7 +1313,7 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass {
                         @Nullable
-                        public BitSet bitset;
+                        public final BitSet bitset;
                         @Nullable
                         public BitSet reverse(@Nullable BitSet bitset) { return null; }
                     }
@@ -1166,11 +1332,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyFirstManager.java:6: error: Managers must always be obtained from Context; no direct constructors [ManagerConstructor]
                 src/android/pkg/MyFirstManager.java:8: error: Managers must always be obtained from Context (`get`) [ManagerLookup]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class MyFirstManager {
@@ -1208,7 +1374,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [Rule M11 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:6: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing] [Rule M11 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1217,8 +1383,8 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass {
                         @Nullable
-                        public Integer integer1;
-                        public int integer2;
+                        public final Integer integer1;
+                        public final int integer2;
                         public MyClass(@Nullable Long l) {
                         }
                         @Nullable
@@ -1239,7 +1405,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyUtils1.java:3: error: Fully-static utility classes must not have constructor [StaticUtils]
                 src/android/pkg/MyUtils2.java:3: error: Fully-static utility classes must not have constructor [StaticUtils]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1286,7 +1452,7 @@ class ApiLintTest : DriverTest() {
 
                     public class MyUtils5 {
                         // OK: instance field
-                        public int foo = 42;
+                        public final int foo = 42;
                         public static void foo() { }
                     }
                     """
@@ -1304,7 +1470,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:11: error: Context is distinct, so it must be the first argument (method `wrong`) [ContextFirst] [Rule M3 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:12: error: ContentResolver is distinct, so it must be the first argument (method `wrong`) [ContextFirst] [Rule M3 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1335,7 +1501,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:7: warning: Listeners should always be at end of argument list (method `MyClass`) [ListenerLast] [Rule M3 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast] [Rule M3 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1372,7 +1538,7 @@ class ApiLintTest : DriverTest() {
             compatibilityMode = false,
             warnings = """
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1415,10 +1581,8 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration] [Rule L1 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:11: warning: SAM-compatible parameters (such as parameter 1, "executor", in android.pkg.MyClass.registerStreamEventCallback) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast]
-                src/android/pkg/MyClass.java:13: warning: SAM-compatible parameters (such as parameter 1, "executor", in android.pkg.MyClass.unregisterStreamEventCallback) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1444,7 +1608,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.graphics;
-                    
+
                     import android.pkg.MyCallback;
                     import androidx.annotation.Nullable;
 
@@ -1478,7 +1642,7 @@ class ApiLintTest : DriverTest() {
                 src/android/R.java:20: error: Expected resource name in `android.R.layout` to be in the `foo_bar_baz` style, was `wrongNameStyle` [ResourceFieldName]
                 src/android/R.java:31: error: Expected resource name in `android.R.style` to be in the `FooBar_Baz` style, was `wrong_style_name` [ResourceStyleFieldName] [Rule C7 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android;
@@ -1529,7 +1693,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1561,7 +1725,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1592,7 +1756,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/MyManager.java:9: warning: Abstract inner classes should be static to improve testability: class android.pkg.MyManager.MyInnerManager [AbstractInner]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1625,7 +1789,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:7: error: Methods must not mention RuntimeException subclasses in throws clauses (was `java.lang.SecurityException`) [BannedThrow]
                 src/android/pkg/MyClass.java:6: error: Methods must not mention RuntimeException subclasses in throws clauses (was `java.lang.ClassCastException`) [BannedThrow]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1651,7 +1815,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:3: error: Trouble must be reported through an `Exception`, not an `Error` (`MyClass` extends `Error`) [ExtendsError]
                 src/android/pkg/MySomething.java:3: error: Exceptions must be named `FooException`, was `MySomething` [ExceptionName]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1690,7 +1854,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/UnitNameTest.java:22: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
                 src/android/pkg/UnitNameTest.java:24: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1731,10 +1895,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1777,7 +1941,145 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public abstract class MyErrorClass2 {
+                        public void finalize() {}
                         public void shutdown() {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Check closeable for minSdkVersion 19`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+            """,
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <uses-sdk android:minSdkVersion="19" />
+                </manifest>
+            """.trimIndent(),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass1 {
+                        public void close() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass2 {
+                        public void finalize() {}
+                        public void shutdown() {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Do not check closeable for minSdkVersion less than 19`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = "",
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <uses-sdk android:minSdkVersion="18" />
+                </manifest>
+            """.trimIndent(),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass1 {
+                        public void close() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public abstract class MyErrorClass2 {
+                        public void finalize() {}
+                        public void shutdown() {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Check ICU types for minSdkVersion 24`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyErrorClass1.java:7: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+            """,
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <uses-sdk android:minSdkVersion="24" />
+                </manifest>
+            """.trimIndent(),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import com.android.annotations.NonNull;
+                    import java.util.TimeZone;
+
+                    public abstract class MyErrorClass1 {
+                        @NonNull
+                        public TimeZone getDefaultTimeZone() {
+                            return TimeZone.getDefault();
+                        }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Do not check ICU types for minSdkVersion less than 24`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = "",
+            manifest = """<?xml version="1.0" encoding="UTF-8"?>
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <uses-sdk android:minSdkVersion="23" />
+                </manifest>
+            """.trimIndent(),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import com.android.annotations.NonNull;
+                    import java.util.TimeZone;
+
+                    public abstract class MyErrorClass1 {
+                        @NonNull
+                        public TimeZone getDefaultTimeZone() {
+                            return TimeZone.getDefault();
+                        }
                     }
                     """
                 )
@@ -1794,17 +2096,17 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/KotlinKeywordTest.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/android/pkg/KotlinKeywordTest.java:8: error: Avoid field names that are Kotlin hard keywords ("as"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
 
                     public class KotlinKeywordTest {
                         public void okay();
-                        public int okay = 0;
+                        public final int okay = 0;
 
                         public void fun() {} // error
-                        public int as = 0; // error
+                        public final int as = 0; // error
                     }
                     """
                 )
@@ -1825,11 +2127,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/KotlinOperatorTest.java:9: error: Only one of `plus` and `plusAssign` methods should be present for Kotlin [UniqueKotlinOperator]
                 src/android/pkg/KotlinOperatorTest.java:10: info: Method can be invoked as a compound assignment operator from Kotlin: `plusAssign` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class KotlinOperatorTest {
@@ -1854,11 +2156,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/ArrayTest.java:11: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
                 src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public class ArrayTest {
@@ -1887,7 +2189,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyManager.java:7: warning: When a method overload is needed to target a specific UserHandle, callers should be directed to use Context.createPackageContextAsUser() and re-obtain the relevant Manager, and no new API should be added [UserHandle]
                 src/android/pkg/UserHandleTest.java:8: warning: Method taking UserHandle should be named `doFooAsUser` or `queryFooForUser`, was `error` [UserHandleName]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1925,7 +2227,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/FooOptions.java:3: warning: Classes holding a set of parameters should be called `FooParams`, was `FooOptions` [UserHandleName]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -1952,18 +2254,39 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/ServiceNameTest.java:6: error: Inconsistent service value; expected `OTHER`, was `something` [ServiceName] [Rule C4 in go/android-api-guidelines]
+                src/android/content/Context.java:11: error: Inconsistent service constant name; expected `SOMETHING_SERVICE`, was `OTHER_MANAGER` [ServiceName] [Rule C4 in go/android-api-guidelines]
+                src/android/content/Context.java:12: error: Inconsistent service constant name; expected `OTHER_SERVICE`, was `OTHER_MANAGER_SERVICE` [ServiceName] [Rule C4 in go/android-api-guidelines]
+                src/android/content/Context.java:9: error: Inconsistent service value; expected `other`, was `something` (Note: Do not change the name of already released services, which will break tools using `adb shell dumpsys`. Instead add `@SuppressLint("ServiceName"))` [ServiceName] [Rule C4 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.content;
+
+                    public class Context {
+                        private Context() { }
+                        // Good
+                        public static final String FOO_BAR_SERVICE = "foo_bar";
+                        // Unrelated
+                        public static final int NON_STRING_SERVICE = 42;
+                        // Bad
+                        public static final String OTHER_SERVICE = "something";
+                        public static final String OTHER_MANAGER = "something";
+                        public static final String OTHER_MANAGER_SERVICE = "other_manager";
+                    }
+                    """
+                ),
                 java(
                     """
                     package android.pkg;
 
+                    // Unrelated
                     public class ServiceNameTest {
                         private ServiceNameTest() { }
                         public static final String FOO_BAR_SERVICE = "foo_bar";
                         public static final String OTHER_SERVICE = "something";
                         public static final int NON_STRING_SERVICE = 42;
+                        public static final String BIND_SOME_SERVICE = "android.permission.BIND_SOME_SERVICE";
                     }
                     """
                 )
@@ -1980,7 +2303,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MethodNameTest.java:6: warning: Unexpected tense; probably meant `enabled`, was `fooEnable` [MethodNameTense]
                 src/android/pkg/MethodNameTest.java:7: warning: Unexpected tense; probably meant `enabled`, was `mustEnable` [MethodNameTense]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2006,7 +2329,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/CloneTest.java:7: error: Provide an explicit copy constructor instead of implementing `clone()` [NoClone]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2034,7 +2357,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/IcuTest.java:7: warning: Type `java.text.BreakIterator` should be replaced with richer ICU type `android.icu.text.BreakIterator` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.Collator` should be replaced with richer ICU type `android.icu.text.Collator` [UseIcu]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2058,10 +2381,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/PdfTest.java:6: error: Must use ParcelFileDescriptor instead of FileDescriptor in parameter fd in android.pkg.PdfTest.error1(java.io.FileDescriptor fd) [NoClone]
+                src/android/pkg/PdfTest.java:6: error: Must use ParcelFileDescriptor instead of FileDescriptor in parameter fd in android.pkg.PdfTest.error1(java.io.FileDescriptor fd) [UseParcelFileDescriptor] [Rule FW11 in go/android-api-guidelines]
                 src/android/pkg/PdfTest.java:7: error: Must use ParcelFileDescriptor instead of FileDescriptor in method android.pkg.PdfTest.getFileDescriptor() [UseParcelFileDescriptor] [Rule FW11 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2072,6 +2395,29 @@ class ApiLintTest : DriverTest() {
                         public void error1(@Nullable java.io.FileDescriptor fd) { }
                         public int getFileDescriptor() { return -1; }
                         public void ok(@Nullable android.os.ParcelFileDescriptor fd) { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.system;
+
+                    public class Os {
+                        public void ok(@Nullable java.io.FileDescriptor fd) { }
+                        public int getFileDescriptor() { return -1; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.yada;
+
+                    import com.android.annotations.NonNull;
+
+                    public class YadaService extends android.app.Service {
+                        @Override
+                        public final void dump(@NonNull java.io.FileDescriptor fd, @NonNull java.io.PrintWriter pw, @NonNull String[] args) {
+                        }
                     }
                     """
                 )
@@ -2088,7 +2434,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/ByteTest.java:4: warning: Should avoid odd sized primitives; use `int` instead of `byte` in parameter b in android.pkg.ByteTest.error1(byte b) [NoByteOrShort] [Rule FW12 in go/android-api-guidelines]
                 src/android/pkg/ByteTest.java:5: warning: Should avoid odd sized primitives; use `int` instead of `short` in parameter s in android.pkg.ByteTest.error2(short s) [NoByteOrShort] [Rule FW12 in go/android-api-guidelines]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2111,7 +2457,7 @@ class ApiLintTest : DriverTest() {
             warnings = """
                 src/android/pkg/MySingleton.java:8: error: Singleton classes should use `getInstance()` methods: `MySingleton` [SingletonConstructor]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2129,7 +2475,7 @@ class ApiLintTest : DriverTest() {
                 java(
                     """
                     package android.pkg;
-                    
+
                     import androidx.annotation.Nullable;
 
                     public abstract class MySingleton2 {
@@ -2154,7 +2500,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/IndirectActivity.java:2: error: IndirectActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyTask.java:2: error: MyTask should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead [ForbiddenSuperClass]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
@@ -2196,13 +2542,13 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/FontFamily.kt:1: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/Foo.java:7: info: Method can be invoked as a binary operator from Kotlin: `div` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                         package android.pkg;
-                        
+
                         import androidx.annotation.Nullable;
-                        
+
                         public class Foo {
                             private Foo() { }
                             @Nullable
@@ -2253,6 +2599,7 @@ class ApiLintTest : DriverTest() {
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils"),
             compatibilityMode = false,
             warnings = """
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
@@ -2261,7 +2608,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/Foo.java:20: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
                 src/android/pkg/Foo.java:7: error: Missing nullability on field `badField` in class `class android.pkg.Foo` [MissingNullability]
                 """,
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                         package android.pkg;
@@ -2270,9 +2617,9 @@ class ApiLintTest : DriverTest() {
                         import androidx.annotation.Nullable;
 
                         public class Foo<T> {
-                            public Foo badField;
+                            public final Foo badField;
                             @Nullable
-                            public Foo goodField;
+                            public final Foo goodField;
 
                             public Foo(String name, int number) { }
                             public void setBadValue(Foo value) { }
@@ -2289,6 +2636,20 @@ class ApiLintTest : DriverTest() {
                         }
                     """
                 ),
+                kotlin("""
+                    package android.pkg
+
+                    object Bar
+
+                    class FooBar {
+                        companion object
+                    }
+
+                    class FooBarNamed {
+                        companion object Named
+                    }
+                    """
+                ),
                 androidxNullableSource,
                 androidxNonNullSource
             )
@@ -2301,7 +2662,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = "",
-            sourceFiles = *arrayOf(
+            sourceFiles = arrayOf(
                 java(
                     """
                         package android.pkg;
@@ -2325,7 +2686,7 @@ class ApiLintTest : DriverTest() {
 
                             @SuppressLint("Enum")
                             public enum FooEnum {
-                                FOO, BAR;
+                                FOO, BAR
                             }
 
                             public @interface FooAnnotation {

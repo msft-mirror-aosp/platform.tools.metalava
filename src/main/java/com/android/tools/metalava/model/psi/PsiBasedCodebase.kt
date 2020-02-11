@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
-import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.Item
@@ -152,11 +152,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                     if (comment != null) {
                         val text = comment.text
                         if (text.contains("@hide")) {
-                            hiddenPackages.add(packageName)
+                            this.hiddenPackages[packageName] = true
                         }
                         if (packageDocs[packageName] != null) {
                             reporter.report(
-                                Errors.BOTH_PACKAGE_INFO_AND_HTML,
+                                Issues.BOTH_PACKAGE_INFO_AND_HTML,
                                 unit,
                                 "It is illegal to provide both a package-info.java file and a " +
                                     "package.html file for the same package"
@@ -171,7 +171,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                         override fun visitErrorElement(element: PsiErrorElement?) {
                             super.visitErrorElement(element)
                             reporter.report(
-                                Errors.INVALID_SYNTAX,
+                                Issues.INVALID_SYNTAX,
                                 element,
                                 "Syntax error: `${element?.errorDescription}`"
                             )
@@ -357,7 +357,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                 }
             }
         } catch (e: IOException) {
-            reporter.report(Errors.IO_ERROR, jarFile, e.message ?: e.toString())
+            reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
         }
 
         // Next construct packages
@@ -406,10 +406,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         if (list == null) {
             list = ArrayList()
             packageClasses[packageName] = list
-        }
-
-        if (isPackageHidden(packageName)) {
-            cls.hidden = true
         }
 
         list.add(cls)
@@ -569,7 +565,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             val cls = psiType.resolve() ?: return null
             return findOrCreateClass(cls)
         } else if (psiType is PsiArrayType) {
-            val componentType = psiType.componentType
+            var componentType = psiType.componentType
+            // We repeatedly get the component type because the array may have multiple dimensions
+            while (componentType is PsiArrayType) {
+                componentType = componentType.componentType
+            }
             if (componentType is PsiClassType) {
                 val cls = componentType.resolve() ?: return null
                 return findOrCreateClass(cls)
