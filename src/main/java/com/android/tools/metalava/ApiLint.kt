@@ -294,7 +294,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkEquals(methods)
         checkEnums(cls)
         checkClassNames(cls)
-        checkCallbacks(cls, methods)
+        checkCallbacks(cls)
         checkListeners(cls, methods)
         checkParcelable(cls, methods, constructors, fields)
         checkRegistrationMethods(cls, methods)
@@ -353,6 +353,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             checkUnits(method)
             checkTense(method)
             checkClone(method)
+            checkCallbackOrListenerMethod(method)
         }
         checkExceptions(method, filterReference)
         checkContextFirst(method)
@@ -514,7 +515,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
-    private fun checkCallbacks(cls: ClassItem, methods: Sequence<MethodItem>) {
+    private fun checkCallbacks(cls: ClassItem) {
         /*
             def verify_callbacks(clazz):
                 """Verify Callback classes.
@@ -565,18 +566,35 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         CALLBACK_INTERFACE, cls,
                         "Callbacks must be abstract class instead of interface to enable extension in future API levels: $name"
                     )
-                } else {
-                    for (method in methods) {
-                        val methodName = method.name()
-                        if (!onCallbackNamePattern.matches(methodName)) {
-                            report(
-                                CALLBACK_METHOD_NAME, cls,
-                                "Callback method names must follow the on<Something> style: $methodName"
-                            )
-                        }
-                    }
                 }
             }
+        }
+    }
+
+    private fun checkCallbackOrListenerMethod(method: MethodItem) {
+        if (method.isConstructor() || method.modifiers.isStatic() || method.modifiers.isFinal()) {
+            return
+        }
+        val cls = method.containingClass()
+
+        // These are not listeners or callbacks despite their name.
+        when {
+            cls.modifiers.isFinal() -> return
+            cls.qualifiedName() == "android.telephony.ims.ImsCallSessionListener" -> return
+        }
+
+        val containingClassSimpleName = cls.simpleName()
+        val kind = when {
+            containingClassSimpleName.endsWith("Callback") -> "Callback"
+            containingClassSimpleName.endsWith("Listener") -> "Listener"
+            else -> return
+        }
+        val methodName = method.name()
+        if (!onCallbackNamePattern.matches(methodName)) {
+            report(
+                CALLBACK_METHOD_NAME, method,
+                "$kind method names must follow the on<Something> style: $methodName"
+            )
         }
     }
 
@@ -611,16 +629,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     "Listeners should be an interface, or otherwise renamed Callback: $name"
                 )
             } else {
-                for (method in methods) {
-                    val methodName = method.name()
-                    if (!onCallbackNamePattern.matches(methodName)) {
-                        report(
-                            CALLBACK_METHOD_NAME, cls,
-                            "Listener method names must follow the on<Something> style: $methodName"
-                        )
-                    }
-                }
-
                 if (methods.count() == 1) {
                     val method = methods.first()
                     val methodName = method.name()

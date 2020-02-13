@@ -266,7 +266,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
+                src/android/pkg/MyCallback.java:8: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyCallbacks.java:3: error: Callback class names should be singular: MyCallbacks [SingularCallback] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyInterfaceCallback.java:3: error: Callbacks must be abstract class instead of interface to enable extension in future API levels: MyInterfaceCallback [CallbackInterface] [Rule CL3 in go/android-api-guidelines]
                 src/android/pkg/MyObserver.java:3: warning: Class should be named MyCallback [CallbackName] [Rule L1 in go/android-api-guidelines]
@@ -277,6 +277,15 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public class MyCallbacks {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public final class RemoteCallback {
+                        public void sendResult();
                     }
                     """
                 ),
@@ -307,6 +316,10 @@ class ApiLintTest : DriverTest() {
                         }
                         public void bar() {
                         }
+                        public static void staticMethod() {
+                        }
+                        public final void finalMethod() {
+                        }
                     }
                     """
                 )
@@ -320,8 +333,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyClassListener.java:3: error: Listeners should be an interface, or otherwise renamed Callback: MyClassListener [ListenerInterface] [Rule L1 in go/android-api-guidelines]
+                src/android/pkg/MyListener.java:6: error: Listener method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -362,10 +375,14 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    public class MyCallback {
+                    public interface MyListener {
                         public void onFoo() {
                         }
                         public void bar() {
+                        }
+                        public static void staticMethod() {
+                        }
+                        public static void finalMethod() {
                         }
                     }
                     """
