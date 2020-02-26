@@ -1857,6 +1857,15 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         if (item.requiresNullnessInfo() && !item.hasNullnessInfo() &&
                 getImplicitNullness(item) == null) {
             val type = item.type()
+            val inherited = when (item) {
+                is ParameterItem -> item.containingMethod().inheritedMethod
+                is FieldItem -> item.inheritedField
+                is MethodItem -> item.inheritedMethod
+                else -> false
+            }
+            if (inherited) {
+                return // Do not enforce nullability on inherited items (non-overridden)
+            }
             if (type != null && type.isTypeParameter()) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
