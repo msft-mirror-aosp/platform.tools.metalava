@@ -3759,4 +3759,50 @@ class ApiFileTest : DriverTest() {
 
         )
     }
+
+    @Test
+    fun `Test inherited methods that use generics`() {
+        check(
+            compatibilityMode = false,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import androidx.annotation.NonNull;
+                    public class Class2 extends Class1<String> {
+                        @Override
+                        public void method1(String input) { }
+                        @Override
+                        public void method2(@NonNull String input) { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    class Class1<T> {
+                        public void method1(T input) { }
+                        public void method2(T input) { }
+                        public void method3(T input) { }
+                    }
+                    """
+                ),
+                androidxNonNullSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            warnings = "",
+            api =
+                """
+                package test.pkg {
+                  public class Class2 {
+                    ctor public Class2();
+                    method public void method1(String);
+                    method public void method2(@NonNull String);
+                    method public void method3(String);
+                  }
+                }
+                """
+
+        )
+    }
 }
