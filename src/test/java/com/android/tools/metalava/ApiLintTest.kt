@@ -2700,4 +2700,50 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `Nullability check for generic methods referencing parent type parameter`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/test/pkg/MyClass.java:13: error: Missing nullability on method `method4` return [MissingNullability]
+                src/test/pkg/MyClass.java:14: error: Missing nullability on parameter `input` in method `method4` [MissingNullability]
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
+
+                    public class MyClass extends HiddenParent<String> {
+                        public void method1() { }
+
+                        @Nullable
+                        @Override
+                        public String method3(@NonNull String input) { return null; }
+
+                        @Override
+                        public String method4(String input) { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    class HiddenParent<T> {
+                        public T method2(T t) { }
+                        public T method3(T t) { }
+                        public T method4(T t) { }
+                    }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            )
+        )
+    }
 }
