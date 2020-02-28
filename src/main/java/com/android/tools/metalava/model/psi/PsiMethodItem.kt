@@ -308,6 +308,12 @@ open class PsiMethodItem(
                 sb.append(", ")
             }
 
+            val parameterModifierString = StringWriter()
+            ModifierList.write(
+                parameterModifierString, parameter.modifiers, parameter,
+                target = AnnotationTarget.SDK_STUBS_FILE
+            )
+            sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))
             sb.append(' ')
             sb.append(parameter.name())
