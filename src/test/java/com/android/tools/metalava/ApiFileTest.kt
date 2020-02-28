@@ -3780,10 +3780,14 @@ class ApiFileTest : DriverTest() {
                 java(
                     """
                     package test.pkg;
+                    import androidx.annotation.NonNull;
                     class Class1<T> {
                         public void method1(T input) { }
                         public void method2(T input) { }
                         public void method3(T input) { }
+                        @NonNull
+                        public String method4(T input) { return ""; }
+                        public T method5(@NonNull String input) { return null; }
                     }
                     """
                 ),
@@ -3799,6 +3803,8 @@ class ApiFileTest : DriverTest() {
                     method public void method1(String);
                     method public void method2(@NonNull String);
                     method public void method3(String);
+                    method @NonNull public String method4(String);
+                    method public String method5(@NonNull String);
                   }
                 }
                 """
