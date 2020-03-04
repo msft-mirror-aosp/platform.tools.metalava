@@ -666,13 +666,59 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import java.util.List;
+                    import java.util.List;import java.util.concurrent.CompletableFuture;import java.util.concurrent.Future;
                     import androidx.annotation.Nullable;
 
                     public final class MyClass {
                         public @Nullable java.net.URL bad1() { return null; }
                         public void bad2(@Nullable List<java.net.URI> param) { }
                         public void bad3(@Nullable android.net.URL param) { }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `CompletableFuture and plain Future not allowed`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/MyClass.java:9: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (method android.pkg.MyClass.bad1()) [BadFuture]
+                src/android/pkg/MyClass.java:10: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (parameter param in android.pkg.MyClass.bad2(java.util.concurrent.CompletableFuture<java.lang.String> param)) [BadFuture]
+                src/android/pkg/MyClass.java:11: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (method android.pkg.MyClass.bad3()) [BadFuture]
+                src/android/pkg/MyClass.java:12: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (parameter param in android.pkg.MyClass.bad4(java.util.concurrent.Future<java.lang.String> param)) [BadFuture]
+                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture]
+                src/android/pkg/MyClass.java:17: error: BadFuture should not extend `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture]
+                src/android/pkg/MyClass.java:19: error: BadFutureClass should not implement `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import java.util.concurrent.CompletableFuture;
+                    import java.util.concurrent.Future;
+                    import androidx.annotation.Nullable;
+                    import com.google.common.util.concurrent.ListenableFuture;
+
+                    public final class MyClass {
+                        public @Nullable CompletableFuture<String> bad1() { return null; }
+                        public void bad2(@Nullable CompletableFuture<String> param) { }
+                        public @Nullable Future<String> bad3() { return null; }
+                        public void bad4(@Nullable Future<String> param) { }
+
+                        public @Nullable ListenableFuture<String> ok1() { return null; }
+                        public void ok2(@Nullable ListenableFuture<String> param) { }
+
+                        public interface BadFuture<T> extends Future<T> {
+                        }
+                        public static abstract class BadFutureClass<T> implements Future<T> {
+                        }
+                        public class BadCompletableFuture<T> extends CompletableFuture<T> {
+                        }
                     }
                     """
                 )
@@ -2693,6 +2739,52 @@ class ApiLintTest : DriverTest() {
                                 String value() default "";
                             }
                         }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability check for generic methods referencing parent type parameter`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/test/pkg/MyClass.java:13: error: Missing nullability on method `method4` return [MissingNullability]
+                src/test/pkg/MyClass.java:14: error: Missing nullability on parameter `input` in method `method4` [MissingNullability]
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
+
+                    public class MyClass extends HiddenParent<String> {
+                        public void method1() { }
+
+                        @Nullable
+                        @Override
+                        public String method3(@NonNull String input) { return null; }
+
+                        @Override
+                        public String method4(String input) { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    class HiddenParent<T> {
+                        public T method2(T t) { }
+                        public T method3(T t) { }
+                        public T method4(T t) { }
+                    }
                     """
                 ),
                 androidxNullableSource,
