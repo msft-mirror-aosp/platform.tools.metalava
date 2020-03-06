@@ -206,6 +206,9 @@ Generating Stubs:
                                              recently marked as non null, whereas in the documentation stubs we'll just
                                              list this as @NonNull. Another difference is that @doconly elements are
                                              included in documentation stubs, but not regular stubs, etc.
+--kotlin-stubs                               
+                                             [CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source
+                                             code will be written in Kotlin rather than the Java programming language.
 --include-annotations                        
                                              Include annotations such as @Nullable in the stub files.
 --exclude-annotations                        
