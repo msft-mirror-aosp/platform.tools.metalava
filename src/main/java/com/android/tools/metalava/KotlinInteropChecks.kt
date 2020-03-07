@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
+import org.jetbrains.kotlin.psi.psiUtil.isPublic
 import org.jetbrains.uast.kotlin.KotlinUField
 
 // Enforces the interoperability guidelines outlined in
@@ -155,11 +156,10 @@ class KotlinInteropChecks {
                     // object that are not annotated with @JvmField or annotated with @JvmStatic
                     // https://developer.android.com/kotlin/interop#companion_constants
                     val ktProperties = sourcePsi.declarations.filter { declaration ->
-                        declaration is KtProperty && !declaration.isVar && !declaration.hasModifier(
-                            KtTokens.CONST_KEYWORD
-                        ) && declaration.annotationEntries.filter {
-                                annotationEntry -> annotationEntry.shortName!!.asString() == "JvmField"
-                        }.isEmpty() }
+                        declaration is KtProperty && declaration.isPublic && !declaration.isVar &&
+                            !declaration.hasModifier(KtTokens.CONST_KEYWORD) &&
+                            declaration.annotationEntries.filter { annotationEntry ->
+                                annotationEntry.shortName!!.asString() == "JvmField" }.isEmpty() }
                     for (ktProperty in ktProperties) {
                         if (ktProperty.annotationEntries.filter { annotationEntry -> annotationEntry.shortName!!.asString() == "JvmStatic" }.isEmpty()) {
                             reporter.report(
