@@ -503,7 +503,7 @@ interface AnnotationItem {
             if (cls.isAnnotationType()) {
                 val retention = cls.getRetention()
                 if (retention == AnnotationRetention.RUNTIME || retention == AnnotationRetention.CLASS) {
-                    return ANNOTATION_IN_SDK_STUBS
+                    return ANNOTATION_IN_ALL_STUBS
                 }
             }
 
