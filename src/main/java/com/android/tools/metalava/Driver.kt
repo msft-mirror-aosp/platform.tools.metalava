@@ -27,16 +27,15 @@ import com.android.ide.common.process.ProcessInfoBuilder
 import com.android.ide.common.process.ProcessOutput
 import com.android.ide.common.process.ProcessOutputHandler
 import com.android.tools.lint.KotlinLintAnalyzerFacade
-import com.android.tools.lint.LintCoreApplicationEnvironment
-import com.android.tools.lint.LintCoreProjectEnvironment
+import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.doclava1.FilterPredicate
+import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -52,6 +51,7 @@ import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.core.CoreApplicationEnvironment
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.extensions.Extensions
 import com.intellij.openapi.roots.LanguageLevelProjectExtension
@@ -130,7 +130,7 @@ fun run(
         exitCode = e.exitCode
         exitValue = false
     } finally {
-        Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
+        disposeUastEnvironment()
     }
 
     if (options.updateBaseline) {
@@ -843,7 +843,8 @@ internal fun parseSources(
     manifest: File? = options.manifest,
     currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
 ): PsiBasedCodebase {
-    val projectEnvironment = createProjectEnvironment()
+    val environment = createProjectEnvironment()
+    val projectEnvironment = environment.projectEnvironment
     val project = projectEnvironment.project
 
     // Push language level to PSI handler
@@ -861,7 +862,7 @@ internal fun parseSources(
     projectEnvironment.registerPaths(joined)
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project)
+    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project, environment)
 
     val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
@@ -877,7 +878,8 @@ internal fun parseSources(
 }
 
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
-    val projectEnvironment = createProjectEnvironment()
+    val environment = createProjectEnvironment()
+    val projectEnvironment = environment.projectEnvironment
 
     progress("Processing jar file: ")
 
@@ -886,7 +888,7 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     projectEnvironment.registerPaths(listOf(apiJar))
 
     val kotlinFiles = emptyList<File>()
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project)
+    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project, environment)
 
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
     codebase.initialize(project, apiJar, preFiltered)
@@ -906,32 +908,42 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     return codebase
 }
 
-private fun createProjectEnvironment(): LintCoreProjectEnvironment {
+private fun createProjectEnvironment(): UastEnvironment {
     ensurePsiFileCapacity()
-    val appEnv = LintCoreApplicationEnvironment.get()
-    val parentDisposable = appEnv.parentDisposable
+    val disposable = Disposer.newDisposable()
+    disposables.add(disposable)
+    val environment = UastEnvironment.create(disposable)
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
         !isUnderTest()
     ) {
-        DefaultLogger.disableStderrDumping(parentDisposable)
+        DefaultLogger.disableStderrDumping(disposable)
     }
 
-    val environment = LintCoreProjectEnvironment.create(parentDisposable, appEnv)
+    val projectEnvironment = environment.projectEnvironment
 
     // Missing service needed in metalava but not in lint: javadoc handling
-    environment.project.registerService(
+    projectEnvironment.project.registerService(
         com.intellij.psi.javadoc.JavadocManager::class.java,
         com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
     )
-    environment.registerProjectExtensionPoint(JavadocTagInfo.EP_NAME,
+    projectEnvironment.registerProjectExtensionPoint(JavadocTagInfo.EP_NAME,
         com.intellij.psi.javadoc.JavadocTagInfo::class.java)
     CoreApplicationEnvironment.registerExtensionPoint(
         Extensions.getRootArea(), CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
     )
 
     return environment
+}
+
+private val disposables = mutableListOf<Disposable>()
+
+private fun disposeUastEnvironment() {
+    for (project in disposables) {
+        Disposer.dispose(project)
+    }
+    UastEnvironment.disposeApplicationEnvironment()
 }
 
 private fun ensurePsiFileCapacity() {
