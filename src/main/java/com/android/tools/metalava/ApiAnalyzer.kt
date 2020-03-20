@@ -370,6 +370,24 @@ class ApiAnalyzer(
 
         // Also add in any concrete public methods from hidden super classes
         for (superClass in hiddenSuperClasses) {
+
+            // Determine if there is a non-hidden class between the superClass and this class.
+            // If non hidden classes are found, don't include the methods for this hiddenSuperClass,
+            // as it will already have been included in a previous super class
+            var includeHiddenSuperClassMethods = true
+            var currentClass = cls.superClass()
+            while (currentClass != superClass && currentClass != null) {
+                if (!hiddenSuperClasses.contains(currentClass)) {
+                    includeHiddenSuperClassMethods = false
+                    break
+                }
+                currentClass = currentClass.superClass()
+            }
+
+            if (!includeHiddenSuperClassMethods) {
+                continue
+            }
+
             for (method in superClass.methods()) {
                 if (method.modifiers.isAbstract() || !method.modifiers.isPublic()) {
                     continue
@@ -445,6 +463,17 @@ class ApiAnalyzer(
             }
         }
 
+        val existingMethodMap = HashMap<String, MutableList<MethodItem>>()
+        for (method in cls.methods()) {
+            val name = method.name()
+            val list = existingMethodMap[name] ?: run {
+                val newList = ArrayList<MethodItem>()
+                existingMethodMap[name] = newList
+                newList
+            }
+            list.add(method)
+        }
+
         // We're now left with concrete methods in hidden parents that are implementing methods in public
         // interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
@@ -463,6 +492,21 @@ class ApiAnalyzer(
             if (!EXPAND_DOCUMENTATION) {
                 method.documentation = it.fullyQualifiedDocumentation()
             }
+
+            val name = method.name()
+            val candidates = existingMethodMap[name]
+            if (candidates != null) {
+                val iterator = candidates.listIterator()
+                while (iterator.hasNext()) {
+                    val inheritedMethod = iterator.next()
+                    if (method.matches(inheritedMethod)) {
+                        // If we already have an override of this method, do not add it to the
+                        // methods list
+                        return@forEach
+                    }
+                }
+            }
+
             cls.addMethod(method)
         }
     }

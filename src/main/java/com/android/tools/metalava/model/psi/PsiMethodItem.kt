@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
@@ -39,7 +38,7 @@ import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
-import org.jetbrains.uast.UastContext
+import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 import org.jetbrains.uast.visitor.AbstractUastVisitor
@@ -217,10 +216,8 @@ open class PsiMethodItem(
         if (psiMethod is PsiAnnotationMethod) {
             val value = psiMethod.defaultValue
             if (value != null) {
-                if (PsiItem.isKotlin(value)) {
-                    val uastContext = ServiceManager.getService(value.project, UastContext::class.java)
-                        ?: error("UastContext not found")
-                    val defaultExpression: UExpression = uastContext.convertElement(
+                if (isKotlin(value)) {
+                    val defaultExpression: UExpression = UastFacade.convertElement(
                         value, null,
                         UExpression::class.java
                     ) as? UExpression ?: return ""
@@ -308,6 +305,12 @@ open class PsiMethodItem(
                 sb.append(", ")
             }
 
+            val parameterModifierString = StringWriter()
+            ModifierList.write(
+                parameterModifierString, parameter.modifiers, parameter,
+                target = AnnotationTarget.SDK_STUBS_FILE
+            )
+            sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))
             sb.append(' ')
             sb.append(parameter.name())

@@ -246,6 +246,9 @@ Diffs and Checks:
 --api-lint [api file]                        
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.
+--api-lint-ignore-prefix [prefix]            
+                                             A list of package prefixes to ignore API issues in when running with
+                                             --api-lint.
 --check-kotlin-interop                       
                                              Check API intended to be used from both Kotlin and Java for
                                              interoperability issues
@@ -394,8 +397,8 @@ METALAVA_APPEND_ARGS
 
         val stdout = StringWriter()
         val stderr = StringWriter()
-        com.android.tools.metalava.run(
-            args = args.toTypedArray(),
+        run(
+            originalArgs = args.toTypedArray(),
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
@@ -417,8 +420,8 @@ $FLAGS
 
         val stdout = StringWriter()
         val stderr = StringWriter()
-        com.android.tools.metalava.run(
-            args = args.toTypedArray(),
+        run(
+            originalArgs = args.toTypedArray(),
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )

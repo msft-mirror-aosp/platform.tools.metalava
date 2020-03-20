@@ -53,6 +53,7 @@ import com.android.tools.metalava.doclava1.Issues.ALL_UPPER
 import com.android.tools.metalava.doclava1.Issues.ANDROID_URI
 import com.android.tools.metalava.doclava1.Issues.ARRAY_RETURN
 import com.android.tools.metalava.doclava1.Issues.AUTO_BOXING
+import com.android.tools.metalava.doclava1.Issues.BAD_FUTURE
 import com.android.tools.metalava.doclava1.Issues.BANNED_THROW
 import com.android.tools.metalava.doclava1.Issues.BUILDER_SET_STYLE
 import com.android.tools.metalava.doclava1.Issues.CALLBACK_INTERFACE
@@ -279,6 +280,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkBitSet(type, typeString, item)
         checkHasNullability(item)
         checkUri(typeString, item)
+        checkFutures(typeString, item)
     }
 
     private fun checkClass(
@@ -1857,6 +1859,15 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         if (item.requiresNullnessInfo() && !item.hasNullnessInfo() &&
                 getImplicitNullness(item) == null) {
             val type = item.type()
+            val inherited = when (item) {
+                is ParameterItem -> item.containingMethod().inheritedMethod
+                is FieldItem -> item.inheritedField
+                is MethodItem -> item.inheritedMethod
+                else -> false
+            }
+            if (inherited) {
+                return // Do not enforce nullability on inherited items (non-overridden)
+            }
             if (type != null && type.isTypeParameter()) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
@@ -3145,24 +3156,48 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                             error(clazz, f, "C4", "Inconsistent service value; expected '%s'" % (expected))
          */
         val type = field.type()
-        if (!type.isString()) {
+        if (!type.isString() || !field.modifiers.isFinal() || !field.modifiers.isStatic() ||
+            field.containingClass().qualifiedName() != "android.content.Context") {
             return
         }
         val name = field.name()
-        if (name.endsWith("_SERVICE") && serviceFieldPattern.matches(name)) {
-            val value = field.initialValue() as? String
-            if (value != null) {
-                val service = name.substring(0, name.length - "_SERVICE".length)
-                if (!service.equals(value, ignoreCase = true)) {
-                    if (field.containingClass().qualifiedName() == "android.content.Context") {
-                        return
-                    }
-                    report(
-                        SERVICE_NAME, field,
-                        "Inconsistent service value; expected `$service`, was `$value`"
-                    )
-                }
+        val endsWithService = name.endsWith("_SERVICE")
+        val value = field.initialValue(requireConstant = true) as? String
+
+        if (value == null) {
+            val mustEndInService =
+                if (!endsWithService) " and its name must end with `_SERVICE`" else ""
+
+            report(
+                SERVICE_NAME, field, "Non-constant service constant `$name`. Must be static," +
+                    " final and initialized with a String literal$mustEndInService."
+            )
+            return
+        }
+
+        if (name.endsWith("_MANAGER_SERVICE")) {
+            report(
+                SERVICE_NAME, field,
+                "Inconsistent service constant name; expected " +
+                    "`${name.removeSuffix("_MANAGER_SERVICE")}_SERVICE`, was `$name`"
+            )
+        } else if (endsWithService) {
+            val service = name.substring(0, name.length - "_SERVICE".length).toLowerCase(Locale.US)
+            if (service != value) {
+                report(
+                    SERVICE_NAME, field,
+                    "Inconsistent service value; expected `$service`, was `$value` (Note: Do not" +
+                        " change the name of already released services, which will break tools" +
+                        " using `adb shell dumpsys`." +
+                        " Instead add `@SuppressLint(\"${SERVICE_NAME.name}\"))`"
+                )
             }
+        } else {
+            val valueUpper = value.toUpperCase(Locale.US)
+            report(
+                SERVICE_NAME, field, "Inconsistent service constant name;" +
+                    " expected `${valueUpper}_SERVICE`, was `$name`"
+            )
         }
     }
 
@@ -3221,6 +3256,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                             warn(clazz, m, None, "Type %s should be replaced with richer ICU type %s" % (arg, better[arg]))
          */
         if (type.primitive) {
+            return
+        }
+        // ICU types have been added in API 24, so libraries with minSdkVersion <24 cannot use them.
+        // If the version is not set, then keep the check enabled.
+        val minSdkVersion = codebase.getMinSdkVersion()
+        if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 24) {
             return
         }
         val better = when (typeString) {
@@ -3383,6 +3424,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
             )
         }
+        badFutureTypes.firstOrNull { cls.extendsOrImplements(it) }?.let {
+            val extendOrImplement = if (cls.extends(it)) "extend" else "implement"
+            report(
+                BAD_FUTURE, cls, "${cls.simpleName()} should not $extendOrImplement `$it`." +
+                    " In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`."
+            )
+        }
     }
 
     private fun checkTypedef(cls: ClassItem) {
@@ -3425,54 +3473,23 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
-    /**
-     * Checks whether the given full package name is the same as the given root
-     * package or a sub package (if we just did full.startsWith("java"), then
-     * we'd return true for "javafx", and if we just use full.startsWith("java.")
-     * we'd miss the root package itself.
-     */
-    private fun inSubPackage(root: String, full: String): Boolean {
-        return root == full || full.startsWith(root) && full[root.length] == '.'
+    private fun checkFutures(typeString: String, item: Item) {
+        badFutureTypes.firstOrNull { typeString.contains(it) }?.let {
+            report(
+                BAD_FUTURE, item, "Use ListenableFuture (library), " +
+                    "or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
+            )
+        }
     }
 
     private fun isInteresting(cls: ClassItem): Boolean {
-        /*
-            def is_interesting(clazz):
-                """Test if given class is interesting from an Android PoV."""
-
-                if clazz.pkg.name.startswith("java"): return False
-                if clazz.pkg.name.startswith("junit"): return False
-                if clazz.pkg.name.startswith("org.apache"): return False
-                if clazz.pkg.name.startswith("org.xml"): return False
-                if clazz.pkg.name.startswith("org.json"): return False
-                if clazz.pkg.name.startswith("org.w3c"): return False
-                if clazz.pkg.name.startswith("android.icu."): return False
-                return True
-         */
-
         val name = cls.qualifiedName()
-
-        // Fail fast for most common cases:
-        if (name.startsWith("android.")) {
-            if (!name.startsWith("android.icu")) {
-                return true
+        for (prefix in options.checkApiIgnorePrefix) {
+            if (name.startsWith(prefix)) {
+                return false
             }
-        } else if (name.startsWith("java.")) {
-            return false
         }
-
-        return when {
-            inSubPackage("java", name) ||
-                inSubPackage("javax", name) ||
-                inSubPackage("junit", name) ||
-                inSubPackage("org.apache", name) ||
-                inSubPackage("org.xml", name) ||
-                inSubPackage("org.json", name) ||
-                inSubPackage("org.w3c", name) ||
-                inSubPackage("org.xmlpull", name) ||
-                inSubPackage("android.icu", name) -> false
-            else -> true
-        }
+        return true
     }
 
     companion object {
@@ -3482,6 +3499,11 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         )
 
         private val badUriTypes = listOf("java.net.URL", "java.net.URI", "android.net.URL")
+
+        private val badFutureTypes = listOf(
+            "java.util.concurrent.CompletableFuture",
+            "java.util.concurrent.Future"
+        )
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor
@@ -3549,7 +3571,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         private val resourceFileFieldPattern = Regex("[a-z1-9_]+")
         private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z1-9]*")
         private val styleFieldPattern = Regex("[A-Z][A-Za-z1-9]+(_[A-Z][A-Za-z1-9]+?)*")
-        private val serviceFieldPattern = Regex("([A-Z_]+)_SERVICE")
 
         private val acronymPattern2 = Regex("([A-Z]){2,}")
         private val acronymPattern3 = Regex("([A-Z]){3,}")

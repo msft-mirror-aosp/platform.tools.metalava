@@ -37,13 +37,31 @@ import com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
+import org.jetbrains.uast.UFile
 import java.util.function.Predicate
 
 /** Whether we should limit import statements to symbols found in class docs  */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-class PsiCompilationUnit(val codebase: PsiBasedCodebase, containingFile: PsiFile) : CompilationUnit(containingFile) {
+class PsiCompilationUnit(
+    val codebase: PsiBasedCodebase,
+    uFile: UFile?,
+    containingFile: PsiFile
+) : CompilationUnit(containingFile, uFile) {
     override fun getHeaderComments(): String? {
+        if (uFile != null) {
+            var comment: String? = null
+            for (uComment in uFile.allCommentsInFile) {
+                val text = uComment.text
+                comment = if (comment != null) {
+                    comment + "\n" + text
+                } else {
+                    text
+                }
+            }
+            return comment
+        }
+
         // https://youtrack.jetbrains.com/issue/KT-22135
         if (file is PsiJavaFile) {
             val pkg = file.packageStatement ?: return null
