@@ -3394,7 +3394,7 @@ class StubsTest : DriverTest() {
                 java(
                     """
                       @RestrictTo(RestrictTo.Scope.SUBCLASSES)
-                      package test.pkg;1
+                      package test.pkg;
 
                       import androidx.annotation.RestrictTo;
                       """
@@ -3404,7 +3404,7 @@ class StubsTest : DriverTest() {
             ),
 
             api = """
-                package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
+                package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
                   public abstract class Class1 {
                     ctor public Class1();
                   }
