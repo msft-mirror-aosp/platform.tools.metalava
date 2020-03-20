@@ -20,14 +20,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.UastContext
+import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiParameterItem(
@@ -134,9 +132,7 @@ class PsiParameterItem(
                     return defaultValue.text
                 }
 
-                val uastContext = ServiceManager.getService(psiParameter.project, UastContext::class.java)
-                    ?: error("UastContext not found")
-                val defaultExpression: UExpression = uastContext.convertElement(
+                val defaultExpression: UExpression = UastFacade.convertElement(
                     defaultValue, null,
                     UExpression::class.java
                 ) as? UExpression ?: return INVALID_VALUE
@@ -188,7 +184,7 @@ class PsiParameterItem(
             psiParameter: PsiParameter,
             parameterIndex: Int
         ): PsiParameterItem {
-            val name = psiParameter.name ?: "arg${psiParameter.parameterIndex() + 1}"
+            val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
             val modifiers = modifiers(codebase, psiParameter, commentText)
             val type = codebase.getType(psiParameter.type)

@@ -40,7 +40,9 @@ import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.KotlinUClass
 
 open class PsiClassItem(
@@ -202,7 +204,13 @@ open class PsiClassItem(
             return null
         }
 
-        return PsiCompilationUnit(codebase, containingFile)
+        val uFile =
+            if (psiClass is UClass) {
+                psiClass.getParentOfType<UFile>(UFile::class.java)
+            } else {
+                null
+            }
+        return PsiCompilationUnit(codebase, uFile, containingFile)
     }
 
     override fun finishInitialization() {

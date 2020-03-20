@@ -23,6 +23,8 @@ import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.LoggedProcessOutputHandler
 import com.android.ide.common.process.ProcessException
 import com.android.ide.common.process.ProcessInfoBuilder
+import com.android.tools.lint.LintCliClient
+import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.LintDetectorTest
@@ -30,6 +32,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.stripComments
+import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.doclava1.ApiFile
 import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
@@ -78,6 +81,7 @@ abstract class DriverTest {
     @Before
     fun setup() {
         System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
+        Disposer.setDebugMode(true)
     }
 
     protected fun createProject(vararg files: TestFile): File {
@@ -148,6 +152,7 @@ abstract class DriverTest {
                 fail("Printed newlines with nothing else")
             }
 
+            UastEnvironment.ensureDisposed()
             Disposer.assertIsEmpty(true)
 
             return printedOutput
@@ -393,6 +398,9 @@ abstract class DriverTest {
         } catch (ignore: Throwable) {
             ignore.printStackTrace()
         }
+
+        // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
+        LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
         if (compatibilityMode && mergeXmlAnnotations != null) {
             fail(

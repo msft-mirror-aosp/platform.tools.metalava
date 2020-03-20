@@ -235,7 +235,9 @@ abstract class PsiItem(
                 val comments = element.comments
                 if (comments.isNotEmpty()) {
                     val sb = StringBuilder()
-                    comments.asSequence().joinTo(buffer = sb, separator = "\n")
+                    comments.asSequence().joinTo(buffer = sb, separator = "\n") {
+                        it.text
+                    }
                     return sb.toString()
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
