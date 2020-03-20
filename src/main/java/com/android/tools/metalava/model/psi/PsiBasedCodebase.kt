@@ -57,7 +57,7 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
-import org.jetbrains.uast.UastContext
+import org.jetbrains.uast.UastFacade
 import java.io.File
 import java.io.IOException
 import java.util.ArrayList
@@ -136,8 +136,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
             var classes = (unit as? PsiClassOwner)?.classes?.toList() ?: emptyList()
             if (classes.isEmpty()) {
-                val uastContext = project.getComponent(UastContext::class.java)
-                val uFile = uastContext.convertElementWithParent(unit, UFile::class.java) as? UFile?
+                val uFile = UastFacade.convertElementWithParent(unit, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
             var packageName: String? = null
