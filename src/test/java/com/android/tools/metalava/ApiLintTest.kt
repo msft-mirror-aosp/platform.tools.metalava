@@ -776,12 +776,13 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
+                src/android/pkg/RegistrationInterface.java:6: error: Found registerOverriddenUnpairedCallback but not unregisterOverriddenUnpairedCallback in android.pkg.RegistrationInterface [PairedRegistration] [Rule L2 in go/android-api-guidelines]
                 src/android/pkg/RegistrationMethods.java:8: error: Found registerUnpairedCallback but not unregisterUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:9: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:10: error: Callback methods should be named register/unregister; was addCallback [RegistrationName] [Rule L3 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:15: error: Found addUnpairedListener but not removeUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:16: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:17: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName] [Rule L3 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:12: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:13: error: Callback methods should be named register/unregister; was addCallback [RegistrationName] [Rule L3 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:18: error: Found addUnpairedListener but not removeUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:19: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:20: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName] [Rule L3 in go/android-api-guidelines]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -790,10 +791,13 @@ class ApiLintTest : DriverTest() {
 
                     import androidx.annotation.Nullable;
 
-                    public class RegistrationMethods {
+                    public class RegistrationMethods implements RegistrationInterface {
                         public void registerOkCallback(@Nullable Runnable r) { } // OK
                         public void unregisterOkCallback(@Nullable Runnable r) { } // OK
                         public void registerUnpairedCallback(@Nullable Runnable r) { }
+                        // OK here because it is override
+                        @Override
+                        public void registerOverriddenUnpairedCallback(@Nullable Runnable r) { } 
                         public void unregisterMismatchedCallback(@Nullable Runnable r) { }
                         public void addCallback(@Nullable Runnable r) { }
 
@@ -803,6 +807,17 @@ class ApiLintTest : DriverTest() {
                         public void addUnpairedListener(@Nullable Runnable r) { }
                         public void removeMismatchedListener(@Nullable Runnable r) { }
                         public void registerWrongListener(@Nullable Runnable r) { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+
+                    public interface RegistrationInterface {
+                        void registerOverriddenUnpairedCallback(@Nullable Runnable r) { }
                     }
                     """
                 )
