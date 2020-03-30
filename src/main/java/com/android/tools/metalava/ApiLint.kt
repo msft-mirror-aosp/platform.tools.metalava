@@ -1023,6 +1023,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         /** Make sure that there is a corresponding method */
         fun ensureMatched(cls: ClassItem, methods: Sequence<MethodItem>, method: MethodItem, name: String) {
+            if (method.superMethods().isNotEmpty()) return // Do not report for override methods
             for (candidate in methods) {
                 if (candidate.name() == name) {
                     return
