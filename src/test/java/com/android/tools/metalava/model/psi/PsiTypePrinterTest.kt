@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.LintCoreApplicationEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.libcoreNonNullSource
@@ -26,7 +25,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.parseSources
-import com.intellij.openapi.util.Disposer
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiType
@@ -858,7 +856,7 @@ class PsiTypePrinterTest : DriverTest() {
         for (unit in codebase.units) {
             unit.toUElement()?.accept(object : AbstractUastVisitor() {
                 override fun visitMethod(node: UMethod): Boolean {
-                    handle(node.returnType, node.annotations)
+                    handle(node.returnType, node.uAnnotations)
 
                     // Visit all the type elements in the method: this helps us pick up
                     // the type parameter lists for example which contains some interesting
@@ -874,7 +872,7 @@ class PsiTypePrinterTest : DriverTest() {
                 }
 
                 override fun visitVariable(node: UVariable): Boolean {
-                    handle(node.type, node.annotations)
+                    handle(node.type, node.uAnnotations)
                     return super.visitVariable(node)
                 }
 
@@ -926,8 +924,6 @@ class PsiTypePrinterTest : DriverTest() {
             }
             printWriter.printf("Printed: %s\n\n", string)
         }
-
-        Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
 
         return writer.toString().removeSuffix("\n\n")
     }
