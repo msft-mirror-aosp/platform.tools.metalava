@@ -74,6 +74,7 @@ const val ARG_INPUT_API_JAR = "--input-api-jar"
 const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
+const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 const val ARG_PROGUARD = "--proguard"
@@ -390,6 +391,9 @@ class Options(
     /** If set, a source file to write the doc stub index (list of source files) to. Can be passed to
      * other tools like javac/javadoc using the special @-syntax. */
     var docStubsSourceList: File? = null
+
+    /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
+    var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -786,6 +790,7 @@ class Options(
 
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
+                ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST -> docStubsSourceList = stringToNewFile(getValue(args, ++index))
 
@@ -2082,6 +2087,8 @@ class Options(
                 "indicate that an element is recently marked as non null, whereas in the documentation stubs we'll " +
                 "just list this as @NonNull. Another difference is that @doconly elements are included in " +
                 "documentation stubs, but not regular stubs, etc.",
+            ARG_KOTLIN_STUBS, "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
+                "be written in Kotlin rather than the Java programming language.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
             ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
             "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of" +

@@ -23,6 +23,7 @@ import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
+import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
@@ -4209,6 +4210,61 @@ class StubsTest : DriverTest() {
                 assertEquals(1, roots.size)
                 assertEquals(src[0].path, roots[0].path)
             }
+        )
+    }
+
+    @Test
+    fun `Basic Kotlin stubs`() {
+        check(
+            checkCompilation = true,
+            extraArguments = arrayOf(
+                ARG_KOTLIN_STUBS
+            ),
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    /* My file header */
+                    // Another comment
+                    @file:JvmName("Driver")
+                    package test.pkg
+                    /** My class doc */
+                    class Kotlin(val property1: String = "Default Value", arg2: Int) : Parent() {
+                        override fun method() = "Hello World"
+                        /** My method doc */
+                        fun otherMethod(ok: Boolean, times: Int) {
+                        }
+
+                        /** property doc */
+                        var property2: String? = null
+
+                        /** @hide */
+                        var hiddenProperty: String? = "hidden"
+
+                        private var someField = 42
+                        @JvmField
+                        var someField2 = 42
+                    }
+
+                    /** Parent class doc */
+                    open class Parent {
+                        open fun method(): String? = null
+                        open fun method2(value1: Boolean, value2: Boolean?): String? = null
+                        open fun method3(value1: Int?, value2: Int): Int = null
+                    }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                    /* My file header */
+                    // Another comment
+                    package test.pkg
+                    /** My class doc */
+                    @file:Suppress("ALL")
+                    class Kotlin {
+                    }
+                """
+            )
         )
     }
 
