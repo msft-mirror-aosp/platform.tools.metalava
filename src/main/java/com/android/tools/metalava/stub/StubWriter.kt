@@ -194,7 +194,11 @@ class StubWriter(
 
             startFile(sourceFile)
 
-            stubWriter = JavaStubWriter(textWriter, filterEmit, filterReference, generateAnnotations, preFiltered, docStubs)
+            stubWriter = if (options.kotlinStubs && cls.isKotlin()) {
+                KotlinStubWriter(textWriter, filterEmit, filterReference, generateAnnotations, preFiltered, docStubs)
+            } else {
+                JavaStubWriter(textWriter, filterEmit, filterReference, generateAnnotations, preFiltered, docStubs)
+            }
 
             // Copyright statements from the original file?
             val compilationUnit = cls.getCompilationUnit()
