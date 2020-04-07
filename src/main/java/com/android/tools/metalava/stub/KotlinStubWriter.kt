@@ -16,9 +16,13 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.psi.trimDocIndent
@@ -35,6 +39,8 @@ class KotlinStubWriter(
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean
 ) : ItemVisitor() {
+    private val annotationTarget = if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
@@ -64,6 +70,12 @@ class KotlinStubWriter(
 
         writer.println("@file:Suppress(\"ALL\")")
 
+        // Need to filter out abstract from the modifiers list and turn it
+        // into a concrete method to make the stub compile
+        val removeAbstract = cls.modifiers.isAbstract() && (cls.isEnum() || cls.isAnnotationType())
+
+        appendModifiers(cls, cls.modifiers, removeAbstract)
+
         when {
             cls.isAnnotationType() -> writer.print("annotation class")
             cls.isInterface() -> writer.print("interface")
@@ -75,6 +87,29 @@ class KotlinStubWriter(
         writer.print(cls.simpleName())
 
         writer.print(" {\n")
+    }
+
+    private fun appendModifiers(
+        item: Item,
+        modifiers: ModifierList,
+        removeAbstract: Boolean,
+        removeFinal: Boolean = false,
+        addPublic: Boolean = false
+    ) {
+        val separateLines = item is ClassItem || item is MethodItem
+
+        ModifierList.write(
+            writer, modifiers, item,
+            target = annotationTarget,
+            includeAnnotations = true,
+            includeDeprecated = true,
+            runtimeAnnotationsOnly = !generateAnnotations,
+            removeAbstract = removeAbstract,
+            removeFinal = removeFinal,
+            addPublic = addPublic,
+            separateLines = separateLines,
+            language = Language.KOTLIN
+        )
     }
 
     private fun appendDocumentation(item: Item, writer: PrintWriter) {
