@@ -4252,6 +4252,11 @@ class StubsTest : DriverTest() {
                         open fun method3(value1: Int?, value2: Int): Int = null
                     }
                     """
+                ),
+                kotlin("""
+                    package test.pkg
+                    open class ExtendableClass
+                """
                 )
             ),
             stubs = arrayOf(
@@ -4262,6 +4267,12 @@ class StubsTest : DriverTest() {
                     /** My class doc */
                     @file:Suppress("ALL")
                     class Kotlin {
+                    }
+                """,
+                """
+                    package test.pkg
+                    @file:Suppress("ALL")
+                    open class ExtendableClass {
                     }
                 """
             )
