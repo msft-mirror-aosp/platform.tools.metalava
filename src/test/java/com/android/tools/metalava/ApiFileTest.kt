@@ -416,27 +416,11 @@ class ApiFileTest : DriverTest() {
                     method public final <T> T getSystemService(java.lang.Class<T>);
                   }
                   public final class _java_Kt {
-                    method public inline <T> T systemService1();
+                    method public static inline <reified T> T systemService1(test.pkg.Context);
                     method public static inline java.lang.String systemService2(test.pkg.Context);
                   }
                 }
                 """
-// b/152039666 parameters from methods using reified types are dropped
-// API should contain <reified T>
-// Actual expected output:
-//          api = """
-//                package test.pkg {
-//                  public class Context {
-//                    ctor public Context();
-//                    method public final <T> T getSystemService(java.lang.Class<T>);
-//                  }
-//                  public final class _java_Kt {
-//                    method public static inline <reified T> T systemService1(test.pkg.Context);
-//                    method public static inline java.lang.String systemService2(test.pkg.Context);
-//                  }
-//                }
-//                """
-
         )
     }
 
@@ -464,25 +448,12 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void a(@Nullable T t);
-                    method public inline <T> void b();
-                    method public inline <T> void e();
-                    method public inline <T> void f();
+                    method public static inline <reified T> void b(@Nullable T t);
+                    method public static inline <reified T> void e(@Nullable T t);
+                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
                   }
                 }
                 """
-// b/152039666 parameters from methods using reified types are dropped
-// API should contain <reified T>
-// Actual expected output:
-//          api = """
-//                package test.pkg {
-//                  public final class TestKt {
-//                    method public static inline <T> void a(@Nullable T t);
-//                    method public static inline <reified T> void b(@Nullable T t);
-//                    method public static inline <reified T> void e(@Nullable T t);
-//                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
-//                  }
-//                }
-//                """
         )
     }
 
@@ -614,13 +585,12 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public inline <Args> test.pkg2.NavArgsLazy<Args>! navArgs();
+                    method @UiThread public static inline <reified Args> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-// b/152039666 parameters from methods using reified types are dropped
-// API should contain <reified T>
-// Actual expected output:
+//            Actual expected API is below. However, due to KT-38173 the extends information is
+//              missing
 //            api = """
 //                // Signature format: 3.0
 //                package test.pkg {
