@@ -2479,20 +2479,10 @@ CompatibilityCheckTest : DriverTest() {
         check(
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
-// b/152039666 parameters from methods using reified types are dropped
-// API should contain <reified T>, but now it sees it as removed / added methods
-// Actual expected output:
-//          warnings = """
-//            src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
-//            src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
-//            """,
             warnings = """
-                src/test/pkg/test.kt: error: Added method test.pkg.TestKt.add() [AddedMethod]
-                TESTROOT/current-api.txt:3: error: Removed method test.pkg.TestKt.add(T) [RemovedMethod]
-                src/test/pkg/test.kt: error: Added method test.pkg.TestKt.two() [AddedMethod]
-                TESTROOT/current-api.txt:6: error: Removed method test.pkg.TestKt.two(S,T) [RemovedMethod]
-                src/test/pkg/test.kt: error: Added method test.pkg.TestKt.unchanged() [AddedMethod]
-                TESTROOT/current-api.txt:5: error: Removed method test.pkg.TestKt.unchanged(T) [RemovedMethod]           """,
+                src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
+                src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
+                """,
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class TestKt {
