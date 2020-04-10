@@ -54,7 +54,7 @@ tasks.withType(KotlinCompile::class.java) {
     }
 }
 
-val studioVersion: String = "27.0.0-beta02"
+val studioVersion: String = "27.1.0-alpha05"
 val kotlinVersion: String = "1.3.20"
 
 dependencies {
