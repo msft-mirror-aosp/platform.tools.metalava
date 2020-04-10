@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.intellij.psi.PsiDocCommentOwner
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiModifierListOwner
@@ -42,7 +41,7 @@ import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinNullabilityUAnnotation
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethodWithFakeLightDelegate
+import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -110,8 +109,8 @@ class PsiModifierItem(
             var ktModifierList: KtModifierList? = null
             if (modifierList is KtLightModifierList<*>) {
                 ktModifierList = modifierList.kotlinOrigin
-            } else if (modifierList is LightModifierList && element is KotlinUMethodWithFakeLightDelegate) {
-                ktModifierList = element.original.modifierList
+            } else if (modifierList is LightModifierList && element is KotlinUMethod) {
+                ktModifierList = element.sourcePsi?.modifierList
             }
             if (ktModifierList != null) {
                 if (ktModifierList.hasModifier(KtTokens.VARARG_KEYWORD)) {
@@ -129,9 +128,9 @@ class PsiModifierItem(
                 if (ktModifierList.hasModifier(KtTokens.INFIX_KEYWORD)) {
                     flags = flags or INFIX
                 }
-                    if (ktModifierList.hasModifier(KtTokens.CONST_KEYWORD)) {
-                        flags = flags or CONST
-                    }
+                if (ktModifierList.hasModifier(KtTokens.CONST_KEYWORD)) {
+                    flags = flags or CONST
+                }
                 if (ktModifierList.hasModifier(KtTokens.OPERATOR_KEYWORD)) {
                     flags = flags or OPERATOR
                 }
@@ -139,16 +138,14 @@ class PsiModifierItem(
                     flags = flags or INLINE
 
                     // Workaround for b/117565118:
-                    if (element is PsiMethod) {
-                        val t =
-                            ((element as? UMethod)?.sourcePsi as? KtNamedFunction)?.typeParameterList?.text ?: ""
-                        if (t.contains("reified") &&
-                            !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
-                            !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
-                        ) {
-                            // Switch back from private to public
-                            visibilityFlags = PUBLIC
-                        }
+                    val func = (element as? UMethod)?.sourcePsi as? KtNamedFunction
+                    if (func != null &&
+                        (func.typeParameterList?.text ?: "").contains("reified") &&
+                        !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
+                        !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
+                    ) {
+                        // Switch back from private to public
+                        visibilityFlags = PUBLIC
                     }
                 }
                 if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
