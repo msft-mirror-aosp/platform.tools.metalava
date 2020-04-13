@@ -50,7 +50,6 @@ import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
-import org.jetbrains.kotlin.asJava.elements.KtLightTypeParameter
 import java.util.function.Predicate
 
 /** Represents a type backed by PSI */
@@ -534,7 +533,7 @@ class PsiTypeItem private constructor(
                             sb.append(">")
                             return
                         } else if (element is PsiTypeParameter) {
-                            if (element is KtLightTypeParameter && element.kotlinOrigin.text.startsWith("reified")) {
+                            if (PsiTypeParameterItem.isReified(element)) {
                                 sb.append("reified ")
                             }
                             sb.append(element.name)

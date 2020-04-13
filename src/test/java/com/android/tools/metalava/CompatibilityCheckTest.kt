@@ -1812,7 +1812,7 @@ CompatibilityCheckTest : DriverTest() {
             includeSystemApiAnnotations = true,
             warnings = """
                 TESTROOT/current-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
-                src/android/rolecontrollerservice/RoleControllerService.java:7: warning: Added method android.rolecontrollerservice.RoleControllerService.onGrantDefaultRoles() to the system API [AddedAbstractMethod]
+                src/android/rolecontrollerservice/RoleControllerService.java:7: error: Added method android.rolecontrollerservice.RoleControllerService.onGrantDefaultRoles() to the system API [AddedAbstractMethod]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2184,6 +2184,41 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Test remove deprecated API is an error`() {
+        // Regression test for b/145745855
+        check(
+            warnings = """
+                TESTROOT/released-api.txt:6: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
+                TESTROOT/released-api.txt:3: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
+                TESTROOT/released-api.txt:4: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
+                """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class SomeClass {
+                      ctor deprecated public SomeClass();
+                      method deprecated public void deprecatedMethod();
+                  }
+                  deprecated public class DeprecatedClass {
+                      ctor deprecated public DeprecatedClass();
+                      method deprecated public void deprecatedMethod();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class SomeClass {
+                        private SomeClass() {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Implicit nullness`() {
         check(
             compatibilityMode = false,
@@ -2444,20 +2479,10 @@ CompatibilityCheckTest : DriverTest() {
         check(
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
-// b/152039666 parameters from methods using reified types are dropped
-// API should contain <reified T>, but now it sees it as removed / added methods
-// Actual expected output:
-//          warnings = """
-//            src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
-//            src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
-//            """,
             warnings = """
-                src/test/pkg/test.kt: error: Added method test.pkg.TestKt.add() [AddedMethod]
-                TESTROOT/current-api.txt:3: error: Removed method test.pkg.TestKt.add(T) [RemovedMethod]
-                src/test/pkg/test.kt: error: Added method test.pkg.TestKt.two() [AddedMethod]
-                TESTROOT/current-api.txt:6: error: Removed method test.pkg.TestKt.two(S,T) [RemovedMethod]
-                src/test/pkg/test.kt: error: Added method test.pkg.TestKt.unchanged() [AddedMethod]
-                TESTROOT/current-api.txt:5: error: Removed method test.pkg.TestKt.unchanged(T) [RemovedMethod]           """,
+                src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
+                src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
+                """,
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class TestKt {
@@ -2974,7 +2999,7 @@ CompatibilityCheckTest : DriverTest() {
         // Regression test for 134754815
         check(
             warnings = """
-            src/androidx/room/Relation.java:5: warning: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
+            src/androidx/room/Relation.java:5: error: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
             """,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,

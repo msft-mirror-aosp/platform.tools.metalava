@@ -57,21 +57,16 @@ import static kotlin.text.Charsets.UTF_8;
 // metalava's richer files, e.g. annotations)
 //
 public class ApiFile {
-    public static TextCodebase parseApi(File file) throws ApiParseException {
-        return parseApi(file, null);
-    }
-
     public static TextCodebase parseApi(File file,
                                         Boolean kotlinStyleNulls) throws ApiParseException {
         try {
             String apiText = Files.asCharSource(file, UTF_8).read();
             return parseApi(file.getPath(), apiText, kotlinStyleNulls);
         } catch (IOException ex) {
-            throw new ApiParseException("Error reading API file", ex);
+            throw new ApiParseException("Error reading API file", file.getPath(), ex);
         }
     }
 
-    @SuppressWarnings("StatementWithEmptyBody")
     @VisibleForTesting
     public static TextCodebase parseApi(String filename, String apiText,
                                         Boolean kotlinStyleNulls) throws ApiParseException {
@@ -896,7 +891,7 @@ public class ApiFile {
         }
 
         SourcePositionInfo pos() {
-            return new SourcePositionInfo(mFilename, mLine, 0);
+            return new SourcePositionInfo(mFilename, mLine);
         }
 
         public int getLine() {
@@ -946,7 +941,7 @@ public class ApiFile {
             if (token != null) {
                 return token;
             } else {
-                throw new ApiParseException("Unexpected end of file", mLine);
+                throw new ApiParseException("Unexpected end of file", this);
             }
         }
 
@@ -989,11 +984,11 @@ public class ApiFile {
                 int state = STATE_BEGIN;
                 while (true) {
                     if (mPos >= mBuf.length) {
-                        throw new ApiParseException("Unexpected end of file for \" starting at " + line, mLine);
+                        throw new ApiParseException("Unexpected end of file for \" starting at " + line, this);
                     }
                     final char k = mBuf[mPos];
                     if (k == '\n' || k == '\r') {
-                        throw new ApiParseException("Unexpected newline for \" starting at " + line + " in " + mFilename, mLine);
+                        throw new ApiParseException("Unexpected newline for \" starting at " + line +" in " + mFilename, this);
                     }
                     mPos++;
                     switch (state) {
@@ -1052,7 +1047,7 @@ public class ApiFile {
                 } while (mPos < mBuf.length
                     && ((!isSpace(mBuf[mPos]) && !isSeparator(mBuf[mPos], parenIsSep)) || genericDepth != 0));
                 if (mPos >= mBuf.length) {
-                    throw new ApiParseException("Unexpected end of file for \" starting at " + line, mLine);
+                    throw new ApiParseException("Unexpected end of file for \" starting at " + line, this);
                 }
                 mCurrent = new String(mBuf, start, mPos - start);
                 return mCurrent;
