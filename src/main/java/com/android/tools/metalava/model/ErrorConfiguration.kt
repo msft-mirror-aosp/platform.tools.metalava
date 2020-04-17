@@ -25,10 +25,15 @@ class ErrorConfiguration {
 
     /** Returns the severity of the given issue */
     fun getSeverity(issue: Issues.Issue): Severity {
-        return overrides[issue] ?: issue.level
+        overrides[issue]?.let { return it }
+        if (issue.defaultLevel == Severity.INHERIT) {
+            return getSeverity(issue.parent)
+        }
+        return issue.defaultLevel
     }
 
-    private fun setSeverity(issue: Issues.Issue, severity: Severity) {
+    fun setSeverity(issue: Issues.Issue, severity: Severity) {
+        check(severity != Severity.INHERIT)
         overrides[issue] = severity
     }
 
@@ -40,6 +45,10 @@ class ErrorConfiguration {
     /** Set the severity of the given issue to [Severity.HIDDEN] */
     fun hide(issue: Issues.Issue) {
         setSeverity(issue, Severity.HIDDEN)
+    }
+
+    fun reset() {
+        overrides.clear()
     }
 }
 

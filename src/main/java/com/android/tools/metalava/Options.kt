@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doclava1.Issues
+import com.android.tools.metalava.model.defaultConfiguration
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -30,6 +31,7 @@ import java.io.IOException
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.lang.NumberFormatException
 import java.util.Locale
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
@@ -74,6 +76,7 @@ const val ARG_INPUT_API_JAR = "--input-api-jar"
 const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
+const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 const val ARG_PROGUARD = "--proguard"
@@ -390,6 +393,9 @@ class Options(
     /** If set, a source file to write the doc stub index (list of source files) to. Can be passed to
      * other tools like javac/javadoc using the special @-syntax. */
     var docStubsSourceList: File? = null
+
+    /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
+    var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -786,6 +792,7 @@ class Options(
 
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
+                ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST -> docStubsSourceList = stringToNewFile(getValue(args, ++index))
 
@@ -1019,10 +1026,18 @@ class Options(
                     annotationCoverageMemberReport = stringToNewFile(getValue(args, ++index))
                 }
 
-                ARG_ERROR, "-error" -> Issues.setIssueLevel(getValue(args, ++index), Severity.ERROR, true)
-                ARG_WARNING, "-warning" -> Issues.setIssueLevel(getValue(args, ++index), Severity.WARNING, true)
-                ARG_LINT, "-lint" -> Issues.setIssueLevel(getValue(args, ++index), Severity.LINT, true)
-                ARG_HIDE, "-hide" -> Issues.setIssueLevel(getValue(args, ++index), Severity.HIDDEN, true)
+                ARG_ERROR, "-error" -> setIssueSeverity(
+                    getValue(args, ++index),
+                    Severity.ERROR,
+                    arg
+                )
+                ARG_WARNING, "-warning" -> setIssueSeverity(
+                    getValue(args, ++index),
+                    Severity.WARNING,
+                    arg
+                )
+                ARG_LINT, "-lint" -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
+                ARG_HIDE, "-hide" -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
 
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -2082,6 +2097,8 @@ class Options(
                 "indicate that an element is recently marked as non null, whereas in the documentation stubs we'll " +
                 "just list this as @NonNull. Another difference is that @doconly elements are included in " +
                 "documentation stubs, but not regular stubs, etc.",
+            ARG_KOTLIN_STUBS, "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
+                "be written in Kotlin rather than the Java programming language.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
             ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
             "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of" +
@@ -2258,6 +2275,42 @@ class Options(
         fun useCompatMode(args: Array<String>): Boolean {
             return COMPAT_MODE_BY_DEFAULT && !args.contains("$ARG_COMPAT_OUTPUT=no") &&
                 (args.none { it.startsWith("$ARG_FORMAT=") } || args.contains("--format=v1"))
+        }
+
+        private fun setIssueSeverity(
+            id: String,
+            severity: Severity,
+            arg: String
+        ) {
+            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+                id.split(",").forEach {
+                    setIssueSeverity(it.trim(), severity, arg)
+                }
+                return
+            }
+
+            val numericId = try {
+                id.toInt()
+            } catch (e: NumberFormatException) {
+                -1
+            }
+
+            val issue = Issues.findIssueById(id)
+                ?: Issues.findIssueById(numericId)?.also {
+                    reporter.report(
+                        Issues.DEPRECATED_OPTION, null as File?,
+                        "Issue lookup by numeric id is deprecated, use " +
+                            "$arg ${it.name} instead of $arg $id"
+                    )
+                } ?: Issues.findIssueByIdIgnoringCase(id)?.also {
+                    reporter.report(
+                        Issues.DEPRECATED_OPTION, null as File?,
+                        "Case-insensitive issue matching is deprecated, use " +
+                            "$arg ${it.name} instead of $arg $id"
+                    )
+                } ?: throw DriverException("Unknown issue id: $arg $id")
+
+            defaultConfiguration.setSeverity(issue, severity)
         }
     }
 }
