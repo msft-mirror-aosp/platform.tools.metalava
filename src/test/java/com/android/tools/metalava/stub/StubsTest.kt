@@ -4255,7 +4255,7 @@ class StubsTest : DriverTest() {
                 ),
                 kotlin("""
                     package test.pkg
-                    open class ExtendableClass
+                    open class ExtendableClass<T>
                 """
                 )
             ),
@@ -4272,7 +4272,7 @@ class StubsTest : DriverTest() {
                 """
                     package test.pkg
                     @file:Suppress("ALL")
-                    open class ExtendableClass {
+                    open class ExtendableClass<T> {
                     }
                 """
             )
