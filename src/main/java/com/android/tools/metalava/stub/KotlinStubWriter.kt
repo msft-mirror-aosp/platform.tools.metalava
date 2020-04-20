@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ItemVisitor
@@ -86,7 +87,23 @@ class KotlinStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
+        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+
         writer.print(" {\n")
+    }
+
+    private fun generateTypeParameterList(
+        typeList: TypeParameterList,
+        addSpace: Boolean
+    ) {
+        val typeListString = typeList.toString()
+        if (typeListString.isNotEmpty()) {
+            writer.print(typeListString)
+
+            if (addSpace) {
+                writer.print(' ')
+            }
+        }
     }
 
     private fun appendModifiers(
