@@ -119,7 +119,9 @@ abstract class DriverTest {
 
             Disposer.setDebugMode(true)
 
-            if (!run(arrayOf(*args), writer, writer)) {
+            if (run(arrayOf(*args), writer, writer)) {
+                assertTrue("Test expected to fail but didn't. Expected failure: $expectedFail", expectedFail.isEmpty())
+            } else {
                 val actualFail = cleanupString(sw.toString(), null)
                 if (cleanupString(expectedFail, null).replace(".", "").trim() !=
                     actualFail.replace(".", "").trim()
@@ -428,10 +430,11 @@ abstract class DriverTest {
         defaultConfiguration.reset()
 
         @Suppress("NAME_SHADOWING")
-        val expectedFail = expectedFail ?: if (checkCompatibilityApi != null ||
+        val expectedFail = expectedFail ?: if ((checkCompatibilityApi != null ||
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
-            checkCompatibilityRemovedApiReleased != null
+            checkCompatibilityRemovedApiReleased != null) &&
+            (warnings != null && !warnings.trim().isEmpty())
         ) {
             "Aborting: Found compatibility problems with --check-compatibility"
         } else {
