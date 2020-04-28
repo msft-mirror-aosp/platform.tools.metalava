@@ -76,6 +76,7 @@ import com.android.tools.metalava.doclava1.Issues.Issue
 import com.android.tools.metalava.doclava1.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.doclava1.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.doclava1.Issues.GENERIC_EXCEPTION
+import com.android.tools.metalava.doclava1.Issues.GETTER_ON_BUILDER
 import com.android.tools.metalava.doclava1.Issues.GETTER_SETTER_NAMES
 import com.android.tools.metalava.doclava1.Issues.HEAVY_BIT_SET
 import com.android.tools.metalava.doclava1.Issues.ILLEGAL_STATE_EXCEPTION
@@ -94,12 +95,15 @@ import com.android.tools.metalava.doclava1.Issues.METHOD_NAME_TENSE
 import com.android.tools.metalava.doclava1.Issues.METHOD_NAME_UNITS
 import com.android.tools.metalava.doclava1.Issues.MIN_MAX_CONSTANT
 import com.android.tools.metalava.doclava1.Issues.MISSING_BUILD_METHOD
+import com.android.tools.metalava.doclava1.Issues.MISSING_GETTER_MATCHING_BUILDER
 import com.android.tools.metalava.doclava1.Issues.MISSING_NULLABILITY
 import com.android.tools.metalava.doclava1.Issues.MUTABLE_BARE_FIELD
+import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.doclava1.Issues.NOT_CLOSEABLE
 import com.android.tools.metalava.doclava1.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.doclava1.Issues.NO_CLONE
 import com.android.tools.metalava.doclava1.Issues.ON_NAME_EXPECTED
+import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT
 import com.android.tools.metalava.doclava1.Issues.OVERLAPPING_CONSTANTS
 import com.android.tools.metalava.doclava1.Issues.PACKAGE_LAYERING
 import com.android.tools.metalava.doclava1.Issues.PAIRED_REGISTRATION
@@ -304,7 +308,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkParcelable(cls, methods, constructors, fields)
         checkRegistrationMethods(cls, methods)
         checkHelperClasses(cls, methods, fields)
-        checkBuilder(cls, methods, superClass)
+        checkBuilder(cls, methods, constructors, superClass)
         checkAidl(cls, superClass, interfaces)
         checkInternal(cls)
         checkLayering(cls, methodsAndConstructors, fields)
@@ -1275,7 +1279,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
-    private fun checkBuilder(cls: ClassItem, methods: Sequence<MethodItem>, superClass: ClassItem?) {
+    private fun checkBuilder(
+        cls: ClassItem,
+        methods: Sequence<MethodItem>,
+        constructors: Sequence<ConstructorItem>,
+        superClass: ClassItem?
+    ) {
         /*
             def verify_builder(clazz):
                 """Verify builder classes.
@@ -1317,20 +1326,42 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "Builder should be defined as inner class: ${cls.qualifiedName()}"
             )
         }
-        var hasBuild = false
+        if (!cls.modifiers.isFinal()) {
+            report(
+                STATIC_FINAL_BUILDER, cls,
+                "Builder must be final: ${cls.qualifiedName()}"
+            )
+        }
+        if (!cls.modifiers.isStatic() && !cls.isTopLevelClass()) {
+            report(
+                STATIC_FINAL_BUILDER, cls,
+                "Builder must be static: ${cls.qualifiedName()}"
+            )
+        }
+        for (constructor in constructors) {
+            for (arg in constructor.parameters()) {
+                if (arg.modifiers.isNullable()) {
+                    report(
+                        OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT, arg,
+                        "Builder constructor arguments must be mandatory (i.e. not @Nullable): ${arg.describe()}"
+                    )
+                }
+            }
+        }
+        val expectedGetters = mutableListOf<Pair<Item, String>>()
+        var builtType: TypeItem? = null
+
         for (method in methods) {
             val name = method.name()
             if (name == "build") {
-                hasBuild = true
+                builtType = method.type()
                 continue
-            } else if (name.startsWith("get") || name.startsWith("clear")) {
-                continue
-            } else if (name.startsWith("with")) {
+            } else if (name.startsWith("get") || name.startsWith("is")) {
                 report(
-                    BUILDER_SET_STYLE, method,
-                    "Builder methods names should use setFoo() style: ${method.describe()}"
+                    GETTER_ON_BUILDER, method,
+                    "Getter should be on the built object, not the builder: ${method.describe()}"
                 )
-            } else if (name.startsWith("set")) {
+            } else if (name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")) {
                 val returnType = method.returnType()?.toTypeString() ?: ""
                 if (returnType != cls.toType().toTypeString()) {
                     report(
@@ -1338,13 +1369,51 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         "Methods must return the builder object (return type ${cls.toType().toTypeString()} instead of $returnType): ${method.describe()}"
                     )
                 }
+                if (method.modifiers.isNullable()) {
+                    report(
+                        SETTER_RETURNS_THIS, method,
+                        "Builder setter must be @NonNull: ${method.describe()}"
+                    )
+                }
+                when {
+                    name.startsWith("set") -> name.removePrefix("set")
+                    name.startsWith("add") -> "${name.removePrefix("add")}s"
+                    else -> null
+                }?.let { getterSuffix ->
+                    val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {
+                        "boolean", "java.lang.Boolean" -> true
+                        else -> false
+                    }
+                    val expectedGetter = if (isBool && name.startsWith("set")) {
+                        val pattern = goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::setter)!!
+                        "${pattern.getter}${name.removePrefix(pattern.setter)}"
+                    } else {
+                        "get$getterSuffix"
+                    }
+                    expectedGetters.add(method to expectedGetter)
+                }
+            } else {
+                report(
+                    BUILDER_SET_STYLE, method,
+                    "Builder methods names should use setFoo() / addFoo() / clearFoo() style: ${method.describe()}"
+                )
             }
         }
-        if (!hasBuild) {
+        if (builtType == null) {
             report(
                 MISSING_BUILD_METHOD, cls,
                 "${cls.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
             )
+        }
+        builtType?.asClass()?.let { builtClass ->
+            val builtMethods = builtClass.filteredMethods(filterReference).map { it.name() }.toSet()
+            for ((setter, expectedGetterName) in expectedGetters) {
+                if (!builtMethods.contains(expectedGetterName))
+                report(
+                    MISSING_GETTER_MATCHING_BUILDER, setter,
+                    "${builtClass.qualifiedName()} does not declare a `$expectedGetterName()` method matching ${setter.describe()}"
+                )
+            }
         }
     }
 
@@ -1560,20 +1629,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             }
         }
 
-        data class GetterSetterPattern(val getter: String, val setter: String)
-        val goodPrefixes = listOf(
-                GetterSetterPattern("has", "setHas"),
-                GetterSetterPattern("can", "setCan"),
-                GetterSetterPattern("should", "setShould"),
-                GetterSetterPattern("is", "set")
-        )
-        fun List<GetterSetterPattern>.match(name: String, prop: (GetterSetterPattern) -> String) = firstOrNull {
-            name.startsWith(prop(it)) && name.getOrNull(prop(it).length)?.isUpperCase() ?: false
-        }
-
-        val badGetterPrefixes = listOf("isHas", "isCan", "isShould", "get", "is")
-        val badSetterPrefixes = listOf("setIs", "set")
-
         fun isGetter(method: MethodItem): Boolean {
             val returnType = method.returnType() ?: return false
             return method.parameters().isEmpty() && returnType.primitive && returnType.toTypeString() == "boolean"
@@ -1586,22 +1641,22 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         for (method in methods) {
             val name = method.name()
             if (isGetter(method)) {
-                val pattern = goodPrefixes.match(name, GetterSetterPattern::getter) ?: continue
+                val pattern = goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::getter) ?: continue
                 val target = name.substring(pattern.getter.length)
                 val expectedSetter = "${pattern.setter}$target"
 
-                badSetterPrefixes.forEach {
+                badBooleanSetterPrefixes.forEach {
                     val actualSetter = "${it}$target"
                     if (actualSetter != expectedSetter) {
                         errorIfExists(methods, name, expectedSetter, actualSetter)
                     }
                 }
             } else if (isSetter(method)) {
-                val pattern = goodPrefixes.match(name, GetterSetterPattern::setter) ?: continue
+                val pattern = goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::setter) ?: continue
                 val target = name.substring(pattern.setter.length)
                 val expectedGetter = "${pattern.getter}$target"
 
-                badGetterPrefixes.forEach {
+                badBooleanGetterPrefixes.forEach {
                     val actualGetter = "${it}$target"
                     if (actualGetter != expectedGetter) {
                         errorIfExists(methods, name, expectedGetter, actualGetter)
@@ -3497,6 +3552,23 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     companion object {
+
+        private data class GetterSetterPattern(val getter: String, val setter: String)
+        private val goodBooleanGetterSetterPrefixes = listOf(
+            GetterSetterPattern("has", "setHas"),
+            GetterSetterPattern("can", "setCan"),
+            GetterSetterPattern("should", "setShould"),
+            GetterSetterPattern("is", "set")
+        )
+        private fun List<GetterSetterPattern>.match(
+            name: String,
+            prop: (GetterSetterPattern) -> String
+        ) = firstOrNull {
+            name.startsWith(prop(it)) && name.getOrNull(prop(it).length)?.isUpperCase() ?: false
+        }
+
+        private val badBooleanGetterPrefixes = listOf("isHas", "isCan", "isShould", "get", "is")
+        private val badBooleanSetterPrefixes = listOf("setIs", "set")
 
         private val badParameterClassNames = listOf(
             "Param", "Parameter", "Parameters", "Args", "Arg", "Argument", "Arguments", "Options", "Bundle"
