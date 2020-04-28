@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
@@ -61,9 +60,10 @@ class ProguardWriter(
     override fun visitMethod(method: MethodItem) {
         writer.print("    ")
         val modifiers = method.modifiers
-        val visibilityLevel = modifiers.getVisibilityLevel()
-        if (visibilityLevel != VisibilityLevel.PACKAGE_PRIVATE) {
-            writer.write(visibilityLevel.sourceCodeModifier + " ")
+        when {
+            modifiers.isPublic() -> writer.write("public ")
+            modifiers.isProtected() -> writer.write("protected ")
+            modifiers.isPrivate() -> writer.write("private ")
         }
 
         if (modifiers.isStatic()) {
@@ -102,9 +102,10 @@ class ProguardWriter(
         writer.print("    ")
 
         val modifiers = field.modifiers
-        val visibilityLevel = modifiers.getVisibilityLevel()
-        if (visibilityLevel != VisibilityLevel.PACKAGE_PRIVATE) {
-            writer.write(visibilityLevel.sourceCodeModifier + " ")
+        when {
+            modifiers.isPublic() -> writer.write("public ")
+            modifiers.isProtected() -> writer.write("protected ")
+            modifiers.isPrivate() -> writer.write("private ")
         }
 
         if (modifiers.isStatic()) {
@@ -127,12 +128,7 @@ class ProguardWriter(
 
     private fun getCleanTypeName(t: TypeItem?): String {
         t ?: return ""
-        val cls = t.asClass() ?: return t.toCanonicalType()
-        var qualifiedName = cls.qualifiedNameWithDollarInnerClasses()
-
-        for (i in 0 until t.arrayDimensions()) {
-            qualifiedName += "[]"
-        }
-        return qualifiedName
+        val cls = t.asClass() ?: return t.toSimpleType()
+        return cls.qualifiedNameWithDollarInnerClasses()
     }
 }

@@ -174,13 +174,4 @@ class TextTypeItemTest {
             ).isEqualTo("java.lang.Object")
         }
     }
-
-    @Test
-    fun stripKotlinChars() {
-        assertThat(TextTypeItem.stripKotlinNullChars("String?")).isEqualTo("String")
-        assertThat(TextTypeItem.stripKotlinNullChars("String!")).isEqualTo("String")
-        assertThat(TextTypeItem.stripKotlinNullChars("List<String?>")).isEqualTo("List<String>")
-        assertThat(TextTypeItem.stripKotlinNullChars("Map<? extends K, ? extends V>")).isEqualTo("Map<? extends K, ? extends V>")
-        assertThat(TextTypeItem.stripKotlinNullChars("Map<?extends K,?extends V>")).isEqualTo("Map<?extends K,?extends V>")
-    }
 }

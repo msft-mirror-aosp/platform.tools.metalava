@@ -19,7 +19,7 @@ package com.android.tools.metalava.doclava1;
 import org.jetbrains.annotations.NotNull;
 
 // Copied from doclava1
-public class SourcePositionInfo implements Comparable<SourcePositionInfo> {
+public class SourcePositionInfo implements Comparable {
     public static final SourcePositionInfo UNKNOWN = new SourcePositionInfo("(unknown)", 0, 0);
 
     public SourcePositionInfo(String file, int line, int column) {
@@ -55,8 +55,8 @@ public class SourcePositionInfo implements Comparable<SourcePositionInfo> {
         return file + ':' + line;
     }
 
-    @Override
-    public int compareTo(@NotNull SourcePositionInfo that) {
+    public int compareTo(@NotNull Object o) {
+        SourcePositionInfo that = (SourcePositionInfo) o;
         int r = this.file.compareTo(that.file);
         if (r != 0) return r;
         return this.line - that.line;

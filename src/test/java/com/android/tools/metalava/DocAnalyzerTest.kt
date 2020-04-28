@@ -112,8 +112,7 @@ class DocAnalyzerTest : DriverTest() {
                 public @interface StringRes {
                 }
                 """
-            ),
-            extraArguments = arrayOf(ARG_HIDE, "Typo") // "e.g. " correction should still run with Typo fixing is off.
+            )
         )
     }
 
@@ -1708,97 +1707,6 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `Rewrite external links for 129765390`() {
-        // Tests rewriting links that go to {@docRoot}/../platform/ or {@docRoot}/../technotes,
-        // which are hosted elsewhere. http://b/129765390
-        check(
-            sourceFiles = *arrayOf(
-                java(
-                    """
-                    package javax.security;
-                    /**
-                     * <a href="{@docRoot}/../technotes/guides/security/StandardNames.html#Cipher">Cipher Section</a>
-                     * <p>This class is a member of the
-                     * <a href="{@docRoot}/../technotes/guides/collections/index.html">
-                     * Java Collections Framework</a>.
-                     * <a href="../../../platform/serialization/spec/security.html">
-                     *     Security Appendix</a>
-                     * <a   href =
-                     *  "../../../technotes/Example.html">valid</a>
-                     *
-                     *
-                     * The following examples are not touched.
-                     *
-                     * <a href="../../../foobar/Example.html">wrong directory<a/>
-                     * <a href="../ArrayList.html">wrong directory</a.
-                     * <a href="http://example.com/index.html">wrong directory/host</a>
-                     */
-                    public class Example { }
-                    """
-                ),
-                java(
-                    """
-                    package not.part.of.ojluni;
-                    /**
-                     * <p>This class is a member of the
-                     * <a href="{@docRoot}/../technotes/guides/collections/index.html">
-                     * Java Collections Framework</a>.
-                     */
-                    public class TestCollection { }
-                    """
-                )
-            ),
-            checkCompilation = true,
-            checkDoclava1 = false,
-            warnings = null, // be unopinionated about whether there should be warnings
-            stubs = arrayOf(
-                    """
-                    package javax.security;
-                    /**
-                     * <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#Cipher">Cipher Section</a>
-                     * <p>This class is a member of the
-                     * <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/collections/index.html">
-                     * Java Collections Framework</a>.
-                     * <a href="https://docs.oracle.com/javase/8/docs/platform/serialization/spec/security.html">
-                     *     Security Appendix</a>
-                     * <a   href =
-                     *  "https://docs.oracle.com/javase/8/docs/technotes/Example.html">valid</a>
-                     *
-                     *
-                     * The following examples are not touched.
-                     *
-                     * <a href="../../../foobar/Example.html">wrong directory<a/>
-                     * <a href="../ArrayList.html">wrong directory</a.
-                     * <a href="http://example.com/index.html">wrong directory/host</a>
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Example {
-                    public Example() { throw new RuntimeException("Stub!"); }
-                    }
-                    """,
-                    """
-                    package not.part.of.ojluni;
-                    /**
-                     * <p>This class is a member of the
-                     * <a href="{@docRoot}/../technotes/guides/collections/index.html">
-                     * Java Collections Framework</a>.
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class TestCollection {
-                    public TestCollection() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-            ),
-            extraArguments = arrayOf(
-                ARG_REPLACE_DOCUMENTATION,
-                "com.sun:java:javax:jdk.net:sun",
-                """(<a\s+href\s?=[\*\s]*")(?:(?:\{@docRoot\}/\.\./)|(?:(?:\.\./)+))((?:platform|technotes).+)">""",
-                """$1https://docs.oracle.com/javase/8/docs/$2">"""
-            )
-        )
-    }
-
-    @Test
     fun `Annotation annotating itself indirectly`() {
         check(
             sourceFiles = *arrayOf(
@@ -1960,76 +1868,5 @@ class DocAnalyzerTest : DriverTest() {
         )
 
         dir.deleteRecursively()
-    }
-
-    @Test
-    fun `Test Column annotation`() {
-        // Bug: 120429729
-        check(
-            sourceFiles = *arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    import android.provider.Column;
-                    import android.database.Cursor;
-                    @SuppressWarnings("WeakerAccess")
-                    public class ColumnTest {
-                        @Column(Cursor.FIELD_TYPE_STRING)
-                        public static final String DATA = "_data";
-                        @Column(value = Cursor.FIELD_TYPE_BLOB, readOnly = true)
-                        public static final String HASH = "_hash";
-                        @Column(value = Cursor.FIELD_TYPE_STRING, readOnly = true)
-                        public static final String TITLE = "title";
-                        @Column(value = Cursor.NONEXISTENT, readOnly = true)
-                        public static final String BOGUS = "bogus";
-                    }
-                    """
-                ),
-                java(
-                    """
-                        package android.database;
-                        public interface Cursor {
-                            int FIELD_TYPE_NULL = 0;
-                            int FIELD_TYPE_INTEGER = 1;
-                            int FIELD_TYPE_FLOAT = 2;
-                            int FIELD_TYPE_STRING = 3;
-                            int FIELD_TYPE_BLOB = 4;
-                        }
-                    """
-                ),
-                columnSource
-            ),
-            checkCompilation = true,
-            checkDoclava1 = false,
-            warnings = """
-                src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
-                """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                import android.database.Cursor;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class ColumnTest {
-                public ColumnTest() { throw new RuntimeException("Stub!"); }
-                /**
-                 * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link Cursor.NONEXISTENT}, and are read-only and cannot be mutated.
-                 */
-                @android.provider.Column(value=Cursor.NONEXISTENT, readOnly=true) public static final java.lang.String BOGUS = "bogus";
-                /**
-                 * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} .
-                 */
-                @android.provider.Column(android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String DATA = "_data";
-                /**
-                 * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_BLOB Cursor#FIELD_TYPE_BLOB} , and are read-only and cannot be mutated.
-                 */
-                @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_BLOB, readOnly=true) public static final java.lang.String HASH = "_hash";
-                /**
-                 * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated.
-                 */
-                @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_STRING, readOnly=true) public static final java.lang.String TITLE = "title";
-                }
-                """
-            )
-        )
     }
 }

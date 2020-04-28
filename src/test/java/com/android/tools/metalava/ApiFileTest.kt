@@ -285,7 +285,7 @@ class ApiFileTest : DriverTest() {
                 package androidx.core.util {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (java.lang.Object)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -604,31 +604,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                 ),
-                java(
-                    """
-                    package androidx.core.app;
-
-                    import java.util.ArrayList;
-                    import java.util.List;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    public class ActivityOptionsCompat {
-                        private ActivityOptionsCompat() {
-                        }
-                        @NonNull
-                        public static List<String> javaListOf(String... sharedElements) {
-                            return new ArrayList<String>();
-                        }
-                        @Nullable
-                        public static List<String> javaListOfNullable(String... sharedElements) {
-                            return null;
-                        }
-
-                    }
-                    """
-                ),
                 kotlin(
                     "src/main/java/androidx/collection/ArrayMap.kt",
                     """
@@ -660,12 +635,6 @@ class ApiFileTest : DriverTest() {
                     method public static inline <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf();
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
-                  }
-                }
-                package androidx.core.app {
-                  public class ActivityOptionsCompat {
-                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...);
-                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...);
                   }
                 }
                 """,

@@ -21,7 +21,6 @@ import com.android.tools.metalava.FileFormat;
 import com.android.tools.metalava.model.AnnotationItem;
 import com.android.tools.metalava.model.DefaultModifierList;
 import com.android.tools.metalava.model.TypeParameterList;
-import com.android.tools.metalava.model.VisibilityLevel;
 import com.android.tools.metalava.model.text.TextClassItem;
 import com.android.tools.metalava.model.text.TextConstructorItem;
 import com.android.tools.metalava.model.text.TextFieldItem;
@@ -42,7 +41,9 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NONNULL;
 import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NULLABLE;
@@ -274,11 +275,6 @@ public class ApiFile {
     }
 
     private static Pair<String, List<String>> processKotlinTypeSuffix(TextCodebase api, String type, List<String> annotations) throws ApiParseException {
-        boolean varArgs = false;
-        if (type.endsWith("...")) {
-            type = type.substring(0, type.length() - 3);
-            varArgs = true;
-        }
         if (api.getKotlinStyleNulls()) {
             if (type.endsWith("?")) {
                 type = type.substring(0, type.length() - 1);
@@ -293,9 +289,6 @@ public class ApiFile {
         } else if (type.endsWith("?") || type.endsWith("!")) {
             throw new ApiParseException("Did you forget to supply --input-kotlin-nulls? Found Kotlin-style null type suffix when parser was not configured " +
                 "to interpret signature file that way: " + type);
-        }
-        if (varArgs) {
-            type = type + "...";
         }
         return new Pair<>(type, annotations);
     }
@@ -510,25 +503,25 @@ public class ApiFile {
         String token,
         List<String> annotations) throws ApiParseException {
 
-        TextModifiers modifiers = new TextModifiers(api, DefaultModifierList.PACKAGE_PRIVATE, null);
+        TextModifiers modifiers = new TextModifiers(api, 0, null);
 
         processModifiers:
         while (true) {
             switch (token) {
                 case "public":
-                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC);
+                    modifiers.setPublic(true);
                     token = tokenizer.requireToken();
                     break;
                 case "protected":
-                    modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED);
+                    modifiers.setProtected(true);
                     token = tokenizer.requireToken();
                     break;
                 case "private":
-                    modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE);
+                    modifiers.setPrivate(true);
                     token = tokenizer.requireToken();
                     break;
                 case "internal":
-                    modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL);
+                    modifiers.setInternal(true);
                     token = tokenizer.requireToken();
                     break;
                 case "static":
@@ -799,7 +792,7 @@ public class ApiFile {
                     int balance = defaultValue.equals("(") ? 1 : 0;
                     while (true) {
                         token = tokenizer.requireToken(true, false);
-                        if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
+                        if (token.endsWith(",") || token.endsWith(")") && balance <= 0) {
                             if (token.length() > 1) {
                                 sb.append(token, 0, token.length() - 1);
                                 token = Character.toString(token.charAt(token.length() - 1));
@@ -1001,12 +994,12 @@ public class ApiFile {
                             switch (k) {
                                 case '\\':
                                     state = STATE_ESCAPE;
+                                    mPos++;
                                     break;
                                 case '"':
                                     mCurrent = new String(mBuf, start, mPos - start);
                                     return mCurrent;
                             }
-                            break;
                         case STATE_ESCAPE:
                             state = STATE_BEGIN;
                             break;

@@ -363,15 +363,8 @@ class CompatibilityCheck(
             }
 
             if (!compatible) {
-                var oldTypeString = oldReturnType.toSimpleType()
-                var newTypeString = newReturnType.toSimpleType()
-                // Typically, show short type names like "String" if they're distinct (instead of long type names like
-                // "java.util.Set<T!>")
-                if (oldTypeString == newTypeString) {
-                    // If the short names aren't unique, then show full type names like "java.util.Set<T!>"
-                    oldTypeString = oldReturnType.toString()
-                    newTypeString = newReturnType.toString()
-                }
+                val oldTypeString = oldReturnType.toSimpleType()
+                val newTypeString = newReturnType.toSimpleType()
                 val message =
                     "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
                 report(Errors.CHANGED_TYPE, new, message)
@@ -774,15 +767,6 @@ class CompatibilityCheck(
 
         // In old signature files, annotation methods are missing! This will show up as an added method.
         if (new.containingClass().isAnnotationType() && oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1) {
-            return
-        }
-
-        // In most cases it is not permitted to add a new method to an interface, even with a
-        // default implementation because it could could create ambiguity if client code implements
-        // two interfaces that each now define methods with the same signature.
-        // Annotation types cannot implement other interfaces, however, so it is permitted to add
-        // add new default methods to annotation types.
-        if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
             return
         }
 

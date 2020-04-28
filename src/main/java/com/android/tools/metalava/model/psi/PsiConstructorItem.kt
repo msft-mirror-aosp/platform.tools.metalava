@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.MethodItem
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -140,8 +139,8 @@ class PsiConstructorItem(
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = PsiModifierItem(codebase, PACKAGE_PRIVATE, null)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val flags = containingClass.modifiers.getAccessFlags()
+            val modifiers = PsiModifierItem(codebase, flags, null)
 
             val item = PsiConstructorItem(
                 codebase = codebase,

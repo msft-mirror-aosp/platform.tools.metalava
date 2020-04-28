@@ -29,11 +29,6 @@ import java.util.ArrayList
 import java.util.LinkedHashSet
 import java.util.function.Predicate
 
-/**
- * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
- *
- * If you need to model array dimensions or resolved type parameters, see {@link com.android.tools.metalava.model.TypeItem} instead
- */
 interface ClassItem : Item {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
     fun simpleName(): String
@@ -43,9 +38,6 @@ interface ClassItem : Item {
 
     /** The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole thing. */
     fun qualifiedName(): String
-
-    /** Is the class explicitly defined in the source file? */
-    fun isDefined(): Boolean
 
     /** Is this an innerclass? */
     fun isInnerClass(): Boolean = containingClass() != null
@@ -303,6 +295,9 @@ interface ClassItem : Item {
     }
 
     fun accept(visitor: ApiVisitor) {
+        if (visitor.skip(this)) {
+            return
+        }
 
         if (!visitor.include(this)) {
             return
@@ -675,6 +670,18 @@ interface ClassItem : Item {
                 if (!predicate.test(superClass)) {
                     superClass.filteredInterfaceTypes(predicate, types, true, includeParents, target)
                 } else if (includeSelf && superClass.isInterface()) {
+                    // Special case: Arguably, IInterface should be included in the system API by the
+                    // general rules. However, this was just added to the system API in 28 at the same
+                    // time as metalava, which did not include some hidden super classes in its analysis.
+                    // This is now marked as an incompatible API change, so treat this the same way as in
+                    // API 28 until this is clarified.
+                    if (superClass.simpleName() == "IInterface" &&
+                        (target.qualifiedName() == "android.telephony.mbms.vendor.MbmsDownloadServiceBase" ||
+                            target.qualifiedName() == "android.telephony.mbms.vendor.MbmsStreamingServiceBase")
+                    ) {
+                        return types
+                    }
+
                     types.add(superClassType)
                     if (includeParents) {
                         superClass.filteredInterfaceTypes(predicate, types, true, includeParents, target)
@@ -727,11 +734,11 @@ interface ClassItem : Item {
     /**
      * The default constructor to invoke on this class from subclasses; initially null
      * but populated by [ApiAnalyzer.addConstructors]. (Note that in some cases
-     * [stubConstructor] may not be in [constructors], e.g. when we need to
+     * [defaultConstructor] may not be in [constructors], e.g. when we need to
      * create a constructor to match a public parent class with a non-default constructor
      * and the one in the code is not a match, e.g. is marked @hide etc.)
      */
-    var stubConstructor: ConstructorItem?
+    var defaultConstructor: ConstructorItem?
 
     /**
      * Creates a map of type variables from this class to the given target class.
@@ -759,8 +766,8 @@ interface ClassItem : Item {
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 }
 
-class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
-    public val innerClasses: Sequence<VisitCandidate>
+class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor) {
+    private val innerClasses: Sequence<VisitCandidate>
     private val constructors: Sequence<MethodItem>
     private val methods: Sequence<MethodItem>
     private val fields: Sequence<FieldItem>
@@ -812,17 +819,48 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
             .map { VisitCandidate(it, visitor) }
     }
 
-    /** Whether the class body contains any Item's (other than inner Classes) */
-    public fun nonEmpty(): Boolean {
-        return !(constructors.none() && methods.none() && enums.none() && fields.none() && properties.none())
+    /** Will this class emit anything? */
+    private fun emit(): Boolean {
+        val emit = emitClass()
+        if (emit) {
+            return true
+        }
+
+        return emitInner()
+    }
+
+    private fun emitInner(): Boolean {
+        return innerClasses.any { it.emit() }
+    }
+
+    /** Does the body of this class (everything other than the inner classes) emit anything? */
+    private fun emitClass(): Boolean {
+        val classEmpty = (constructors.none() && methods.none() && enums.none() && fields.none() && properties.none())
+        return if (visitor.filterEmit.test(cls)) {
+            true
+        } else if (!classEmpty) {
+            visitor.filterReference.test(cls)
+        } else {
+            false
+        }
     }
 
     fun accept() {
-        if (!visitor.include(this)) {
+        if (visitor.skip(cls)) {
             return
         }
 
-        val emitThis = visitor.shouldEmitClass(this)
+        if (!visitor.include(cls)) {
+            return
+        }
+
+        val emitClass = emitClass()
+        val emit = emitClass || emitInner()
+        if (!emit) {
+            return
+        }
+
+        val emitThis = cls.emit && if (visitor.includeEmptyOuterClasses) emit else emitClass
         if (emitThis) {
             if (!visitor.visitingPackage) {
                 visitor.visitingPackage = true

@@ -46,14 +46,14 @@ class ApiPredicate(
     private val matchRemoved: Boolean = false,
 
     /** Whether we allow matching items loaded from jar files instead of sources */
-    private val allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
+    private val allowFromJar: Boolean = true,
 
     /** Whether we should include doc-only items */
     private val includeDocOnly: Boolean = false
 ) : Predicate<Item> {
 
     override fun test(member: Item): Boolean {
-        if (!allowClassesFromClasspath && member.isFromClassPath()) {
+        if (!allowFromJar && member.isFromClassPath()) {
             return false
         }
 

@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model
 
 interface MutableModifierList : ModifierList {
-    fun setVisibilityLevel(level: VisibilityLevel)
+    fun setPublic(public: Boolean)
+    fun setProtected(protected: Boolean)
+    fun setPrivate(private: Boolean)
     fun setStatic(static: Boolean)
     fun setAbstract(abstract: Boolean)
     fun setFinal(final: Boolean)
@@ -27,6 +29,7 @@ interface MutableModifierList : ModifierList {
     fun setTransient(transient: Boolean)
     fun setVolatile(volatile: Boolean)
     fun setDefault(default: Boolean)
+    fun setInternal(internal: Boolean)
     fun setSealed(sealed: Boolean)
     fun setInfix(infix: Boolean)
     fun setOperator(operator: Boolean)
@@ -36,4 +39,10 @@ interface MutableModifierList : ModifierList {
     fun addAnnotation(annotation: AnnotationItem)
     fun removeAnnotation(annotation: AnnotationItem)
     fun clearAnnotations(annotation: AnnotationItem)
+
+    fun setPackagePrivate(private: Boolean) {
+        setPublic(false)
+        setProtected(false)
+        setPrivate(false)
+    }
 }

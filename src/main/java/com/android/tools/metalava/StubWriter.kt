@@ -202,7 +202,7 @@ class StubWriter(
             }
 
             @Suppress("ConstantConditionIf")
-            if (EXPAND_DOCUMENTATION && options.includeDocumentationInStubs) {
+            if (EXPAND_DOCUMENTATION) {
                 compilationUnit?.getImportStatements(filterReference)?.let {
                     for (item in it) {
                         when (item) {
@@ -493,12 +493,11 @@ class StubWriter(
     }
 
     private fun generateMissingConstructors(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
+        val clsDefaultConstructor = cls.defaultConstructor
         val constructors = cls.filteredConstructors(filterEmit)
-        // If the default stub constructor is not publicly visible then it won't be output during the normal visiting
-        // so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
+        if (clsDefaultConstructor != null && !constructors.contains(clsDefaultConstructor)) {
+            clsDefaultConstructor.mutableModifiers().setPackagePrivate(true)
+            visitConstructor(clsDefaultConstructor)
             return
         }
     }

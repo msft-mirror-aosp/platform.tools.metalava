@@ -239,7 +239,7 @@ class StubsTest : DriverTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
-                private Foo() { throw new RuntimeException("Stub!"); }
+                Foo() { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
@@ -324,8 +324,8 @@ class StubsTest : DriverTest() {
             source = """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                 @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE})
+                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                 public @interface Foo {
                 public java.lang.String value();
                 }
@@ -991,7 +991,7 @@ class StubsTest : DriverTest() {
                     public FinalFieldTest() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static final class IsoFields {
-                    private IsoFields() { throw new RuntimeException("Stub!"); }
+                    IsoFields() { throw new RuntimeException("Stub!"); }
                     public static final test.pkg.FinalFieldTest.TemporalField DAY_OF_QUARTER;
                     static { DAY_OF_QUARTER = null; }
                     }
@@ -1544,11 +1544,11 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2(java.lang.String s) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
-                    private Child3() { throw new RuntimeException("Stub!"); }
+                    Child3(java.lang.String s) { super(null); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
@@ -1626,11 +1626,11 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2(java.lang.String s) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
-                    private Child3() { throw new RuntimeException("Stub!"); }
+                    Child3(java.lang.String s) { super(null); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
@@ -1861,75 +1861,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Rewrite unknown nullability annotations as sdk stubs`() {
-        check(
-            checkDoclava1 = false,
-            checkCompilation = true,
-            sourceFiles = *arrayOf(
-                java(
-                    "package my.pkg;\n" +
-                        "public class String {\n" +
-                        "public String(@other.NonNull char[] value) { throw new RuntimeException(\"Stub!\"); }\n" +
-                        "}\n"
-                )
-            ),
-            warnings = "",
-            api = """
-                    package my.pkg {
-                      public class String {
-                        ctor public String(char[]);
-                      }
-                    }
-                    """,
-            stubs =
-                arrayOf(
-                    """
-                    package my.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class String {
-                    public String(@android.annotation.NonNull char[] value) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                )
-        )
-    }
-
-    @Test
-    fun `Rewrite unknown nullability annotations as doc stubs`() {
-        check(
-            checkDoclava1 = false,
-            checkCompilation = true,
-            sourceFiles = *arrayOf(
-                java(
-                    "package my.pkg;\n" +
-                        "public class String {\n" +
-                        "public String(@other.NonNull char[] value) { throw new RuntimeException(\"Stub!\"); }\n" +
-                        "}\n"
-                )
-            ),
-            warnings = "",
-            api = """
-                    package my.pkg {
-                      public class String {
-                        ctor public String(char[]);
-                      }
-                    }
-                    """,
-            docStubs = true,
-            stubs =
-            arrayOf(
-                """
-                    package my.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class String {
-                    public String(@androidx.annotation.NonNull char[] value) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-            )
-        )
-    }
-
-    @Test
     fun `Rewrite libcore annotations`() {
         check(
             checkDoclava1 = false,
@@ -1971,41 +1902,6 @@ class StubsTest : DriverTest() {
                     """
                 )
             }
-        )
-    }
-
-    @Test
-    fun `Pass through libcore annotations`() {
-        check(
-            checkDoclava1 = false,
-            checkCompilation = true,
-            extraArguments = arrayOf(ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"),
-            sourceFiles = *arrayOf(
-                java(
-                    """
-                    package my.pkg;
-                    public class String {
-                    public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                )
-            ),
-            warnings = "",
-            api = """
-                    package my.pkg {
-                      public class String {
-                        ctor public String(char[]);
-                      }
-                    }
-                    """,
-            stubs = arrayOf(
-                    """
-                    package my.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class String {
-                    public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
-                    }
-                    """)
         )
     }
 
@@ -2076,28 +1972,29 @@ class StubsTest : DriverTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass1 {
-                MyClass1() { throw new RuntimeException("Stub!"); }
+                MyClass1(int myVar) { throw new RuntimeException("Stub!"); }
                 }
                 """,
                 """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MySubClass1 extends test.pkg.MyClass1 {
-                MySubClass1() { throw new RuntimeException("Stub!"); }
+                MySubClass1(int myVar) throws java.io.IOException { super(0); throw new RuntimeException("Stub!"); }
                 }
                 """,
                 """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass2 {
-                MyClass2() { throw new RuntimeException("Stub!"); }
+                /** @hide */
+                MyClass2(int myVar) { throw new RuntimeException("Stub!"); }
                 }
                 """,
                 """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MySubClass2 extends test.pkg.MyClass2 {
-                public MySubClass2() { throw new RuntimeException("Stub!"); }
+                public MySubClass2() { super(0); throw new RuntimeException("Stub!"); }
                 }
                 """
             ),
@@ -3189,7 +3086,7 @@ class StubsTest : DriverTest() {
             warnings = "",
             api = """
                 package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD}) public @interface ExportedProperty {
+                  @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExportedProperty {
                     method public abstract String category() default "";
                     method public abstract float floating() default 1.0f;
                     method public abstract boolean formatToHexString() default false;
@@ -3226,8 +3123,8 @@ class StubsTest : DriverTest() {
                  * by this annotation.
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
                 @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD})
+                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
                 public @interface ExportedProperty {
                 /**
                  * When resolveId is true, and if the annotated field/method return value
@@ -3293,8 +3190,8 @@ class StubsTest : DriverTest() {
             source = """
                 package java.lang;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 public @interface MyAnnotation {
                 }
                 """
@@ -3544,7 +3441,7 @@ class StubsTest : DriverTest() {
                 @Deprecated
                 @test.pkg.MyRuntimeRetentionAnnotation
                 public class Foo {
-                private Foo() { throw new RuntimeException("Stub!"); }
+                Foo() { throw new RuntimeException("Stub!"); }
                 }
                 """
             )
@@ -3612,7 +3509,7 @@ class StubsTest : DriverTest() {
                 @test.pkg.MyClassRetentionAnnotation
                 @test.pkg.MyRuntimeRetentionAnnotation
                 public class Foo {
-                private Foo() { throw new RuntimeException("Stub!"); }
+                Foo() { throw new RuntimeException("Stub!"); }
                 @Deprecated
                 public void bar() { throw new RuntimeException("Stub!"); }
                 @Deprecated protected int foo;
@@ -4163,14 +4060,14 @@ class StubsTest : DriverTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Orange {
-                private Orange() { throw new RuntimeException("Stub!"); }
+                Orange() { throw new RuntimeException("Stub!"); }
                 }
                 """,
                 """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
-                private Alpha() { throw new RuntimeException("Stub!"); }
+                Alpha() { throw new RuntimeException("Stub!"); }
                 }
                 """
             )

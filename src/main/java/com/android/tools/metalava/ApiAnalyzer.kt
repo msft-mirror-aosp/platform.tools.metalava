@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
@@ -110,12 +109,12 @@ class ApiAnalyzer(
         leafClasses
             // Filter classes by filter here to not waste time in hidden packages
             .filter { filter.test(it) }
-            .forEach { addConstructors(it, filter) }
+            .forEach { addConstructors(it, filter, true) }
     }
 
     /**
      * Handle computing constructor hierarchy. We'll be setting several attributes:
-     * [ClassItem.stubConstructor] : The default constructor to invoke in this
+     * [ClassItem.defaultConstructor] : The default constructor to invoke in this
      *   class from subclasses. **NOTE**: This constructor may not be part of
      *   the [ClassItem.constructors] list, e.g. for package private default constructors
      *   we've inserted (because there were no public constructors or constructors not
@@ -124,13 +123,16 @@ class ApiAnalyzer(
      *   If we can find a public constructor we'll put that here instead.
      *
      * [ConstructorItem.superConstructor] The default constructor to invoke. If set,
-     * use this rather than the [ClassItem.stubConstructor].
+     * use this rather than the [ClassItem.defaultConstructor].
+     *
+     * [ClassItem.hasPrivateConstructor] Set if this class has one or more private
+     * constructors.
      *
      * [Item.tag] : mark for avoiding repeated iteration of internal item nodes
      *
      *
      */
-    private fun addConstructors(cls: ClassItem, filter: Predicate<Item>) {
+    private fun addConstructors(cls: ClassItem, filter: Predicate<Item>, isLeaf: Boolean) {
         // What happens if we have
         //  package foo:
         //     public class A { public A(int) }
@@ -171,11 +173,11 @@ class ApiAnalyzer(
         // First handle its super class hierarchy to make sure that we've
         // already constructed super classes
         val superClass = cls.filteredSuperclass(filter)
-        superClass?.let { addConstructors(it, filter) }
+        superClass?.let { it -> addConstructors(it, filter, false) }
         cls.tag = true
 
         if (superClass != null) {
-            val superDefaultConstructor = superClass.stubConstructor
+            val superDefaultConstructor = superClass.defaultConstructor
             if (superDefaultConstructor != null) {
                 val constructors = cls.constructors()
                 for (constructor in constructors) {
@@ -191,40 +193,66 @@ class ApiAnalyzer(
         }
 
         // Find default constructor, if one doesn't exist
-        val allConstructors = cls.constructors()
-        if (allConstructors.isNotEmpty()) {
-
-            // Try and use a publicly accessible constructor first.
-            val constructors = cls.filteredConstructors(filter).toList()
-            if (!constructors.isEmpty()) {
-                // Try to pick the constructor, select first by fewest throwables, then fewest parameters,
-                // then based on order in listFilter.test(cls)
-                cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
-                return
+        if (!isLeaf || cls.hasPrivateConstructor || cls.constructors().isNotEmpty()) {
+            val constructors = cls.constructors()
+            for (constructor in constructors) {
+                if (constructor.parameters().isEmpty() && constructor.isPublic && !constructor.hidden) {
+                    cls.defaultConstructor = constructor
+                    return
+                }
             }
 
-            // No accessible constructors are available so one will have to be created, either a private constructor to
-            // prevent instances of the class from being created, or a package private constructor for use by subclasses
-            // in the package to use. Subclasses outside the package would need a protected or public constructor which
-            // would already be part of the API so should have dropped out above.
-            //
-            // The visibility levels on the constructors from the source can give a clue as to what is required. e.g.
-            // if all constructors are private then it is ok for the generated constructor to be private, otherwise it
-            // should be package private.
-            val allPrivate = allConstructors.asSequence()
-                .map { it.isPrivate }
-                .reduce { v1, v2 -> v1 and v2 }
+            if (!constructors.isEmpty()) {
+                // Try to pick the constructor, sorting first by "matches filter", then by
+                // uses available types, then by fewest throwables, then fewest parameters,
+                // then based on order in listFilter.test(cls)
+                val first = constructors.first()
+                val best =
+                    if (constructors.size > 1) {
+                        constructors.foldRight(first) { current, next -> pickBest(current, next, filter) }
+                    } else {
+                        first
+                    }
 
-            val visibilityLevel = if (allPrivate) VisibilityLevel.PRIVATE else VisibilityLevel.PACKAGE_PRIVATE
+                if (cls.filteredConstructors(filter).contains(best)) {
+                    cls.defaultConstructor = best
+                    return
+                }
+
+                if (!referencesExcludedType(best, filter)) {
+                    cls.defaultConstructor = best
+                    best.mutableModifiers().setPackagePrivate(true)
+                    best.hidden = false
+                    best.docOnly = false
+                    return
+                }
+            }
 
             // No constructors, yet somebody extends this (or private constructor): we have to invent one, such that
             // subclasses can dispatch to it in the stub files etc
-            cls.stubConstructor = cls.createDefaultConstructor().also {
-                it.mutableModifiers().setVisibilityLevel(visibilityLevel)
+            cls.defaultConstructor = cls.createDefaultConstructor().also {
+                it.mutableModifiers().setPackagePrivate(true)
                 it.hidden = false
-                it.superConstructor = superClass?.stubConstructor
+                it.superConstructor = superClass?.defaultConstructor
             }
         }
+    }
+
+    private fun referencesExcludedType(constructor: ConstructorItem, filter: Predicate<Item>): Boolean {
+        // Checks parameter types and throws types
+        for (parameter in constructor.parameters()) {
+            val type = parameter.type()
+            if (type.referencesExcludedType(filter)) {
+                return true
+            }
+        }
+        for (cls in constructor.throwsTypes()) {
+            if (!filter.test(cls)) {
+                return true
+            }
+        }
+
+        return false
     }
 
     // TODO: Annotation test: @ParameterName, if present, must be supplied on *all* the arguments!
@@ -233,8 +261,29 @@ class ApiAnalyzer(
 
     private fun pickBest(
         current: ConstructorItem,
-        next: ConstructorItem
+        next: ConstructorItem,
+        filter: Predicate<Item>
     ): ConstructorItem {
+        val currentMatchesFilter = filter.test(current)
+        val nextMatchesFilter = filter.test(next)
+        if (currentMatchesFilter != nextMatchesFilter) {
+            return if (currentMatchesFilter) {
+                current
+            } else {
+                next
+            }
+        }
+
+        val currentUsesAvailableTypes = !referencesExcludedType(current, filter)
+        val nextUsesAvailableTypes = !referencesExcludedType(next, filter)
+        if (currentUsesAvailableTypes != nextUsesAvailableTypes) {
+            return if (currentUsesAvailableTypes) {
+                current
+            } else {
+                next
+            }
+        }
+
         val currentThrowsCount = current.throwsTypes().size
         val nextThrowsCount = next.throwsTypes().size
 

@@ -62,10 +62,6 @@ class DocAnalyzer(
 
         tweakGrammar()
 
-        for (docReplacement in options.docReplacements) {
-            codebase.accept(docReplacement)
-        }
-
         injectArtifactIds()
 
         // TODO:
@@ -210,7 +206,6 @@ class DocAnalyzer(
                     "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)
                     "android.annotation.RequiresFeature" -> handleRequiresFeature(annotation, item)
                     "androidx.annotation.RequiresApi" -> handleRequiresApi(annotation, item)
-                    "android.provider.Column" -> handleColumn(annotation, item)
                     "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
                 }
 
@@ -489,48 +484,6 @@ class DocAnalyzer(
                     addApiLevelDocumentation(level, item)
                 }
             }
-
-            private fun handleColumn(
-                annotation: AnnotationItem,
-                item: Item
-            ) {
-                val value = annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                val readOnly = annotation.findAttribute("readOnly")?.leafValues()?.firstOrNull()?.value() == true
-                val sb = StringBuilder(100)
-                val resolved = value.resolve()
-                val field = resolved as? FieldItem
-                sb.append("This constant represents a column name that can be used with a ")
-                sb.append("{@link android.content.ContentProvider}")
-                sb.append(" through a ")
-                sb.append("{@link android.content.ContentValues}")
-                sb.append(" or ")
-                sb.append("{@link android.database.Cursor}")
-                sb.append(" object. The values stored in this column are ")
-                sb.append("")
-                if (field == null) {
-                    reporter.report(
-                        Errors.MISSING_COLUMN, item,
-                        "Cannot find feature field for $value required by $item (may be hidden or removed)"
-                    )
-                    sb.append("{@link ${value.toSource()}}")
-                } else {
-                    if (filterReference.test(field)) {
-                        sb.append("{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}} ")
-                    } else {
-                        reporter.report(
-                            Errors.MISSING_COLUMN, item,
-                            "Feature field $value required by $item is hidden or removed"
-                        )
-                        sb.append("${field.containingClass().simpleName()}#${field.name()} ")
-                    }
-                }
-
-                if (readOnly) {
-                    sb.append(", and are read-only and cannot be mutated")
-                }
-                sb.append(".")
-                appendDocumentation(sb.toString(), item, false)
-            }
         })
     }
 
@@ -637,6 +590,10 @@ class DocAnalyzer(
     )
 
     private fun tweakGrammar() {
+        if (reporter.isSuppressed(Errors.TYPO)) {
+            return
+        }
+
         codebase.accept(object : VisibleItemVisitor() {
             override fun visitItem(item: Item) {
                 var doc = item.documentation
@@ -644,25 +601,22 @@ class DocAnalyzer(
                     return
                 }
 
-                if (!reporter.isSuppressed(Errors.TYPO)) {
-                    for (typo in typos.keys) {
-                        if (doc.contains(typo)) {
-                            val replacement = typos[typo] ?: continue
-                            val new = doc.replace(Regex("\\b$typo\\b"), replacement)
-                            if (new != doc) {
-                                reporter.report(
-                                    Errors.TYPO,
-                                    item,
-                                    "Replaced $typo with $replacement in the documentation for $item"
-                                )
-                                doc = new
-                                item.documentation = doc
-                            }
+                for (typo in typos.keys) {
+                    if (doc.contains(typo)) {
+                        val replacement = typos[typo] ?: continue
+                        val new = doc.replace(Regex("\\b$typo\\b"), replacement)
+                        if (new != doc) {
+                            reporter.report(
+                                Errors.TYPO,
+                                item,
+                                "Replaced $typo with $replacement in the documentation for $item"
+                            )
+                            doc = new
+                            item.documentation = doc
                         }
                     }
                 }
 
-                // Work around javadoc cutting off the summary line after the first ". ".
                 val firstDot = doc.indexOf(".")
                 if (firstDot > 0 && doc.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
                     doc = doc.substring(0, firstDot) + ".g.&nbsp;" + doc.substring(firstDot + 4)

@@ -48,7 +48,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
-import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -63,18 +62,9 @@ const val CHECK_OLD_DOCLAVA_TOO = false
 const val CHECK_JDIFF = false
 const val CHECK_STUB_COMPILATION = false
 
-/**
- * Marker class for stubs argument to [DriverTest.check] indicating that no
- * stubs should be generated for a particular source file.
- */
-const val NO_STUB = ""
-
 abstract class DriverTest {
     @get:Rule
     var temporaryFolder = TemporaryFolder()
-
-    @get:Rule
-    val errorCollector = ErrorCollector()
 
     @Before
     fun setup() {
@@ -91,13 +81,7 @@ abstract class DriverTest {
         return dir
     }
 
-    // Makes a note to fail the test, but still allows the test to complete before failing
-    protected fun addError(error: String) {
-        errorCollector.addError(Throwable(error))
-    }
-
     protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
-
         resetTicker()
 
         // Capture the actual input and output from System.out/err and compare it
@@ -106,9 +90,9 @@ abstract class DriverTest {
         val previousOut = System.out
         val previousErr = System.err
         try {
-            val output = TeeWriter(previousOut)
+            val output = OutputForbiddenWriter("stdout")
             System.setOut(PrintStream(output))
-            val error = TeeWriter(previousErr)
+            val error = OutputForbiddenWriter("stderr")
             System.setErr(PrintStream(error))
 
             val sw = StringWriter()
@@ -136,13 +120,10 @@ abstract class DriverTest {
             }
 
             val stdout = output.toString(UTF_8.name())
-            if (!stdout.isEmpty()) {
-                addError("Unexpected write to stdout:\n $stdout")
-            }
+            assertTrue(stdout, stdout.isEmpty())
+
             val stderr = error.toString(UTF_8.name())
-            if (!stderr.isEmpty()) {
-                addError("Unexpected write to stderr:\n $stderr")
-            }
+            assertTrue(stderr, stderr.isEmpty())
 
             val printedOutput = sw.toString()
             if (printedOutput.isNotEmpty() && printedOutput.trim().isEmpty()) {
@@ -158,22 +139,22 @@ abstract class DriverTest {
         }
     }
 
-    // This is here so we can keep a record of what was printed, to make sure we
-    // don't have any unexpected printlns in the source that are left behind after
-    // debugging and pollute the production output
-    class TeeWriter(private val otherStream: PrintStream) : ByteArrayOutputStream() {
+    // This is here to make sure we don't have any unexpected random println's
+    // in the source that are left behind after debugging and ends up polluting
+    // the production output
+    class OutputForbiddenWriter(private val stream: String) : ByteArrayOutputStream() {
         override fun write(b: ByteArray?, off: Int, len: Int) {
-            otherStream.write(b, off, len)
+            fail("Unexpected write directly to $stream")
             super.write(b, off, len)
         }
 
         override fun write(b: ByteArray?) {
-            otherStream.write(b)
+            fail("Unexpected write directly to $stream")
             super.write(b)
         }
 
         override fun write(b: Int) {
-            otherStream.write(b)
+            fail("Unexpected write directly to $stream")
             super.write(b)
         }
     }
@@ -248,8 +229,7 @@ abstract class DriverTest {
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
-        /** Expected stubs (corresponds to --stubs) in order corresponding to [sourceFiles]. Use
-         * [NO_STUB] as a marker for source files that are not expected to generate stubs */
+        /** Expected stubs (corresponds to --stubs) */
         @Language("JAVA") stubs: Array<String> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
@@ -296,10 +276,8 @@ abstract class DriverTest {
         @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
-        /** Hide annotations (--hide-annotation arguments) */
+        /** Hide annotations (--hideAnnotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
-        /** Hide meta-annotations (--hide-meta-annotation arguments) */
-        hideMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
@@ -719,17 +697,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val hideMetaAnnotationArguments = if (hideMetaAnnotations.isNotEmpty()) {
-            val args = mutableListOf<String>()
-            for (annotation in hideMetaAnnotations) {
-                args.add(ARG_HIDE_META_ANNOTATION)
-                args.add(annotation)
-            }
-            args.toTypedArray()
-        } else {
-            emptyArray()
-        }
-
         val showUnannotatedArgs =
             if (showUnannotated) {
                 arrayOf(ARG_SHOW_UNANNOTATED)
@@ -816,7 +783,7 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var subtractApiFile: File?
+        var subtractApiFile: File? = null
         val subtractApiArgs = if (subtractApi != null) {
             subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
             subtractApiFile.writeText(subtractApi.trimIndent())
@@ -1076,7 +1043,6 @@ abstract class DriverTest {
             *baselineArgs,
             *showAnnotationArguments,
             *hideAnnotationArguments,
-            *hideMetaAnnotationArguments,
             *showUnannotatedArgs,
             *includeSourceRetentionAnnotationArgs,
             *apiLintArgs,
@@ -1315,26 +1281,25 @@ abstract class DriverTest {
                             stub = stub.substring(pathEnd + 2)
                         }
                     }
+                    if (!stubFile.exists()) {
+                        /* Example:
+                            stubs = arrayOf(
+                                """
+                                [test/visible/package-info.java]
+                                <html>My package docs</html>
+                                package test.visible;
+                                """,
+                                ...
+                           Here the stub will be read from $stubsDir/test/visible/package-info.java.
+                         */
+                        throw FileNotFoundException(
+                            "Could not find generated stub for $targetPath; consider " +
+                                "setting target relative path in stub header as prefix surrounded by []"
+                        )
+                    }
                 }
-                if (stubFile.exists()) {
-                    val actualText = readFile(stubFile, stripBlankLines, trim)
-                    assertEquals(stub, actualText)
-                } else if (stub != NO_STUB) {
-                    /* Example:
-                        stubs = arrayOf(
-                            """
-                            [test/visible/package-info.java]
-                            <html>My package docs</html>
-                            package test.visible;
-                            """,
-                            ...
-                       Here the stub will be read from $stubsDir/test/visible/package-info.java.
-                     */
-                    throw FileNotFoundException(
-                        "Could not find generated stub for $targetPath; consider " +
-                            "setting target relative path in stub header as prefix surrounded by []"
-                    )
-                }
+                val actualText = readFile(stubFile, stripBlankLines, trim)
+                assertEquals(stub, actualText)
             }
         }
 
@@ -2485,31 +2450,6 @@ val visibleForTestingSource: TestFile = java(
         int PACKAGE_PRIVATE = 3;
         int PROTECTED = 4;
         int NONE = 5;
-    }
-    """
-).indented()
-
-val columnSource: TestFile = java(
-    """
-    package android.provider;
-
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
-    import android.content.ContentProvider;
-    import android.content.ContentValues;
-    import android.database.Cursor;
-
-    import java.lang.annotation.Documented;
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.Target;
-
-    @Documented
-    @Retention(RUNTIME)
-    @Target({FIELD})
-    public @interface Column {
-        int value();
-        boolean readOnly() default false;
     }
     """
 ).indented()

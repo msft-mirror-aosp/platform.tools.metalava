@@ -258,8 +258,6 @@ public class Errors {
     // and (2) the principle is adopted by the API council
     public static final Error EXTENDS_DEPRECATED = new Error(161, HIDDEN);
     public static final Error FORBIDDEN_TAG = new Error(162, ERROR);
-    public static final Error MISSING_COLUMN = new Error(163, WARNING, Category.DOCUMENTATION);
-    public static final Error INVALID_SYNTAX = new Error(164, ERROR);
 
     // API lint
     public static final Error START_WITH_LOWER = new Error(300, ERROR, Category.API_LINT, "S1");
@@ -291,7 +289,7 @@ public class Errors {
     public static final Error INTERFACE_CONSTANT = new Error(326, ERROR, Category.API_LINT, "C4");
     public static final Error ON_NAME_EXPECTED = new Error(327, WARNING, Category.API_LINT);
     public static final Error TOP_LEVEL_BUILDER = new Error(328, WARNING, Category.API_LINT);
-    public static final Error MISSING_BUILD_METHOD = new Error(329, WARNING, Category.API_LINT);
+    public static final Error MISSING_BUILD = new Error(329, WARNING, Category.API_LINT);
     public static final Error BUILDER_SET_STYLE = new Error(330, WARNING, Category.API_LINT);
     public static final Error SETTER_RETURNS_THIS = new Error(331, WARNING, Category.API_LINT, "M4");
     public static final Error RAW_AIDL = new Error(332, ERROR, Category.API_LINT);
@@ -346,11 +344,6 @@ public class Errors {
     public static final Error DEFAULT_VALUE_CHANGE = new Error(382, ERROR, Category.API_LINT); // Formerly 144
     public static final Error DOCUMENT_EXCEPTIONS = new Error(383, ERROR, Category.API_LINT); // Formerly 145
     public static final Error FORBIDDEN_SUPER_CLASS = new Error(384, ERROR, Category.API_LINT);
-    public static final Error MISSING_NULLABILITY = new Error(385, ERROR, Category.API_LINT);
-    public static final Error MUTABLE_BARE_FIELD = new Error(386, ERROR, Category.API_LINT, "F2");
-    public static final Error INTERNAL_FIELD = new Error(387, ERROR, Category.API_LINT, "F2");
-    public static final Error PUBLIC_TYPEDEF = new Error(388, ERROR, Category.API_LINT, "FW15");
-    public static final Error ANDROID_URI = new Error(389, ERROR, Category.API_LINT, "FW14");
 
     static {
         // Attempt to initialize error names based on the field names

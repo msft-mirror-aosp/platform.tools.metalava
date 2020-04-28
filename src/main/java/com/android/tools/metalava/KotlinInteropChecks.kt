@@ -303,18 +303,11 @@ class KotlinInteropChecks {
             return false
         }
 
-        if (cls.methods().filter { !it.modifiers.isDefault() }.size != 1) {
+        if (cls.methods().size != 1) {
             return false
         }
 
         if (cls.superClass()?.isInterface() == true) {
-            return false
-        }
-
-        // Executors, while they have a single method are not considered to be SAM that we want to
-        // be the last argument because often it leads to unexpected behavior of the trailing
-        // lambda.
-        if ("java.util.concurrent.Executor" == cls.qualifiedName()) {
             return false
         }
 

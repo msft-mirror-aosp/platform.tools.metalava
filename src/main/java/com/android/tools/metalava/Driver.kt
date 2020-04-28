@@ -174,7 +174,6 @@ fun run(
         }
     }
     options.baseline?.close()
-    options.reportEvenIfSuppressedWriter?.close()
 
     stdout.flush()
     stderr.flush()
@@ -398,8 +397,6 @@ private fun processFlags() {
         previous.dispose()
     }
 
-    convertToWarningNullabilityAnnotations(codebase, options.forceConvertToWarningNullabilityAnnotations)
-
     // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
 
     options.stubsDir?.let {
@@ -611,7 +608,7 @@ fun checkCompatibility(
                 file = check.codebase,
                 kotlinStyleNulls = options.inputKotlinStyleNulls
             )
-        } else if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
+        } else if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
             val apiFile = apiType.getSignatureFile(codebase, "compat-check-signatures-$apiType")
 
             // Fast path: if the signature files are identical, we're already good!
@@ -785,17 +782,7 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase)
-}
-
-private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
-    if (filter != null) {
-        // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
-        // their callers make incorrect nullness assumptions (for example, calling a function on a
-        // reference of nullable type). The way to communicate this to kotlinc is to mark these
-        // APIs as RecentlyNullable/RecentlyNonNull
-        codebase.accept(MarkPackagesAsRecent(filter))
-    }
+    previous.compareWith(NullnessMigration(), codebase, ApiPredicate())
 }
 
 private fun loadFromSources(): Codebase {
@@ -818,17 +805,6 @@ private fun loadFromSources(): Codebase {
     val analyzer = ApiAnalyzer(codebase)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
-
-    val filterEmit = ApiPredicate(ignoreShown = true, ignoreRemoved = false)
-    val apiEmit = ApiPredicate(ignoreShown = true)
-    val apiReference = ApiPredicate(ignoreShown = true)
-
-    // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
-    // this before merging annotations or performing checks on the API to ensure that these methods
-    // can have annotations added and are checked properly.
-    progress("\nInsert missing stubs methods: ")
-    analyzer.generateInheritedStubs(apiEmit, apiReference)
-
     analyzer.mergeExternalQualifierAnnotations()
     options.nullabilityAnnotationsValidator?.validateAllFrom(codebase, options.validateNullabilityFromList)
     options.nullabilityAnnotationsValidator?.report()
@@ -858,9 +834,16 @@ private fun loadFromSources(): Codebase {
         progress("\n$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds")
     }
 
+    val filterEmit = ApiPredicate(ignoreShown = true, ignoreRemoved = false)
+    val apiEmit = ApiPredicate(ignoreShown = true)
+    val apiReference = ApiPredicate(ignoreShown = true)
+
+    // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary
+    progress("\nInsert missing stubs methods: ")
+    analyzer.generateInheritedStubs(apiEmit, apiReference)
+
     // Compute default constructors (and add missing package private constructors
-    // to make stubs compilable if necessary). Do this after all the checks as
-    // these are not part of the API.
+    // to make stubs compilable if necessary)
     if (options.stubsDir != null || options.docStubsDir != null) {
         progress("\nInsert missing constructors: ")
         analyzer.addConstructors(filterEmit)
