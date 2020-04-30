@@ -23,7 +23,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.20"
+    kotlin("jvm") version "1.3.72"
     id("application")
     id("java")
     id("com.github.johnrengelman.shadow") version "4.0.4"
@@ -55,7 +55,7 @@ tasks.withType(KotlinCompile::class.java) {
 }
 
 val studioVersion: String = "27.1.0-alpha05"
-val kotlinVersion: String = "1.3.20"
+val kotlinVersion: String = "1.3.72"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
