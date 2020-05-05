@@ -20,7 +20,7 @@ defaultTasks = listOf("installDist", "test", "shadowJar", "createArchive", "ktli
 repositories {
     google()
     jcenter()
-    val lintRepo = project.property("lintRepo") as String?
+    val lintRepo = project.findProperty("lintRepo") as String?
     if (lintRepo != null) {
         logger.warn("Building using custom $lintRepo maven repository")
         maven {
@@ -61,7 +61,7 @@ tasks.withType(KotlinCompile::class.java) {
     }
 }
 
-val customLintVersion = property("lintVersion") as String?
+val customLintVersion = findProperty("lintVersion") as String?
 val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
