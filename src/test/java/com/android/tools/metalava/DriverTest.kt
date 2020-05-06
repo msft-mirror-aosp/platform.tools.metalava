@@ -1711,8 +1711,6 @@ val libcoreNonNullSource: TestFile = java(
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface NonNull {
-       int from() default Integer.MIN_VALUE;
-       int to() default Integer.MAX_VALUE;
     }
     """
 ).indented()
@@ -1727,8 +1725,6 @@ val libcoreNullableSource: TestFile = java(
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface Nullable {
-       int from() default Integer.MIN_VALUE;
-       int to() default Integer.MAX_VALUE;
     }
     """
 ).indented()
