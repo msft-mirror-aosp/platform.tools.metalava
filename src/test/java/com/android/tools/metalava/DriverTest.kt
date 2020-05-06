@@ -497,9 +497,12 @@ abstract class DriverTest {
                 signatureSource?. let { sources.add(it) }
 
                 var num = 0
-                var args = mutableListOf<String>()
+                val args = mutableListOf<String>()
                 sources.forEach { file ->
-                    val signatureFile = File(project, "load-api${ if (++num == 1) "" else num }.txt")
+                    val signatureFile = File(
+                        project,
+                        "load-api${ if (++num == 1) "" else num.toString() }.txt"
+                    )
                     signatureFile.writeText(file.trimIndent())
                     args.add(signatureFile.path)
                 }
