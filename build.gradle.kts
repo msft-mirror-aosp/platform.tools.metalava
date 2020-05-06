@@ -1,4 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
@@ -16,7 +15,7 @@ buildscript {
 
 buildDir = getBuildDirectory()
 
-defaultTasks = listOf("installDist", "test", "shadowJar", "createArchive", "ktlint")
+defaultTasks = mutableListOf("installDist", "test", "createArchive", "ktlint")
 
 repositories {
     google()
@@ -34,7 +33,6 @@ plugins {
     kotlin("jvm") version "1.3.72"
     id("application")
     id("java")
-    id("com.github.johnrengelman.shadow") version "4.0.4"
     id("maven-publish")
 }
 
@@ -83,14 +81,6 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.11")
-}
-
-tasks.withType(ShadowJar::class.java) {
-    archiveBaseName.set("metalava-full-${project.version}")
-    archiveClassifier.set(null as String?)
-    archiveVersion.set(null as String?)
-    setZip64(true)
-    destinationDirectory.set(getDistributionDirectory())
 }
 
 tasks.withType(Test::class.java) {
