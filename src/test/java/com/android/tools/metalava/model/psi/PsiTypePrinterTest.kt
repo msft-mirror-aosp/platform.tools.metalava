@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.Compatibility
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
@@ -43,7 +45,7 @@ import java.io.StringWriter
 import java.util.function.Predicate
 
 class PsiTypePrinterTest : DriverTest() {
-    // @Test
+    @Test
     fun `Test class reference types`() {
         assertEquals(
             """
@@ -78,7 +80,7 @@ class PsiTypePrinterTest : DriverTest() {
 
             Type: PsiClassReferenceType
             Canonical: java.util.Map<java.lang.String,java.lang.Number>
-            Printed: java.util.Map<java.lang.String!, java.lang.Number!>!
+            Printed: java.util.Map<java.lang.String!,java.lang.Number!>!
 
             Type: PsiClassReferenceType
             Canonical: java.lang.Number
@@ -120,7 +122,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test class reference types without Kotlin style nulls`() {
         assertEquals(
             """
@@ -173,7 +175,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test merge annotations`() {
         assertEquals(
             """
@@ -195,7 +197,7 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiClassReferenceType
             Canonical: java.util.Map<java.lang.String,java.lang.Number>
             Merged: [@Nullable]
-            Printed: java.util.Map<java.lang.String!, java.lang.Number!>?
+            Printed: java.util.Map<java.lang.String!,java.lang.Number!>?
 
             Type: PsiClassReferenceType
             Canonical: java.lang.Number
@@ -238,7 +240,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Check other annotations than nullness annotations`() {
         assertEquals(
             """
@@ -273,7 +275,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test negative filtering`() {
         assertEquals(
             """
@@ -310,7 +312,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test positive filtering`() {
         assertEquals(
             """
@@ -443,7 +445,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test arrays`() {
         assertEquals(
             """
@@ -496,7 +498,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test ellipsis types`() {
         assertEquals(
             """
@@ -536,7 +538,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test wildcard type`() {
         assertEquals(
             """
@@ -595,7 +597,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test primitives in arrays cannot be null`() {
         assertEquals(
             """
@@ -719,7 +721,7 @@ class PsiTypePrinterTest : DriverTest() {
         )
     }
 
-    // @Test
+    @Test
     fun `Test type bounds`() {
         assertEquals(
             """
@@ -737,7 +739,7 @@ class PsiTypePrinterTest : DriverTest() {
 
             Type: PsiClassReferenceType
             Canonical: java.util.Map<? extends java.lang.Number,? super java.lang.Number>
-            Printed: java.util.Map<? extends java.lang.Number, ? super java.lang.Number>!
+            Printed: java.util.Map<? extends java.lang.Number,? super java.lang.Number>!
 
             Type: PsiWildcardType
             Canonical: ? super java.lang.Number
@@ -806,7 +808,10 @@ class PsiTypePrinterTest : DriverTest() {
                 classPath.add(file)
             }
         }
+        classPath.add(getPlatformFile("android.jar"))
 
+        // TestDriver#check normally sets this for all the other tests
+        compatibility = Compatibility(false)
         val codebase = parseSources(
             sourceFiles, "test project",
             sourcePath = sourcePath, classpath = classPath
