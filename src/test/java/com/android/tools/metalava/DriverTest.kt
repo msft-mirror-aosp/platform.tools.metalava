@@ -497,9 +497,12 @@ abstract class DriverTest {
                 signatureSource?. let { sources.add(it) }
 
                 var num = 0
-                var args = mutableListOf<String>()
+                val args = mutableListOf<String>()
                 sources.forEach { file ->
-                    val signatureFile = File(project, "load-api${ if (++num == 1) "" else num }.txt")
+                    val signatureFile = File(
+                        project,
+                        "load-api${ if (++num == 1) "" else num.toString() }.txt"
+                    )
                     signatureFile.writeText(file.trimIndent())
                     args.add(signatureFile.path)
                 }
@@ -1708,8 +1711,6 @@ val libcoreNonNullSource: TestFile = java(
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface NonNull {
-       int from() default Integer.MIN_VALUE;
-       int to() default Integer.MAX_VALUE;
     }
     """
 ).indented()
@@ -1724,8 +1725,6 @@ val libcoreNullableSource: TestFile = java(
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface Nullable {
-       int from() default Integer.MIN_VALUE;
-       int to() default Integer.MAX_VALUE;
     }
     """
 ).indented()

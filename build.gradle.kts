@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -58,6 +59,7 @@ tasks.withType(KotlinCompile::class.java) {
         jvmTarget = "1.8"
         apiVersion = "1.3"
         languageVersion = "1.3"
+        allWarningsAsErrors = true
     }
 }
 
@@ -92,6 +94,13 @@ tasks.withType(ShadowJar::class.java) {
 }
 
 tasks.withType(Test::class.java) {
+    testLogging.events = hashSetOf(
+        TestLogEvent.FAILED,
+        TestLogEvent.PASSED,
+        TestLogEvent.SKIPPED,
+        TestLogEvent.STANDARD_OUT,
+        TestLogEvent.STANDARD_ERROR
+    )
     val zipTask = project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
         destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
         archiveFileName.set("metalava-tests.zip")
