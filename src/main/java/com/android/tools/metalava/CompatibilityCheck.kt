@@ -880,7 +880,7 @@ class CompatibilityCheck(
             }
 
             val message = "Aborting: Found compatibility problems checking " +
-                "the ${apiType.displayName} API against the API in ${previous.location}"
+                "the ${apiType.displayName} API (${codebase.location}) against the API in ${previous.location}"
 
             if (checker.foundProblems) {
                 throw DriverException(exitCode = -1, stderr = message)
