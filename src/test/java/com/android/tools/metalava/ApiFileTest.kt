@@ -1618,7 +1618,7 @@ class ApiFileTest : DriverTest() {
                 )
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:7: error: Method test.pkg.Foo.method1(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:8: error: Method test.pkg.Foo.method2(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Foo.Inner1: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
@@ -1673,7 +1673,7 @@ class ApiFileTest : DriverTest() {
                 nullableSource
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
@@ -2108,7 +2108,7 @@ class ApiFileTest : DriverTest() {
             ),
             // Notice how the intermediate methods (method2, method3) have been removed
             includeStrippedSuperclassWarnings = true,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
             api = """
                 package test.pkg {
                   public class MyClass extends test.pkg.PublicParent {
@@ -2150,7 +2150,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2189,7 +2189,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2228,7 +2228,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2271,7 +2271,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -3375,7 +3375,7 @@ class ApiFileTest : DriverTest() {
             // Simulate test-mock scenario for getIContentProvider
             extraArguments = arrayOf("--stub-packages", "android.test.mock"),
             compatibilityMode = false,
-            warnings = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
+            expectedIssues = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3541,7 +3541,7 @@ class ApiFileTest : DriverTest() {
                 ARG_ERROR, "ReferencesDeprecated",
                 ARG_ERROR, "ExtendsDeprecated"
             ),
-            warnings = """
+            expectedIssues = """
             src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
@@ -3688,7 +3688,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api =
             """
                 package test.pkg {
@@ -3749,7 +3749,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
             api =
             """
                 package test.pkg {
@@ -3806,7 +3806,7 @@ class ApiFileTest : DriverTest() {
                 androidxNonNullSource
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            warnings = "",
+            expectedIssues = "",
             api =
                 """
                 package test.pkg {
