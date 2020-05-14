@@ -591,4 +591,36 @@ class ShowAnnotationTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Check @PublishedApi handling`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    /**
+                    * @suppress
+                    */
+                    @PublishedApi
+                    internal class WeAreSoCool()
+                    """
+                ),
+                publishedApiSource
+            ),
+
+            extraArguments = arrayOf(
+                ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  @kotlin.PublishedApi internal final class WeAreSoCool {
+                    ctor public WeAreSoCool();
+                  }
+                }
+                """
+        )
+    }
 }
