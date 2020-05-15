@@ -122,6 +122,7 @@ interface Item {
 
     val isPublic: Boolean
     val isProtected: Boolean
+    val isInternal: Boolean
     val isPackagePrivate: Boolean
     val isPrivate: Boolean
 
@@ -355,6 +356,8 @@ interface Item {
 abstract class DefaultItem(override val sortingRank: Int = nextRank++) : Item {
     override val isPublic: Boolean get() = modifiers.isPublic()
     override val isProtected: Boolean get() = modifiers.isProtected()
+    override val isInternal: Boolean
+        get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
     override val isPackagePrivate: Boolean get() = modifiers.isPackagePrivate()
     override val isPrivate: Boolean get() = modifiers.isPrivate()
 
