@@ -31,6 +31,7 @@ import com.android.tools.lint.checks.infrastructure.LintDetectorTest
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
+import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.doclava1.ApiFile
@@ -2105,5 +2106,26 @@ val columnSource: TestFile = java(
         int value();
         boolean readOnly() default false;
     }
+    """
+).indented()
+
+val publishedApiSource: TestFile = kotlin(
+    """
+    /**
+     * When applied to a class or a member with internal visibility allows to use it from public inline functions and
+     * makes it effectively public.
+     *
+     * Public inline functions cannot use non-public API, since if they are inlined, those non-public API references
+     * would violate access restrictions at a call site (https://kotlinlang.org/docs/reference/inline-functions.html#public-inline-restrictions).
+     *
+     * To overcome this restriction an `internal` declaration can be annotated with the `@PublishedApi` annotation:
+     * - this allows to call that declaration from public inline functions;
+     * - the declaration becomes effectively public, and this should be considered with respect to binary compatibility maintaining.
+     */
+    @Target(AnnotationTarget.CLASS, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
+    @Retention(AnnotationRetention.BINARY)
+    @MustBeDocumented
+    @SinceKotlin("1.1")
+    public annotation class PublishedApi
     """
 ).indented()
