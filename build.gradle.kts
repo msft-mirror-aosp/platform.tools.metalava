@@ -225,3 +225,16 @@ tasks.register("createArchive", Zip::class.java) {
     destinationDirectory.set(getDistributionDirectory())
     dependsOn("publish${libraryName}PublicationTo${repositoryName}Repository")
 }
+
+// Workaround for https://github.com/gradle/gradle/issues/11717
+tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    doLast {
+        val metadata = outputFile.asFile.get()
+        var text = metadata.readText()
+        metadata.writeText(
+            text.replace(
+                "\"buildId\": .*".toRegex(),
+                "\"buildId:\": \"${getBuildId()}\"")
+        )
+    }
+}
