@@ -1680,7 +1680,7 @@ class DocAnalyzerTest : DriverTest() {
                  * @deprecated Use Jetpack preference library
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @Deprecated
+                @kotlin.Deprecated(message="Use Jetpack preference library", level=DeprecationLevel.ERROR)
                 public final class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 public void foo() { throw new RuntimeException("Stub!"); }
@@ -1688,15 +1688,15 @@ class DocAnalyzerTest : DriverTest() {
                  * {@inheritDoc}
                  * @deprecated Blah blah blah 1
                  */
-                @Deprecated
                 @androidx.annotation.NonNull
+                @kotlin.Deprecated(message="Blah blah blah 1", level=DeprecationLevel.ERROR)
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 /**
                  * My description
                  * @deprecated Existing deprecation message.
                  * Blah blah blah 2
                  */
-                @Deprecated
+                @kotlin.Deprecated(message="Blah blah blah 2", level=DeprecationLevel.ERROR)
                 public int hashCode() { throw new RuntimeException("Stub!"); }
                 }
                 """
