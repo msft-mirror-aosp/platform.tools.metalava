@@ -406,7 +406,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
-        val name = method.name()
+        val name = if (method.isKotlin() && method.name().contains("-")) {
+            // Kotlin renames certain methods in binary, e.g. fun foo(bar: Bar) where Bar is an
+            // inline class becomes foo-HASHCODE. We only want to consider the original name for
+            // this API lint check
+            method.name().substringBefore("-")
+        } else {
+            method.name()
+        }
         val first = name[0]
 
         when {
