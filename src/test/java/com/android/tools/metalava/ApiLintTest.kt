@@ -29,10 +29,12 @@ class ApiLintTest : DriverTest() {
                 ARG_API_LINT_IGNORE_PREFIX,
                 "android.icu.",
                 ARG_API_LINT_IGNORE_PREFIX,
-                "java."
+                "java.",
+                ARG_HIDE, "MissingNullability"
             ),
             compatibilityMode = false,
             expectedIssues = """
+                src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyStringImpl.java:3: error: Don't expose your implementation details: `MyStringImpl` ends with `Impl` [EndsWithImpl]
@@ -44,7 +46,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 """,
             expectedFail = """
-                9 new API lint issues were found.
+                10 new API lint issues were found.
                 See tools/metalava/API-LINT.md for how to handle these.
             """,
             sourceFiles = arrayOf(
@@ -146,7 +148,12 @@ class ApiLintTest : DriverTest() {
                         public void setZOrderOnTop() { }
                     }
                     """
-                )
+                ),
+                kotlin("""
+                    inline class Dp(val value: Float)
+                    fun greatCall(width: Dp)
+                    fun badCALL(width: Dp)
+                """)
             )
             /*
             expectedOutput = """
