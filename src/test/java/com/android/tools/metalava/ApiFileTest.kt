@@ -585,11 +585,11 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-//            Actual expected API is below. However, due to KT-38173 the extends information is
+//            Actual expected API is below. However, due to KT-39209 the nullability information is
 //              missing
 //            api = """
 //                // Signature format: 3.0
