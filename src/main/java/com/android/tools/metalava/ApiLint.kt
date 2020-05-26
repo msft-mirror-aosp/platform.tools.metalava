@@ -102,6 +102,7 @@ import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.doclava1.Issues.NOT_CLOSEABLE
 import com.android.tools.metalava.doclava1.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.doclava1.Issues.NO_CLONE
+import com.android.tools.metalava.doclava1.Issues.NO_SETTINGS_PROVIDER
 import com.android.tools.metalava.doclava1.Issues.ON_NAME_EXPECTED
 import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT
 import com.android.tools.metalava.doclava1.Issues.OVERLAPPING_CONSTANTS
@@ -348,6 +349,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkProtected(field)
         checkServices(field)
         checkFieldName(field)
+        checkSettingKeys(field)
     }
 
     private fun checkMethod(
@@ -1005,6 +1007,17 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 report(ALL_UPPER, field,
                         "Constant ${field.name()} must be marked static final")
             }
+        }
+    }
+
+    private fun checkSettingKeys(field: FieldItem) {
+        val className = field.containingClass().qualifiedName()
+        val modifiers = field.modifiers
+        val type = field.type()
+
+        if (modifiers.isFinal() && modifiers.isStatic() && type.isString() && className in settingsKeyClasses) {
+            report(NO_SETTINGS_PROVIDER, field,
+                "New setting keys are not allowed (Field: ${field.name()}); use getters/setters in relevant manager class")
         }
     }
 
@@ -3627,6 +3640,15 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             "android.graphics.BitmapFactory.Options",
             "android.os.Message",
             "android.system.StructPollfd"
+        )
+
+        /**
+         * Classes containing setting provider keys.
+         */
+        private val settingsKeyClasses = listOf(
+            "android.provider.Settings.Global",
+            "android.provider.Settings.Secure",
+            "android.provider.Settings.System"
         )
 
         private val badUnits = mapOf(

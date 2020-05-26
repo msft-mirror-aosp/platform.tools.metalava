@@ -3067,4 +3067,60 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `No new setting keys`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_ERROR,
+                "NoSettingsProvider"
+            ),
+            expectedIssues = """
+                src/android/provider/Settings.java:9: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+                src/android/provider/Settings.java:11: error: Bare field okay2 must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/provider/Settings.java:17: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+                src/android/provider/Settings.java:21: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+            """,
+            expectedFail = """
+                4 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.provider;
+
+                    import androidx.annotation.Nullable;
+
+                    public class Settings {
+                        private Settings() { }
+                        public static class Global {
+                            private Global() { }
+                            public static final String BAD1 = "";
+                            public final String okay1 = "";
+                            @Nullable
+                            public static String okay2 = "";
+                            public static final int OKAY3 = 0;
+                        }
+                        public static class Secure {
+                            private Secure() { }
+                            public static final String BAD1 = "";
+                        }
+                        public static class System {
+                            private System() { }
+                            public static final String BAD1 = "";
+                        }
+                        public static class Other {
+                            private Other() { }
+                            public static final String OKAY1 = "";
+                        }
+                    }
+                    """
+                ),
+                androidxNullableSource
+            )
+        )
+    }
 }
