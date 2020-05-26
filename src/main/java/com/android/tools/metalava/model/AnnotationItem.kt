@@ -389,7 +389,10 @@ interface AnnotationItem {
             if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
         /** The applicable targets for this annotation */
-        fun computeTargets(annotation: AnnotationItem, codebase: Codebase): Set<AnnotationTarget> {
+        fun computeTargets(
+            annotation: AnnotationItem,
+            classFinder: (String) -> ClassItem?
+        ): Set<AnnotationTarget> {
             val qualifiedName = annotation.qualifiedName() ?: return NO_ANNOTATION_TARGETS
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return ANNOTATION_IN_ALL_STUBS
@@ -413,7 +416,8 @@ interface AnnotationItem {
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
                 "java.lang.annotation.Native",
                 "java.lang.SuppressWarnings",
-                "java.lang.Override" -> return NO_ANNOTATION_TARGETS
+                "java.lang.Override",
+                "kotlin.Suppress" -> return NO_ANNOTATION_TARGETS
 
                 "java.lang.Deprecated", // tracked separately as a pseudo-modifier
 
@@ -440,6 +444,9 @@ interface AnnotationItem {
                 "java.lang.annotation.Repeatable",
                 "java.lang.annotation.Retention",
                 "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
+
+                // Metalava already tracks all the methods that get generated due to this annotation.
+                "kotlin.jvm.JvmOverloads" -> return NO_ANNOTATION_TARGETS
             }
 
             // @android.annotation.Nullable and NonNullable specially recognized annotations by the Kotlin
@@ -489,7 +496,7 @@ interface AnnotationItem {
             }
 
             // See if the annotation is pointing to an annotation class that is part of the API; if not, skip it.
-            val cls = codebase.findClass(qualifiedName) ?: return NO_ANNOTATION_TARGETS
+            val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
             if (!ApiPredicate().test(cls)) {
                 if (options.typedefMode != Options.TypedefMode.NONE) {
                     if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
@@ -593,11 +600,13 @@ interface AnnotationItem {
 
 /** Default implementation of an annotation item */
 abstract class DefaultAnnotationItem(override val codebase: Codebase) : AnnotationItem {
-    private var targets: Set<AnnotationTarget>? = null
+    protected var targets: Set<AnnotationTarget>? = null
 
     override fun targets(): Set<AnnotationTarget> {
         if (targets == null) {
-            targets = AnnotationItem.computeTargets(this, codebase)
+            targets = AnnotationItem.computeTargets(this) { className ->
+                codebase.findClass(className)
+            }
         }
         return targets!!
     }
