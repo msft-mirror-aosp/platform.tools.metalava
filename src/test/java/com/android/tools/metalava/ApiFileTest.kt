@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -4040,6 +4041,79 @@ class ApiFileTest : DriverTest() {
             signatureSources = arrayOf(source1, source2),
             expectedFail = "Unable to parse signature file: Cannot merge different formats of signature files. " +
                 "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
+        )
+    }
+
+    @Test
+    fun `Test tracking of @Composable annotation from classpath`() {
+        check(
+            format = FileFormat.V3,
+            classpath = arrayOf(
+                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip:
+                    package test.pkg
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.TYPE,
+                        AnnotationTarget.TYPE_PARAMETER,
+                        AnnotationTarget.PROPERTY
+                    )
+                    annotation class Composable
+                 */
+                base64gzip(
+                    "test.jar", "" +
+                        "UEsDBAoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAZ3qzULJ/" +
+                        "Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM+zUjDUM+Dl" +
+                        "4uUCAFBLAwQKAAAICABnerNQDArdZgwAAAAQAAAAGwAAAE1FVEEtSU5GL3RlbXAua290bGluX21v" +
+                        "ZHVsZWNgYGBmYGBghGIBAFBLAwQKAAAICABnerNQAAAAAAIAAAAAAAAABQAAAHRlc3QvAwBQSwME" +
+                        "CgAACAgAZ3qzUAAAAAACAAAAAAAAAAkAAAB0ZXN0L3BrZy8DAFBLAwQKAAAICABnerNQbrgjGPQB" +
+                        "AACVAwAAGQAAAHRlc3QvcGtnL0NvbXBvc2FibGUuY2xhc3OFUk1v2kAQfWtioG6TkKRpSdI0H01I" +
+                        "P6S65doTEEdF4kvGrRRxqBZYIQdjo+xClRu3Xvsz+ht6qFCO/VFVZ4kCVLJU2Xo7O/PGM/M8v//8" +
+                        "/AUgjzcMW0pIZQ/7PbsUDYaR5O1ApMAYMld8zO2Ahz273r4SHZVCguFg4eVhGCmu/Ci0C3MzBZPh" +
+                        "pNKPVOCHy5TqSKqiOI86o4EIleh+YNiPoblCUZgsiptjHowEw1kMb1FxOSNZLNcK7iXDbkyKx697" +
+                        "QhFrjQdB9FV07xwyvt9FgXmeWaoUmk2G9MWnWskr12sMK95lw6Ev6uNLo+AWqo7nuERpuPWG43rU" +
+                        "ylElVrJ/lDiM5yyPlvsPpREFfudmpmoscT7FcXzcCYRux7sZCi0kzfGxfs6wcS9NVSje5YpT0BiM" +
+                        "E7Q+TEOGru3ZFRpoQ1ifXN33NNR0YllG1rCMzJ41naRvvxnZ6SRvvGPF6eT2R9LQvDzDdiVmBakM" +
+                        "SF4lBkOG1YX/bV8xWM1odN0RF35A27HjjkiAgfjsS58Ii/8mc1QAK/SZpG6P7FczfInXdH5Hih4g" +
+                        "TfEHAhYe4hGZqy2YAmtY15DRsKFhU8MWHlPC9l3CE6zjqTZbMASympbFDnZhYq+FRBnPZu8+nt/f" +
+                        "Dso4xBGZOG6BSbzACYUkTiVyEmd/AVBLAQIUAwoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAAAAAA" +
+                        "AAAAEADtQQAAAABNRVRBLUlORi9QSwECFAMKAAAICABnerNQsn8C7hsAAAAZAAAAFAAAAAAAAAAA" +
+                        "AAAApIEpAAAATUVUQS1JTkYvTUFOSUZFU1QuTUZQSwECFAMKAAAICABnerNQDArdZgwAAAAQAAAA" +
+                        "GwAAAAAAAAAAAAAAoIF2AAAATUVUQS1JTkYvdGVtcC5rb3RsaW5fbW9kdWxlUEsBAhQDCgAACAgA" +
+                        "Z3qzUAAAAAACAAAAAAAAAAUAAAAAAAAAAAAQAOhBuwAAAHRlc3QvUEsBAhQDCgAACAgAZ3qzUAAA" +
+                        "AAACAAAAAAAAAAkAAAAAAAAAAAAQAOhB4AAAAHRlc3QvcGtnL1BLAQIUAwoAAAgIAGd6s1BuuCMY" +
+                        "9AEAAJUDAAAZAAAAAAAAAAAAAACggQkBAAB0ZXN0L3BrZy9Db21wb3NhYmxlLmNsYXNzUEsFBgAA" +
+                        "AAAGAAYAcwEAADQDAAAAAA=="
+                )
+            ),
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class RadioGroupScope() {
+                        @Composable
+                        fun RadioGroupItem(
+                            selected: Boolean,
+                            onSelect: () -> Unit,
+                            content: @Composable () -> Unit
+                        ) { }
+                    }
+                """
+                )
+            ),
+            expectedIssues = "",
+            api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class RadioGroupScope {
+                    ctor public RadioGroupScope();
+                    method @test.pkg.Composable public void RadioGroupItem(boolean selected, kotlin.jvm.functions.Function0<kotlin.Unit> onSelect, kotlin.jvm.functions.Function0<kotlin.Unit> content);
+                  }
+                }
+            """
         )
     }
 }
