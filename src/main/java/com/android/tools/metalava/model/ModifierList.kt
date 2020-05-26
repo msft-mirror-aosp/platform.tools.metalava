@@ -24,6 +24,7 @@ import com.android.tools.metalava.DocLevel.PROTECTED
 import com.android.tools.metalava.DocLevel.PUBLIC
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.compatibility
+import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
 import java.io.Writer
 
@@ -467,7 +468,8 @@ interface ModifierList {
             // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
             if (item.deprecated &&
                 (compatibility.deprecatedAsAnnotation || target.isStubsFile()) &&
-                (runtimeAnnotationsOnly || includeDeprecated)
+                (runtimeAnnotationsOnly || includeDeprecated) &&
+                (item !is PsiItem || !item.isKotlin()) // Kotlin has its own Deprecation annotation
             ) {
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")

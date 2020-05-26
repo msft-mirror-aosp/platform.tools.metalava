@@ -102,6 +102,15 @@ class PsiAnnotationItem private constructor(
         return attributes!!
     }
 
+    override fun targets(): Set<AnnotationTarget> {
+        if (targets == null) {
+            targets = AnnotationItem.computeTargets(this) { className ->
+                codebase.findOrCreateClass(className)
+            }
+        }
+        return targets!!
+    }
+
     companion object {
         fun create(codebase: PsiBasedCodebase, psiAnnotation: PsiAnnotation, qualifiedName: String? = psiAnnotation.qualifiedName): PsiAnnotationItem {
             return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
