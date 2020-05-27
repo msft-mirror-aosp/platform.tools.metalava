@@ -1357,7 +1357,7 @@ class StubsTest : DriverTest() {
                     public void setProperty2(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                     @android.annotation.NonNull
                     public java.lang.String getProperty1() { throw new RuntimeException("Stub!"); }
-                    @kotlin.jvm.JvmField public int someField2;
+                    public int someField2;
                     }
                 """
         )
