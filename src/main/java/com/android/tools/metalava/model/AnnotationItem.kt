@@ -445,8 +445,11 @@ interface AnnotationItem {
                 "java.lang.annotation.Retention",
                 "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
 
-                // Metalava already tracks all the methods that get generated due to this annotation.
-                "kotlin.jvm.JvmOverloads" -> return NO_ANNOTATION_TARGETS
+                // Metalava already tracks all the methods that get generated due to these annotations.
+                "kotlin.jvm.JvmOverloads",
+                "kotlin.jvm.JvmField",
+                "kotlin.jvm.JvmStatic",
+                "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
             }
 
             // @android.annotation.Nullable and NonNullable specially recognized annotations by the Kotlin
