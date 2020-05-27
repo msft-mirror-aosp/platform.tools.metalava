@@ -283,6 +283,14 @@ Diffs and Checks:
                                              some warnings have been fixed, this will delete them from the baseline
                                              files. If a file is provided, the updated baseline is written to the given
                                              file; otherwise the original source baseline file is updated.
+--baseline:api-lint <file> --update-baseline:api-lint [file]
+                                             Same as --baseline and --update-baseline respectively, but used
+                                             specifically for API lint issues performed by --api-lint.
+--baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
+                                             Same as --baseline and --update-baseline respectively, but used
+                                             specifically for API compatibility issues performed by
+                                             --check-compatibility:api:released and
+                                             --check-compatibility:removed:released.
 --merge-baseline [file]                      
                                              Like --update-baseline, but instead of always replacing entries in the
                                              baseline, it will merge the existing baseline with the new baseline. This
@@ -296,6 +304,16 @@ Diffs and Checks:
 --delete-empty-baselines                     
                                              Whether to delete baseline files if they are updated and there is nothing
                                              to include.
+--error-message:api-lint <message>           
+                                             If set, metalava shows it when errors are detected in --api-lint.
+--error-message:compatibility:released <message>
+                                             If set, metalava shows it  when errors are detected in
+                                             --check-compatibility:api:released and
+                                             --check-compatibility:removed:released.
+--error-message:compatibility:current <message>
+                                             If set, metalava shows it  when errors are detected in
+                                             --check-compatibility:api:current and
+                                             --check-compatibility:removed:current.
 
 
 JDiff:
@@ -487,7 +505,7 @@ $FLAGS
     fun `Test issue severity options by numeric id`() {
         check(
             extraArguments = arrayOf("--hide", "366"),
-            warnings = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
+            expectedIssues = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -496,7 +514,7 @@ $FLAGS
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            warnings = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }

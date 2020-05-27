@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -585,11 +586,11 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-//            Actual expected API is below. However, due to KT-38173 the extends information is
+//            Actual expected API is below. However, due to KT-39209 the nullability information is
 //              missing
 //            api = """
 //                // Signature format: 3.0
@@ -1618,7 +1619,7 @@ class ApiFileTest : DriverTest() {
                 )
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:7: error: Method test.pkg.Foo.method1(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:8: error: Method test.pkg.Foo.method2(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Foo.Inner1: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
@@ -1673,7 +1674,7 @@ class ApiFileTest : DriverTest() {
                 nullableSource
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
@@ -2108,7 +2109,7 @@ class ApiFileTest : DriverTest() {
             ),
             // Notice how the intermediate methods (method2, method3) have been removed
             includeStrippedSuperclassWarnings = true,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
             api = """
                 package test.pkg {
                   public class MyClass extends test.pkg.PublicParent {
@@ -2150,7 +2151,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2189,7 +2190,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2228,7 +2229,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2271,7 +2272,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -3375,7 +3376,7 @@ class ApiFileTest : DriverTest() {
             // Simulate test-mock scenario for getIContentProvider
             extraArguments = arrayOf("--stub-packages", "android.test.mock"),
             compatibilityMode = false,
-            warnings = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
+            expectedIssues = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3541,7 +3542,7 @@ class ApiFileTest : DriverTest() {
                 ARG_ERROR, "ReferencesDeprecated",
                 ARG_ERROR, "ExtendsDeprecated"
             ),
-            warnings = """
+            expectedIssues = """
             src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
@@ -3688,7 +3689,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api =
             """
                 package test.pkg {
@@ -3749,7 +3750,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
             api =
             """
                 package test.pkg {
@@ -3806,7 +3807,7 @@ class ApiFileTest : DriverTest() {
                 androidxNonNullSource
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            warnings = "",
+            expectedIssues = "",
             api =
                 """
                 package test.pkg {
@@ -4040,6 +4041,79 @@ class ApiFileTest : DriverTest() {
             signatureSources = arrayOf(source1, source2),
             expectedFail = "Unable to parse signature file: Cannot merge different formats of signature files. " +
                 "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
+        )
+    }
+
+    @Test
+    fun `Test tracking of @Composable annotation from classpath`() {
+        check(
+            format = FileFormat.V3,
+            classpath = arrayOf(
+                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip:
+                    package test.pkg
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.TYPE,
+                        AnnotationTarget.TYPE_PARAMETER,
+                        AnnotationTarget.PROPERTY
+                    )
+                    annotation class Composable
+                 */
+                base64gzip(
+                    "test.jar", "" +
+                        "UEsDBAoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAZ3qzULJ/" +
+                        "Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM+zUjDUM+Dl" +
+                        "4uUCAFBLAwQKAAAICABnerNQDArdZgwAAAAQAAAAGwAAAE1FVEEtSU5GL3RlbXAua290bGluX21v" +
+                        "ZHVsZWNgYGBmYGBghGIBAFBLAwQKAAAICABnerNQAAAAAAIAAAAAAAAABQAAAHRlc3QvAwBQSwME" +
+                        "CgAACAgAZ3qzUAAAAAACAAAAAAAAAAkAAAB0ZXN0L3BrZy8DAFBLAwQKAAAICABnerNQbrgjGPQB" +
+                        "AACVAwAAGQAAAHRlc3QvcGtnL0NvbXBvc2FibGUuY2xhc3OFUk1v2kAQfWtioG6TkKRpSdI0H01I" +
+                        "P6S65doTEEdF4kvGrRRxqBZYIQdjo+xClRu3Xvsz+ht6qFCO/VFVZ4kCVLJU2Xo7O/PGM/M8v//8" +
+                        "/AUgjzcMW0pIZQ/7PbsUDYaR5O1ApMAYMld8zO2Ahz273r4SHZVCguFg4eVhGCmu/Ci0C3MzBZPh" +
+                        "pNKPVOCHy5TqSKqiOI86o4EIleh+YNiPoblCUZgsiptjHowEw1kMb1FxOSNZLNcK7iXDbkyKx697" +
+                        "QhFrjQdB9FV07xwyvt9FgXmeWaoUmk2G9MWnWskr12sMK95lw6Ev6uNLo+AWqo7nuERpuPWG43rU" +
+                        "ylElVrJ/lDiM5yyPlvsPpREFfudmpmoscT7FcXzcCYRux7sZCi0kzfGxfs6wcS9NVSje5YpT0BiM" +
+                        "E7Q+TEOGru3ZFRpoQ1ifXN33NNR0YllG1rCMzJ41naRvvxnZ6SRvvGPF6eT2R9LQvDzDdiVmBakM" +
+                        "SF4lBkOG1YX/bV8xWM1odN0RF35A27HjjkiAgfjsS58Ii/8mc1QAK/SZpG6P7FczfInXdH5Hih4g" +
+                        "TfEHAhYe4hGZqy2YAmtY15DRsKFhU8MWHlPC9l3CE6zjqTZbMASympbFDnZhYq+FRBnPZu8+nt/f" +
+                        "Dso4xBGZOG6BSbzACYUkTiVyEmd/AVBLAQIUAwoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAAAAAA" +
+                        "AAAAEADtQQAAAABNRVRBLUlORi9QSwECFAMKAAAICABnerNQsn8C7hsAAAAZAAAAFAAAAAAAAAAA" +
+                        "AAAApIEpAAAATUVUQS1JTkYvTUFOSUZFU1QuTUZQSwECFAMKAAAICABnerNQDArdZgwAAAAQAAAA" +
+                        "GwAAAAAAAAAAAAAAoIF2AAAATUVUQS1JTkYvdGVtcC5rb3RsaW5fbW9kdWxlUEsBAhQDCgAACAgA" +
+                        "Z3qzUAAAAAACAAAAAAAAAAUAAAAAAAAAAAAQAOhBuwAAAHRlc3QvUEsBAhQDCgAACAgAZ3qzUAAA" +
+                        "AAACAAAAAAAAAAkAAAAAAAAAAAAQAOhB4AAAAHRlc3QvcGtnL1BLAQIUAwoAAAgIAGd6s1BuuCMY" +
+                        "9AEAAJUDAAAZAAAAAAAAAAAAAACggQkBAAB0ZXN0L3BrZy9Db21wb3NhYmxlLmNsYXNzUEsFBgAA" +
+                        "AAAGAAYAcwEAADQDAAAAAA=="
+                )
+            ),
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class RadioGroupScope() {
+                        @Composable
+                        fun RadioGroupItem(
+                            selected: Boolean,
+                            onSelect: () -> Unit,
+                            content: @Composable () -> Unit
+                        ) { }
+                    }
+                """
+                )
+            ),
+            expectedIssues = "",
+            api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class RadioGroupScope {
+                    ctor public RadioGroupScope();
+                    method @test.pkg.Composable public void RadioGroupItem(boolean selected, kotlin.jvm.functions.Function0<kotlin.Unit> onSelect, kotlin.jvm.functions.Function0<kotlin.Unit> content);
+                  }
+                }
+            """
         )
     }
 }

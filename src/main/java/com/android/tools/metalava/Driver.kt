@@ -97,11 +97,10 @@ fun run(
     stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     setExitCode: Boolean = false
 ): Boolean {
-    var exitValue: Boolean
     var exitCode = 0
 
     try {
-        var modifiedArgs = preprocessArgv(originalArgs)
+        val modifiedArgs = preprocessArgv(originalArgs)
 
         progress("$PROGRAM_NAME started\n")
 
@@ -114,10 +113,9 @@ fun run(
 
         processFlags()
 
-        if (reporter.hasErrors() && !options.passBaselineUpdates) {
+        if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             exitCode = -1
         }
-        exitValue = true
     } catch (e: DriverException) {
         stdout.flush()
         stderr.flush()
@@ -128,21 +126,28 @@ fun run(
             stdout.println("\n${e.stdout}")
         }
         exitCode = e.exitCode
-        exitValue = false
     } finally {
         disposeUastEnvironment()
     }
 
-    if (options.updateBaseline) {
+    // Update and close all baseline files.
+    options.allBaselines.forEach { baseline ->
         if (options.verbose) {
-            options.baseline?.dumpStats(options.stdout)
+            baseline.dumpStats(options.stdout)
         }
-        if (!options.quiet) {
-            stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.updateFile}")
+        if (baseline.close()) {
+            if (!options.quiet) {
+                stdout.println("$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}")
+            }
         }
     }
-    options.baseline?.close()
+
     options.reportEvenIfSuppressedWriter?.close()
+
+    // Show failure messages, if any.
+    options.allReporters.forEach {
+        it.writeErrorMessage(stderr)
+    }
 
     stdout.flush()
     stderr.flush()
@@ -151,7 +156,7 @@ fun run(
         exit(exitCode)
     }
 
-    return exitValue
+    return exitCode == 0
 }
 
 private fun exit(exitCode: Int = 0) {
@@ -794,8 +799,10 @@ private fun loadFromSources(): Codebase {
     options.nullabilityAnnotationsValidator?.report()
     analyzer.handleStripping()
 
+    val apiLintReporter = options.reporterApiLint
+
     if (options.checkKotlinInterop) {
-        KotlinInteropChecks().check(codebase)
+        KotlinInteropChecks(apiLintReporter).check(codebase)
     }
 
     // General API checks for Android APIs
@@ -815,8 +822,8 @@ private fun loadFromSources(): Codebase {
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
             }
-        ApiLint.check(codebase, previous)
-        progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds")
+        ApiLint.check(codebase, previous, apiLintReporter)
+        progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}")
     }
 
     // Compute default constructors (and add missing package private constructors

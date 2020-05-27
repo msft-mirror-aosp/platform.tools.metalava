@@ -134,7 +134,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            warnings = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
+            expectedIssues = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
             stubs = arrayOf(
                 """
                 package test.pkg;
@@ -210,7 +210,7 @@ class DocAnalyzerTest : DriverTest() {
                 requiresPermissionSource
             ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            warnings = "src/test/pkg/PermissionTest.java:31: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]",
+            expectedIssues = "src/test/pkg/PermissionTest.java:31: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]",
             stubs = arrayOf(
                 """
                 package test.pkg;
@@ -421,7 +421,7 @@ class DocAnalyzerTest : DriverTest() {
                 workerThreadSource
             ),
             checkCompilation = true,
-            warnings = "src/test/pkg/RangeTest.java:5: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
             stubs = arrayOf(
                 """
@@ -448,7 +448,7 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Merge Multiple sections`() {
         check(
-            warnings = "src/android/widget/Toolbar2.java:14: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedIssues = "src/android/widget/Toolbar2.java:14: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -706,7 +706,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            warnings = "src/test/pkg/RangeTest.java:4: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+            expectedIssues = "src/test/pkg/RangeTest.java:4: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubs = arrayOf(
                 """
                 package test.pkg;
@@ -1680,7 +1680,7 @@ class DocAnalyzerTest : DriverTest() {
                  * @deprecated Use Jetpack preference library
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @Deprecated
+                @kotlin.Deprecated(message="Use Jetpack preference library", level=DeprecationLevel.ERROR)
                 public final class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 public void foo() { throw new RuntimeException("Stub!"); }
@@ -1688,15 +1688,15 @@ class DocAnalyzerTest : DriverTest() {
                  * {@inheritDoc}
                  * @deprecated Blah blah blah 1
                  */
-                @Deprecated
                 @androidx.annotation.NonNull
+                @kotlin.Deprecated(message="Blah blah blah 1", level=DeprecationLevel.ERROR)
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 /**
                  * My description
                  * @deprecated Existing deprecation message.
                  * Blah blah blah 2
                  */
-                @Deprecated
+                @kotlin.Deprecated(message="Blah blah blah 2", level=DeprecationLevel.ERROR)
                 public int hashCode() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -1805,7 +1805,7 @@ class DocAnalyzerTest : DriverTest() {
                 )
             ),
             checkCompilation = true,
-            warnings = null, // be unopinionated about whether there should be warnings
+            expectedIssues = null, // be unopinionated about whether there should be warnings
             docStubs = true,
             stubs = arrayOf(
                     """
@@ -2055,7 +2055,7 @@ class DocAnalyzerTest : DriverTest() {
                 columnSource
             ),
             checkCompilation = true,
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
             docStubs = true,

@@ -101,6 +101,15 @@ class UAnnotationItem private constructor(
         return attributes!!
     }
 
+    override fun targets(): Set<AnnotationTarget> {
+        if (targets == null) {
+            targets = AnnotationItem.computeTargets(this) { className ->
+                codebase.findOrCreateClass(className)
+            }
+        }
+        return targets!!
+    }
+
     companion object {
         fun create(codebase: PsiBasedCodebase, uAnnotation: UAnnotation, qualifiedName: String? = uAnnotation.qualifiedName): UAnnotationItem {
             return UAnnotationItem(codebase, uAnnotation, qualifiedName)

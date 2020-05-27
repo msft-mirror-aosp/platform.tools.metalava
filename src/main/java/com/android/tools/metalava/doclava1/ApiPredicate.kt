@@ -62,7 +62,7 @@ class ApiPredicate(
             return false
         }
 
-        var visible = member.isPublic || member.isProtected // TODO: Should this use checkLevel instead?
+        var visible = member.isPublic || member.isProtected || (member.isInternal && member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
         var hidden = member.hidden
         if (!visible || hidden) {
             return false
@@ -88,7 +88,9 @@ class ApiPredicate(
             }
         }
         while (clazz != null) {
-            visible = visible and (clazz.isPublic || clazz.isProtected)
+            visible = visible and (clazz.isPublic || clazz.isProtected ||
+                (clazz.isInternal && clazz.hasShowAnnotation())
+                )
             hasShowAnnotation = hasShowAnnotation or (ignoreShown || clazz.hasShowAnnotation())
             hidden = hidden or clazz.hidden
             docOnly = docOnly or clazz.docOnly
