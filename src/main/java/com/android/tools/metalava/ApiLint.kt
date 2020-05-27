@@ -1378,6 +1378,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
         val expectedGetters = mutableListOf<Pair<Item, String>>()
         var builtType: TypeItem? = null
+        val clsType = cls.toType().toTypeString()
 
         for (method in methods) {
             val name = method.name()
@@ -1391,10 +1392,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 )
             } else if (name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")) {
                 val returnType = method.returnType()?.toTypeString() ?: ""
-                if (returnType != cls.toType().toTypeString()) {
+                val returnTypeBounds = method.returnType()?.asTypeParameter(context = method)?.bounds()?.map {
+                    it.toType().toTypeString()
+                } ?: listOf()
+
+                if (returnType != clsType && !returnTypeBounds.contains(clsType)) {
                     report(
                         SETTER_RETURNS_THIS, method,
-                        "Methods must return the builder object (return type ${cls.toType().toTypeString()} instead of $returnType): ${method.describe()}"
+                        "Methods must return the builder object (return type $clsType instead of $returnType): ${method.describe()}"
                     )
                 }
                 if (method.modifiers.isNullable()) {
