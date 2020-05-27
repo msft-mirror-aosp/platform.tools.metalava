@@ -1102,17 +1102,18 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/Bad.java:11: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:11: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:12: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorAgrument]
-                src/android/pkg/Bad.java:23: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
-                src/android/pkg/Bad.java:26: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
-                src/android/pkg/Bad.java:29: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
-                src/android/pkg/Bad.java:31: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
-                src/android/pkg/Bad.java:17: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:20: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:31: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:37: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+                src/android/pkg/Bad.java:12: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:12: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:13: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorAgrument]
+                src/android/pkg/Bad.java:24: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
+                src/android/pkg/Bad.java:27: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:30: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
+                src/android/pkg/Bad.java:32: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:18: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:21: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:32: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:43: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:38: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 """,
@@ -1135,30 +1136,30 @@ class ApiLintTest : DriverTest() {
                     public class Ok {
 
                         public int getInt();
-                        @NonNull 
+                        @NonNull
                         public List<String> getStrings();
                         public boolean isBoolean();
                         public boolean hasBoolean2();
                         public boolean shouldBoolean3();
-                    
+
                         public static final class OkBuilder {
                             public OkBuilder(@NonNull String goodParameter, int goodParameter2) {}
-                        
+
                             @NonNull
                             public Ok build() { return null; }
-                            
+
                             @NonNull
                             public OkBuilder setInt(int value) { return this; }
-                            
+
                             @NonNull
                             public OkBuilder addString(@NonNull String value) { return this; }
 
                             @NonNull
                             public OkBuilder clearStrings() { return this; }
-                            
+
                             @NonNull
                             public OkBuilder setBoolean(boolean v) { return this; }
-                            
+
                             @NonNull
                             public OkBuilder setHasBoolean2(boolean v) { return this; }
 
@@ -1170,6 +1171,14 @@ class ApiLintTest : DriverTest() {
 
                             @NonNull
                             public OkBuilder clearAll() { return this; }
+                        }
+
+                        public static final class GenericBuilder<B extends GenericBuilder> {
+                            @NonNull
+                            public B setBoolean(boolean value) { return this; }
+
+                            @NonNull
+                            public Ok build() { return null; }
                         }
                     }
                     """
@@ -1183,37 +1192,46 @@ class ApiLintTest : DriverTest() {
 
                     public class Bad {
 
+                        public boolean isBoolean();
                         public boolean getWithoutMatchingGetter();
                         public boolean isReturnsNullable();
-                        
+
                         public class BadBuilder {
-                            public BadBuilder(@Nullable String badParameter) {}                        
-                        
-                            @NonNull
-                            public Bad build() { return null; }
-                            
-                            @NonNull
-                            public BadBuilder addWithoutMatchingGetter(@NonNull String value) { return this; }
-                            
-                            @NonNull
-                            public BadBuilder setWithoutMatchingGetter(boolean v) { return this; }                                                        
-                            
-                            @NonNull
-                            public BadBuilder withBadSetterStyle(boolean v) { return this; }
-                                                                                    
-                            @Nullable
-                            public BadBuilder setReturnsNullable(boolean v) { return this; }
-                                                                                    
-                            public boolean getOnBuilder() { return true; }
-                                                                                    
-                            public void setNotReturningBuilder(boolean v) { return this; } 
+                            public BadBuilder(@Nullable String badParameter) {}
 
                             @NonNull
-                            public BadBuilder () { return this; }                                                        
+                            public Bad build() { return null; }
+
+                            @NonNull
+                            public BadBuilder addWithoutMatchingGetter(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public BadBuilder setWithoutMatchingGetter(boolean v) { return this; }
+
+                            @NonNull
+                            public BadBuilder withBadSetterStyle(boolean v) { return this; }
+
+                            @Nullable
+                            public BadBuilder setReturnsNullable(boolean v) { return this; }
+
+                            public boolean getOnBuilder() { return true; }
+
+                            public void setNotReturningBuilder(boolean v) { return this; }
+
+                            @NonNull
+                            public BadBuilder () { return this; }
                         }
-                        
+
                         public static final class NoBuildMethodBuilder {
                             public NoBuildMethodBuilder() {}
+                        }
+
+                        public static final class BadGenericBuilder<T extends Bad> {
+                            @NonNull
+                            public T setBoolean(boolean value) { return this; }
+
+                            @NonNull
+                            public Bad build() { return null; }
                         }
                     }
                     """
