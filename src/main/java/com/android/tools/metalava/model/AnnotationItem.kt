@@ -419,6 +419,8 @@ interface AnnotationItem {
                 "java.lang.Override",
                 "kotlin.Suppress" -> return NO_ANNOTATION_TARGETS
 
+                // TODO(aurimas): consider using annotation directly instead of modifiers
+                "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
                 "java.lang.Deprecated", // tracked separately as a pseudo-modifier
 
                 // Below this when-statement we perform the correct lookup: check API predicate, and check
