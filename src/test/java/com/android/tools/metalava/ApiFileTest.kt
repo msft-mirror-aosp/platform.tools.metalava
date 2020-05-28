@@ -586,11 +586,11 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-//            Actual expected API is below. However, due to KT-38173 the extends information is
+//            Actual expected API is below. However, due to KT-39209 the nullability information is
 //              missing
 //            api = """
 //                // Signature format: 3.0
@@ -964,6 +964,111 @@ class ApiFileTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `Test JvmStatic`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        companion object {
+                            @JvmStatic
+                            fun jvmStaticMethod() {}
+                            
+                            fun nonJvmStaticMethod() {}
+                        }
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public static void jvmStaticMethod();
+                    field public static final test.pkg.SimpleClass.Companion! Companion;
+                  }
+                  public static final class SimpleClass.Companion {
+                    method public void jvmStaticMethod();
+                    method public void nonJvmStaticMethod();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test JvmField`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        @JvmField
+                        var jvmField = -1
+
+                        var nonJvmField = -2
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public int getNonJvmField();
+                    method public void setNonJvmField(int p);
+                    property public final int nonJvmField;
+                    field public int jvmField;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test JvmName`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        @get:JvmName("myPropertyJvmGetter")
+                        var myProperty = -1
+                        
+                        var anotherProperty = -1
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public int getAnotherProperty();
+                    method public int myPropertyJvmGetter();
+                    method public void setAnotherProperty(int p);
+                    method public void setMyProperty(int p);
+                    property public final int anotherProperty;
+                    property public final int myProperty;
+                  }
+                }
+            """
         )
     }
 
