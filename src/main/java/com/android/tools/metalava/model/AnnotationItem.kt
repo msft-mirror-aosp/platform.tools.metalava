@@ -417,7 +417,8 @@ interface AnnotationItem {
                 "java.lang.annotation.Native",
                 "java.lang.SuppressWarnings",
                 "java.lang.Override",
-                "kotlin.Suppress" -> return NO_ANNOTATION_TARGETS
+                "kotlin.Suppress",
+                "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
                 // TODO(aurimas): consider using annotation directly instead of modifiers
                 "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier

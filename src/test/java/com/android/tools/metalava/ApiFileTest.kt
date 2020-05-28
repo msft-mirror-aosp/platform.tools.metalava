@@ -1073,6 +1073,49 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test RequiresOptIn and OptIn`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    
+                    @RequiresOptIn
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+                    annotation class ExperimentalBar
+
+                    @ExperimentalBar
+                    class FancyBar
+
+                    @OptIn(FancyBar::class) // @OptIn should not be tracked as it is not API
+                    class SimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Extract class with generics`() {
         // Basic interface with generics; makes sure <T extends Object> is written as just <T>
         // Also include some more complex generics expressions to make sure they're serialized
