@@ -968,6 +968,154 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test JvmStatic`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        companion object {
+                            @JvmStatic
+                            fun jvmStaticMethod() {}
+                            
+                            fun nonJvmStaticMethod() {}
+                        }
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public static void jvmStaticMethod();
+                    field public static final test.pkg.SimpleClass.Companion! Companion;
+                  }
+                  public static final class SimpleClass.Companion {
+                    method public void jvmStaticMethod();
+                    method public void nonJvmStaticMethod();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test JvmField`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        @JvmField
+                        var jvmField = -1
+
+                        var nonJvmField = -2
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public int getNonJvmField();
+                    method public void setNonJvmField(int p);
+                    property public final int nonJvmField;
+                    field public int jvmField;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test JvmName`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        @get:JvmName("myPropertyJvmGetter")
+                        var myProperty = -1
+                        
+                        var anotherProperty = -1
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public int getAnotherProperty();
+                    method public int myPropertyJvmGetter();
+                    method public void setAnotherProperty(int p);
+                    method public void setMyProperty(int p);
+                    property public final int anotherProperty;
+                    property public final int myProperty;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test RequiresOptIn and OptIn`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    
+                    @RequiresOptIn
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+                    annotation class ExperimentalBar
+
+                    @ExperimentalBar
+                    class FancyBar
+
+                    @OptIn(FancyBar::class) // @OptIn should not be tracked as it is not API
+                    class SimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Extract class with generics`() {
         // Basic interface with generics; makes sure <T extends Object> is written as just <T>
         // Also include some more complex generics expressions to make sure they're serialized

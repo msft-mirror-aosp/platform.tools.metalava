@@ -417,8 +417,11 @@ interface AnnotationItem {
                 "java.lang.annotation.Native",
                 "java.lang.SuppressWarnings",
                 "java.lang.Override",
-                "kotlin.Suppress" -> return NO_ANNOTATION_TARGETS
+                "kotlin.Suppress",
+                "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
+                // TODO(aurimas): consider using annotation directly instead of modifiers
+                "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
                 "java.lang.Deprecated", // tracked separately as a pseudo-modifier
 
                 // Below this when-statement we perform the correct lookup: check API predicate, and check
@@ -445,8 +448,11 @@ interface AnnotationItem {
                 "java.lang.annotation.Retention",
                 "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
 
-                // Metalava already tracks all the methods that get generated due to this annotation.
-                "kotlin.jvm.JvmOverloads" -> return NO_ANNOTATION_TARGETS
+                // Metalava already tracks all the methods that get generated due to these annotations.
+                "kotlin.jvm.JvmOverloads",
+                "kotlin.jvm.JvmField",
+                "kotlin.jvm.JvmStatic",
+                "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
             }
 
             // @android.annotation.Nullable and NonNullable specially recognized annotations by the Kotlin
