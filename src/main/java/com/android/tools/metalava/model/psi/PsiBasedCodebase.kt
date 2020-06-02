@@ -167,12 +167,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             } else {
                 for (psiClass in classes) {
                     psiClass.accept(object : JavaRecursiveElementVisitor() {
-                        override fun visitErrorElement(element: PsiErrorElement?) {
+                        override fun visitErrorElement(element: PsiErrorElement) {
                             super.visitErrorElement(element)
                             reporter.report(
                                 Issues.INVALID_SYNTAX,
                                 element,
-                                "Syntax error: `${element?.errorDescription}`"
+                                "Syntax error: `${element.errorDescription}`"
                             )
                         }
                     })

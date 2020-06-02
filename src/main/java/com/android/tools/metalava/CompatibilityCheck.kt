@@ -517,9 +517,13 @@ class CompatibilityCheck(
         }
 
         for (exec in new.filteredThrowsTypes(filterReference)) {
-            // exclude 'throws' changes to finalize() overrides with no arguments
             if (!old.throws(exec.qualifiedName())) {
-                if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
+                // exclude 'throws' changes to finalize() overrides with no arguments
+                if (!(old.name() == "finalize" && old.parameters().isEmpty()) &&
+                    // exclude cases where throws clause was missing in signatures from
+                    // old enum methods
+                    !(old.name() == "valueOf" &&
+                        exec.qualifiedName() == "java.lang.IllegalArgumentException")) {
                     val message = "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
