@@ -303,8 +303,6 @@ abstract class DriverTest {
         /** An optional API signature to compute nullness migration status from */
         allowCompatibleDifferences: Boolean = true,
         @Language("TEXT") migrateNullsApi: String? = null,
-        /** An optional Proguard keep file to generate */
-        @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
@@ -724,14 +722,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var proguardFile: File? = null
-        val proguardKeepArguments = if (proguard != null) {
-            proguardFile = File(project, "proguard.cfg")
-            arrayOf(ARG_PROGUARD, proguardFile.path)
-        } else {
-            emptyArray()
-        }
-
         val showAnnotationArguments = if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations) {
             val args = mutableListOf<String>()
             for (annotation in showAnnotations) {
@@ -1110,7 +1100,6 @@ abstract class DriverTest {
             *checkCompatibilityApiReleasedArguments,
             *checkCompatibilityRemovedCurrentArguments,
             *checkCompatibilityRemovedReleasedArguments,
-            *proguardKeepArguments,
             *manifestFileArgs,
             *convertArgs,
             *applyApiLevelsXmlArgs,
@@ -1225,15 +1214,6 @@ abstract class DriverTest {
             )
             val actualText = readFile(removedDexApiFile, stripBlankLines, trim)
             assertEquals(stripComments(removedDexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (proguard != null && proguardFile != null) {
-            val expectedProguard = readFile(proguardFile)
-            assertTrue(
-                "${proguardFile.path} does not exist even though --proguard was used",
-                proguardFile.exists()
-            )
-            assertEquals(stripComments(proguard, stripLineComments = false).trimIndent(), expectedProguard.trim())
         }
 
         if (sdk_broadcast_actions != null) {
