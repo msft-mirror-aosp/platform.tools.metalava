@@ -61,23 +61,6 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
     },
 
-    /** The private API */
-    PRIVATE("private", "private") {
-        override fun getOptionFile(): File? {
-            return options.privateApiFile
-        }
-
-        override fun getEmitFilter(): Predicate<Item> {
-            val apiFilter = FilterPredicate(ApiPredicate())
-            val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-            return memberIsNotCloned.and(apiFilter.negate())
-        }
-
-        override fun getReferenceFilter(): Predicate<Item> {
-            return Predicate { true }
-        }
-    },
-
     /** Everything */
     ALL("all", "all") {
         override fun getOptionFile(): File? {

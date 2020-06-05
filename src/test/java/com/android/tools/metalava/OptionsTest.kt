@@ -164,14 +164,6 @@ Documentation:
 Extracting Signature Files:
 --api <file>                                 
                                              Generate a signature descriptor file
---private-api <file>                         
-                                             Generate a signature descriptor file listing the exact private APIs
---dex-api <file>                             
-                                             Generate a DEX signature descriptor file listing the APIs
---private-dex-api <file>                     
-                                             Generate a DEX signature descriptor file listing the exact private APIs
---dex-api-mapping <file>                     
-                                             Generate a DEX signature descriptor along with file and line numbers
 --removed-api <file>                         
                                              Generate a signature descriptor file for APIs that have been removed
 --format=<v1,v2,v3,...>                      

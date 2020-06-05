@@ -278,17 +278,6 @@ private fun processFlags() {
         }
     }
 
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val apiReference = ApiPredicate(ignoreShown = true)
-        val dexApiEmit = memberIsNotCloned.and(apiFilter)
-
-        createReportFile(
-            codebase, apiFile, "DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
-    }
-
     options.apiXmlFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
         val apiEmit = apiType.getEmitFilter()
@@ -296,22 +285,6 @@ private fun processFlags() {
 
         createReportFile(codebase, apiFile, "XML API") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
-        }
-    }
-
-    options.dexApiMappingFile?.let { apiFile ->
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
-
-        createReportFile(
-            codebase, apiFile, "DEX API Mapping"
-        ) { printWriter ->
-            DexApiWriter(
-                printWriter, apiEmit, apiReference,
-                membersOnly = true,
-                includePositions = true
-            )
         }
     }
 
@@ -338,30 +311,6 @@ private fun processFlags() {
         createReportFile(
             unfiltered, apiFile, "removed DEX API"
         ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
-    }
-
-    options.privateApiFile?.let { apiFile ->
-        val apiType = ApiType.PRIVATE
-        val privateEmit = apiType.getEmitFilter()
-        val privateReference = apiType.getReferenceFilter()
-
-        createReportFile(codebase, apiFile, "private API") { printWriter ->
-            SignatureWriter(printWriter, privateEmit, privateReference, codebase.original != null)
-        }
-    }
-
-    options.privateDexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-        val privateEmit = apiFilter.negate()
-        val privateReference = Predicate<Item> { true }
-
-        createReportFile(
-            codebase, apiFile, "private DEX API"
-        ) { printWriter ->
-            DexApiWriter(
-                printWriter, privateEmit, privateReference, inlineInheritedFields = false
-            )
-        }
     }
 
     options.proguard?.let { proguard ->
