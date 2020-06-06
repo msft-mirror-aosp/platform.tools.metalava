@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.Severity.ERROR
 import com.android.tools.metalava.Severity.HIDDEN
 import com.android.tools.metalava.Severity.INFO
@@ -184,28 +183,31 @@ class Reporter(
         item ?: return false
 
         if (severity == LINT || severity == WARNING || severity == ERROR) {
-            val annotation = item.modifiers.findAnnotation("android.annotation.SuppressLint")
-            if (annotation != null) {
-                val attribute = annotation.findAttribute(ATTR_VALUE)
-                if (attribute != null) {
-                    val id1 = "Doclava${id.code}"
-                    val id2 = id.name
-                    val value = attribute.value
-                    if (value is AnnotationArrayAttributeValue) {
-                        // Example: @SuppressLint({"DocLava1", "DocLava2"})
-                        for (innerValue in value.values) {
-                            val string = innerValue.value()?.toString() ?: continue
-                            if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
+            for (annotation in item.modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName()
+                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes()) {
+                        val id1 = "Doclava${id.code}"
+                        val id2 = id.name
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varags of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"DocLava1", "DocLava2"})
+                            for (innerValue in value.values) {
+                                val string = innerValue.value()?.toString() ?: continue
+                                if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
+                                    return true
+                                }
+                            }
+                        } else {
+                            // Example: @SuppressLint("DocLava1")
+                            val string = value.value()?.toString()
+                            if (string != null && (
+                                    suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
+                            ) {
                                 return true
                             }
-                        }
-                    } else {
-                        // Example: @SuppressLint("DocLava1")
-                        val string = value.value()?.toString()
-                        if (string != null && (
-                                suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
-                        ) {
-                            return true
                         }
                     }
                 }
@@ -456,3 +458,9 @@ class Reporter(
         }
     }
 }
+
+private val SUPPRESS_ANNOTATIONS = listOf(
+    ANDROID_SUPPRESS_LINT,
+    JAVA_LANG_SUPPRESS_WARNINGS,
+    KOTLIN_SUPPRESS
+)
