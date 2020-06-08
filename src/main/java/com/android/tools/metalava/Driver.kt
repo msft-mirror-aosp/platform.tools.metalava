@@ -64,9 +64,9 @@ import java.io.IOException
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
+import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
 
 const val PROGRAM_NAME = "metalava"
@@ -174,7 +174,7 @@ private fun exit(exitCode: Int = 0) {
     }
     options.stdout.flush()
     options.stderr.flush()
-    System.exit(exitCode)
+    exitProcess(exitCode)
 }
 
 private fun maybeActivateSandbox() {
@@ -213,7 +213,7 @@ private fun processFlags() {
 
     val sources = options.sources
     val codebase =
-        if (sources.size >= 1 && sources[0].path.endsWith(DOT_TXT)) {
+        if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
             // Make sure all the source files have .txt extensions.
             sources.firstOrNull { !it.path.endsWith(DOT_TXT) }?. let {
                 throw DriverException("Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}")
@@ -231,7 +231,7 @@ private fun processFlags() {
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
-        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(TimeUnit.SECONDS)} seconds\n")
+        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
     }
 
     options.subtractApi?.let {
@@ -901,16 +901,6 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     return codebase
 }
 
-private fun loadFromApiSignatureFiles(files: List<File>, kotlinStyleNulls: Boolean? = null): Codebase {
-    // Make sure all the source files have .txt extensions.
-    files.forEach { file ->
-        if (!file.path.endsWith(DOT_TXT)) {
-                throw DriverException("Inconsistent input file types: The first file is of .$DOT_TXT, but detected different extension in ${file.path}")
-        }
-    }
-    return SignatureFileLoader.loadFiles(files, kotlinStyleNulls)
-}
-
 private fun createProjectEnvironment(): UastEnvironment {
     ensurePsiFileCapacity()
     val disposable = Disposer.newDisposable()
@@ -1098,7 +1088,7 @@ fun gatherSources(sourcePath: List<File>): List<File> {
         }
         addSourceFiles(sources, file.absoluteFile)
     }
-    return sources.sortedWith(compareBy({ it.name }))
+    return sources.sortedWith(compareBy { it.name })
 }
 
 private fun addHiddenPackages(
@@ -1141,11 +1131,11 @@ private fun addHiddenPackages(
         }
     } else if (file.isFile) {
         var javadoc = false
-        val map = when {
-            file.name == "package.html" -> {
+        val map = when (file.name) {
+            "package.html" -> {
                 javadoc = true; packageToDoc
             }
-            file.name == "overview.html" -> {
+            "overview.html" -> {
                 packageToOverview
             }
             else -> return
