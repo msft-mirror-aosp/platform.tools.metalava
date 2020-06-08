@@ -1060,12 +1060,6 @@ abstract class DriverTest {
             "--temp-folder",
             temporaryFolder.newFolder("temp").path,
 
-            // For the tests we want to treat references to APIs like java.io.Closeable
-            // as a class that is part of the API surface, not as a hidden class as would
-            // be the case when analyzing a complete API surface
-            // ARG_UNHIDE_CLASSPATH_CLASSES,
-            ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES,
-
             // Annotation generation temporarily turned off by default while integrating with
             // SDK builds; tests need these
             ARG_INCLUDE_ANNOTATIONS,
