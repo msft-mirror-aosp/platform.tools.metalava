@@ -558,7 +558,7 @@ class Options(
 
     /**
      * A baseline to check against, specifically used for "check-compatibility:*:released"
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASEED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASEED])
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var baselineCompatibilityReleased: Baseline? = null
 
@@ -569,7 +569,7 @@ class Options(
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASEED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASEED])
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var errorMessageCompatibilityReleased: String? = null
 
@@ -584,7 +584,7 @@ class Options(
 
     /**
      * [Reporter] for "check-compatibility:*:released".
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASEED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASEED])
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var reporterCompatibilityReleased: Reporter
 
@@ -713,9 +713,9 @@ class Options(
         var skipGenerateAnnotations = false
         reporter = Reporter(null, null)
 
-        var baselineBuilder = Baseline.Builder().apply { description = "base" }
-        var baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
-        var baselineCompatibilityReleasedBuilder = Baseline.Builder().apply { description = "compatibility:released" }
+        val baselineBuilder = Baseline.Builder().apply { description = "base" }
+        val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
+        val baselineCompatibilityReleasedBuilder = Baseline.Builder().apply { description = "compatibility:released" }
 
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder = when (flag) {
                 ARG_BASELINE, ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> baselineBuilder
@@ -727,9 +727,8 @@ class Options(
 
         var index = 0
         while (index < args.size) {
-            val arg = args[index]
 
-            when (arg) {
+            when (val arg = args[index]) {
                 ARG_HELP, "-h", "-?" -> {
                     helpAndQuit(color)
                 }
@@ -1807,7 +1806,7 @@ class Options(
     private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
         // Note this method doesn't register the result to [FileReadSandbox]
         return patterns
-            .map { fileForPathInner(it.replace("%", Integer.toString(apiLevel))) }
+            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
     }
 
@@ -2361,7 +2360,7 @@ class Options(
                 "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
             "$ARG_STRICT_INPUT_FILES <file>", "Do not read files that are not explicitly specified in the command line. " +
                 "All violations are written to the given file. Reads on directories are always allowed, but " +
-                "$PROGRAM_NAME still trackes reads on directories that are not specified in the command line, " +
+                "$PROGRAM_NAME still tracks reads on directories that are not specified in the command line, " +
                 "and write them to the file.",
             "$ARG_STRICT_INPUT_FILES_STACK <file>", "Same as $ARG_STRICT_INPUT_FILES but also print stacktraces.",
             "$ARG_STRICT_INPUT_FILES_EXEMPT <files or dirs>", "Used with $ARG_STRICT_INPUT_FILES. Explicitly allow " +

@@ -88,17 +88,15 @@ class Reporter(
      */
     private val errorMessage: String?
 ) {
-    var errorCount = 0
-        private set
-    var warningCount = 0
-        private set
+    private var errorCount = 0
+    private var warningCount = 0
     val totalCount get() = errorCount + warningCount
 
     private var hasErrors = false
 
     // Note we can't set [options.baseline] as the default for [customBaseline], because
     // options.baseline will be initialized after the global [Reporter] is instantiated.
-    fun getBaseline(): Baseline? = customBaseline ?: options.baseline
+    private fun getBaseline(): Baseline? = customBaseline ?: options.baseline
 
     fun report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
         val severity = configuration.getSeverity(id)
@@ -248,7 +246,7 @@ class Reporter(
         return range
     }
 
-    fun elementToLocation(element: PsiElement?, includeDocs: Boolean = true): String? {
+    private fun elementToLocation(element: PsiElement?, includeDocs: Boolean = true): String? {
         element ?: return null
         val psiFile = element.containingFile ?: return null
         val virtualFile = psiFile.virtualFile ?: return null
@@ -277,7 +275,7 @@ class Reporter(
     private fun getLineNumber(text: String, offset: Int): Int {
         var line = 0
         var curr = 0
-        val target = Math.min(offset, text.length)
+        val target = offset.coerceAtMost(text.length)
         while (curr < target) {
             if (text[curr++] == '\n') {
                 line++
