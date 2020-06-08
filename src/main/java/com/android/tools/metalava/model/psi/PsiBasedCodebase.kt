@@ -440,7 +440,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     private fun createClass(clz: PsiClass): PsiClassItem {
         val classItem = PsiClassItem.create(this, clz)
 
-        if (!initializing && options.hideClasspathClasses) {
+        if (!initializing) {
             // This class is found while we're no longer initializing all the source units:
             // that means it must be found on the classpath instead. These should be treated
             // as hidden; we don't want to generate code for them.
@@ -485,9 +485,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
                     // Don't include packages from API that isn't directly included in the API
-                    if (options.hideClasspathClasses) {
-                        packageItem.emit = false
-                    }
+                    packageItem.emit = false
                     packageItem.addClass(classItem)
                 }
             } else {
