@@ -141,11 +141,11 @@ abstract class DriverTest {
             }
 
             val stdout = output.toString(UTF_8.name())
-            if (!stdout.isEmpty()) {
+            if (stdout.isNotEmpty()) {
                 addError("Unexpected write to stdout:\n $stdout")
             }
             val stderr = error.toString(UTF_8.name())
-            if (!stderr.isEmpty()) {
+            if (stderr.isNotEmpty()) {
                 addError("Unexpected write to stderr:\n $stderr")
             }
 
@@ -220,10 +220,10 @@ abstract class DriverTest {
     }
 
     private fun <T> buildOptionalArgs(option: T?, converter: (T) -> Array<String>): Array<String> {
-        if (option != null) {
-            return converter(option)
+        return if (option != null) {
+            converter(option)
         } else {
-            return emptyArray<String>()
+            emptyArray()
         }
     }
 
@@ -455,7 +455,7 @@ abstract class DriverTest {
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
             checkCompatibilityRemovedApiReleased != null) &&
-            (expectedIssues != null && !expectedIssues.trim().isEmpty())
+            (expectedIssues != null && expectedIssues.trim().isNotEmpty())
         ) {
             "Aborting: Found compatibility problems with --check-compatibility"
         } else {
@@ -480,7 +480,7 @@ abstract class DriverTest {
         }
 
         val sourceList =
-            if (!signatureSources.isEmpty() || signatureSource != null) {
+            if (signatureSources.isNotEmpty() || signatureSource != null) {
                 sourcePathDir.mkdirs()
 
                 // if signatureSource is set, add it to signatureSources.
@@ -809,7 +809,7 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var subtractApiFile: File?
+        val subtractApiFile: File?
         val subtractApiArgs = if (subtractApi != null) {
             subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
             subtractApiFile.writeText(subtractApi.trimIndent())
@@ -1175,7 +1175,7 @@ abstract class DriverTest {
         )
 
         if (convertFiles.isNotEmpty()) {
-            for (i in 0 until convertToJDiff.size) {
+            for (i in convertToJDiff.indices) {
                 val expected = convertToJDiff[i].outputFile
                 val converted = convertFiles[i].outputFile
                 if (convertToJDiff[i].baseApi != null &&
@@ -1280,7 +1280,7 @@ abstract class DriverTest {
         }
 
         if (stubs.isNotEmpty() && stubsDir != null) {
-            for (i in 0 until stubs.size) {
+            for (i in stubs.indices) {
                 var stub = stubs[i].trimIndent()
 
                 var targetPath: String
