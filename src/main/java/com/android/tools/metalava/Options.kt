@@ -60,9 +60,6 @@ const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
 const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
 const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
 const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
-const val ARG_PRIVATE_API = "--private-api"
-const val ARG_DEX_API = "--dex-api"
-const val ARG_PRIVATE_DEX_API = "--private-dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
@@ -73,7 +70,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
-const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
@@ -146,7 +142,6 @@ const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
-const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
@@ -415,18 +410,6 @@ class Options(
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
-
-    /** If set, a file to write the private API file to. Corresponds to the --private-api/-privateApi flag. */
-    var privateApiFile: File? = null
-
-    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
-    var dexApiFile: File? = null
-
-    /** If set, a file to write all DEX signatures and file locations to. Corresponds to [ARG_DEX_API_MAPPING]. */
-    var dexApiMappingFile: File? = null
-
-    /** If set, a file to write the private DEX signatures to. Corresponds to --private-dex-api. */
-    var privateDexApiFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -841,19 +824,9 @@ class Options(
                 "-sdkvalues", ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_API, "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API_MAPPING, "-apiMapping" -> dexApiMappingFile = stringToNewFile(getValue(args, ++index))
-
-                ARG_PRIVATE_API, "-privateApi" -> privateApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_PRIVATE_DEX_API, "-privateDexApi" -> privateDexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
-
-                ARG_EXACT_API, "-exactApi" -> {
-                    getValue(args, ++index) // prevent next arg from tripping up parser
-                    unimplemented(arg) // Not yet implemented (because it seems to no longer be hooked up in doclava1)
-                }
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -1669,10 +1642,6 @@ class Options(
             validateNullabilityFromList = null
             apiFile = null
             apiXmlFile = null
-            privateApiFile = null
-            dexApiFile = null
-            dexApiMappingFile = null
-            privateDexApiFile = null
             removedApiFile = null
             removedDexApiFile = null
         }
@@ -2237,10 +2206,6 @@ class Options(
             "", "\nExtracting Signature Files:",
             // TODO: Document --show-annotation!
             "$ARG_API <file>", "Generate a signature descriptor file",
-            "$ARG_PRIVATE_API <file>", "Generate a signature descriptor file listing the exact private APIs",
-            "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
-            "$ARG_PRIVATE_DEX_API <file>", "Generate a DEX signature descriptor file listing the exact private APIs",
-            "$ARG_DEX_API_MAPPING <file>", "Generate a DEX signature descriptor along with file and line numbers",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]", "Controls whether nullness annotations should be formatted as " +
