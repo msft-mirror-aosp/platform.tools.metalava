@@ -31,7 +31,6 @@ import java.io.IOException
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.lang.NumberFormatException
 import java.util.Locale
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
@@ -111,9 +110,6 @@ const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
-const val ARG_UNHIDE_CLASSPATH_CLASSES = "--unhide-classpath-classes"
-const val ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES = "--allow-referencing-unknown-classes"
-const val ARG_NO_UNKNOWN_CLASSES = "--no-unknown-classes"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
@@ -517,15 +513,6 @@ class Options(
      * and see what it does to the results :)
      */
     var hideClasspathClasses = true
-
-    /** Only used for tests: Whether during code filtering we allow referencing super classes
-     * etc that are unknown (because they're not included in the codebase) */
-    var allowReferencingUnknownClasses = true
-
-    /** Reverse of [allowReferencingUnknownClasses]: Require all classes to be known. This
-     * is used when compiling the main SDK itself (which includes definitions for everything,
-     * including java.lang.Object.) */
-    var noUnknownClasses = false
 
     /**
      * mapping from API level to android.jar files, if computing API levels
@@ -1140,10 +1127,6 @@ class Options(
 
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
 
-                ARG_UNHIDE_CLASSPATH_CLASSES -> hideClasspathClasses = false
-                ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES -> allowReferencingUnknownClasses = true
-                ARG_NO_UNKNOWN_CLASSES -> noUnknownClasses = true
-
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
                     val list = androidJarPatterns ?: run {
@@ -1565,10 +1548,6 @@ class Options(
         // members should be shown in the output then only show them if no annotations were provided.
         if (!showUnannotated && showAnnotations.isEmpty()) {
             showUnannotated = true
-        }
-
-        if (noUnknownClasses) {
-            allowReferencingUnknownClasses = false
         }
 
         if (skipGenerateAnnotations) {
