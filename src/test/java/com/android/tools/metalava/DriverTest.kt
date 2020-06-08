@@ -245,20 +245,10 @@ abstract class DriverTest {
         /** The API signature content (corresponds to --api-xml) */
         @Language("XML")
         apiXml: String? = null,
-        /** The exact API signature content (corresponds to --exact-api) */
-        exactApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The removed dex API (corresponds to --removed-dex-api) */
         removedDexApi: String? = null,
-        /** The private API (corresponds to --private-api) */
-        privateApi: String? = null,
-        /** The private DEX API (corresponds to --private-dex-api) */
-        privateDexApi: String? = null,
-        /** The DEX API (corresponds to --dex-api) */
-        dexApi: String? = null,
-        /** The DEX mapping API (corresponds to --dex-api-mapping) */
-        dexApiMapping: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
@@ -821,50 +811,10 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var exactApiFile: File? = null
-        val exactApiArgs = if (exactApi != null) {
-            exactApiFile = temporaryFolder.newFile("exact-api.txt")
-            arrayOf(ARG_EXACT_API, exactApiFile.path)
-        } else {
-            emptyArray()
-        }
-
         var apiXmlFile: File? = null
         val apiXmlArgs = if (apiXml != null) {
             apiXmlFile = temporaryFolder.newFile("public-api-xml.txt")
             arrayOf(ARG_XML_API, apiXmlFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var privateApiFile: File? = null
-        val privateApiArgs = if (privateApi != null) {
-            privateApiFile = temporaryFolder.newFile("private.txt")
-            arrayOf(ARG_PRIVATE_API, privateApiFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var dexApiFile: File? = null
-        val dexApiArgs = if (dexApi != null) {
-            dexApiFile = temporaryFolder.newFile("public-dex.txt")
-            arrayOf(ARG_DEX_API, dexApiFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var dexApiMappingFile: File? = null
-        val dexApiMappingArgs = if (dexApiMapping != null) {
-            dexApiMappingFile = temporaryFolder.newFile("api-mapping.txt")
-            arrayOf(ARG_DEX_API_MAPPING, dexApiMappingFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var privateDexApiFile: File? = null
-        val privateDexApiArgs = if (privateDexApi != null) {
-            privateDexApiFile = temporaryFolder.newFile("private-dex.txt")
-            arrayOf(ARG_PRIVATE_DEX_API, privateDexApiFile.path)
         } else {
             emptyArray()
         }
@@ -1140,11 +1090,6 @@ abstract class DriverTest {
             *removedDexArgs,
             *apiArgs,
             *apiXmlArgs,
-            *exactApiArgs,
-            *privateApiArgs,
-            *dexApiArgs,
-            *privateDexApiArgs,
-            *dexApiMappingArgs,
             *subtractApiArgs,
             *stubsArgs,
             *stubsSourceListArgs,
@@ -1280,55 +1225,6 @@ abstract class DriverTest {
             )
             val actualText = readFile(removedDexApiFile, stripBlankLines, trim)
             assertEquals(stripComments(removedDexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (exactApi != null && exactApiFile != null) {
-            assertTrue(
-                "${exactApiFile.path} does not exist even though --exact-api was used",
-                exactApiFile.exists()
-            )
-            val actualText = readFile(exactApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(exactApi, stripLineComments = false).trimIndent(), actualText)
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(exactApiFile, options.outputKotlinStyleNulls)
-        }
-
-        if (privateApi != null && privateApiFile != null) {
-            assertTrue(
-                "${privateApiFile.path} does not exist even though --private-api was used",
-                privateApiFile.exists()
-            )
-            val actualText = readFile(privateApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(privateApi, stripLineComments = false).trimIndent(), actualText)
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(privateApiFile, options.outputKotlinStyleNulls)
-        }
-
-        if (dexApi != null && dexApiFile != null) {
-            assertTrue(
-                "${dexApiFile.path} does not exist even though --dex-api was used",
-                dexApiFile.exists()
-            )
-            val actualText = readFile(dexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(dexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (privateDexApi != null && privateDexApiFile != null) {
-            assertTrue(
-                "${privateDexApiFile.path} does not exist even though --private-dex-api was used",
-                privateDexApiFile.exists()
-            )
-            val actualText = readFile(privateDexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(privateDexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (dexApiMapping != null && dexApiMappingFile != null) {
-            assertTrue(
-                "${dexApiMappingFile.path} does not exist even though --dex-api-maping was used",
-                dexApiMappingFile.exists()
-            )
-            val actualText = readFile(dexApiMappingFile, stripBlankLines, trim)
-            assertEquals(stripComments(dexApiMapping, stripLineComments = false).trimIndent(), actualText)
         }
 
         if (proguard != null && proguardFile != null) {
