@@ -48,7 +48,7 @@ enum class FileFormat(val description: String, val version: String? = null) {
         return this >= V3
     }
 
-    fun signatureFormatAsInt(): Int {
+    private fun signatureFormatAsInt(): Int {
         return when (this) {
             V1 -> 1
             V2 -> 2
@@ -88,7 +88,7 @@ enum class FileFormat(val description: String, val version: String? = null) {
         return prefix + version + "\n"
     }
 
-    fun headerPrefix(): String? {
+    private fun headerPrefix(): String? {
         return when (this) {
             V1 -> null
             V2, V3 -> "// Signature format: "
