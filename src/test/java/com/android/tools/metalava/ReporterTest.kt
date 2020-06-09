@@ -47,4 +47,48 @@ class ReporterTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `Test suppression annotations`() {
+        check(
+            apiLint = "",
+            expectedIssues = """
+                src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [Rule S1 in go/android-api-guidelines]
+                src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [Rule S1 in go/android-api-guidelines]
+            """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
+            sourceFiles = arrayOf(
+                java("""
+                    package test.pkg;
+                    import android.annotation.SuppressLint;
+
+                    public class Foo {
+                        @SuppressLint("StartWithLower")
+                        public void SuppressedWithSuppressLint() { }
+                        @SuppressWarnings("StartWithLower")
+                        public void SuppressedWithSuppressWarnings() { }
+
+                        public void Unsuppressed() { }
+                    }
+                """),
+                kotlin("""
+                    package test.pkg
+                    import android.annotation.SuppressLint;
+
+                    class Bar {
+                        @SuppressLint("StartWithLower")
+                        fun SuppressedWithSuppressLint() { }
+                        @Suppress("StartWithLower")
+                        fun SuppressedWithSuppress() { }
+
+                        fun Unsuppressed() { }
+                    }
+                """),
+                suppressLintSource
+            )
+        )
+    }
 }
