@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2011 Google Inc.
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.doclava1;
+package com.android.tools.metalava.model.text;
 
 import com.android.tools.lint.checks.infrastructure.ClassNameKt;
 import com.android.tools.metalava.FileFormat;
@@ -22,17 +22,6 @@ import com.android.tools.metalava.model.AnnotationItem;
 import com.android.tools.metalava.model.DefaultModifierList;
 import com.android.tools.metalava.model.TypeParameterList;
 import com.android.tools.metalava.model.VisibilityLevel;
-import com.android.tools.metalava.model.text.TextClassItem;
-import com.android.tools.metalava.model.text.TextConstructorItem;
-import com.android.tools.metalava.model.text.TextFieldItem;
-import com.android.tools.metalava.model.text.TextMethodItem;
-import com.android.tools.metalava.model.text.TextModifiers;
-import com.android.tools.metalava.model.text.TextPackageItem;
-import com.android.tools.metalava.model.text.TextParameterItem;
-import com.android.tools.metalava.model.text.TextParameterItemKt;
-import com.android.tools.metalava.model.text.TextPropertyItem;
-import com.android.tools.metalava.model.text.TextTypeItem;
-import com.android.tools.metalava.model.text.TextTypeParameterList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Files;
 import kotlin.Pair;

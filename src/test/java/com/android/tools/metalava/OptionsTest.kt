@@ -164,14 +164,6 @@ Documentation:
 Extracting Signature Files:
 --api <file>                                 
                                              Generate a signature descriptor file
---private-api <file>                         
-                                             Generate a signature descriptor file listing the exact private APIs
---dex-api <file>                             
-                                             Generate a DEX signature descriptor file listing the APIs
---private-dex-api <file>                     
-                                             Generate a DEX signature descriptor file listing the exact private APIs
---dex-api-mapping <file>                     
-                                             Generate a DEX signature descriptor along with file and line numbers
 --removed-api <file>                         
                                              Generate a signature descriptor file for APIs that have been removed
 --format=<v1,v2,v3,...>                      
@@ -194,8 +186,6 @@ Extracting Signature Files:
 --include-signature-version[=yes|no]         
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
---proguard <file>                            
-                                             Write a ProGuard keep file for the API
 --sdk-values <dir>                           
                                              Write SDK values files to the given directory
 
@@ -410,8 +400,8 @@ Sandboxing:
 --strict-input-files <file>                  
                                              Do not read files that are not explicitly specified in the command line.
                                              All violations are written to the given file. Reads on directories are
-                                             always allowed, but metalava still trackes reads on directories that are
-                                             not specified in the command line, and write them to the file.
+                                             always allowed, but metalava still tracks reads on directories that are not
+                                             specified in the command line, and write them to the file.
 --strict-input-files:stack <file>            
                                              Same as --strict-input-files but also print stacktraces.
 --strict-input-files-exempt <files or dirs>  

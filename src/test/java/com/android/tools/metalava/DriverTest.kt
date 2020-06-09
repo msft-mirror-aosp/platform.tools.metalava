@@ -34,7 +34,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
-import com.android.tools.metalava.doclava1.ApiFile
+import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.parseDocument
@@ -141,11 +141,11 @@ abstract class DriverTest {
             }
 
             val stdout = output.toString(UTF_8.name())
-            if (!stdout.isEmpty()) {
+            if (stdout.isNotEmpty()) {
                 addError("Unexpected write to stdout:\n $stdout")
             }
             val stderr = error.toString(UTF_8.name())
-            if (!stderr.isEmpty()) {
+            if (stderr.isNotEmpty()) {
                 addError("Unexpected write to stderr:\n $stderr")
             }
 
@@ -220,10 +220,10 @@ abstract class DriverTest {
     }
 
     private fun <T> buildOptionalArgs(option: T?, converter: (T) -> Array<String>): Array<String> {
-        if (option != null) {
-            return converter(option)
+        return if (option != null) {
+            converter(option)
         } else {
-            return emptyArray<String>()
+            emptyArray()
         }
     }
 
@@ -245,20 +245,10 @@ abstract class DriverTest {
         /** The API signature content (corresponds to --api-xml) */
         @Language("XML")
         apiXml: String? = null,
-        /** The exact API signature content (corresponds to --exact-api) */
-        exactApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The removed dex API (corresponds to --removed-dex-api) */
         removedDexApi: String? = null,
-        /** The private API (corresponds to --private-api) */
-        privateApi: String? = null,
-        /** The private DEX API (corresponds to --private-dex-api) */
-        privateDexApi: String? = null,
-        /** The DEX API (corresponds to --dex-api) */
-        dexApi: String? = null,
-        /** The DEX mapping API (corresponds to --dex-api-mapping) */
-        dexApiMapping: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
@@ -313,8 +303,6 @@ abstract class DriverTest {
         /** An optional API signature to compute nullness migration status from */
         allowCompatibleDifferences: Boolean = true,
         @Language("TEXT") migrateNullsApi: String? = null,
-        /** An optional Proguard keep file to generate */
-        @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
@@ -467,7 +455,7 @@ abstract class DriverTest {
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
             checkCompatibilityRemovedApiReleased != null) &&
-            (expectedIssues != null && !expectedIssues.trim().isEmpty())
+            (expectedIssues != null && expectedIssues.trim().isNotEmpty())
         ) {
             "Aborting: Found compatibility problems with --check-compatibility"
         } else {
@@ -492,7 +480,7 @@ abstract class DriverTest {
         }
 
         val sourceList =
-            if (!signatureSources.isEmpty() || signatureSource != null) {
+            if (signatureSources.isNotEmpty() || signatureSource != null) {
                 sourcePathDir.mkdirs()
 
                 // if signatureSource is set, add it to signatureSources.
@@ -734,14 +722,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var proguardFile: File? = null
-        val proguardKeepArguments = if (proguard != null) {
-            proguardFile = File(project, "proguard.cfg")
-            arrayOf(ARG_PROGUARD, proguardFile.path)
-        } else {
-            emptyArray()
-        }
-
         val showAnnotationArguments = if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations) {
             val args = mutableListOf<String>()
             for (annotation in showAnnotations) {
@@ -821,14 +801,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var exactApiFile: File? = null
-        val exactApiArgs = if (exactApi != null) {
-            exactApiFile = temporaryFolder.newFile("exact-api.txt")
-            arrayOf(ARG_EXACT_API, exactApiFile.path)
-        } else {
-            emptyArray()
-        }
-
         var apiXmlFile: File? = null
         val apiXmlArgs = if (apiXml != null) {
             apiXmlFile = temporaryFolder.newFile("public-api-xml.txt")
@@ -837,39 +809,7 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var privateApiFile: File? = null
-        val privateApiArgs = if (privateApi != null) {
-            privateApiFile = temporaryFolder.newFile("private.txt")
-            arrayOf(ARG_PRIVATE_API, privateApiFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var dexApiFile: File? = null
-        val dexApiArgs = if (dexApi != null) {
-            dexApiFile = temporaryFolder.newFile("public-dex.txt")
-            arrayOf(ARG_DEX_API, dexApiFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var dexApiMappingFile: File? = null
-        val dexApiMappingArgs = if (dexApiMapping != null) {
-            dexApiMappingFile = temporaryFolder.newFile("api-mapping.txt")
-            arrayOf(ARG_DEX_API_MAPPING, dexApiMappingFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var privateDexApiFile: File? = null
-        val privateDexApiArgs = if (privateDexApi != null) {
-            privateDexApiFile = temporaryFolder.newFile("private-dex.txt")
-            arrayOf(ARG_PRIVATE_DEX_API, privateDexApiFile.path)
-        } else {
-            emptyArray()
-        }
-
-        var subtractApiFile: File?
+        val subtractApiFile: File?
         val subtractApiArgs = if (subtractApi != null) {
             subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
             subtractApiFile.writeText(subtractApi.trimIndent())
@@ -1120,12 +1060,6 @@ abstract class DriverTest {
             "--temp-folder",
             temporaryFolder.newFolder("temp").path,
 
-            // For the tests we want to treat references to APIs like java.io.Closeable
-            // as a class that is part of the API surface, not as a hidden class as would
-            // be the case when analyzing a complete API surface
-            // ARG_UNHIDE_CLASSPATH_CLASSES,
-            ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES,
-
             // Annotation generation temporarily turned off by default while integrating with
             // SDK builds; tests need these
             ARG_INCLUDE_ANNOTATIONS,
@@ -1140,11 +1074,6 @@ abstract class DriverTest {
             *removedDexArgs,
             *apiArgs,
             *apiXmlArgs,
-            *exactApiArgs,
-            *privateApiArgs,
-            *dexApiArgs,
-            *privateDexApiArgs,
-            *dexApiMappingArgs,
             *subtractApiArgs,
             *stubsArgs,
             *stubsSourceListArgs,
@@ -1165,7 +1094,6 @@ abstract class DriverTest {
             *checkCompatibilityApiReleasedArguments,
             *checkCompatibilityRemovedCurrentArguments,
             *checkCompatibilityRemovedReleasedArguments,
-            *proguardKeepArguments,
             *manifestFileArgs,
             *convertArgs,
             *applyApiLevelsXmlArgs,
@@ -1241,7 +1169,7 @@ abstract class DriverTest {
         )
 
         if (convertFiles.isNotEmpty()) {
-            for (i in 0 until convertToJDiff.size) {
+            for (i in convertToJDiff.indices) {
                 val expected = convertToJDiff[i].outputFile
                 val converted = convertFiles[i].outputFile
                 if (convertToJDiff[i].baseApi != null &&
@@ -1280,64 +1208,6 @@ abstract class DriverTest {
             )
             val actualText = readFile(removedDexApiFile, stripBlankLines, trim)
             assertEquals(stripComments(removedDexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (exactApi != null && exactApiFile != null) {
-            assertTrue(
-                "${exactApiFile.path} does not exist even though --exact-api was used",
-                exactApiFile.exists()
-            )
-            val actualText = readFile(exactApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(exactApi, stripLineComments = false).trimIndent(), actualText)
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(exactApiFile, options.outputKotlinStyleNulls)
-        }
-
-        if (privateApi != null && privateApiFile != null) {
-            assertTrue(
-                "${privateApiFile.path} does not exist even though --private-api was used",
-                privateApiFile.exists()
-            )
-            val actualText = readFile(privateApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(privateApi, stripLineComments = false).trimIndent(), actualText)
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(privateApiFile, options.outputKotlinStyleNulls)
-        }
-
-        if (dexApi != null && dexApiFile != null) {
-            assertTrue(
-                "${dexApiFile.path} does not exist even though --dex-api was used",
-                dexApiFile.exists()
-            )
-            val actualText = readFile(dexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(dexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (privateDexApi != null && privateDexApiFile != null) {
-            assertTrue(
-                "${privateDexApiFile.path} does not exist even though --private-dex-api was used",
-                privateDexApiFile.exists()
-            )
-            val actualText = readFile(privateDexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(privateDexApi, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (dexApiMapping != null && dexApiMappingFile != null) {
-            assertTrue(
-                "${dexApiMappingFile.path} does not exist even though --dex-api-maping was used",
-                dexApiMappingFile.exists()
-            )
-            val actualText = readFile(dexApiMappingFile, stripBlankLines, trim)
-            assertEquals(stripComments(dexApiMapping, stripLineComments = false).trimIndent(), actualText)
-        }
-
-        if (proguard != null && proguardFile != null) {
-            val expectedProguard = readFile(proguardFile)
-            assertTrue(
-                "${proguardFile.path} does not exist even though --proguard was used",
-                proguardFile.exists()
-            )
-            assertEquals(stripComments(proguard, stripLineComments = false).trimIndent(), expectedProguard.trim())
         }
 
         if (sdk_broadcast_actions != null) {
@@ -1404,7 +1274,7 @@ abstract class DriverTest {
         }
 
         if (stubs.isNotEmpty() && stubsDir != null) {
-            for (i in 0 until stubs.size) {
+            for (i in stubs.indices) {
                 var stub = stubs[i].trimIndent()
 
                 var targetPath: String

@@ -36,7 +36,7 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.FilterPredicate
 import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.doclava1.TextCodebase
+import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -64,9 +64,9 @@ import java.io.IOException
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
+import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
 
 const val PROGRAM_NAME = "metalava"
@@ -174,7 +174,7 @@ private fun exit(exitCode: Int = 0) {
     }
     options.stdout.flush()
     options.stderr.flush()
-    System.exit(exitCode)
+    exitProcess(exitCode)
 }
 
 private fun maybeActivateSandbox() {
@@ -213,7 +213,7 @@ private fun processFlags() {
 
     val sources = options.sources
     val codebase =
-        if (sources.size >= 1 && sources[0].path.endsWith(DOT_TXT)) {
+        if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
             // Make sure all the source files have .txt extensions.
             sources.firstOrNull { !it.path.endsWith(DOT_TXT) }?. let {
                 throw DriverException("Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}")
@@ -231,7 +231,7 @@ private fun processFlags() {
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
-        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(TimeUnit.SECONDS)} seconds\n")
+        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
     }
 
     options.subtractApi?.let {
@@ -278,17 +278,6 @@ private fun processFlags() {
         }
     }
 
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val apiReference = ApiPredicate(ignoreShown = true)
-        val dexApiEmit = memberIsNotCloned.and(apiFilter)
-
-        createReportFile(
-            codebase, apiFile, "DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
-    }
-
     options.apiXmlFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
         val apiEmit = apiType.getEmitFilter()
@@ -296,22 +285,6 @@ private fun processFlags() {
 
         createReportFile(codebase, apiFile, "XML API") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
-        }
-    }
-
-    options.dexApiMappingFile?.let { apiFile ->
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
-
-        createReportFile(
-            codebase, apiFile, "DEX API Mapping"
-        ) { printWriter ->
-            DexApiWriter(
-                printWriter, apiEmit, apiReference,
-                membersOnly = true,
-                includePositions = true
-            )
         }
     }
 
@@ -338,38 +311,6 @@ private fun processFlags() {
         createReportFile(
             unfiltered, apiFile, "removed DEX API"
         ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
-    }
-
-    options.privateApiFile?.let { apiFile ->
-        val apiType = ApiType.PRIVATE
-        val privateEmit = apiType.getEmitFilter()
-        val privateReference = apiType.getReferenceFilter()
-
-        createReportFile(codebase, apiFile, "private API") { printWriter ->
-            SignatureWriter(printWriter, privateEmit, privateReference, codebase.original != null)
-        }
-    }
-
-    options.privateDexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-        val privateEmit = apiFilter.negate()
-        val privateReference = Predicate<Item> { true }
-
-        createReportFile(
-            codebase, apiFile, "private DEX API"
-        ) { printWriter ->
-            DexApiWriter(
-                printWriter, privateEmit, privateReference, inlineInheritedFields = false
-            )
-        }
-    }
-
-    options.proguard?.let { proguard ->
-        val apiEmit = FilterPredicate(ApiPredicate())
-        val apiReference = ApiPredicate(ignoreShown = true)
-        createReportFile(
-            codebase, proguard, "Proguard file"
-        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
     }
 
     options.sdkValueDir?.let { dir ->
@@ -960,16 +901,6 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     return codebase
 }
 
-private fun loadFromApiSignatureFiles(files: List<File>, kotlinStyleNulls: Boolean? = null): Codebase {
-    // Make sure all the source files have .txt extensions.
-    files.forEach { file ->
-        if (!file.path.endsWith(DOT_TXT)) {
-                throw DriverException("Inconsistent input file types: The first file is of .$DOT_TXT, but detected different extension in ${file.path}")
-        }
-    }
-    return SignatureFileLoader.loadFiles(files, kotlinStyleNulls)
-}
-
 private fun createProjectEnvironment(): UastEnvironment {
     ensurePsiFileCapacity()
     val disposable = Disposer.newDisposable()
@@ -1157,7 +1088,7 @@ fun gatherSources(sourcePath: List<File>): List<File> {
         }
         addSourceFiles(sources, file.absoluteFile)
     }
-    return sources.sortedWith(compareBy({ it.name }))
+    return sources.sortedWith(compareBy { it.name })
 }
 
 private fun addHiddenPackages(
@@ -1200,11 +1131,11 @@ private fun addHiddenPackages(
         }
     } else if (file.isFile) {
         var javadoc = false
-        val map = when {
-            file.name == "package.html" -> {
+        val map = when (file.name) {
+            "package.html" -> {
                 javadoc = true; packageToDoc
             }
-            file.name == "overview.html" -> {
+            "overview.html" -> {
                 packageToOverview
             }
             else -> return

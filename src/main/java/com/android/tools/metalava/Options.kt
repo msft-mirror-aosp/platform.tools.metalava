@@ -31,7 +31,6 @@ import java.io.IOException
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.lang.NumberFormatException
 import java.util.Locale
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
@@ -60,9 +59,6 @@ const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
 const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
 const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
 const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
-const val ARG_PRIVATE_API = "--private-api"
-const val ARG_DEX_API = "--dex-api"
-const val ARG_PRIVATE_DEX_API = "--private-dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
@@ -73,13 +69,11 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
-const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
-const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
@@ -116,9 +110,6 @@ const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
-const val ARG_UNHIDE_CLASSPATH_CLASSES = "--unhide-classpath-classes"
-const val ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES = "--allow-referencing-unknown-classes"
-const val ARG_NO_UNKNOWN_CLASSES = "--no-unknown-classes"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
@@ -146,7 +137,6 @@ const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
-const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
@@ -407,26 +397,11 @@ class Options(
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
     var kotlinStubs = false
 
-    /** Proguard Keep list file to write */
-    var proguard: File? = null
-
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
-
-    /** If set, a file to write the private API file to. Corresponds to the --private-api/-privateApi flag. */
-    var privateApiFile: File? = null
-
-    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
-    var dexApiFile: File? = null
-
-    /** If set, a file to write all DEX signatures and file locations to. Corresponds to [ARG_DEX_API_MAPPING]. */
-    var dexApiMappingFile: File? = null
-
-    /** If set, a file to write the private DEX signatures to. Corresponds to --private-dex-api. */
-    var privateDexApiFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -539,15 +514,6 @@ class Options(
      */
     var hideClasspathClasses = true
 
-    /** Only used for tests: Whether during code filtering we allow referencing super classes
-     * etc that are unknown (because they're not included in the codebase) */
-    var allowReferencingUnknownClasses = true
-
-    /** Reverse of [allowReferencingUnknownClasses]: Require all classes to be known. This
-     * is used when compiling the main SDK itself (which includes definitions for everything,
-     * including java.lang.Object.) */
-    var noUnknownClasses = false
-
     /**
      * mapping from API level to android.jar files, if computing API levels
      */
@@ -579,7 +545,7 @@ class Options(
 
     /**
      * A baseline to check against, specifically used for "check-compatibility:*:released"
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASEED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASEED])
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var baselineCompatibilityReleased: Baseline? = null
 
@@ -590,7 +556,7 @@ class Options(
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASEED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASEED])
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var errorMessageCompatibilityReleased: String? = null
 
@@ -605,7 +571,7 @@ class Options(
 
     /**
      * [Reporter] for "check-compatibility:*:released".
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASEED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASEED])
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var reporterCompatibilityReleased: Reporter
 
@@ -734,9 +700,9 @@ class Options(
         var skipGenerateAnnotations = false
         reporter = Reporter(null, null)
 
-        var baselineBuilder = Baseline.Builder().apply { description = "base" }
-        var baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
-        var baselineCompatibilityReleasedBuilder = Baseline.Builder().apply { description = "compatibility:released" }
+        val baselineBuilder = Baseline.Builder().apply { description = "base" }
+        val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
+        val baselineCompatibilityReleasedBuilder = Baseline.Builder().apply { description = "compatibility:released" }
 
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder = when (flag) {
                 ARG_BASELINE, ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> baselineBuilder
@@ -748,9 +714,8 @@ class Options(
 
         var index = 0
         while (index < args.size) {
-            val arg = args[index]
 
-            when (arg) {
+            when (val arg = args[index]) {
                 ARG_HELP, "-h", "-?" -> {
                     helpAndQuit(color)
                 }
@@ -841,19 +806,9 @@ class Options(
                 "-sdkvalues", ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_API, "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API_MAPPING, "-apiMapping" -> dexApiMappingFile = stringToNewFile(getValue(args, ++index))
-
-                ARG_PRIVATE_API, "-privateApi" -> privateApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_PRIVATE_DEX_API, "-privateDexApi" -> privateDexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
-
-                ARG_EXACT_API, "-exactApi" -> {
-                    getValue(args, ++index) // prevent next arg from tripping up parser
-                    unimplemented(arg) // Not yet implemented (because it seems to no longer be hooked up in doclava1)
-                }
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -903,8 +858,6 @@ class Options(
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
-
-                ARG_PROGUARD, "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
 
                 ARG_HIDE_PACKAGE, "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
 
@@ -1173,10 +1126,6 @@ class Options(
                 "$ARG_OMIT_COMMON_PACKAGES=no" -> compatibility.omitCommonPackages = false
 
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
-
-                ARG_UNHIDE_CLASSPATH_CLASSES -> hideClasspathClasses = false
-                ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES -> allowReferencingUnknownClasses = true
-                ARG_NO_UNKNOWN_CLASSES -> noUnknownClasses = true
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
@@ -1601,10 +1550,6 @@ class Options(
             showUnannotated = true
         }
 
-        if (noUnknownClasses) {
-            allowReferencingUnknownClasses = false
-        }
-
         if (skipGenerateAnnotations) {
             generateAnnotations = false
         }
@@ -1628,7 +1573,6 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
-            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             checkKotlinInterop = false
@@ -1655,7 +1599,6 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
-            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             checkKotlinInterop = false
@@ -1669,10 +1612,6 @@ class Options(
             validateNullabilityFromList = null
             apiFile = null
             apiXmlFile = null
-            privateApiFile = null
-            dexApiFile = null
-            dexApiMappingFile = null
-            privateDexApiFile = null
             removedApiFile = null
             removedDexApiFile = null
         }
@@ -1846,7 +1785,7 @@ class Options(
     private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
         // Note this method doesn't register the result to [FileReadSandbox]
         return patterns
-            .map { fileForPathInner(it.replace("%", Integer.toString(apiLevel))) }
+            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
     }
 
@@ -2237,10 +2176,6 @@ class Options(
             "", "\nExtracting Signature Files:",
             // TODO: Document --show-annotation!
             "$ARG_API <file>", "Generate a signature descriptor file",
-            "$ARG_PRIVATE_API <file>", "Generate a signature descriptor file listing the exact private APIs",
-            "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
-            "$ARG_PRIVATE_DEX_API <file>", "Generate a DEX signature descriptor file listing the exact private APIs",
-            "$ARG_DEX_API_MAPPING <file>", "Generate a DEX signature descriptor along with file and line numbers",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]", "Controls whether nullness annotations should be formatted as " +
@@ -2257,7 +2192,6 @@ class Options(
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
-            "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
 
             "", "\nGenerating Stubs:",
@@ -2405,7 +2339,7 @@ class Options(
                 "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
             "$ARG_STRICT_INPUT_FILES <file>", "Do not read files that are not explicitly specified in the command line. " +
                 "All violations are written to the given file. Reads on directories are always allowed, but " +
-                "$PROGRAM_NAME still trackes reads on directories that are not specified in the command line, " +
+                "$PROGRAM_NAME still tracks reads on directories that are not specified in the command line, " +
                 "and write them to the file.",
             "$ARG_STRICT_INPUT_FILES_STACK <file>", "Same as $ARG_STRICT_INPUT_FILES but also print stacktraces.",
             "$ARG_STRICT_INPUT_FILES_EXEMPT <files or dirs>", "Used with $ARG_STRICT_INPUT_FILES. Explicitly allow " +

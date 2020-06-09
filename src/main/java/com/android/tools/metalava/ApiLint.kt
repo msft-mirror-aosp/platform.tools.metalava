@@ -714,8 +714,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             )
             return
         }
-        val className = field.containingClass().qualifiedName()
-        val prefix = when (className) {
+        val prefix = when (field.containingClass().qualifiedName()) {
             "android.content.Intent" -> "android.intent.action"
             "android.provider.Settings" -> "android.settings"
             "android.app.admin.DevicePolicyManager", "android.app.admin.DeviceAdminReceiver" -> "android.app.action"
@@ -1722,8 +1721,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
-        val raw = type.asClass()?.qualifiedName()
-        when (raw) {
+        when (type.asClass()?.qualifiedName()) {
             "java.util.Vector",
             "java.util.LinkedList",
             "java.util.ArrayList",
@@ -1826,8 +1824,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                             warn(clazz, m, "S1", "Methods taking no arguments should throw IllegalStateException")
         */
         for (exception in method.filteredThrowsTypes(filterReference)) {
-            val qualifiedName = exception.qualifiedName()
-            when (qualifiedName) {
+            when (val qualifiedName = exception.qualifiedName()) {
                 "java.lang.Exception",
                 "java.lang.Throwable",
                 "java.lang.Error" -> {
@@ -2616,8 +2613,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         var hasStream: MutableSet<String>? = null
         for (method in methodsAndConstructors) {
             for (parameter in method.parameters()) {
-                val type = parameter.type().toTypeString()
-                when (type) {
+                when (parameter.type().toTypeString()) {
                     "java.io.File" -> {
                         val set = hasFile ?: run {
                             val new = mutableSetOf<MethodItem>()
@@ -3001,8 +2997,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             if (method.modifiers.isStatic() || method.modifiers.isOperator() || method.superMethods().isNotEmpty()) {
                 continue
             }
-            val name = method.name()
-            when (name) {
+            when (val name = method.name()) {
                 // https://kotlinlang.org/docs/reference/operator-overloading.html#unary-prefix-operators
                 "unaryPlus", "unaryMinus", "not" -> {
                     if (method.parameters().isEmpty()) {
