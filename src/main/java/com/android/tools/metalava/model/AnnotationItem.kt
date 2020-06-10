@@ -389,7 +389,10 @@ interface AnnotationItem {
             if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
         /** The applicable targets for this annotation */
-        fun computeTargets(annotation: AnnotationItem, codebase: Codebase): Set<AnnotationTarget> {
+        fun computeTargets(
+            annotation: AnnotationItem,
+            classFinder: (String) -> ClassItem?
+        ): Set<AnnotationTarget> {
             val qualifiedName = annotation.qualifiedName() ?: return NO_ANNOTATION_TARGETS
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return ANNOTATION_IN_ALL_STUBS
@@ -409,21 +412,27 @@ interface AnnotationItem {
                 "android.annotation.LongDef",
                 "androidx.annotation.LongDef" -> return ANNOTATION_EXTERNAL_ONLY
 
+                // Not directly API relevant
+                "android.view.ViewDebug.ExportedProperty",
+                "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
+
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
                 "java.lang.annotation.Native",
                 "java.lang.SuppressWarnings",
-                "java.lang.Override" -> return NO_ANNOTATION_TARGETS
+                "java.lang.Override",
+                "kotlin.Suppress",
+                "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
+                // TODO(aurimas): consider using annotation directly instead of modifiers
+                "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
                 "java.lang.Deprecated", // tracked separately as a pseudo-modifier
 
                 // Below this when-statement we perform the correct lookup: check API predicate, and check
                 // that retention is class or runtime, but we've hardcoded the answers here
                 // for some common annotations.
 
-                "android.view.ViewDebug.ExportedProperty",
                 "android.widget.RemoteViews.RemoteView",
-                "android.view.ViewDebug.CapturedViewProperty",
 
                 "kotlin.annotation.Target",
                 "kotlin.annotation.Retention",
@@ -440,6 +449,12 @@ interface AnnotationItem {
                 "java.lang.annotation.Repeatable",
                 "java.lang.annotation.Retention",
                 "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
+
+                // Metalava already tracks all the methods that get generated due to these annotations.
+                "kotlin.jvm.JvmOverloads",
+                "kotlin.jvm.JvmField",
+                "kotlin.jvm.JvmStatic",
+                "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
             }
 
             // @android.annotation.Nullable and NonNullable specially recognized annotations by the Kotlin
@@ -489,7 +504,7 @@ interface AnnotationItem {
             }
 
             // See if the annotation is pointing to an annotation class that is part of the API; if not, skip it.
-            val cls = codebase.findClass(qualifiedName) ?: return NO_ANNOTATION_TARGETS
+            val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
             if (!ApiPredicate().test(cls)) {
                 if (options.typedefMode != Options.TypedefMode.NONE) {
                     if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
@@ -593,11 +608,13 @@ interface AnnotationItem {
 
 /** Default implementation of an annotation item */
 abstract class DefaultAnnotationItem(override val codebase: Codebase) : AnnotationItem {
-    private var targets: Set<AnnotationTarget>? = null
+    protected var targets: Set<AnnotationTarget>? = null
 
     override fun targets(): Set<AnnotationTarget> {
         if (targets == null) {
-            targets = AnnotationItem.computeTargets(this, codebase)
+            targets = AnnotationItem.computeTargets(this) { className ->
+                codebase.findClass(className)
+            }
         }
         return targets!!
     }

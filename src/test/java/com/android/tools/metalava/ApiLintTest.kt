@@ -29,10 +29,12 @@ class ApiLintTest : DriverTest() {
                 ARG_API_LINT_IGNORE_PREFIX,
                 "android.icu.",
                 ARG_API_LINT_IGNORE_PREFIX,
-                "java."
+                "java.",
+                ARG_HIDE, "MissingNullability"
             ),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
+                src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyStringImpl.java:3: error: Don't expose your implementation details: `MyStringImpl` ends with `Impl` [EndsWithImpl]
@@ -43,6 +45,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/badlyNamedClass.java:11: warning: Acronyms should not be capitalized in method names: was `getID`, should this be `getId`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                10 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -142,7 +148,12 @@ class ApiLintTest : DriverTest() {
                         public void setZOrderOnTop() { }
                     }
                     """
-                )
+                ),
+                kotlin("""
+                    inline class Dp(val value: Float)
+                    fun greatCall(width: Dp)
+                    fun badCALL(width: Dp)
+                """)
             )
             /*
             expectedOutput = """
@@ -169,7 +180,7 @@ class ApiLintTest : DriverTest() {
                 }
             """.trimIndent(),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/badlyNamedClass.java:8: warning: Acronyms should not be capitalized in method names: was `toXML2`, should this be `toXmL2`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg2/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg2/HTMLWriter.java:4: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName] [Rule S1 in go/android-api-guidelines]
@@ -207,13 +218,17 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/Constants.java:13: error: All constants must be defined at compile time: android.pkg.Constants#FOO [CompileTimeConstant]
                 src/android/pkg/Constants.java:12: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MAX_FOO [MinMaxConstant] [Rule C8 in go/android-api-guidelines]
                 src/android/pkg/Constants.java:11: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MIN_FOO [MinMaxConstant] [Rule C8 in go/android-api-guidelines]
                 src/android/pkg/Constants.java:9: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#myStrings`, should be `MY_STRINGS`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 src/android/pkg/Constants.java:7: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#strings`, should be `STRINGS`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                5 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -243,9 +258,13 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum] [Rule F5 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                1 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -265,18 +284,31 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
-                src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
+            expectedIssues = """
+                src/android/pkg/MyCallback.java:8: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyCallbacks.java:3: error: Callback class names should be singular: MyCallbacks [SingularCallback] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyInterfaceCallback.java:3: error: Callbacks must be abstract class instead of interface to enable extension in future API levels: MyInterfaceCallback [CallbackInterface] [Rule CL3 in go/android-api-guidelines]
                 src/android/pkg/MyObserver.java:3: warning: Class should be named MyCallback [CallbackName] [Rule L1 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                4 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
                     package android.pkg;
 
                     public class MyCallbacks {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public final class RemoteCallback {
+                        public void sendResult();
                     }
                     """
                 ),
@@ -307,6 +339,10 @@ class ApiLintTest : DriverTest() {
                         }
                         public void bar() {
                         }
+                        public static void staticMethod() {
+                        }
+                        public final void finalMethod() {
+                        }
                     }
                     """
                 )
@@ -319,10 +355,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
-                src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
+            expectedIssues = """
                 src/android/pkg/MyClassListener.java:3: error: Listeners should be an interface, or otherwise renamed Callback: MyClassListener [ListenerInterface] [Rule L1 in go/android-api-guidelines]
+                src/android/pkg/MyListener.java:6: error: Listener method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -362,10 +402,14 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    public class MyCallback {
+                    public interface MyListener {
                         public void onFoo() {
                         }
                         public void bar() {
+                        }
+                        public static void staticMethod() {
+                        }
+                        public static void finalMethod() {
                         }
                     }
                     """
@@ -379,11 +423,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/accounts/Actions.java:7: error: Intent action constant name must be ACTION_FOO: ACCOUNT_ADDED [IntentName] [Rule C3 in go/android-api-guidelines]
                 src/android/accounts/Actions.java:6: error: Inconsistent action value; expected `android.accounts.action.ACCOUNT_OPENED`, was `android.accounts.ACCOUNT_OPENED` [ActionValue] [Rule C4 in go/android-api-guidelines]
                 src/android/accounts/Actions.java:8: error: Intent action constant name must be ACTION_FOO: SOMETHING [IntentName] [Rule C3 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -407,11 +455,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/accounts/Extras.java:5: error: Inconsistent extra value; expected `android.accounts.extra.AUTOMATIC_RULE_ID`, was `android.app.extra.AUTOMATIC_RULE_ID` [ActionValue] [Rule C4 in go/android-api-guidelines]
                 src/android/accounts/Extras.java:7: error: Intent extra constant name must be EXTRA_FOO: RULE_ID [IntentName] [Rule C3 in go/android-api-guidelines]
                 src/android/accounts/Extras.java:6: error: Intent extra constant name must be EXTRA_FOO: SOMETHING_EXTRA [IntentName] [Rule C3 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -434,10 +486,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MissingEquals.java:4: error: Must override both equals and hashCode; missing one in android.pkg.MissingEquals [EqualsAndHashCode] [Rule M8 in go/android-api-guidelines]
                 src/android/pkg/MissingHashCode.java:7: error: Must override both equals and hashCode; missing one in android.pkg.MissingHashCode [EqualsAndHashCode] [Rule M8 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -496,13 +552,17 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MissingCreator.java:5: error: Parcelable requires a `CREATOR` field; missing in android.pkg.MissingCreator [ParcelCreator] [Rule FW3 in go/android-api-guidelines]
                 src/android/pkg/MissingDescribeContents.java:5: error: Parcelable requires `public int describeContents()`; missing in android.pkg.MissingDescribeContents [ParcelCreator] [Rule FW3 in go/android-api-guidelines]
                 src/android/pkg/MissingWriteToParcel.java:5: error: Parcelable requires `void writeToParcel(Parcel, int)`; missing in android.pkg.MissingWriteToParcel [ParcelCreator] [Rule FW3 in go/android-api-guidelines]
                 src/android/pkg/NonFinalParcelable.java:5: error: Parcelable classes must be final: android.pkg.NonFinalParcelable is not final [ParcelNotFinal] [Rule FW8 in go/android-api-guidelines]
                 src/android/pkg/ParcelableConstructor.java:6: error: Parcelable inflation is exposed through CREATOR, not raw constructors, in android.pkg.ParcelableConstructor [ParcelConstructor] [Rule FW3 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                5 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -584,10 +644,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:6: error: Protected methods not allowed; must be public: method android.pkg.MyClass.wrong()} [ProtectedMember] [Rule M7 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:8: error: Protected fields not allowed; must be public: field android.pkg.MyClass.wrong} [ProtectedMember] [Rule M7 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -612,7 +676,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper] [Rule C2 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower] [Rule S1 in go/android-api-guidelines]
@@ -625,6 +689,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:8: error: Internal field sBadStaticName must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:15: error: Internal field mBad must not be exposed [InternalField] [Rule F2 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                11 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -656,11 +724,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:7: error: Use android.net.Uri instead of java.net.URL (method android.pkg.MyClass.bad1()) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:8: error: Use android.net.Uri instead of java.net.URI (parameter param in android.pkg.MyClass.bad2(java.util.List<java.net.URI> param)) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:9: error: Use android.net.Uri instead of android.net.URL (parameter param in android.pkg.MyClass.bad3(android.net.URL param)) [AndroidUri] [Rule FW14 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -685,7 +757,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:9: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (method android.pkg.MyClass.bad1()) [BadFuture]
                 src/android/pkg/MyClass.java:10: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (parameter param in android.pkg.MyClass.bad2(java.util.concurrent.CompletableFuture<java.lang.String> param)) [BadFuture]
                 src/android/pkg/MyClass.java:11: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (method android.pkg.MyClass.bad3()) [BadFuture]
@@ -694,6 +766,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:17: error: BadFuture should not extend `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture]
                 src/android/pkg/MyClass.java:19: error: BadFutureClass should not implement `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture]
                 """,
+            expectedFail = """
+                7 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -731,11 +807,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:15: error: Don't expose @IntDef: SomeInt must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:20: error: Don't expose @LongDef: SomeLong must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef] [Rule FW15 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -775,7 +855,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/RegistrationInterface.java:6: error: Found registerOverriddenUnpairedCallback but not unregisterOverriddenUnpairedCallback in android.pkg.RegistrationInterface [PairedRegistration] [Rule L2 in go/android-api-guidelines]
                 src/android/pkg/RegistrationMethods.java:8: error: Found registerUnpairedCallback but not unregisterUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
                 src/android/pkg/RegistrationMethods.java:12: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
@@ -784,6 +864,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/RegistrationMethods.java:19: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
                 src/android/pkg/RegistrationMethods.java:20: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName] [Rule L3 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                7 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -830,7 +914,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/CheckSynchronization.java:12: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable) [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization.java:14: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization.java:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
@@ -841,6 +925,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/CheckSynchronization2.kt:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization2.kt:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                9 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -910,7 +998,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/IntentBuilderNames.java:8: warning: Methods creating an Intent should be named `create<Foo>Intent()`, was `makeMyIntent` [IntentBuilderName] [Rule FW1 in go/android-api-guidelines]
                 src/android/pkg/IntentBuilderNames.java:10: warning: Methods creating an Intent should be named `create<Foo>Intent()`, was `createIntentNow` [IntentBuilderName] [Rule FW1 in go/android-api-guidelines]
                 """,
@@ -940,7 +1028,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
@@ -950,6 +1038,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
+            expectedFail = """
+                8 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1009,10 +1101,19 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
-                src/android/pkg/MyClass.java:9: warning: Methods must return the builder object (return type android.pkg.MyClass.Builder<T> instead of void): method android.pkg.MyClass.Builder.setSomething(int) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:10: warning: Builder methods names should use setFoo() style: method android.pkg.MyClass.Builder.withFoo(int) [BuilderSetStyle]
-                src/android/pkg/MyClass.java:6: warning: android.pkg.MyClass.Builder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+            expectedIssues = """
+                src/android/pkg/Bad.java:12: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:12: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:13: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorAgrument]
+                src/android/pkg/Bad.java:24: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
+                src/android/pkg/Bad.java:27: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:30: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
+                src/android/pkg/Bad.java:32: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:18: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:21: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:32: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:43: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:38: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 """,
@@ -1021,7 +1122,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    public class TopLevelBuilder {
+                    public final class TopLevelBuilder {
                     }
                     """
                 ),
@@ -1030,16 +1131,54 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
 
-                    public class MyClass {
-                        public class Builder<T> {
-                            public void clearAll() { }
-                            public int getSomething() { return 0; }
-                            public void setSomething(int s) { }
+                    public class Ok {
+
+                        public int getInt();
+                        @NonNull
+                        public List<String> getStrings();
+                        public boolean isBoolean();
+                        public boolean hasBoolean2();
+                        public boolean shouldBoolean3();
+
+                        public static final class OkBuilder {
+                            public OkBuilder(@NonNull String goodParameter, int goodParameter2) {}
+
                             @NonNull
-                            public Builder<T> withFoo(int s) { return this; }
+                            public Ok build() { return null; }
+
                             @NonNull
-                            public Builder<T> setOk(int s) { return this; }
+                            public OkBuilder setInt(int value) { return this; }
+
+                            @NonNull
+                            public OkBuilder addString(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public OkBuilder clearStrings() { return this; }
+
+                            @NonNull
+                            public OkBuilder setBoolean(boolean v) { return this; }
+
+                            @NonNull
+                            public OkBuilder setHasBoolean2(boolean v) { return this; }
+
+                            @NonNull
+                            public OkBuilder setShouldBoolean3(boolean v) { return this; }
+
+                            @NonNull
+                            public OkBuilder clear() { return this; }
+
+                            @NonNull
+                            public OkBuilder clearAll() { return this; }
+                        }
+
+                        public static final class GenericBuilder<B extends GenericBuilder> {
+                            @NonNull
+                            public B setBoolean(boolean value) { return this; }
+
+                            @NonNull
+                            public Ok build() { return null; }
                         }
                     }
                     """
@@ -1049,11 +1188,50 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
 
-                    public class Ok {
-                        public class OkBuilder {
+                    public class Bad {
+
+                        public boolean isBoolean();
+                        public boolean getWithoutMatchingGetter();
+                        public boolean isReturnsNullable();
+
+                        public class BadBuilder {
+                            public BadBuilder(@Nullable String badParameter) {}
+
                             @NonNull
-                            public Ok build() { return null; }
+                            public Bad build() { return null; }
+
+                            @NonNull
+                            public BadBuilder addWithoutMatchingGetter(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public BadBuilder setWithoutMatchingGetter(boolean v) { return this; }
+
+                            @NonNull
+                            public BadBuilder withBadSetterStyle(boolean v) { return this; }
+
+                            @Nullable
+                            public BadBuilder setReturnsNullable(boolean v) { return this; }
+
+                            public boolean getOnBuilder() { return true; }
+
+                            public void setNotReturningBuilder(boolean v) { return this; }
+
+                            @NonNull
+                            public BadBuilder () { return this; }
+                        }
+
+                        public static final class NoBuildMethodBuilder {
+                            public NoBuildMethodBuilder() {}
+                        }
+
+                        public static final class BadGenericBuilder<T extends Bad> {
+                            @NonNull
+                            public T setBoolean(boolean value) { return this; }
+
+                            @NonNull
+                            public Bad build() { return null; }
                         }
                     }
                     """
@@ -1067,10 +1245,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass1.java:3: error: Raw AIDL interfaces must not be exposed: MyClass1 extends Binder [RawAidl]
                 src/android/pkg/MyClass2.java:3: error: Raw AIDL interfaces must not be exposed: MyClass2 implements IInterface [RawAidl]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1105,9 +1287,13 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/com/android/pkg/MyClass.java:3: error: Internal classes must not be exposed [InternalClasses]
                 """,
+            expectedFail = """
+                1 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1126,7 +1312,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/content/MyClass1.java:8: warning: Field type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering] [Rule FW6 in go/android-api-guidelines]
                 src/android/content/MyClass1.java:8: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering] [Rule FW6 in go/android-api-guidelines]
                 src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering] [Rule FW6 in go/android-api-guidelines]
@@ -1165,7 +1351,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                     src/android/pkg/MyClass.java:20: error: Symmetric method for `isVisibleBad` must be named `setVisibleBad`; was `setIsVisibleBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
                     src/android/pkg/MyClass.java:24: error: Symmetric method for `hasTransientStateBad` must be named `setHasTransientStateBad`; was `setTransientStateBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
                     src/android/pkg/MyClass.java:28: error: Symmetric method for `setHasTransientStateAlsoBad` must be named `hasTransientStateAlsoBad`; was `isHasTransientStateAlsoBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
@@ -1174,6 +1360,10 @@ class ApiLintTest : DriverTest() {
                     src/android/pkg/MyClass.java:37: error: Symmetric method for `setWiFiRoamingSettingEnabledBad` must be named `isWiFiRoamingSettingEnabledBad`; was `getWiFiRoamingSettingEnabledBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
                     src/android/pkg/MyClass.java:40: error: Symmetric method for `setEnabledBad` must be named `isEnabledBad`; was `getEnabledBad` [GetterSetterNames] [Rule M6 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                7 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1229,11 +1419,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:6: error: Parameter type is concrete collection (`java.util.HashMap`); must be higher-level interface [ConcreteCollection] [Rule CL2 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:9: error: Return type is concrete collection (`java.util.Vector`); must be higher-level interface [ConcreteCollection] [Rule CL2 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: error: Parameter type is concrete collection (`java.util.LinkedList`); must be higher-level interface [ConcreteCollection] [Rule CL2 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1261,7 +1455,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/accounts/OverlappingFlags.java:19: warning: Found overlapping flag constant values: `TEST1_FLAG_SECOND` with value 3 (0x3) and overlapping flag value 1 (0x1) from `TEST1_FLAG_FIRST` [OverlappingConstants] [Rule C1 in go/android-api-guidelines]
                 """,
             sourceFiles = arrayOf(
@@ -1297,11 +1491,13 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check exception related issues`() {
         check(
-            extraArguments = arrayOf(ARG_API_LINT,
+            extraArguments = arrayOf(
+                ARG_API_LINT,
                 // Conflicting advice:
-                ARG_HIDE, "BannedThrow"),
+                ARG_HIDE, "BannedThrow"
+            ),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:6: error: Methods must not throw generic exceptions (`java.lang.Exception`) [GenericException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:7: error: Methods must not throw generic exceptions (`java.lang.Throwable`) [GenericException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException] [Rule S1 in go/android-api-guidelines]
@@ -1309,6 +1505,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:10: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.NullPointerException` [IllegalStateException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [Rule FW9 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                6 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1336,10 +1536,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:4: error: Must never reference Google (`MyGoogleService`) [MentionsGoogle]
                 src/android/pkg/MyClass.java:5: error: Must never reference Google (`callGoogle`) [MentionsGoogle]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1361,11 +1565,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:8: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
                 src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
                 src/android/pkg/MyClass.java:6: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1390,10 +1598,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyFirstManager.java:6: error: Managers must always be obtained from Context; no direct constructors [ManagerConstructor]
                 src/android/pkg/MyFirstManager.java:8: error: Managers must always be obtained from Context (`get`) [ManagerLookup]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1430,12 +1642,16 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing] [Rule M11 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:11: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing] [Rule M11 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [Rule M11 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:6: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing] [Rule M11 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                4 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1463,10 +1679,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyUtils1.java:3: error: Fully-static utility classes must not have constructor [StaticUtils]
                 src/android/pkg/MyUtils2.java:3: error: Fully-static utility classes must not have constructor [StaticUtils]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1528,10 +1748,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:11: error: Context is distinct, so it must be the first argument (method `wrong`) [ContextFirst] [Rule M3 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:12: error: ContentResolver is distinct, so it must be the first argument (method `wrong`) [ContextFirst] [Rule M3 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1559,7 +1783,7 @@ class ApiLintTest : DriverTest() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:7: warning: Listeners should always be at end of argument list (method `MyClass`) [ListenerLast] [Rule M3 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast] [Rule M3 in go/android-api-guidelines]
                 """,
@@ -1598,7 +1822,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -1640,7 +1864,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration] [Rule L1 in go/android-api-guidelines]
                 """,
@@ -1698,12 +1922,16 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/R.java:11: error: Expected resource name in `android.R.id` to be in the `fooBarBaz` style, was `wrong_style` [ResourceValueFieldName] [Rule C7 in go/android-api-guidelines]
                 src/android/R.java:17: error: Expected config name to be in the `config_fooBarBaz` style, was `config_wrong_config_style` [ConfigFieldName]
                 src/android/R.java:20: error: Expected resource name in `android.R.layout` to be in the `foo_bar_baz` style, was `wrongNameStyle` [ResourceFieldName]
                 src/android/R.java:31: error: Expected resource name in `android.R.style` to be in the `FooBar_Baz` style, was `wrong_style_name` [ResourceStyleFieldName] [Rule C7 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                4 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1751,7 +1979,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 """,
@@ -1783,7 +2011,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles] [Rule M10 in go/android-api-guidelines]
                 """,
@@ -1815,7 +2043,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyManager.java:9: warning: Abstract inner classes should be static to improve testability: class android.pkg.MyManager.MyInnerManager [AbstractInner]
                 """,
             sourceFiles = arrayOf(
@@ -1847,10 +2075,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:7: error: Methods must not mention RuntimeException subclasses in throws clauses (was `java.lang.SecurityException`) [BannedThrow]
                 src/android/pkg/MyClass.java:6: error: Methods must not mention RuntimeException subclasses in throws clauses (was `java.lang.ClassCastException`) [BannedThrow]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1873,10 +2105,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyClass.java:3: error: Trouble must be reported through an `Exception`, not an `Error` (`MyClass` extends `Error`) [ExtendsError]
                 src/android/pkg/MySomething.java:3: error: Exceptions must be named `FooException`, was `MySomething` [ExceptionName]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1903,7 +2139,7 @@ class ApiLintTest : DriverTest() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "NoByteOrShort"),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/UnitNameTest.java:5: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
                 src/android/pkg/UnitNameTest.java:6: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits]
                 src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits]
@@ -1916,6 +2152,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/UnitNameTest.java:22: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
                 src/android/pkg/UnitNameTest.java:24: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
                 """,
+            expectedFail = """
+                11 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1956,7 +2196,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
                 src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
                 """,
@@ -2017,7 +2257,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
                 src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
             """,
@@ -2055,7 +2295,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = "",
+            expectedIssues = "",
             manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                     <uses-sdk android:minSdkVersion="18" />
@@ -2090,7 +2330,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyErrorClass1.java:7: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
             """,
             manifest = """<?xml version="1.0" encoding="UTF-8"?>
@@ -2123,7 +2363,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = "",
+            expectedIssues = "",
             manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
                     <uses-sdk android:minSdkVersion="23" />
@@ -2154,10 +2394,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/KotlinKeywordTest.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/android/pkg/KotlinKeywordTest.java:8: error: Avoid field names that are Kotlin hard keywords ("as"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2181,7 +2425,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/KotlinOperatorTest.java:6: info: Method can be invoked with an indexing operator from Kotlin: `get` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 src/android/pkg/KotlinOperatorTest.java:7: info: Method can be invoked with an indexing operator from Kotlin: `set` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 src/android/pkg/KotlinOperatorTest.java:8: info: Method can be invoked with function call syntax from Kotlin: `invoke` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
@@ -2189,6 +2433,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/KotlinOperatorTest.java:9: error: Only one of `plus` and `plusAssign` methods should be present for Kotlin [UniqueKotlinOperator]
                 src/android/pkg/KotlinOperatorTest.java:10: info: Method can be invoked as a compound assignment operator from Kotlin: `plusAssign` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 """,
+            expectedFail = """
+                1 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2214,7 +2462,7 @@ class ApiLintTest : DriverTest() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/ArrayTest.java:11: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
                 src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
                 """,
@@ -2247,7 +2495,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MyManager.java:7: warning: When a method overload is needed to target a specific UserHandle, callers should be directed to use Context.createPackageContextAsUser() and re-obtain the relevant Manager, and no new API should be added [UserHandle]
                 src/android/pkg/UserHandleTest.java:8: warning: Method taking UserHandle should be named `doFooAsUser` or `queryFooForUser`, was `error` [UserHandleName]
                 """,
@@ -2286,7 +2534,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/FooOptions.java:3: warning: Classes holding a set of parameters should be called `FooParams`, was `FooOptions` [UserHandleName]
                 """,
             sourceFiles = arrayOf(
@@ -2315,11 +2563,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/content/Context.java:11: error: Inconsistent service constant name; expected `SOMETHING_SERVICE`, was `OTHER_MANAGER` [ServiceName] [Rule C4 in go/android-api-guidelines]
                 src/android/content/Context.java:12: error: Inconsistent service constant name; expected `OTHER_SERVICE`, was `OTHER_MANAGER_SERVICE` [ServiceName] [Rule C4 in go/android-api-guidelines]
                 src/android/content/Context.java:9: error: Inconsistent service value; expected `other`, was `something` (Note: Do not change the name of already released services, which will break tools using `adb shell dumpsys`. Instead add `@SuppressLint("ServiceName"))` [ServiceName] [Rule C4 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2361,7 +2613,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MethodNameTest.java:6: warning: Unexpected tense; probably meant `enabled`, was `fooEnable` [MethodNameTense]
                 src/android/pkg/MethodNameTest.java:7: warning: Unexpected tense; probably meant `enabled`, was `mustEnable` [MethodNameTense]
                 """,
@@ -2388,9 +2640,13 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/CloneTest.java:7: error: Provide an explicit copy constructor instead of implementing `clone()` [NoClone]
                 """,
+            expectedFail = """
+                1 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2414,7 +2670,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/IcuTest.java:6: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
                 src/android/pkg/IcuTest.java:7: warning: Type `java.text.BreakIterator` should be replaced with richer ICU type `android.icu.text.BreakIterator` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.Collator` should be replaced with richer ICU type `android.icu.text.Collator` [UseIcu]
@@ -2442,10 +2698,14 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/PdfTest.java:6: error: Must use ParcelFileDescriptor instead of FileDescriptor in parameter fd in android.pkg.PdfTest.error1(java.io.FileDescriptor fd) [UseParcelFileDescriptor] [Rule FW11 in go/android-api-guidelines]
                 src/android/pkg/PdfTest.java:7: error: Must use ParcelFileDescriptor instead of FileDescriptor in method android.pkg.PdfTest.getFileDescriptor() [UseParcelFileDescriptor] [Rule FW11 in go/android-api-guidelines]
                 """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2492,7 +2752,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/ByteTest.java:4: warning: Should avoid odd sized primitives; use `int` instead of `byte` in parameter b in android.pkg.ByteTest.error1(byte b) [NoByteOrShort] [Rule FW12 in go/android-api-guidelines]
                 src/android/pkg/ByteTest.java:5: warning: Should avoid odd sized primitives; use `int` instead of `short` in parameter s in android.pkg.ByteTest.error2(short s) [NoByteOrShort] [Rule FW12 in go/android-api-guidelines]
                 """,
@@ -2516,9 +2776,13 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/MySingleton.java:8: error: Singleton classes should use `getInstance()` methods: `MySingleton` [SingletonConstructor]
                 """,
+            expectedFail = """
+                1 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2557,11 +2821,15 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/FirstActivity.java:2: error: FirstActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/IndirectActivity.java:2: error: IndirectActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyTask.java:2: error: MyTask should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead [ForbiddenSuperClass]
                 """,
+            expectedFail = """
+                3 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2598,7 +2866,7 @@ class ApiLintTest : DriverTest() {
             compatibilityMode = false,
             // Note, src/android/pkg/FontFamily.kt:1 warning should not be there, it is a bug in PSI
             // https://youtrack.jetbrains.com/issue/KT-32556
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/A.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/Bar.kt:4: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/FontFamily.kt:1: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
@@ -2663,13 +2931,17 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils"),
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
                 src/android/pkg/Foo.java:12: error: Missing nullability on parameter `value` in method `setBadValue` [MissingNullability]
                 src/android/pkg/Foo.java:13: error: Missing nullability on method `getBadValue` return [MissingNullability]
                 src/android/pkg/Foo.java:20: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
                 src/android/pkg/Foo.java:7: error: Missing nullability on field `badField` in class `class android.pkg.Foo` [MissingNullability]
                 """,
+            expectedFail = """
+                5 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2698,7 +2970,8 @@ class ApiLintTest : DriverTest() {
                         }
                     """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     package android.pkg
 
                     object Bar
@@ -2723,7 +2996,7 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = "",
+            expectedIssues = "",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2768,9 +3041,13 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/MyClass.java:13: error: Missing nullability on method `method4` return [MissingNullability]
                 src/test/pkg/MyClass.java:14: error: Missing nullability on parameter `input` in method `method4` [MissingNullability]
+            """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
             """,
             sourceFiles = arrayOf(
                 java(
@@ -2805,6 +3082,62 @@ class ApiLintTest : DriverTest() {
                 ),
                 androidxNullableSource,
                 androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `No new setting keys`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_ERROR,
+                "NoSettingsProvider"
+            ),
+            expectedIssues = """
+                src/android/provider/Settings.java:9: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+                src/android/provider/Settings.java:11: error: Bare field okay2 must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/provider/Settings.java:17: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+                src/android/provider/Settings.java:21: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+            """,
+            expectedFail = """
+                4 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.provider;
+
+                    import androidx.annotation.Nullable;
+
+                    public class Settings {
+                        private Settings() { }
+                        public static class Global {
+                            private Global() { }
+                            public static final String BAD1 = "";
+                            public final String okay1 = "";
+                            @Nullable
+                            public static String okay2 = "";
+                            public static final int OKAY3 = 0;
+                        }
+                        public static class Secure {
+                            private Secure() { }
+                            public static final String BAD1 = "";
+                        }
+                        public static class System {
+                            private System() { }
+                            public static final String BAD1 = "";
+                        }
+                        public static class Other {
+                            private Other() { }
+                            public static final String OKAY1 = "";
+                        }
+                    }
+                    """
+                ),
+                androidxNullableSource
             )
         )
     }

@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2010 Google Inc.
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.doclava1
+package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
@@ -38,15 +38,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.text.TextBackedAnnotationItem
-import com.android.tools.metalava.model.text.TextClassItem
-import com.android.tools.metalava.model.text.TextConstructorItem
-import com.android.tools.metalava.model.text.TextFieldItem
-import com.android.tools.metalava.model.text.TextMethodItem
-import com.android.tools.metalava.model.text.TextModifiers
-import com.android.tools.metalava.model.text.TextPackageItem
-import com.android.tools.metalava.model.text.TextPropertyItem
-import com.android.tools.metalava.model.text.TextTypeItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
@@ -245,7 +236,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             // Add to package
             val endIndex = erased.lastIndexOf('.')
             val pkgPath = if (endIndex != -1) erased.substring(0, endIndex) else ""
-            val pkg = findPackage(pkgPath) as? TextPackageItem ?: run {
+            val pkg = findPackage(pkgPath) ?: run {
                 val newPkg = TextPackageItem(
                     this,
                     pkgPath,
@@ -272,7 +263,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         resolveInnerClasses(packages)
     }
 
-    override fun findPackage(pkgName: String): PackageItem? {
+    override fun findPackage(pkgName: String): TextPackageItem? {
         return mPackages[pkgName]
     }
 
@@ -344,7 +335,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             includeFieldsInApiDiff: Boolean = compatibility.includeFieldsInApiDiff
         ): TextCodebase {
             // Compute just the delta
-            val delta = TextCodebase(baseFile)
+            val delta =
+                TextCodebase(baseFile)
             delta.description = "Delta between $baseApi and $signatureApi"
 
             CodebaseComparator().compare(object : ComparisonVisitor() {
@@ -406,7 +398,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                 }
 
                 private fun getOrAddPackage(pkgName: String): TextPackageItem {
-                    val pkg = delta.findPackage(pkgName) as? TextPackageItem
+                    val pkg = delta.findPackage(pkgName)
                     if (pkg != null) {
                         return pkg
                     }

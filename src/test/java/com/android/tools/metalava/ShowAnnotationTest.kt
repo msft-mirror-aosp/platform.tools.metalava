@@ -10,7 +10,7 @@ class ShowAnnotationTest : DriverTest() {
     fun `Basic showAnnotation test`() {
         check(
             includeSystemApiAnnotations = true,
-            warnings = "src/test/pkg/Foo.java:17: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+            expectedIssues = "src/test/pkg/Foo.java:17: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -67,7 +67,7 @@ class ShowAnnotationTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             showUnannotated = true,
-            warnings = "src/test/pkg/Foo.java:17: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+            expectedIssues = "src/test/pkg/Foo.java:17: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -254,7 +254,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `No UnhiddenSystemApi warning for --show-single-annotations`() {
         check(
-            warnings = "",
+            expectedIssues = "",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -500,7 +500,7 @@ class ShowAnnotationTest : DriverTest() {
                 ),
                 restrictToSource
             ),
-            warnings = null,
+            expectedIssues = null,
             api = """
                 // Signature format: 3.0
                 package a {
@@ -586,6 +586,38 @@ class ShowAnnotationTest : DriverTest() {
                   public class Foo {
                     ctor public Foo();
                     method public void foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Check @PublishedApi handling`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    /**
+                    * @suppress
+                    */
+                    @PublishedApi
+                    internal class WeAreSoCool()
+                    """
+                ),
+                publishedApiSource
+            ),
+
+            extraArguments = arrayOf(
+                ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  @kotlin.PublishedApi internal final class WeAreSoCool {
+                    ctor public WeAreSoCool();
                   }
                 }
                 """

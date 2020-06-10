@@ -19,7 +19,10 @@ package com.android.tools.metalava
 import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 
@@ -161,14 +164,6 @@ Documentation:
 Extracting Signature Files:
 --api <file>                                 
                                              Generate a signature descriptor file
---private-api <file>                         
-                                             Generate a signature descriptor file listing the exact private APIs
---dex-api <file>                             
-                                             Generate a DEX signature descriptor file listing the APIs
---private-dex-api <file>                     
-                                             Generate a DEX signature descriptor file listing the exact private APIs
---dex-api-mapping <file>                     
-                                             Generate a DEX signature descriptor along with file and line numbers
 --removed-api <file>                         
                                              Generate a signature descriptor file for APIs that have been removed
 --format=<v1,v2,v3,...>                      
@@ -191,8 +186,6 @@ Extracting Signature Files:
 --include-signature-version[=yes|no]         
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
---proguard <file>                            
-                                             Write a ProGuard keep file for the API
 --sdk-values <dir>                           
                                              Write SDK values files to the given directory
 
@@ -283,6 +276,14 @@ Diffs and Checks:
                                              some warnings have been fixed, this will delete them from the baseline
                                              files. If a file is provided, the updated baseline is written to the given
                                              file; otherwise the original source baseline file is updated.
+--baseline:api-lint <file> --update-baseline:api-lint [file]
+                                             Same as --baseline and --update-baseline respectively, but used
+                                             specifically for API lint issues performed by --api-lint.
+--baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
+                                             Same as --baseline and --update-baseline respectively, but used
+                                             specifically for API compatibility issues performed by
+                                             --check-compatibility:api:released and
+                                             --check-compatibility:removed:released.
 --merge-baseline [file]                      
                                              Like --update-baseline, but instead of always replacing entries in the
                                              baseline, it will merge the existing baseline with the new baseline. This
@@ -296,6 +297,16 @@ Diffs and Checks:
 --delete-empty-baselines                     
                                              Whether to delete baseline files if they are updated and there is nothing
                                              to include.
+--error-message:api-lint <message>           
+                                             If set, metalava shows it when errors are detected in --api-lint.
+--error-message:compatibility:released <message>
+                                             If set, metalava shows it  when errors are detected in
+                                             --check-compatibility:api:released and
+                                             --check-compatibility:removed:released.
+--error-message:compatibility:current <message>
+                                             If set, metalava shows it  when errors are detected in
+                                             --check-compatibility:api:current and
+                                             --check-compatibility:removed:current.
 
 
 JDiff:
@@ -380,6 +391,27 @@ Extracting API Levels:
                                              Sets the code name for the current source code
 --current-jar                                
                                              Points to the current API jar, if any
+
+
+Sandboxing:
+--no-implicit-root                           
+                                             Disable implicit root directory detection. Otherwise, metalava adds in
+                                             source roots implied by the source files
+--strict-input-files <file>                  
+                                             Do not read files that are not explicitly specified in the command line.
+                                             All violations are written to the given file. Reads on directories are
+                                             always allowed, but metalava still tracks reads on directories that are not
+                                             specified in the command line, and write them to the file.
+--strict-input-files:warn <file>             
+                                             Warn when files not explicitly specified on the command line are read. All
+                                             violations are written to the given file. Reads on directories not
+                                             specified in the command line are allowed but also logged.
+--strict-input-files:stack <file>            
+                                             Same as --strict-input-files but also print stacktraces.
+--strict-input-files-exempt <files or dirs>  
+                                             Used with --strict-input-files. Explicitly allow access to files and/or
+                                             directories (separated by `:). Can also be @ followed by a path to a text
+                                             file containing paths to the full set of files and/or directories.
 
 
 Environment Variables:
@@ -487,7 +519,7 @@ $FLAGS
     fun `Test issue severity options by numeric id`() {
         check(
             extraArguments = arrayOf("--hide", "366"),
-            warnings = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
+            expectedIssues = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -496,7 +528,7 @@ $FLAGS
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            warnings = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -507,5 +539,31 @@ $FLAGS
             extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
             expectedFail = "Unknown issue id: --hide ThisIssueDoesNotExist"
         )
+    }
+
+    @Test
+    fun `Test for --strict-input-files-exempt`() {
+        val top = temporaryFolder.newFolder()
+
+        val dir = File(top, "childdir").apply { mkdirs() }
+        val grandchild1 = File(dir, "grandchiild1").apply { createNewFile() }
+        val grandchild2 = File(dir, "grandchiild2").apply { createNewFile() }
+        val file1 = File(top, "file1").apply { createNewFile() }
+        val file2 = File(top, "file2").apply { createNewFile() }
+
+        try {
+            check(
+                extraArguments = arrayOf("--strict-input-files-exempt",
+                    file1.path + File.pathSeparatorChar + dir.path)
+            )
+
+            assertTrue(FileReadSandbox.isAccessAllowed(file1))
+            assertTrue(FileReadSandbox.isAccessAllowed(grandchild1))
+            assertTrue(FileReadSandbox.isAccessAllowed(grandchild2))
+
+            assertFalse(FileReadSandbox.isAccessAllowed(file2)) // Access *not* allowed
+        } finally {
+            FileReadSandbox.reset()
+        }
     }
 }

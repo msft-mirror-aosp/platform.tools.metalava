@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -359,27 +360,6 @@ class ApiFileTest : DriverTest() {
                     method public int method3(java.lang.Integer value, int value2);
                   }
                 }
-                """,
-            privateApi = """
-                package test.pkg {
-                  public final class Kotlin extends test.pkg.Parent {
-                    method internal boolean getMyHiddenVar${"$"}lintWithKotlin();
-                    method internal void myHiddenMethod${"$"}lintWithKotlin();
-                    method internal void setMyHiddenVar${"$"}lintWithKotlin(boolean p);
-                    property internal final boolean myHiddenVar;
-                    field internal boolean myHiddenVar;
-                    field private final java.lang.String property1;
-                    field private java.lang.String property2;
-                    field private int someField;
-                  }
-                  public static final class Kotlin.Companion {
-                    ctor private Kotlin.Companion();
-                  }
-                  internal static final class Kotlin.myHiddenClass extends kotlin.Unit {
-                    ctor public Kotlin.myHiddenClass();
-                    method internal test.pkg.Kotlin.myHiddenClass copy();
-                  }
-                }
                 """
         )
     }
@@ -585,11 +565,11 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-//            Actual expected API is below. However, due to KT-38173 the extends information is
+//            Actual expected API is below. However, due to KT-39209 the nullability information is
 //              missing
 //            api = """
 //                // Signature format: 3.0
@@ -963,6 +943,154 @@ class ApiFileTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `Test JvmStatic`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        companion object {
+                            @JvmStatic
+                            fun jvmStaticMethod() {}
+                            
+                            fun nonJvmStaticMethod() {}
+                        }
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public static void jvmStaticMethod();
+                    field public static final test.pkg.SimpleClass.Companion! Companion;
+                  }
+                  public static final class SimpleClass.Companion {
+                    method public void jvmStaticMethod();
+                    method public void nonJvmStaticMethod();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test JvmField`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        @JvmField
+                        var jvmField = -1
+
+                        var nonJvmField = -2
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public int getNonJvmField();
+                    method public void setNonJvmField(int p);
+                    property public final int nonJvmField;
+                    field public int jvmField;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test JvmName`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class SimpleClass {
+                        @get:JvmName("myPropertyJvmGetter")
+                        var myProperty = -1
+                        
+                        var anotherProperty = -1
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public int getAnotherProperty();
+                    method public int myPropertyJvmGetter();
+                    method public void setAnotherProperty(int p);
+                    method public void setMyProperty(int p);
+                    property public final int anotherProperty;
+                    property public final int myProperty;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test RequiresOptIn and OptIn`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    
+                    @RequiresOptIn
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+                    annotation class ExperimentalBar
+
+                    @ExperimentalBar
+                    class FancyBar
+
+                    @OptIn(FancyBar::class) // @OptIn should not be tracked as it is not API
+                    class SimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+                """
+                )
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                }
+            """
         )
     }
 
@@ -1618,7 +1746,7 @@ class ApiFileTest : DriverTest() {
                 )
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:7: error: Method test.pkg.Foo.method1(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:8: error: Method test.pkg.Foo.method2(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Foo.Inner1: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
@@ -1673,7 +1801,7 @@ class ApiFileTest : DriverTest() {
                 nullableSource
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
@@ -2108,7 +2236,7 @@ class ApiFileTest : DriverTest() {
             ),
             // Notice how the intermediate methods (method2, method3) have been removed
             includeStrippedSuperclassWarnings = true,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
             api = """
                 package test.pkg {
                   public class MyClass extends test.pkg.PublicParent {
@@ -2150,7 +2278,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2189,7 +2317,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2228,7 +2356,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2271,7 +2399,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2764,27 +2892,7 @@ class ApiFileTest : DriverTest() {
                         ctor public Parent();
                       }
                     }
-                    """,
-            dexApi = """
-                Ltest/pkg/Child;
-                Ltest/pkg/Child;-><init>()V
-                Ltest/pkg/Child;->toString()Ljava/lang/String;
-                Ltest/pkg/Parent;
-                Ltest/pkg/Parent;-><init>()V
-                Ltest/pkg/Parent;->toString()Ljava/lang/String;
-            """,
-            dexApiMapping = """
-                Ltest/pkg/Child;-><init>()V
-                src/test/pkg/Child.java:2
-                Ltest/pkg/Child;->hiddenApi()V
-                src/test/pkg/Child.java:16
-                Ltest/pkg/Child;->toString()Ljava/lang/String;
-                src/test/pkg/Child.java:8
-                Ltest/pkg/Parent;-><init>()V
-                src/test/pkg/Parent.java:2
-                Ltest/pkg/Parent;->toString()Ljava/lang/String;
-                src/test/pkg/Parent.java:3
-            """
+                    """
         )
     }
 
@@ -2911,228 +3019,6 @@ class ApiFileTest : DriverTest() {
                     ctor public HttpResponseCache();
                   }
                 }
-                """
-        )
-    }
-
-    @Test
-    fun `Private API signatures`() {
-        check(
-            sourceFiles = arrayOf(
-                java(
-                    """
-                        package test.pkg;
-                        public class Class1 implements MyInterface {
-                            Class1(int arg) { }
-                            /** @hide */
-                            public void method1() { }
-                            void method2() { }
-                            private void method3() { }
-                            public int field1 = 1;
-                            protected int field2 = 2;
-                            int field3 = 3;
-                            float[][] field4 = 3;
-                            long[] field5 = null;
-                            private int field6 = 4;
-                            void myVarargsMethod(int x, String... args) { }
-
-                            public class Inner { // Fully public, should not be included
-                                 public void publicMethod() { }
-                            }
-                        }
-                    """
-                ),
-
-                java(
-                    """
-                        package test.pkg;
-                        class Class2 {
-                            public void method4() { }
-
-                            private class Class3 {
-                                public void method5() { }
-                            }
-                        }
-                    """
-                ),
-
-                java(
-                    """
-                        package test.pkg;
-                        /** @doconly */
-                        class Class4 {
-                            public void method5() { }
-                        }
-                    """
-                ),
-
-                java(
-                    """
-                        package test.pkg;
-                        /** @hide */
-                        @SuppressWarnings("UnnecessaryInterfaceModifier")
-                        public interface MyInterface {
-                            public static final String MY_CONSTANT = "5";
-                        }
-                    """
-                )
-            ),
-            privateApi = """
-                package test.pkg {
-                  public class Class1 implements test.pkg.MyInterface {
-                    ctor Class1(int);
-                    method public void method1();
-                    method void method2();
-                    method private void method3();
-                    method void myVarargsMethod(int, java.lang.String...);
-                    field int field3;
-                    field float[][] field4;
-                    field long[] field5;
-                    field private int field6;
-                  }
-                  class Class2 {
-                    ctor Class2();
-                    method public void method4();
-                  }
-                  private class Class2.Class3 {
-                    ctor private Class2.Class3();
-                    method public void method5();
-                  }
-                  class Class4 {
-                    ctor Class4();
-                    method public void method5();
-                  }
-                  public abstract interface MyInterface {
-                    field public static final java.lang.String MY_CONSTANT = "5";
-                  }
-                }
-                """,
-            privateDexApi = """
-                Ltest/pkg/Class1;-><init>(I)V
-                Ltest/pkg/Class1;->method1()V
-                Ltest/pkg/Class1;->method2()V
-                Ltest/pkg/Class1;->method3()V
-                Ltest/pkg/Class1;->myVarargsMethod(I[Ljava/lang/String;)V
-                Ltest/pkg/Class1;->field3:I
-                Ltest/pkg/Class1;->field4:[[F
-                Ltest/pkg/Class1;->field5:[J
-                Ltest/pkg/Class1;->field6:I
-                Ltest/pkg/Class2;
-                Ltest/pkg/Class2;-><init>()V
-                Ltest/pkg/Class2;->method4()V
-                Ltest/pkg/Class2${"$"}Class3;
-                Ltest/pkg/Class2${"$"}Class3;-><init>()V
-                Ltest/pkg/Class2${"$"}Class3;->method5()V
-                Ltest/pkg/Class4;
-                Ltest/pkg/Class4;-><init>()V
-                Ltest/pkg/Class4;->method5()V
-                Ltest/pkg/MyInterface;
-                Ltest/pkg/MyInterface;->MY_CONSTANT:Ljava/lang/String;
-                """
-        )
-    }
-
-    @Test
-    fun `Private API signature corner cases`() {
-        // Some corner case scenarios exposed by differences in output from doclava and metalava
-        check(
-            sourceFiles = arrayOf(
-                java(
-                    """
-                        package test.pkg;
-                        import android.os.Parcel;
-                        import android.os.Parcelable;
-                        import java.util.concurrent.FutureTask;
-
-                        public class Class1 extends PrivateParent implements MyInterface {
-                            Class1(int arg) { }
-
-                            @Override public String toString() {
-                                return "Class1";
-                            }
-
-                            private abstract class AmsTask extends FutureTask<String> {
-                                @Override
-                                protected void set(String bundle) {
-                                    super.set(bundle);
-                                }
-                            }
-
-                            /** @hide */
-                            public abstract static class TouchPoint implements Parcelable {
-                            }
-                        }
-                    """
-                ),
-
-                java(
-                    """
-                        package test.pkg;
-                        class PrivateParent {
-                            final String getValue() {
-                                return "";
-                            }
-                        }
-                    """
-                ),
-
-                java(
-                    """
-                        package test.pkg;
-                        /** @hide */
-                        public enum MyEnum {
-                            FOO, BAR
-                        }
-                    """
-                ),
-
-                java(
-                    """
-                        package test.pkg;
-                        @SuppressWarnings("UnnecessaryInterfaceModifier")
-                        public interface MyInterface {
-                            public static final String MY_CONSTANT = "5";
-                        }
-                    """
-                )
-            ),
-            privateApi = """
-                package test.pkg {
-                  public class Class1 extends test.pkg.PrivateParent implements test.pkg.MyInterface {
-                    ctor Class1(int);
-                  }
-                  private abstract class Class1.AmsTask extends java.util.concurrent.FutureTask {
-                    ctor private Class1.AmsTask();
-                  }
-                  public static abstract class Class1.TouchPoint implements android.os.Parcelable {
-                    ctor public Class1.TouchPoint();
-                  }
-                  public final class MyEnum extends java.lang.Enum {
-                    ctor private MyEnum();
-                    enum_constant public static final test.pkg.MyEnum BAR;
-                    enum_constant public static final test.pkg.MyEnum FOO;
-                  }
-                  class PrivateParent {
-                    ctor PrivateParent();
-                    method final java.lang.String getValue();
-                  }
-                }
-                """,
-            privateDexApi = """
-                Ltest/pkg/Class1;-><init>(I)V
-                Ltest/pkg/Class1${"$"}AmsTask;
-                Ltest/pkg/Class1${"$"}AmsTask;-><init>()V
-                Ltest/pkg/Class1${"$"}TouchPoint;
-                Ltest/pkg/Class1${"$"}TouchPoint;-><init>()V
-                Ltest/pkg/MyEnum;
-                Ltest/pkg/MyEnum;-><init>()V
-                Ltest/pkg/MyEnum;->valueOf(Ljava/lang/String;)Ltest/pkg/MyEnum;
-                Ltest/pkg/MyEnum;->values()[Ltest/pkg/MyEnum;
-                Ltest/pkg/MyEnum;->BAR:Ltest/pkg/MyEnum;
-                Ltest/pkg/MyEnum;->FOO:Ltest/pkg/MyEnum;
-                Ltest/pkg/PrivateParent;
-                Ltest/pkg/PrivateParent;-><init>()V
-                Ltest/pkg/PrivateParent;->getValue()Ljava/lang/String;
                 """
         )
     }
@@ -3375,7 +3261,7 @@ class ApiFileTest : DriverTest() {
             // Simulate test-mock scenario for getIContentProvider
             extraArguments = arrayOf("--stub-packages", "android.test.mock"),
             compatibilityMode = false,
-            warnings = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
+            expectedIssues = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3541,7 +3427,7 @@ class ApiFileTest : DriverTest() {
                 ARG_ERROR, "ReferencesDeprecated",
                 ARG_ERROR, "ExtendsDeprecated"
             ),
-            warnings = """
+            expectedIssues = """
             src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
@@ -3688,7 +3574,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api =
             """
                 package test.pkg {
@@ -3749,7 +3635,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
             api =
             """
                 package test.pkg {
@@ -3806,7 +3692,7 @@ class ApiFileTest : DriverTest() {
                 androidxNonNullSource
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            warnings = "",
+            expectedIssues = "",
             api =
                 """
                 package test.pkg {
@@ -3821,6 +3707,298 @@ class ApiFileTest : DriverTest() {
                 }
                 """
 
+        )
+    }
+
+    @Test
+    fun `Test merging API signature files`() {
+        val source1 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+            package Test.pkg1 {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class2 {
+                method public void method1(String);
+              }
+            }
+            package Test.pkg2 {
+              public final class Class1 {
+                method public void method1(String, String);
+              }
+            }
+                    """
+        val expected = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+              public final class Class2 {
+                method public void method1(java.lang.String);
+              }
+            }
+            package Test.pkg1 {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+            package Test.pkg2 {
+              public final class Class1 {
+                method public void method1(java.lang.String, java.lang.String);
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected
+        )
+    }
+
+    val MERGE_TEST_SOURCE_1 = """
+            package test.pkg {
+              public final class BaseClass {
+                method public void method1();
+              }
+            }
+                    """
+    val MERGE_TEST_SOURCE_2 = """
+            package test.pkg {
+              public final class SubClass extends test.pkg.BaseClass {
+              }
+            }
+                    """
+    val MERGE_TEST_EXPECTED = """
+            package test.pkg {
+              public final class BaseClass {
+                method public void method1();
+              }
+              public final class SubClass extends test.pkg.BaseClass {
+              }
+            }
+            """
+
+    @Test
+    fun `Test merging API signature files, one refer to another`() {
+        check(
+            signatureSources = arrayOf(MERGE_TEST_SOURCE_1, MERGE_TEST_SOURCE_2),
+            api = MERGE_TEST_EXPECTED
+        )
+    }
+
+    @Test
+    fun `Test merging API signature files, one refer to another, in reverse order`() {
+        // Exactly the same as the previous test, but read them in the reverse order
+        check(
+            signatureSources = arrayOf(MERGE_TEST_SOURCE_2, MERGE_TEST_SOURCE_1),
+            api = MERGE_TEST_EXPECTED
+        )
+    }
+
+    @Test
+    fun `Test merging API signature files with reverse dependency`() {
+        val source1 = """
+            package test.pkg {
+              public final class Class1 {
+                method public void method1(test.pkg.Class2 arg);
+              }
+            }
+                    """
+        val source2 = """
+            package test.pkg {
+              public final class Class2 {
+              }
+            }
+                    """
+        val expected = """
+            package test.pkg {
+              public final class Class1 {
+                method public void method1(test.pkg.Class2);
+              }
+              public final class Class2 {
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test merging 3 API signature files`() {
+        val source1 = """
+            package test.pkg1 {
+              public final class BaseClass1 {
+                method public void method1();
+              }
+
+              public final class AnotherSubClass extends test.pkg2.AnotherBase {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 = """
+            package test.pkg2 {
+              public final class SubClass1 extends test.pkg1.BaseClass1 {
+              }
+            }
+                    """
+        val source3 = """
+            package test.pkg2 {
+              public final class SubClass2 extends test.pkg2.SubClass1 {
+                method public void bar();
+              }
+
+              public final class AnotherBase {
+                method public void baz();
+              }
+            }
+                    """
+        val expected = """
+            package test.pkg1 {
+              public final class AnotherSubClass extends test.pkg2.AnotherBase {
+                method public void method1();
+              }
+              public final class BaseClass1 {
+                method public void method1();
+              }
+            }
+            package test.pkg2 {
+              public final class AnotherBase {
+                method public void baz();
+              }
+              public final class SubClass1 extends test.pkg1.BaseClass1 {
+              }
+              public final class SubClass2 extends test.pkg2.SubClass1 {
+                method public void bar();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2, source3),
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test cannot merging API signature files with duplicate class`() {
+        val source1 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+        )
+    }
+
+    @Test
+    fun `Test cannot merging API signature files with different file formats`() {
+        val source1 = """
+            // Signature format: 2.0
+            package Test.pkg {
+            }
+                    """
+        val source2 = """
+            // Signature format: 3.0
+            package Test.pkg {
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Unable to parse signature file: Cannot merge different formats of signature files. " +
+                "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
+        )
+    }
+
+    @Test
+    fun `Test tracking of @Composable annotation from classpath`() {
+        check(
+            format = FileFormat.V3,
+            classpath = arrayOf(
+                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip:
+                    package test.pkg
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.TYPE,
+                        AnnotationTarget.TYPE_PARAMETER,
+                        AnnotationTarget.PROPERTY
+                    )
+                    annotation class Composable
+                 */
+                base64gzip(
+                    "test.jar", "" +
+                        "UEsDBAoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAZ3qzULJ/" +
+                        "Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM+zUjDUM+Dl" +
+                        "4uUCAFBLAwQKAAAICABnerNQDArdZgwAAAAQAAAAGwAAAE1FVEEtSU5GL3RlbXAua290bGluX21v" +
+                        "ZHVsZWNgYGBmYGBghGIBAFBLAwQKAAAICABnerNQAAAAAAIAAAAAAAAABQAAAHRlc3QvAwBQSwME" +
+                        "CgAACAgAZ3qzUAAAAAACAAAAAAAAAAkAAAB0ZXN0L3BrZy8DAFBLAwQKAAAICABnerNQbrgjGPQB" +
+                        "AACVAwAAGQAAAHRlc3QvcGtnL0NvbXBvc2FibGUuY2xhc3OFUk1v2kAQfWtioG6TkKRpSdI0H01I" +
+                        "P6S65doTEEdF4kvGrRRxqBZYIQdjo+xClRu3Xvsz+ht6qFCO/VFVZ4kCVLJU2Xo7O/PGM/M8v//8" +
+                        "/AUgjzcMW0pIZQ/7PbsUDYaR5O1ApMAYMld8zO2Ahz273r4SHZVCguFg4eVhGCmu/Ci0C3MzBZPh" +
+                        "pNKPVOCHy5TqSKqiOI86o4EIleh+YNiPoblCUZgsiptjHowEw1kMb1FxOSNZLNcK7iXDbkyKx697" +
+                        "QhFrjQdB9FV07xwyvt9FgXmeWaoUmk2G9MWnWskr12sMK95lw6Ev6uNLo+AWqo7nuERpuPWG43rU" +
+                        "ylElVrJ/lDiM5yyPlvsPpREFfudmpmoscT7FcXzcCYRux7sZCi0kzfGxfs6wcS9NVSje5YpT0BiM" +
+                        "E7Q+TEOGru3ZFRpoQ1ifXN33NNR0YllG1rCMzJ41naRvvxnZ6SRvvGPF6eT2R9LQvDzDdiVmBakM" +
+                        "SF4lBkOG1YX/bV8xWM1odN0RF35A27HjjkiAgfjsS58Ii/8mc1QAK/SZpG6P7FczfInXdH5Hih4g" +
+                        "TfEHAhYe4hGZqy2YAmtY15DRsKFhU8MWHlPC9l3CE6zjqTZbMASympbFDnZhYq+FRBnPZu8+nt/f" +
+                        "Dso4xBGZOG6BSbzACYUkTiVyEmd/AVBLAQIUAwoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAAAAAA" +
+                        "AAAAEADtQQAAAABNRVRBLUlORi9QSwECFAMKAAAICABnerNQsn8C7hsAAAAZAAAAFAAAAAAAAAAA" +
+                        "AAAApIEpAAAATUVUQS1JTkYvTUFOSUZFU1QuTUZQSwECFAMKAAAICABnerNQDArdZgwAAAAQAAAA" +
+                        "GwAAAAAAAAAAAAAAoIF2AAAATUVUQS1JTkYvdGVtcC5rb3RsaW5fbW9kdWxlUEsBAhQDCgAACAgA" +
+                        "Z3qzUAAAAAACAAAAAAAAAAUAAAAAAAAAAAAQAOhBuwAAAHRlc3QvUEsBAhQDCgAACAgAZ3qzUAAA" +
+                        "AAACAAAAAAAAAAkAAAAAAAAAAAAQAOhB4AAAAHRlc3QvcGtnL1BLAQIUAwoAAAgIAGd6s1BuuCMY" +
+                        "9AEAAJUDAAAZAAAAAAAAAAAAAACggQkBAAB0ZXN0L3BrZy9Db21wb3NhYmxlLmNsYXNzUEsFBgAA" +
+                        "AAAGAAYAcwEAADQDAAAAAA=="
+                )
+            ),
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class RadioGroupScope() {
+                        @Composable
+                        fun RadioGroupItem(
+                            selected: Boolean,
+                            onSelect: () -> Unit,
+                            content: @Composable () -> Unit
+                        ) { }
+                    }
+                """
+                )
+            ),
+            expectedIssues = "",
+            api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class RadioGroupScope {
+                    ctor public RadioGroupScope();
+                    method @test.pkg.Composable public void RadioGroupItem(boolean selected, kotlin.jvm.functions.Function0<kotlin.Unit> onSelect, kotlin.jvm.functions.Function0<kotlin.Unit> content);
+                  }
+                }
+            """
         )
     }
 }

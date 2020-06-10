@@ -45,8 +45,8 @@ import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.checks.AnnotationDetector
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.doclava1.ApiFile
-import com.android.tools.metalava.doclava1.ApiParseException
+import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem

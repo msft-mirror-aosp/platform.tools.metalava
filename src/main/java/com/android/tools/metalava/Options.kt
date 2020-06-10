@@ -31,7 +31,6 @@ import java.io.IOException
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.lang.NumberFormatException
 import java.util.Locale
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
@@ -60,9 +59,6 @@ const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
 const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
 const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
 const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
-const val ARG_PRIVATE_API = "--private-api"
-const val ARG_DEX_API = "--dex-api"
-const val ARG_PRIVATE_DEX_API = "--private-dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
@@ -73,13 +69,11 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
-const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
-const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
@@ -116,9 +110,6 @@ const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
-const val ARG_UNHIDE_CLASSPATH_CLASSES = "--unhide-classpath-classes"
-const val ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES = "--allow-referencing-unknown-classes"
-const val ARG_NO_UNKNOWN_CLASSES = "--no-unknown-classes"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
@@ -146,12 +137,15 @@ const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
-const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
+const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
+const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
 const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 const val ARG_UPDATE_BASELINE = "--update-baseline"
+const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
+const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--update-baseline:compatibility:released"
 const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
@@ -160,6 +154,14 @@ const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS = "--force-convert-to-warning-nullability-annotations"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
+const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
+const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
+const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT = "--error-message:compatibility:current"
+const val ARG_NO_IMPLICIT_ROOT = "--no-implicit-root"
+const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
+const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
+const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
+const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 
 class Options(
     private val args: Array<String>,
@@ -299,10 +301,9 @@ class Options(
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
      * (e.g. ? means nullable, ! means unknown, empty means not null).
      *
-     * If not specified, it depends on the format of the signature file (v1 and v2 does not use
-     * Kotlin style nulls; v3 does.)
+     * Even when it's false, if the format supports Kotlin-style nulls, we'll still allow them.
      */
-    var inputKotlinStyleNulls: Boolean? = null
+    var inputKotlinStyleNulls: Boolean = false
 
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
@@ -397,26 +398,11 @@ class Options(
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
     var kotlinStubs = false
 
-    /** Proguard Keep list file to write */
-    var proguard: File? = null
-
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
-
-    /** If set, a file to write the private API file to. Corresponds to the --private-api/-privateApi flag. */
-    var privateApiFile: File? = null
-
-    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
-    var dexApiFile: File? = null
-
-    /** If set, a file to write all DEX signatures and file locations to. Corresponds to [ARG_DEX_API_MAPPING]. */
-    var dexApiMappingFile: File? = null
-
-    /** If set, a file to write the private DEX signatures to. Corresponds to --private-dex-api. */
-    var privateDexApiFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -529,15 +515,6 @@ class Options(
      */
     var hideClasspathClasses = true
 
-    /** Only used for tests: Whether during code filtering we allow referencing super classes
-     * etc that are unknown (because they're not included in the codebase) */
-    var allowReferencingUnknownClasses = true
-
-    /** Reverse of [allowReferencingUnknownClasses]: Require all classes to be known. This
-     * is used when compiling the main SDK itself (which includes definitions for everything,
-     * including java.lang.Object.) */
-    var noUnknownClasses = false
-
     /**
      * mapping from API level to android.jar files, if computing API levels
      */
@@ -564,8 +541,48 @@ class Options(
     /** A baseline to check against */
     var baseline: Baseline? = null
 
-    /** Whether all baseline files need to be updated */
-    var updateBaseline = false
+    /** A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT]) */
+    var baselineApiLint: Baseline? = null
+
+    /**
+     * A baseline to check against, specifically used for "check-compatibility:*:released"
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     */
+    var baselineCompatibilityReleased: Baseline? = null
+
+    var allBaselines: List<Baseline>
+
+    /** If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails. */
+    var errorMessageApiLint: String? = null
+
+    /**
+     * If set, metalava will show this error message when "check-compatibility:*:released" fails.
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     */
+    var errorMessageCompatibilityReleased: String? = null
+
+    /**
+     * If set, metalava will show this error message when "check-compatibility:*:current" fails.
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_CURRENT] and [ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT])
+     */
+    var errorMessageCompatibilityCurrent: String? = null
+
+    /** [Reporter] for "api-lint" */
+    var reporterApiLint: Reporter
+
+    /**
+     * [Reporter] for "check-compatibility:*:released".
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     */
+    var reporterCompatibilityReleased: Reporter
+
+    /**
+     * [Reporter] for "check-compatibility:*:current".
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_CURRENT] and [ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT])
+     */
+    var reporterCompatibilityCurrent: Reporter
+
+    var allReporters: List<Reporter>
 
     /** If updating baselines, don't fail the build */
     var passBaselineUpdates = false
@@ -615,6 +632,37 @@ class Options(
     /** How to handle typedef annotations in signature files; corresponds to $ARG_TYPEDEFS_IN_SIGNATURES */
     var typedefMode = TypedefMode.NONE
 
+    /** Allow implicit root detection (which is the default behavior). See [ARG_NO_IMPLICIT_ROOT] */
+    var allowImplicitRoot = true
+
+    enum class StrictInputFileMode {
+        PERMISSIVE,
+        STRICT,
+        STRICT_WARN,
+        STRICT_WITH_STACK;
+
+        companion object {
+            fun fromArgument(arg: String): StrictInputFileMode {
+                return when (arg) {
+                    ARG_STRICT_INPUT_FILES -> STRICT
+                    ARG_STRICT_INPUT_FILES_WARN -> STRICT_WARN
+                    ARG_STRICT_INPUT_FILES_STACK -> STRICT_WITH_STACK
+                    else -> PERMISSIVE
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether we should allow metalava to read files that are not explicitly specified in the
+     * command line. See [ARG_STRICT_INPUT_FILES], [ARG_STRICT_INPUT_FILES_WARN] and
+     * [ARG_STRICT_INPUT_FILES_STACK].
+     */
+    var strictInputFiles = StrictInputFileMode.PERMISSIVE
+
+    var strictInputViolationsFile: File? = null
+    var strictInputViolationsPrintWriter: PrintWriter? = null
+
     /** File conversion tasks */
     data class ConvertFile(
         val fromApiFile: File,
@@ -652,17 +700,26 @@ class Options(
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        var updateBaselineFile: File? = null
-        var baselineFile: File? = null
-        var mergeBaseline = false
         var delayedCheckApiFiles = false
         var skipGenerateAnnotations = false
+        reporter = Reporter(null, null)
+
+        val baselineBuilder = Baseline.Builder().apply { description = "base" }
+        val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
+        val baselineCompatibilityReleasedBuilder = Baseline.Builder().apply { description = "compatibility:released" }
+
+        fun getBaselineBuilderForArg(flag: String): Baseline.Builder = when (flag) {
+                ARG_BASELINE, ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> baselineBuilder
+                ARG_BASELINE_API_LINT, ARG_UPDATE_BASELINE_API_LINT -> baselineApiLintBuilder
+                ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED, ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED
+                    -> baselineCompatibilityReleasedBuilder
+                else -> error("Internal error: Invalid flag: $flag")
+            }
 
         var index = 0
         while (index < args.size) {
-            val arg = args[index]
 
-            when (arg) {
+            when (val arg = args[index]) {
                 ARG_HELP, "-h", "-?" -> {
                     helpAndQuit(color)
                 }
@@ -753,19 +810,9 @@ class Options(
                 "-sdkvalues", ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_API, "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API_MAPPING, "-apiMapping" -> dexApiMappingFile = stringToNewFile(getValue(args, ++index))
-
-                ARG_PRIVATE_API, "-privateApi" -> privateApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_PRIVATE_DEX_API, "-privateDexApi" -> privateDexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
-
-                ARG_EXACT_API, "-exactApi" -> {
-                    getValue(args, ++index) // prevent next arg from tripping up parser
-                    unimplemented(arg) // Not yet implemented (because it seems to no longer be hooked up in doclava1)
-                }
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -816,8 +863,6 @@ class Options(
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
 
-                ARG_PROGUARD, "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
-
                 ARG_HIDE_PACKAGE, "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
 
                 ARG_STUB_PACKAGES, "-stubpackages" -> {
@@ -858,10 +903,10 @@ class Options(
                     allowClassesFromClasspath = false
                 }
 
-                ARG_BASELINE -> {
-                    val relative = getValue(args, ++index)
-                    assert(baselineFile == null) { "Only one baseline is allowed; found both $baselineFile and $relative" }
-                    baselineFile = stringToExistingFile(relative)
+                ARG_BASELINE, ARG_BASELINE_API_LINT, ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
+                    val nextArg = getValue(args, ++index)
+                    val builder = getBaselineBuilderForArg(arg)
+                    builder.file = stringToExistingFile(nextArg)
                 }
 
                 ARG_REPORT_EVEN_IF_SUPPRESSED -> {
@@ -873,18 +918,22 @@ class Options(
                     reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
 
-                ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> {
-                    updateBaseline = true
-                    mergeBaseline = arg == ARG_MERGE_BASELINE
+                ARG_MERGE_BASELINE, ARG_UPDATE_BASELINE, ARG_UPDATE_BASELINE_API_LINT, ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
+                    val builder = getBaselineBuilderForArg(arg)
+                    builder.merge = (arg == ARG_MERGE_BASELINE)
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
                         if (!nextArg.startsWith("-")) {
-                            val file = stringToNewOrExistingFile(nextArg)
                             index++
-                            updateBaselineFile = file
+                            builder.updateFile = stringToNewOrExistingFile(nextArg)
                         }
                     }
                 }
+
+                ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
+                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED -> errorMessageCompatibilityReleased = getValue(args, ++index)
+                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT -> errorMessageCompatibilityCurrent = getValue(args, ++index)
+
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
 
@@ -919,7 +968,7 @@ class Options(
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
                         if (!nextArg.startsWith("-")) {
-                            val file = fileForPath(nextArg)
+                            val file = stringToExistingFile(nextArg)
                             if (file.isFile) {
                                 index++
                                 migrateNullsFrom = file
@@ -950,7 +999,7 @@ class Options(
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
                         if (!nextArg.startsWith("-")) {
-                            val file = fileForPath(nextArg)
+                            val file = stringToExistingFile(nextArg)
                             if (file.isFile) {
                                 index++
                                 mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
@@ -1081,10 +1130,6 @@ class Options(
                 "$ARG_OMIT_COMMON_PACKAGES=no" -> compatibility.omitCommonPackages = false
 
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
-
-                ARG_UNHIDE_CLASSPATH_CLASSES -> hideClasspathClasses = false
-                ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES -> allowReferencingUnknownClasses = true
-                ARG_NO_UNKNOWN_CLASSES -> noUnknownClasses = true
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
@@ -1239,6 +1284,28 @@ class Options(
                         level == null -> throw DriverException("$value is not a valid or supported Java language level")
                         level.isLessThan(LanguageLevel.JDK_1_7) -> throw DriverException("$arg must be at least 1.7")
                         else -> javaLanguageLevel = level
+                    }
+                }
+
+                ARG_NO_IMPLICIT_ROOT -> {
+                    allowImplicitRoot = false
+                }
+
+                ARG_STRICT_INPUT_FILES, ARG_STRICT_INPUT_FILES_WARN, ARG_STRICT_INPUT_FILES_STACK -> {
+                    if (strictInputViolationsFile != null) {
+                        throw DriverException("$ARG_STRICT_INPUT_FILES, $ARG_STRICT_INPUT_FILES_WARN and $ARG_STRICT_INPUT_FILES_STACK may be specified only once")
+                    }
+                    strictInputFiles = StrictInputFileMode.fromArgument(arg)
+
+                    val file = stringToNewOrExistingFile(getValue(args, ++index))
+                    strictInputViolationsFile = file
+                    strictInputViolationsPrintWriter = file.printWriter()
+                }
+                ARG_STRICT_INPUT_FILES_EXEMPT -> {
+                    val listString = getValue(args, ++index)
+                    listString.split(File.pathSeparatorChar).forEach { path ->
+                        // Throw away the result; just let the function add the files to the whitelist.
+                        stringToExistingFilesOrDirs(path)
                     }
                 }
 
@@ -1487,10 +1554,6 @@ class Options(
             showUnannotated = true
         }
 
-        if (noUnknownClasses) {
-            allowReferencingUnknownClasses = false
-        }
-
         if (skipGenerateAnnotations) {
             generateAnnotations = false
         }
@@ -1514,7 +1577,6 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
-            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             checkKotlinInterop = false
@@ -1541,7 +1603,6 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
-            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             checkKotlinInterop = false
@@ -1555,35 +1616,59 @@ class Options(
             validateNullabilityFromList = null
             apiFile = null
             apiXmlFile = null
-            privateApiFile = null
-            dexApiFile = null
-            dexApiMappingFile = null
-            privateDexApiFile = null
             removedApiFile = null
             removedDexApiFile = null
         }
 
-        if (baselineFile == null) {
+        // Fix up [Baseline] files and [Reporter]s.
+
+        val baselineHeaderComment = if (isBuildingAndroid())
+            "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
+        else
+            ""
+        baselineBuilder.headerComment = baselineHeaderComment
+        baselineApiLintBuilder.headerComment = baselineHeaderComment
+        baselineCompatibilityReleasedBuilder.headerComment = baselineHeaderComment
+
+        if (baselineBuilder.file == null) {
+            // If default baseline is a file, use it.
             val defaultBaselineFile = getDefaultBaselineFile()
             if (defaultBaselineFile != null && defaultBaselineFile.isFile) {
-                if (updateBaseline && updateBaselineFile == null) {
-                    updateBaselineFile = defaultBaselineFile
-                }
-                baseline = Baseline(defaultBaselineFile, updateBaselineFile, mergeBaseline)
-            } else if (updateBaselineFile != null) {
-                baseline = Baseline(null, updateBaselineFile, mergeBaseline)
+                baselineBuilder.file = defaultBaselineFile
             }
-        } else {
-            // Add helpful doc in AOSP baseline files?
-            val headerComment = if (isBuildingAndroid())
-                "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
-            else
-                ""
-            if (updateBaseline && updateBaselineFile == null) {
-                updateBaselineFile = baselineFile
-            }
-            baseline = Baseline(baselineFile, updateBaselineFile, mergeBaseline, headerComment)
         }
+
+        baseline = baselineBuilder.build()
+        baselineApiLint = baselineApiLintBuilder.build()
+        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
+
+        reporterApiLint = Reporter(
+            baselineApiLint ?: baseline,
+            errorMessageApiLint
+        )
+        reporterCompatibilityReleased = Reporter(
+            baselineCompatibilityReleased ?: baseline,
+            errorMessageCompatibilityReleased
+        )
+        reporterCompatibilityCurrent = Reporter(
+            // Note, the compat-check:current shouldn't take a baseline file, so we don't have
+            // a task specific baseline file, but we still respect the global baseline file.
+            baseline,
+            errorMessageCompatibilityCurrent
+        )
+
+        // Build "all baselines" and "all reporters"
+
+        // Baselines are nullable, so selectively add to the list.
+        allBaselines = listOfNotNull(baseline, baselineApiLint, baselineCompatibilityReleased)
+
+        // Reporters are non-null.
+        allReporters = listOf(
+            reporter,
+            reporterApiLint,
+            reporterCompatibilityReleased,
+            reporterCompatibilityCurrent
+        )
 
         checkFlagConsistency()
     }
@@ -1606,6 +1691,10 @@ class Options(
      * Produce a default file name for the baseline. It's normally "baseline.txt", but can
      * be prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi -> system-baseline.txt,
      * etc.
+     *
+     * Note because the default baseline file is not explicitly set in the command line,
+     * this file would trigger a --strict-input-files violation. To avoid that, always explicitly
+     * pass a baseline file.
      */
     private fun getDefaultBaselineFile(): File? {
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
@@ -1629,6 +1718,13 @@ class Options(
         }
     }
 
+    /**
+     * Find an android stub jar that matches the given criteria.
+     *
+     * Note because the default baseline file is not explicitly set in the command line,
+     * this file would trigger a --strict-input-files violation. To avoid that, use
+     * --strict-input-files-exempt to exempt the jar directory.
+     */
     private fun findAndroidJars(
         androidJarPatterns: List<String>,
         currentApiLevel: Int,
@@ -1691,8 +1787,9 @@ class Options(
     }
 
     private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
+        // Note this method doesn't register the result to [FileReadSandbox]
         return patterns
-            .map { fileForPath(it.replace("%", Integer.toString(apiLevel))) }
+            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
     }
 
@@ -1771,78 +1868,86 @@ class Options(
     }
 
     private fun stringToExistingDir(value: String): File {
-        val file = fileForPath(value)
+        val file = fileForPathInner(value)
         if (!file.isDirectory) {
             throw DriverException("$file is not a directory")
         }
-        return file
+        return FileReadSandbox.allowAccess(file)
     }
 
     @Suppress("unused")
     private fun stringToExistingDirs(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPath(path)
+            val file = fileForPathInner(path)
             if (!file.isDirectory) {
                 throw DriverException("$file is not a directory")
             }
             files.add(file)
         }
-        return files
+        return FileReadSandbox.allowAccess(files)
     }
 
     private fun stringToExistingDirsOrJars(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPath(path)
+            val file = fileForPathInner(path)
             if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
                 throw DriverException("$file is not a jar or directory")
             }
             files.add(file)
         }
-        return files
+        return FileReadSandbox.allowAccess(files)
     }
 
     private fun stringToExistingDirsOrFiles(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPath(path)
+            val file = fileForPathInner(path)
             if (!file.exists()) {
                 throw DriverException("$file does not exist")
             }
             files.add(file)
         }
-        return files
+        return FileReadSandbox.allowAccess(files)
     }
 
     private fun stringToExistingFile(value: String): File {
-        val file = fileForPath(value)
+        val file = fileForPathInner(value)
         if (!file.isFile) {
             throw DriverException("$file is not a file")
         }
-        return file
+        return FileReadSandbox.allowAccess(file)
     }
 
     @Suppress("unused")
     private fun stringToExistingFileOrDir(value: String): File {
-        val file = fileForPath(value)
+        val file = fileForPathInner(value)
         if (!file.exists()) {
             throw DriverException("$file is not a file or directory")
         }
-        return file
+        return FileReadSandbox.allowAccess(file)
     }
 
     private fun stringToExistingFiles(value: String): List<File> {
+        return stringToExistingFilesOrDirsInternal(value, false)
+    }
+
+    private fun stringToExistingFilesOrDirs(value: String): List<File> {
+        return stringToExistingFilesOrDirsInternal(value, true)
+    }
+
+    private fun stringToExistingFilesOrDirsInternal(value: String, allowDirs: Boolean): List<File> {
         val files = mutableListOf<File>()
         value.split(File.pathSeparatorChar)
-            .map { fileForPath(it) }
+            .map { fileForPathInner(it) }
             .forEach { file ->
                 if (file.path.startsWith("@")) {
                     // File list; files to be read are stored inside. SHOULD have been one per line
                     // but sadly often uses spaces for separation too (so we split by whitespace,
                     // which means you can't point to files in paths with spaces)
                     val listFile = File(file.path.substring(1))
-                    if (!listFile.isFile) {
+                    if (!allowDirs && !listFile.isFile) {
                         throw DriverException("$listFile is not a file")
                     }
                     val contents = Files.asCharSource(listFile, UTF_8).read()
@@ -1850,23 +1955,23 @@ class Options(
                         contents
                     )
                     pathList.asSequence().map { File(it) }.forEach {
-                        if (!it.isFile) {
+                        if (!allowDirs && !it.isFile) {
                             throw DriverException("$it is not a file")
                         }
                         files.add(it)
                     }
                 } else {
-                    if (!file.isFile) {
+                    if (!allowDirs && !file.isFile) {
                         throw DriverException("$file is not a file")
                     }
                     files.add(file)
                 }
             }
-        return files
+        return FileReadSandbox.allowAccess(files)
     }
 
     private fun stringToNewFile(value: String): File {
-        val output = fileForPath(value)
+        val output = fileForPathInner(value)
 
         if (output.exists()) {
             if (output.isDirectory) {
@@ -1883,22 +1988,22 @@ class Options(
             }
         }
 
-        return output
+        return FileReadSandbox.allowAccess(output)
     }
 
     private fun stringToNewOrExistingDir(value: String): File {
-        val dir = fileForPath(value)
+        val dir = fileForPathInner(value)
         if (!dir.isDirectory) {
             val ok = dir.mkdirs()
             if (!ok) {
                 throw DriverException("Could not create $dir")
             }
         }
-        return dir
+        return FileReadSandbox.allowAccess(dir)
     }
 
     private fun stringToNewOrExistingFile(value: String): File {
-        val file = fileForPath(value)
+        val file = fileForPathInner(value)
         if (!file.exists()) {
             val parentFile = file.parentFile
             if (parentFile != null && !parentFile.isDirectory) {
@@ -1908,11 +2013,11 @@ class Options(
                 }
             }
         }
-        return file
+        return FileReadSandbox.allowAccess(file)
     }
 
     private fun stringToNewDir(value: String): File {
-        val output = fileForPath(value)
+        val output = fileForPathInner(value)
         val ok =
             if (output.exists()) {
                 if (output.isDirectory) {
@@ -1930,10 +2035,19 @@ class Options(
             throw DriverException("Could not create $output")
         }
 
-        return output
+        return FileReadSandbox.allowAccess(output)
     }
 
-    private fun fileForPath(path: String): File {
+    /**
+     * Converts a path to a [File] that represents the absolute path, with the following special
+     * behavior:
+     * - "~" will be expanded into the home directory path.
+     * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
+     *
+     * Note, unlike the other "stringToXxx" methods, this method won't register the given path
+     * to [FileReadSandbox].
+     */
+    private fun fileForPathInner(path: String): File {
         // java.io.File doesn't automatically handle ~/ -> home directory expansion.
         // This isn't necessary when metalava is run via the command line driver
         // (since shells will perform this expansion) but when metalava is run
@@ -2066,10 +2180,6 @@ class Options(
             "", "\nExtracting Signature Files:",
             // TODO: Document --show-annotation!
             "$ARG_API <file>", "Generate a signature descriptor file",
-            "$ARG_PRIVATE_API <file>", "Generate a signature descriptor file listing the exact private APIs",
-            "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
-            "$ARG_PRIVATE_DEX_API <file>", "Generate a DEX signature descriptor file listing the exact private APIs",
-            "$ARG_DEX_API_MAPPING <file>", "Generate a DEX signature descriptor along with file and line numbers",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]", "Controls whether nullness annotations should be formatted as " +
@@ -2086,7 +2196,6 @@ class Options(
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
-            "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
 
             "", "\nGenerating Stubs:",
@@ -2147,6 +2256,13 @@ class Options(
                 "If some warnings have been fixed, this will delete them from the baseline files. If a file " +
                 "is provided, the updated baseline is written to the given file; otherwise the original source " +
                 "baseline file is updated.",
+            "$ARG_BASELINE_API_LINT <file> $ARG_UPDATE_BASELINE_API_LINT [file]", "Same as $ARG_BASELINE and " +
+                "$ARG_UPDATE_BASELINE respectively, but used specifically for API lint issues performed by " +
+                "$ARG_API_LINT.",
+            "$ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED <file> $ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED [file]",
+                "Same as $ARG_BASELINE and " +
+                "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
             "$ARG_MERGE_BASELINE [file]", "Like $ARG_UPDATE_BASELINE, but instead of always replacing entries " +
                 "in the baseline, it will merge the existing baseline with the new baseline. This is useful " +
                 "if $PROGRAM_NAME runs multiple times on the same source tree with different flags at different " +
@@ -2156,6 +2272,11 @@ class Options(
                 "all the baselines in the source tree can be updated in one go.",
             ARG_DELETE_EMPTY_BASELINES, "Whether to delete baseline files if they are updated and there is nothing " +
                 "to include.",
+            "$ARG_ERROR_MESSAGE_API_LINT <message>", "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
+            "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED <message>", "If set, $PROGRAM_NAME shows it " +
+                " when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
+            "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT <message>", "If set, $PROGRAM_NAME shows it " +
+                " when errors are detected in $ARG_CHECK_COMPATIBILITY_API_CURRENT and $ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT.",
 
             "", "\nJDiff:",
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",
@@ -2216,6 +2337,21 @@ class Options(
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
+
+            "", "\nSandboxing:",
+            ARG_NO_IMPLICIT_ROOT, "Disable implicit root directory detection. " +
+                "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
+            "$ARG_STRICT_INPUT_FILES <file>", "Do not read files that are not explicitly specified in the command line. " +
+                "All violations are written to the given file. Reads on directories are always allowed, but " +
+                "$PROGRAM_NAME still tracks reads on directories that are not specified in the command line, " +
+                "and write them to the file.",
+            "$ARG_STRICT_INPUT_FILES_WARN <file>", "Warn when files not explicitly specified on the command line are " +
+                "read. All violations are written to the given file. Reads on directories not specified in the command " +
+                "line are allowed but also logged.",
+            "$ARG_STRICT_INPUT_FILES_STACK <file>", "Same as $ARG_STRICT_INPUT_FILES but also print stacktraces.",
+            "$ARG_STRICT_INPUT_FILES_EXEMPT <files or dirs>", "Used with $ARG_STRICT_INPUT_FILES. Explicitly allow " +
+                "access to files and/or directories (separated by `${File.pathSeparator}). Can also be " +
+                "@ followed by a path to a text file containing paths to the full set of files and/or directories.",
 
             "", "\nEnvironment Variables:",
             ENV_VAR_METALAVA_DUMP_ARGV, "Set to true to have metalava emit all the arguments it was invoked with. " +
