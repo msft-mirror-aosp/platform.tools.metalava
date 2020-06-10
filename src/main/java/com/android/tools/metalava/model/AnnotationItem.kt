@@ -412,6 +412,10 @@ interface AnnotationItem {
                 "android.annotation.LongDef",
                 "androidx.annotation.LongDef" -> return ANNOTATION_EXTERNAL_ONLY
 
+                // Not directly API relevant
+                "android.view.ViewDebug.ExportedProperty",
+                "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
+
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
                 "java.lang.annotation.Native",
@@ -428,9 +432,7 @@ interface AnnotationItem {
                 // that retention is class or runtime, but we've hardcoded the answers here
                 // for some common annotations.
 
-                "android.view.ViewDebug.ExportedProperty",
                 "android.widget.RemoteViews.RemoteView",
-                "android.view.ViewDebug.CapturedViewProperty",
 
                 "kotlin.annotation.Target",
                 "kotlin.annotation.Retention",
