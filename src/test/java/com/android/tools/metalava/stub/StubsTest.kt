@@ -4279,6 +4279,52 @@ class StubsTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Extends and implements multiple interfaces`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MainClass extends MyParentClass implements MyInterface1, MyInterface2 {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public interface MyInterface1 { }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public interface MyInterface2 { }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MyParentClass { }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MainClass extends test.pkg.MyParentClass implements test.pkg.MyInterface1, test.pkg.MyInterface2 {
+                    public MainClass() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+            )
+        )
+    }
+
     // TODO: Test what happens when a class extends a hidden extends a public in separate packages,
     // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
     // check for this and fail build.
