@@ -2054,7 +2054,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
                 columnSource
             ),
-            checkCompilation = true,
+            checkCompilation = false, // stubs contain Cursor.NONEXISTENT so it does not compile
             expectedIssues = """
                 src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
