@@ -402,6 +402,12 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
+                ),
+                java(
+                    """
+                    package android.view.accessibility;
+                    public class AccessibilityNodeInfo {}
+                    """
                 )
             ),
             warnings = "",
@@ -435,7 +441,7 @@ class JavadocTest : DriverTest() {
                     import android.os.OperationCanceledException;
 
                     @SuppressWarnings("all")
-                    public abstract class AsyncTaskLoader {
+                    public abstract class AsyncTaskLoader<D> {
                         /**
                          * Called if the task was canceled before it was completed.  Gives the class a chance
                          * to clean up post-cancellation and to properly dispose of the result.
@@ -506,7 +512,7 @@ class JavadocTest : DriverTest() {
                 package android.content;
                 import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public abstract class AsyncTaskLoader {
+                public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
                 /**
                  * Called if the task was canceled before it was completed.  Gives the class a chance
@@ -656,6 +662,8 @@ class JavadocTest : DriverTest() {
                     import test.pkg1.MyParent;
                     @SuppressWarnings("all")
                     public class MyChild extends MyParent implements MyConstants {
+                        @Override
+                        public void close() {}
                     }
                     """
                 )
@@ -812,7 +820,7 @@ class JavadocTest : DriverTest() {
                     import java.nio.ByteBuffer;
 
                     @SuppressWarnings("all")
-                    public class Test {
+                    public abstract class Test {
                         /**
                          * Blah blah
                          * <blockquote><pre>
@@ -832,7 +840,7 @@ class JavadocTest : DriverTest() {
                 package test.pkg1;
                 import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Test {
+                public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
                  * Blah blah

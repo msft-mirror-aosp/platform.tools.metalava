@@ -64,7 +64,6 @@ import java.net.URL
 import kotlin.text.Charsets.UTF_8
 
 const val CHECK_JDIFF = false
-const val CHECK_STUB_COMPILATION = false
 
 /**
  * Marker class for stubs argument to [DriverTest.check] indicating that no
@@ -1352,7 +1351,7 @@ abstract class DriverTest {
             assertEquals(stripComments(docStubsSourceList, stripLineComments = false).trimIndent(), actualText)
         }
 
-        if (checkCompilation && stubsDir != null && CHECK_STUB_COMPILATION) {
+        if (checkCompilation && stubsDir != null) {
             val generated = gatherSources(listOf(stubsDir)).asSequence().map { it.path }.toList().toTypedArray()
 
             // Also need to include on the compile path annotation classes referenced in the stubs
@@ -1727,7 +1726,7 @@ val androidxNonNullSource: TestFile = java(
     import static java.lang.annotation.RetentionPolicy.SOURCE;
     @SuppressWarnings("WeakerAccess")
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
     public @interface NonNull {
     }
     """
@@ -1741,7 +1740,7 @@ val androidxNullableSource: TestFile = java(
     import static java.lang.annotation.RetentionPolicy.SOURCE;
     @SuppressWarnings("WeakerAccess")
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
     public @interface Nullable {
     }
     """
