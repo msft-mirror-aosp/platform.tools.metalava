@@ -33,7 +33,9 @@ import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
 import com.android.tools.metalava.intDefAnnotationSource
 import com.android.tools.metalava.intRangeAnnotationSource
+import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.requiresApiSource
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
@@ -1955,7 +1957,9 @@ class StubsTest : DriverTest() {
     fun `Pass through libcore annotations`() {
         check(
             checkCompilation = true,
-            extraArguments = arrayOf(ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"),
+            extraArguments = arrayOf(
+                ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
+            ),
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1964,10 +1968,15 @@ class StubsTest : DriverTest() {
                     public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                     }
                     """
-                )
+                ),
+                libcoreNonNullSource
             ),
             expectedIssues = "",
             api = """
+                    package libcore.util {
+                      public abstract class NonNull implements java.lang.annotation.Annotation {
+                      }
+                    }
                     package my.pkg {
                       public class String {
                         ctor public String(char[]);
@@ -1989,29 +1998,33 @@ class StubsTest : DriverTest() {
     fun `Pass through multiple annotations`() {
         checkStubs(
             extraArguments = arrayOf(
-                ARG_PASS_THROUGH_ANNOTATION, "android.support.annotation.RequiresApi,android.support.annotation.Nullable"),
+                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.RequiresApi,androidx.annotation.Nullable",
+                ARG_HIDE_PACKAGE, "androidx.annotation"
+            ),
             sourceFiles = arrayOf(
                 java(
                     """
                     package my.pkg;
                     public class MyClass {
-                        @android.support.annotation.RequiresApi(21)
+                        @androidx.annotation.RequiresApi(21)
                         public void testMethod() {}
-                        @android.support.annotation.Nullable
+                        @androidx.annotation.Nullable
                         public String anotherTestMethod() { return null; }
                     }
                     """
                 ),
-                supportParameterName
+                supportParameterName,
+                requiresApiSource,
+                androidxNullableSource
             ),
             source = """
                 package my.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                @android.support.annotation.RequiresApi(21)
+                @androidx.annotation.RequiresApi(21)
                 public void testMethod() { throw new RuntimeException("Stub!"); }
-                @android.support.annotation.Nullable
+                @androidx.annotation.Nullable
                 public java.lang.String anotherTestMethod() { throw new RuntimeException("Stub!"); }
                 }
                  """
@@ -3332,7 +3345,6 @@ class StubsTest : DriverTest() {
                     }
                     """
                 ),
-
                 androidxNullableSource
             ),
             warnings = "",
@@ -3344,10 +3356,15 @@ class StubsTest : DriverTest() {
                 }
             """, // WRONG: I should include package annotations in the signature file!
             source = """
-                @android.annotation.Nullable
+                @androidx.annotation.Nullable
                 package test.pkg;
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "androidx.annotation",
+                // By default metalava rewrites androidx.annotation.Nullable to
+                // android.annotation.Nullable, but the latter does not have target PACKAGE thus
+                // fails to compile. This forces stubs keep the androidx annotation.
+                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.Nullable")
         )
     }
 
@@ -3720,6 +3737,17 @@ class StubsTest : DriverTest() {
                                 @ViewDebug.IntToString(from = Gravity.BOTTOM,            to = "BOTTOM"),
                         })
                         public int gravity = Gravity.NO_GRAVITY;
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.view;
+
+                    public class Gravity {
+                        public static final int NO_GRAVITY = 0;
+                        public static final int TOP = 1;
+                        public static final int BOTTOM = 2;
                     }
                     """
                 ),
@@ -4216,7 +4244,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Basic Kotlin stubs`() {
         check(
-            checkCompilation = true,
             extraArguments = arrayOf(
                 ARG_KOTLIN_STUBS
             ),
@@ -4282,6 +4309,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Extends and implements multiple interfaces`() {
         check(
+            checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
                     """
