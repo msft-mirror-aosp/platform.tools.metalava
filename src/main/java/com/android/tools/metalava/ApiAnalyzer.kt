@@ -668,15 +668,25 @@ class ApiAnalyzer(
 
             private fun ensureParentVisible(item: Item) {
                 val parent = item.parent() ?: return
-                if (parent.hidden && item.modifiers.hasShowSingleAnnotation()) {
-                    val annotation = item.modifiers.annotations().find {
+                if (!parent.hidden) {
+                    return
+                }
+                val violatingAnnotation = if (item.modifiers.hasShowAnnotation()) {
+                    item.modifiers.annotations().find {
+                        options.showAnnotations.matches(it)
+                    } ?: options.showAnnotations.firstQualifiedName()
+                } else if (item.modifiers.hasShowSingleAnnotation()) {
+                    item.modifiers.annotations().find {
                         options.showSingleAnnotations.matches(it)
                     } ?: options.showSingleAnnotations.firstQualifiedName()
+                } else {
+                    null
+                }
+                if (violatingAnnotation != null) {
                     reporter.report(
                         Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS, item,
                         "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                            "hidden and should also be annotated with $annotation"
-                    )
+                            "hidden and should also be annotated with $violatingAnnotation")
                 }
             }
         })
