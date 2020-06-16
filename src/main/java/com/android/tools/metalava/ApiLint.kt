@@ -104,7 +104,7 @@ import com.android.tools.metalava.doclava1.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.doclava1.Issues.NO_CLONE
 import com.android.tools.metalava.doclava1.Issues.NO_SETTINGS_PROVIDER
 import com.android.tools.metalava.doclava1.Issues.ON_NAME_EXPECTED
-import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT
+import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
 import com.android.tools.metalava.doclava1.Issues.OVERLAPPING_CONSTANTS
 import com.android.tools.metalava.doclava1.Issues.PACKAGE_LAYERING
 import com.android.tools.metalava.doclava1.Issues.PAIRED_REGISTRATION
@@ -1369,7 +1369,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             for (arg in constructor.parameters()) {
                 if (arg.modifiers.isNullable()) {
                     report(
-                        OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT, arg,
+                        OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT, arg,
                         "Builder constructor arguments must be mandatory (i.e. not @Nullable): ${arg.describe()}"
                     )
                 }
@@ -3704,18 +3704,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         private fun hasAcronyms(name: String): Boolean {
             // Require 3 capitals, or 2 if it's at the end of a word.
             val result = acronymPattern2.find(name) ?: return false
-            return result.range.start == name.length - 2 || acronymPattern3.find(name) != null
+            return result.range.first == name.length - 2 || acronymPattern3.find(name) != null
         }
 
         private fun getFirstAcronym(name: String): String? {
             // Require 3 capitals, or 2 if it's at the end of a word.
             val result = acronymPattern2.find(name) ?: return null
-            if (result.range.start == name.length - 2) {
+            if (result.range.first == name.length - 2) {
                 return name.substring(name.length - 2)
             }
             val result2 = acronymPattern3.find(name)
             return if (result2 != null) {
-                name.substring(result2.range.start, result2.range.endInclusive + 1)
+                name.substring(result2.range.first, result2.range.last + 1)
             } else {
                 null
             }

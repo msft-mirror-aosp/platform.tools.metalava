@@ -75,7 +75,7 @@ open class TextClassItem(
         return interfaceTypes.asSequence().map { it.asClass() }.filterNotNull()
     }
 
-    private var innerClasses: List<ClassItem> = mutableListOf()
+    private var innerClasses: MutableList<ClassItem> = mutableListOf()
 
     override var stubConstructor: ConstructorItem? = null
 
@@ -222,7 +222,7 @@ open class TextClassItem(
     }
 
     fun addInnerClass(cls: TextClassItem) {
-        innerClasses += cls
+        innerClasses.add(cls)
     }
 
     override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
