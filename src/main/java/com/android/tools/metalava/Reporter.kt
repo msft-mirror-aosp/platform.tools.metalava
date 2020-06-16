@@ -188,7 +188,7 @@ class Reporter(
                         val id1 = "Doclava${id.code}"
                         val id2 = id.name
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varags of String
+                        // one attribute such as value/names that is varargs of String
                         val value = attribute.value
                         if (value is AnnotationArrayAttributeValue) {
                             // Example: @SuppressLint({"DocLava1", "DocLava2"})
@@ -286,7 +286,7 @@ class Reporter(
         return line
     }
 
-    /** Alias to allow method reference in [report.dispatch] */
+    /** Alias to allow method reference to `dispatch` in [report] */
     private fun doReport(severity: Severity, location: String?, message: String, id: Issues.Issue?) =
         report(severity, location, message, id)
 

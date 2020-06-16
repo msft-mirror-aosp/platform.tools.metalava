@@ -196,7 +196,7 @@ class ApiAnalyzer(
 
             // Try and use a publicly accessible constructor first.
             val constructors = cls.filteredConstructors(filter).toList()
-            if (!constructors.isEmpty()) {
+            if (constructors.isNotEmpty()) {
                 // Try to pick the constructor, select first by fewest throwables, then fewest parameters,
                 // then based on order in listFilter.test(cls)
                 cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
@@ -533,14 +533,14 @@ class ApiAnalyzer(
      * from all configured sources.
      */
     fun mergeExternalQualifierAnnotations() {
-        if (!options.mergeQualifierAnnotations.isEmpty()) {
+        if (options.mergeQualifierAnnotations.isNotEmpty()) {
             AnnotationsMerger(codebase).mergeQualifierAnnotations(options.mergeQualifierAnnotations)
         }
     }
 
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
-        if (!options.mergeInclusionAnnotations.isEmpty()) {
+        if (options.mergeInclusionAnnotations.isNotEmpty()) {
             AnnotationsMerger(codebase).mergeInclusionAnnotations(options.mergeInclusionAnnotations)
         }
     }
@@ -743,7 +743,7 @@ class ApiAnalyzer(
 
                 if (system.isEmpty() && nonSystem.isEmpty()) {
                     hasAnnotation = false
-                } else if (any && !nonSystem.isEmpty() || !any && system.isEmpty()) {
+                } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
                             "' must be protected with a system permission; it currently" +
