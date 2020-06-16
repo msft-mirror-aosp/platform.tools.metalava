@@ -59,6 +59,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -838,6 +839,7 @@ internal fun parseSources(
     sourcePath: List<File> = options.sourcePath,
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
+    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
     manifest: File? = options.manifest,
     currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
 ): PsiBasedCodebase {
@@ -863,7 +865,14 @@ internal fun parseSources(
     projectEnvironment.registerPaths(joined)
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project, environment)
+    val trace = KotlinLintAnalyzerFacade().analyze(
+        files = kotlinFiles,
+        contentRoots = joined,
+        project = project,
+        environment = environment,
+        javaLanguageLevel = javaLanguageLevel,
+        kotlinLanguageLevel = kotlinLanguageLevel
+    )
 
     val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
