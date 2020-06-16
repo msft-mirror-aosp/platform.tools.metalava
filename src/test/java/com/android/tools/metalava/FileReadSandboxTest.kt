@@ -73,10 +73,9 @@ class FileReadSandboxTest {
         FileReadSandbox.allowAccess(goodDir)
         FileReadSandbox.allowAccess(subSubDirGoodFile)
 
-        var allowedSet = mutableSetOf(root, goodFile, goodDir, goodDirFile, subDir, subSubDir, subSubDirGoodFile).map { it.absolutePath }
-        var emptySet = setOf<String>()
-
-        var violations = mutableSetOf<String>()
+        val allowedSet = mutableSetOf(root, goodFile, goodDir, goodDirFile, subDir, subSubDir, subSubDirGoodFile).map { it.absolutePath }
+        val emptySet = setOf<String>()
+        val violations = mutableSetOf<String>()
 
         // Make sure allowed files are not in the violation list.
         fun assertAllowedFilesNotReported() {

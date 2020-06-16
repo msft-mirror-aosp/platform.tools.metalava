@@ -512,7 +512,7 @@ class AnnotationsMerger(
         assert(tagName == "annotation") { tagName }
 
         val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName != null && !qualifiedName.isEmpty())
+        assert(qualifiedName != null && qualifiedName.isNotEmpty())
         return qualifiedName
     }
 
@@ -563,7 +563,7 @@ class AnnotationsMerger(
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }
         val name = annotationElement.getAttribute(ATTR_NAME)
-        assert(name != null && !name.isEmpty())
+        assert(name != null && name.isNotEmpty())
         when {
             name == "org.jetbrains.annotations.Range" -> {
                 val children = getChildren(annotationElement)
@@ -705,7 +705,7 @@ class AnnotationsMerger(
                 val valueElement = children[0]
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
-                return if (pure != null && !pure.isEmpty()) {
+                return if (pure != null && pure.isNotEmpty()) {
                     PsiAnnotationItem.create(
                         codebase, XmlBackedAnnotationItem(
                             codebase, name,
