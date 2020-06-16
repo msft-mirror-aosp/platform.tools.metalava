@@ -1336,7 +1336,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Foo extends java.lang.Enum {
-                    method public static test.pkg.Foo valueOf(java.lang.String);
+                    method public static test.pkg.Foo valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
@@ -2023,7 +2023,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class FooBar extends java.lang.Enum {
                     method protected abstract void foo();
-                    method public static test.pkg.FooBar valueOf(java.lang.String);
+                    method public static test.pkg.FooBar valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.FooBar[] values();
                     enum_constant public static final test.pkg.FooBar ABC;
                     enum_constant public static final test.pkg.FooBar DEF;
@@ -2192,10 +2192,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class ChronUnit extends java.lang.Enum implements test.pkg.TempUnit {
-                    method public static test.pkg.ChronUnit valueOf(java.lang.String);
                     method public java.lang.String valueOf(int);
-                    method public static final test.pkg.ChronUnit[] values();
+                    method public static test.pkg.ChronUnit valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public final java.lang.String values(java.lang.String);
+                    method public static final test.pkg.ChronUnit[] values();
                     enum_constant public static final test.pkg.ChronUnit A;
                     enum_constant public static final test.pkg.ChronUnit B;
                     enum_constant public static final test.pkg.ChronUnit C;
