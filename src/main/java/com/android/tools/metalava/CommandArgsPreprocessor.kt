@@ -26,7 +26,7 @@ import java.util.regex.Pattern
 import kotlin.random.Random
 
 /**
- * Proprocess command line arguments.
+ * Preprocess command line arguments.
  * 1. Prepend/append {@code ENV_VAR_METALAVA_PREPEND_ARGS} and {@code ENV_VAR_METALAVA_PREPEND_ARGS}
  * 2. Reflect --verbose to {@link options#verbose}.
  */
@@ -102,11 +102,11 @@ internal fun maybeDumpArgv(
     }
 
     // Generate a rerun script, if needed, with the original args.
-    if ("script".equals(dumpOption)) {
+    if ("script" == dumpOption) {
         generateRerunScript(out, originalArgs)
     }
 
-    val fullDump = "full".equals(dumpOption) // Dump rsp file contents too?
+    val fullDump = "full" == dumpOption // Dump rsp file contents too?
 
     dumpArgv(out, "Original args", originalArgs, fullDump)
     dumpArgv(out, "Modified args", modifiedArgs, fullDump)
@@ -174,7 +174,7 @@ private fun generateRerunScript(stdout: PrintWriter, args: Array<String>) {
         return
     }
 
-    val script = File(scriptBaseName + ".sh")
+    val script = File("$scriptBaseName.sh")
     var optFileIndex = 0
     script.printWriter().use { out ->
         out.println("""

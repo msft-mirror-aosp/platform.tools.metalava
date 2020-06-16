@@ -147,13 +147,11 @@ open class ApiVisitor(
     /**
      * @return Whether the body of this class (everything other than the inner classes) emits anything
      */
-    fun shouldEmitClassBody(vc: VisitCandidate): Boolean {
-        return if (filterEmit.test(vc.cls)) {
-            true
-        } else if (vc.nonEmpty()) {
-            filterReference.test(vc.cls)
-        } else {
-            false
+    private fun shouldEmitClassBody(vc: VisitCandidate): Boolean {
+        return when {
+            filterEmit.test(vc.cls) -> true
+            vc.nonEmpty() -> filterReference.test(vc.cls)
+            else -> false
         }
     }
 
@@ -167,7 +165,7 @@ open class ApiVisitor(
     /**
      * @return Whether this class will emit anything
      */
-    fun shouldEmitAnyClass(vc: VisitCandidate): Boolean {
+    private fun shouldEmitAnyClass(vc: VisitCandidate): Boolean {
         return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
     }
 }
