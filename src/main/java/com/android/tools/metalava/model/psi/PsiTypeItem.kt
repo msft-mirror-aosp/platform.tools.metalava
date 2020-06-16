@@ -245,7 +245,7 @@ class PsiTypeItem private constructor(
 
         val classes = mutableListOf<ClassItem>()
         psiType.accept(object : PsiTypeVisitor<PsiType>() {
-            override fun visitType(type: PsiType?): PsiType? {
+            override fun visitType(type: PsiType): PsiType {
                 return type
             }
 
