@@ -126,6 +126,14 @@ API sources:
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>                        
                                              Sets the source level for Java source files; default is 1.8.
+--kotlin-source <level>                      
+                                             Sets the source level for Kotlin source files; default is 1.3.
+--sdk-home <dir>                             
+                                             If set, locate the `android.jar` file from the given Android SDK
+--compile-sdk-version <api>                  
+                                             Use the given API level
+--jdk-home <dir>                             
+                                             If set, add the Java APIs from the given JDK to the classpath
 --stub-packages <package-list>               
                                              List of packages (separated by :) which will be used to filter out
                                              irrelevant code. If specified, only code in these packages will be included
@@ -300,11 +308,11 @@ Diffs and Checks:
 --error-message:api-lint <message>           
                                              If set, metalava shows it when errors are detected in --api-lint.
 --error-message:compatibility:released <message>
-                                             If set, metalava shows it  when errors are detected in
+                                             If set, metalava shows it when errors are detected in
                                              --check-compatibility:api:released and
                                              --check-compatibility:removed:released.
 --error-message:compatibility:current <message>
-                                             If set, metalava shows it  when errors are detected in
+                                             If set, metalava shows it when errors are detected in
                                              --check-compatibility:api:current and
                                              --check-compatibility:removed:current.
 
