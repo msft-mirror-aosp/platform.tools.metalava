@@ -868,8 +868,7 @@ fun handleTag(
                 // android.os.Bundle#getInt, but the resolved method actually points to
                 // an inherited method into android.os.Bundle from android.os.BaseBundle.
                 // In that case we don't want to rewrite the link.
-                for (index in 0 until referenceText.length) {
-                    val c = referenceText[index]
+                for (c in referenceText) {
                     if (c == '.') {
                         // Already qualified
                         sb.append(text)

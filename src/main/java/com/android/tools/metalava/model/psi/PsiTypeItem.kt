@@ -364,9 +364,7 @@ class PsiTypeItem private constructor(
                 return false
             }
 
-            val psiType = TypeConversionUtil.erasure(type)
-
-            when (psiType) {
+            when (val psiType = TypeConversionUtil.erasure(type)) {
                 is PsiArrayType -> {
                     buffer.append('[')
                     appendJvmSignature(buffer, psiType.componentType)
@@ -419,7 +417,15 @@ class PsiTypeItem private constructor(
             val typeString =
                 if (kotlinStyleNulls && (innerAnnotations || outerAnnotations)) {
                     try {
-                        getCanonicalText(codebase, context, type, true, true, kotlinStyleNulls, filter)
+                        getCanonicalText(
+                            codebase = codebase,
+                            owner = context,
+                            type = type,
+                            annotated = true,
+                            mapAnnotations = true,
+                            kotlinStyleNulls = kotlinStyleNulls,
+                            filter = filter
+                        )
                     } catch (ignore: Throwable) {
                         type.canonicalText
                     }

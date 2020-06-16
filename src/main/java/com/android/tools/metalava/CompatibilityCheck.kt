@@ -529,7 +529,7 @@ class CompatibilityCheck(
         if (new.modifiers.isInline()) {
             val oldTypes = old.typeParameterList().typeParameters()
             val newTypes = new.typeParameterList().typeParameters()
-            for (i in 0 until oldTypes.size) {
+            for (i in oldTypes.indices) {
                 if (i == newTypes.size) {
                     break
                 }
@@ -717,8 +717,8 @@ class CompatibilityCheck(
             is ClassItem -> base.findClass(item.qualifiedName())
             is MethodItem -> base.findClass(item.containingClass().qualifiedName())?.findMethod(
                 item,
-                true,
-                true
+                includeSuperClasses = true,
+                includeInterfaces = true
             )
             is FieldItem -> base.findClass(item.containingClass().qualifiedName())?.findField(item.name())
             else -> null

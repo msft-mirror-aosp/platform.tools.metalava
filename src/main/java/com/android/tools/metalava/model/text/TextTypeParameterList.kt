@@ -64,7 +64,7 @@ class TextTypeParameterList(
             var balance = 0
             var expect = false
             var start = 0
-            for (i in 0 until s.length) {
+            for (i in s.indices) {
                 val c = s[i]
                 if (c == '<') {
                     balance++
