@@ -1363,7 +1363,8 @@ class Options(
                 ARG_STRICT_INPUT_FILES_EXEMPT -> {
                     val listString = getValue(args, ++index)
                     listString.split(File.pathSeparatorChar).forEach { path ->
-                        // Throw away the result; just let the function add the files to the whitelist.
+                        // Throw away the result; just let the function add the files to the
+                        // allowed list.
                         stringToExistingFilesOrDirs(path)
                     }
                 }

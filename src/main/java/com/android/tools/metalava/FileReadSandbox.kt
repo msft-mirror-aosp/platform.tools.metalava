@@ -29,9 +29,9 @@ import kotlin.concurrent.getOrSet
  *
  * We do not prevent reads on directories that are not explicitly listed in the command line because
  * metalava (or JVM, really) seems to read some system directories such as /usr/, etc., but this
- * behavior may be JVM dependent so we do not want to have to explicitly whitelist them.
+ * behavior may be JVM dependent so we do not want to have to explicitly include them.
  * (Because, otherwise, when we update JVM, it may access different directories and we end up
- * having to update the implicit whitelist.) As long as we don't read files, reading directories
+ * having to update the implicit allowed list.) As long as we don't read files, reading directories
  * shouldn't (normally) affect the result, so we simply allow any directory reads.
  */
 internal object FileReadSandbox {
@@ -151,7 +151,7 @@ internal object FileReadSandbox {
             return file
         }
 
-        // Whitelist all parent directories. But don't allow prefix accesses (== access to the
+        // Allow all parent directories. But don't allow prefix accesses (== access to the
         // directory itself is okay, but don't grant access to any files/directories under it).
         var parent = file.parentFile
         while (true) {
@@ -208,7 +208,7 @@ internal object FileReadSandbox {
 
     /**
      * Reading files that are created by metalava should be allowed, so we detect file writes to
-     * new files, and whitelist it.
+     * new files, and add them to the allowed path list.
      */
     private fun writeDetected(origPath: String?) {
         if (temporaryExempt.getOrSet { false }) {
