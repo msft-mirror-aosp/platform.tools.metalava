@@ -49,7 +49,7 @@ class FileReadSandboxTest {
 
         // Structure:
         //   - *  Explicitly allowed
-        //   - ** Implicitly allowed (parent dirctories of whitelisted paths)
+        //   - ** Implicitly allowed (parent directories of allowed paths)
         //   - @  Not allowed
         // root        **
         //  |-goodFile *
@@ -78,8 +78,8 @@ class FileReadSandboxTest {
 
         var violations = mutableSetOf<String>()
 
-        // Make sure whitelisted files are not in the violation list.
-        fun assertWhitelistedFilesNotReported() {
+        // Make sure allowed files are not in the violation list.
+        fun assertAllowedFilesNotReported() {
             assertEquals(emptySet, violations.intersect(allowedSet))
         }
 
@@ -112,14 +112,14 @@ class FileReadSandboxTest {
             val newFile1 = File(root, "newFile1").apply { createNewFile() }
             newFile1.readBytes()
 
-            assertWhitelistedFilesNotReported()
+            assertAllowedFilesNotReported()
             assertViolationNotReported(badFile, badDir, badDirFile, subSubDirBadFile)
 
             // Access "bad" files.
             badFile.readBytes()
             badDirFile.readBytes()
 
-            assertWhitelistedFilesNotReported()
+            assertAllowedFilesNotReported()
             assertViolationReported(badFile, badDirFile)
             assertViolationNotReported(subSubDirBadFile)
 
@@ -128,7 +128,7 @@ class FileReadSandboxTest {
             badDir.listFiles()
             root.listFiles()
 
-            assertWhitelistedFilesNotReported()
+            assertAllowedFilesNotReported()
             assertViolationReported(badDir)
             assertViolationNotReported(badFile, badDirFile, subSubDirBadFile)
 
@@ -141,7 +141,7 @@ class FileReadSandboxTest {
             subSubDirBadFile.readBytes() // *Not* allowed.
             root.listFiles()
 
-            assertWhitelistedFilesNotReported()
+            assertAllowedFilesNotReported()
 
             assertViolationReported(subSubDir2, subSubDirBadFile) // These are not allowed to read.
         } finally {
