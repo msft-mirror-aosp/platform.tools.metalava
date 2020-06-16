@@ -242,7 +242,7 @@ open class PsiClassItem(
 
     private fun initializeSuperClasses() {
         val extendsListTypes = psiClass.extendsListTypes
-        if (!extendsListTypes.isEmpty()) {
+        if (extendsListTypes.isNotEmpty()) {
             val type = PsiTypeItem.create(codebase, extendsListTypes[0])
             this.superClassType = type
             this.superClass = type.asClass()
@@ -489,7 +489,7 @@ open class PsiClassItem(
 
             val fields: MutableList<FieldItem> = mutableListOf()
             val psiFields = psiClass.fields
-            if (!psiFields.isEmpty()) {
+            if (psiFields.isNotEmpty()) {
                 psiFields.asSequence()
                     .mapTo(fields) {
                         PsiFieldItem.create(codebase, item, it)

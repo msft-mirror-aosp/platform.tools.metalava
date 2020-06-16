@@ -215,7 +215,7 @@ interface ClassItem : Item {
     fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = TODO("Not yet implemented")
+    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
@@ -502,7 +502,7 @@ interface ClassItem : Item {
         if (parameters.size != parameterStrings.size) {
             return false
         }
-        for (i in 0 until parameters.size) {
+        for (i in parameters.indices) {
             var parameterString = parameterStrings[i]
             val index = parameterString.indexOf('<')
             if (index != -1) {
@@ -761,7 +761,7 @@ interface ClassItem : Item {
 }
 
 class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
-    public val innerClasses: Sequence<VisitCandidate>
+    val innerClasses: Sequence<VisitCandidate>
     private val constructors: Sequence<MethodItem>
     private val methods: Sequence<MethodItem>
     private val fields: Sequence<FieldItem>
@@ -814,7 +814,7 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
     }
 
     /** Whether the class body contains any Item's (other than inner Classes) */
-    public fun nonEmpty(): Boolean {
+    fun nonEmpty(): Boolean {
         return !(constructors.none() && methods.none() && enums.none() && fields.none() && properties.none())
     }
 

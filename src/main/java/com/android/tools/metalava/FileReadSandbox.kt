@@ -25,7 +25,7 @@ import kotlin.concurrent.getOrSet
  * Detect access to files that not explicitly specified in the command line.
  *
  * This class detects reads on both files and directories. Directory accesses are logged by
- * [Driver], which only logs it, but doesn't consider it an error.
+ * the driver in [run], which only logs it, but doesn't consider it an error.
  *
  * We do not prevent reads on directories that are not explicitly listed in the command line because
  * metalava (or JVM, really) seems to read some system directories such as /usr/, etc., but this
@@ -88,8 +88,8 @@ internal object FileReadSandbox {
             "JAVA_HOME",
             "ANDROID_JAVA_HOME"
         ).forEach {
-            System.getenv(it)?.let {
-                allowAccess(File(it))
+            System.getenv(it)?.let { path ->
+                allowAccess(File(path))
             }
         }
         // JVM seems to use ~/.cache/
@@ -109,7 +109,7 @@ internal object FileReadSandbox {
         this.listener = listener
     }
 
-    /** Deactivate the sandbox. This also resets [violationCount]. */
+    /** Deactivate the sandbox. */
     fun deactivate() {
         if (!installed) {
             throw IllegalStateException("Not activated")
@@ -211,6 +211,8 @@ internal object FileReadSandbox {
      * new files, and add them to the allowed path list.
      */
     private fun writeDetected(origPath: String?) {
+        origPath ?: return
+
         if (temporaryExempt.getOrSet { false }) {
             return
         }
