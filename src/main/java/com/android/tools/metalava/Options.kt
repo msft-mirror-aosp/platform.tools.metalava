@@ -2469,26 +2469,32 @@ class Options(
                     out.println(description)
                 }
             } else {
-                if (colorize) {
-                    val colorArg = bold(arg)
-                    val invisibleChars = colorArg.length - arg.length
-                    // +invisibleChars: the extra chars in the above are counted but don't contribute to width
-                    // so allow more space
-                    val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
+                val output =
+                    if (colorize) {
+                        val colorArg = bold(arg)
+                        val invisibleChars = colorArg.length - arg.length
+                        // +invisibleChars: the extra chars in the above are counted but don't contribute to width
+                        // so allow more space
+                        val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
 
-                    out.print(
                         wrap(
                             String.format(colorFormatString, colorArg, description),
                             MAX_LINE_WIDTH + invisibleChars, MAX_LINE_WIDTH, indent
                         )
-                    )
-                } else {
-                    out.print(
+                    } else {
                         wrap(
                             String.format(formatString, arg, description),
                             MAX_LINE_WIDTH, indent
                         )
-                    )
+                    }
+
+                // Remove trailing whitespace
+                val lines = output.lines()
+                lines.forEachIndexed { index, line ->
+                    out.print(line.trimEnd())
+                    if (index < lines.size - 1) {
+                        out.println()
+                    }
                 }
             }
             i += 2
