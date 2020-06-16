@@ -118,7 +118,11 @@ class PsiCompilationUnit(
                         }
                     } else if (resolved is PsiField) {
                         val classItem = codebase.findClass(resolved.containingClass ?: continue) ?: continue
-                        val fieldItem = classItem.findField(resolved.name, true, false) ?: continue
+                        val fieldItem = classItem.findField(
+                            resolved.name,
+                            includeSuperClasses = true,
+                            includeInterfaces = false
+                        ) ?: continue
                         if (predicate.test(fieldItem)) {
                             imports.add(fieldItem)
                         }
@@ -139,7 +143,7 @@ class PsiCompilationUnit(
 
         // Next only keep those that are present in any docs; those are the only ones
         // we need to import
-        if (!imports.isEmpty()) {
+        if (imports.isNotEmpty()) {
             val map: Multimap<String, Item> = ArrayListMultimap.create()
             for (item in imports) {
                 if (item is ClassItem) {
@@ -152,7 +156,7 @@ class PsiCompilationUnit(
             // Compute set of import statements that are actually referenced
             // from the documentation (we do inexact matching here; we don't
             // need to have an exact set of imports since it's okay to have
-            // some extras). This isn't a big problem since our codestyle
+            // some extras). This isn't a big problem since our code style
             // forbids/discourages wildcards, so it shows up in fewer places,
             // but we need to handle it when it does -- such as in ojluni.
 
@@ -161,7 +165,7 @@ class PsiCompilationUnit(
                 val result = mutableListOf<Item>()
 
                 // We keep the wildcard imports since we don't know which ones of those are relevant
-                imports.filter { it is PackageItem }.forEach { result.add(it) }
+                imports.filterIsInstance<PackageItem>().forEach { result.add(it) }
 
                 for (cls in classes(predicate)) {
                     cls.accept(object : ItemVisitor() {

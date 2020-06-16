@@ -132,7 +132,7 @@ enum class FileFormat(val description: String, val version: String? = null) {
                             return UNKNOWN
                         }
                         // Both JDiff and API-level files use <api> as the root tag (unfortunate but too late to
-                        // change) so distinguish on whether the file contains any since elementss
+                        // change) so distinguish on whether the file contains any since elements
                         if (fileContents.contains("since=")) {
                             return SINCE_XML
                         }

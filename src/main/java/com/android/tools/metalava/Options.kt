@@ -1593,6 +1593,9 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
+            // <String> is redundant here but while IDE (with newer type inference engine
+            // understands that) the current 1.3.x compiler does not
+            @Suppress("RemoveExplicitTypeArguments")
             val patterns = androidJarPatterns ?: run {
                 mutableListOf<String>()
             }
