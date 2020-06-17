@@ -610,7 +610,8 @@ interface AnnotationItem {
                     if (resolved is PsiModifierListOwner &&
                         resolved.annotations.any {
                             isNonNullAnnotation(it.qualifiedName ?: "")
-                        }) {
+                        }
+                    ) {
                         nullable = false
                     }
                 } else if (initializer != null && initializer is PsiCallExpression) {
@@ -618,10 +619,17 @@ interface AnnotationItem {
                     if (resolved != null &&
                         resolved.annotations.any {
                             isNonNullAnnotation(it.qualifiedName ?: "")
-                        }) {
+                        }
+                    ) {
                         nullable = false
                     }
                 }
+            } else if (item.synthetic && (item is MethodItem && item.isEnumSyntheticMethod() ||
+                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
+            ) {
+                // Workaround the fact that the Kotlin synthetic enum methods
+                // do not have nullness information
+                nullable = false
             }
 
             // Annotation type members cannot be null

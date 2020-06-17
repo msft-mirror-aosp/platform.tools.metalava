@@ -45,6 +45,8 @@ abstract class PsiItem(
     @Suppress("LeakingThis")
     override var removed = documentation.contains("@removed")
 
+    override val synthetic = false
+
     // a property with a lazily calculated default value
     inner class LazyDelegate<T>(
         val defaultValueProvider: () -> T
