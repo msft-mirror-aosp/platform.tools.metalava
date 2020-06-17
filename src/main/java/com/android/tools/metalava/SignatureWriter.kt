@@ -50,8 +50,7 @@ class SignatureWriter(
     override fun skip(item: Item): Boolean {
         val superSkip = super.skip(item)
         val otherSkip = item is ClassItem && item.notStrippable
-        val skipped = superSkip || otherSkip
-        return skipped
+        return superSkip || otherSkip
     }
 
     init {
@@ -331,8 +330,7 @@ class SignatureWriter(
 
         if (compatibility.includeExtendsObjectInWildcard && typeString.endsWith(", ?>") && item is ParameterItem) {
             // This wasn't done universally; just in a few places, so replicate it for those exact places
-            val methodName = item.containingMethod().name()
-            when (methodName) {
+            when (item.containingMethod().name()) {
                 "computeIfAbsent" -> {
                     if (typeString == "java.util.function.Function<? super java.lang.Object, ?>") {
                         typeString = "java.util.function.Function<? super java.lang.Object, ? extends java.lang.Object>"
