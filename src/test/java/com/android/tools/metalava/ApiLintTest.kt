@@ -2929,7 +2929,7 @@ class ApiLintTest : DriverTest() {
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils"),
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils,Enum"),
             compatibilityMode = false,
             expectedIssues = """
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
@@ -2968,6 +2968,24 @@ class ApiLintTest : DriverTest() {
                                 throw UnsupportedOperationException();
                             }
                         }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public enum Foo {
+                        A, B;
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Language {
+                        KOTLIN,
+                        JAVA
+                    }
                     """
                 ),
                 kotlin(
