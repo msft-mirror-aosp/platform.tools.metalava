@@ -166,6 +166,8 @@ open class TextMethodItem(
         return duplicated
     }
 
+    override val synthetic: Boolean get() = isEnumSyntheticMethod()
+
     private val throwsTypes = mutableListOf<String>()
     private val parameters = mutableListOf<TextParameterItem>()
     private var throwsClasses: List<ClassItem>? = null

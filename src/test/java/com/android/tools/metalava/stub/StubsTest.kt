@@ -739,6 +739,7 @@ class StubsTest : DriverTest() {
                 B,
                 A;
                 public java.lang.String valueOf(int x) { throw new RuntimeException("Stub!"); }
+                public java.lang.String values(java.lang.String separator) { throw new RuntimeException("Stub!"); }
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 }
             """
