@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
+import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
@@ -370,7 +371,19 @@ open class PsiMethodItem(
                         PsiParameterItem.create(codebase, parameter, index)
                     }
                 }
-            val returnType = codebase.getType(psiMethod.returnType!!)
+            var psiReturnType = psiMethod.returnType
+
+            // UAST workaround: the enum synthetic methods are sometimes missing return types,
+            // see https://youtrack.jetbrains.com/issue/KT-39560
+            if (psiReturnType == null && containingClass.isEnum()) {
+                if (name == "valueOf") {
+                    psiReturnType = codebase.getClassType(containingClass.psiClass)
+                } else if (name == "values") {
+                    psiReturnType = PsiArrayType(codebase.getClassType(containingClass.psiClass))
+                }
+            }
+
+            val returnType = codebase.getType(psiReturnType!!)
             val method = PsiMethodItem(
                 codebase = codebase,
                 psiMethod = psiMethod,

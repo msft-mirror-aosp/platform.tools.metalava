@@ -204,7 +204,7 @@ class ApiFileTest : DriverTest() {
                     method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
                     method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
                     method public void method3(String str, int p, int int2 = double(int) + str.length);
-                    field public static final test.pkg.Foo.Companion! Companion;
+                    field public static final test.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
                     method public int double(int p);
@@ -865,6 +865,44 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                 ),
+                kotlin(
+                    """
+                    package test.pkg
+                    class Issue {
+                        fun setAndroidSpecific(value: Boolean): Issue { return this }
+                        companion object {
+                            @JvmStatic
+                            fun create(
+                                id: String,
+                                briefDescription: String,
+                                explanation: String
+                            ): Issue {
+                                return Issue()
+                            }
+                        }
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    object MySingleton {
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.pkg;
+                    public class WrongCallDetector {
+                        public static final Issue ISSUE =
+                                Issue.create(
+                                                "WrongCall",
+                                                "Using wrong draw/layout method",
+                                                "Custom views typically need to call `measure()`)
+                                        .setAndroidSpecific(true));
+                    }
+                    """
+                ).indented(),
                 androidxNonNullSource,
                 androidxNullableSource
             ),
@@ -885,8 +923,24 @@ class ApiFileTest : DriverTest() {
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
+                  public final class Issue {
+                    ctor public Issue();
+                    method public static test.pkg.Issue create(String id, String briefDescription, String explanation);
+                    method public test.pkg.Issue setAndroidSpecific(boolean value);
+                    field public static final test.pkg.Issue.Companion Companion;
+                  }
+                  public static final class Issue.Companion {
+                    method public test.pkg.Issue create(String id, String briefDescription, String explanation);
+                  }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
                     method public abstract String[] value();
+                  }
+                  public final class MySingleton {
+                    field public static final test.pkg.MySingleton INSTANCE;
+                  }
+                  public class WrongCallDetector {
+                    ctor public WrongCallDetector();
+                    field public static final test.pkg.Issue ISSUE;
                   }
                 }
                 """,
@@ -958,7 +1012,6 @@ class ApiFileTest : DriverTest() {
                         companion object {
                             @JvmStatic
                             fun jvmStaticMethod() {}
-                            
                             fun nonJvmStaticMethod() {}
                         }
                     }
@@ -972,7 +1025,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public static void jvmStaticMethod();
-                    field public static final test.pkg.SimpleClass.Companion! Companion;
+                    field public static final test.pkg.SimpleClass.Companion Companion;
                   }
                   public static final class SimpleClass.Companion {
                     method public void jvmStaticMethod();
@@ -1283,7 +1336,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Foo extends java.lang.Enum {
-                    method public static test.pkg.Foo valueOf(java.lang.String);
+                    method public static test.pkg.Foo valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
@@ -1970,7 +2023,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class FooBar extends java.lang.Enum {
                     method protected abstract void foo();
-                    method public static test.pkg.FooBar valueOf(java.lang.String);
+                    method public static test.pkg.FooBar valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.FooBar[] values();
                     enum_constant public static final test.pkg.FooBar ABC;
                     enum_constant public static final test.pkg.FooBar DEF;
@@ -2139,10 +2192,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class ChronUnit extends java.lang.Enum implements test.pkg.TempUnit {
-                    method public static test.pkg.ChronUnit valueOf(java.lang.String);
                     method public java.lang.String valueOf(int);
-                    method public static final test.pkg.ChronUnit[] values();
+                    method public static test.pkg.ChronUnit valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public final java.lang.String values(java.lang.String);
+                    method public static final test.pkg.ChronUnit[] values();
                     enum_constant public static final test.pkg.ChronUnit A;
                     enum_constant public static final test.pkg.ChronUnit B;
                     enum_constant public static final test.pkg.ChronUnit C;
