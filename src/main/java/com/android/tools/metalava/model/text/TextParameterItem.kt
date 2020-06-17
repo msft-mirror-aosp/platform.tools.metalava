@@ -43,6 +43,7 @@ class TextParameterItem(
         return type.toString().contains("...")
     }
 
+    override val synthetic: Boolean get() = containingMethod.isEnumSyntheticMethod()
     override var included: Boolean = true
     override fun type(): TextTypeItem = type
     override fun name(): String = name

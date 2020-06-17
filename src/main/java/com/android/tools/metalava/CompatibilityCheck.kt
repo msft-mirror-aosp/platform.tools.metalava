@@ -522,8 +522,7 @@ class CompatibilityCheck(
                 if (!(old.name() == "finalize" && old.parameters().isEmpty()) &&
                     // exclude cases where throws clause was missing in signatures from
                     // old enum methods
-                    !(old.name() == "valueOf" &&
-                        exec.qualifiedName() == "java.lang.IllegalArgumentException")) {
+                    !old.isEnumSyntheticMethod()) {
                     val message = "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
@@ -776,9 +775,7 @@ class CompatibilityCheck(
         }
 
         // Builtin annotation methods: just a difference in signature file
-        if ((new.name() == "values" && new.parameters().isEmpty() || new.name() == "valueOf" &&
-                new.parameters().size == 1) && new.containingClass().isEnum()
-        ) {
+        if (new.isEnumSyntheticMethod()) {
             return
         }
 

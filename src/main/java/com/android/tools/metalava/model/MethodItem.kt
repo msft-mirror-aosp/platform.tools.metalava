@@ -516,4 +516,12 @@ interface MethodItem : MemberItem {
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
+
+    /** Returns true if this is a synthetic enum method */
+    fun isEnumSyntheticMethod(): Boolean {
+        return containingClass().isEnum() &&
+            (name() == "values" && parameters().isEmpty() ||
+                name() == "valueOf" && parameters().size == 1 &&
+                parameters()[0].type().isString())
+    }
 }
