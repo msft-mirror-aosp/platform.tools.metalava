@@ -44,6 +44,7 @@ import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.function.Predicate
+import kotlin.math.min
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
@@ -159,7 +160,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     private fun resolveThrowsClasses(methodItem: MethodItem) {
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
-        if (!names.isEmpty()) {
+        if (names.isNotEmpty()) {
             val result = ArrayList<TextClassItem>()
             for (exception in names) {
                 var exceptionClass: TextClassItem? = mAllClasses[exception]
@@ -453,7 +454,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             val typeEnd =
                 if (array != -1) {
                     if (generics != -1) {
-                        Math.min(array, generics)
+                        min(array, generics)
                     } else {
                         array
                     }

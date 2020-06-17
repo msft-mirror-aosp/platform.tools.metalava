@@ -1168,7 +1168,7 @@ private fun addHiddenPackages(
         // passed in (and is instead some directory containing the source path)
         // then we compute the wrong package here. Instead, look for an adjacent
         // java class and pick the package from it
-        for (sibling in file.parentFile.listFiles()) {
+        for (sibling in file.parentFile?.listFiles() ?: emptyArray()) {
             if (sibling.path.endsWith(DOT_JAVA)) {
                 val javaPkg = ClassName(sibling.readText()).packageName
                 if (javaPkg != null) {

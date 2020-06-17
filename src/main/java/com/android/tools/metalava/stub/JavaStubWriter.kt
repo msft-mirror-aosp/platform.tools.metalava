@@ -427,7 +427,7 @@ class JavaStubWriter(
         writer.println()
 
         appendDocumentation(field, writer)
-        appendModifiers(field, false, false)
+        appendModifiers(field, removeAbstract = false, removeFinal = false)
         writer.print(
             field.type().toTypeString(
                 outerAnnotations = false,

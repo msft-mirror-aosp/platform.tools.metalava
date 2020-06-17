@@ -62,7 +62,7 @@ open class TextMethodItem(
             return false
         }
 
-        for (i in 0 until parameters1.size) {
+        for (i in parameters1.indices) {
             val parameter1 = parameters1[i]
             val parameter2 = parameters2[i]
             if (parameter1.type() != parameter2.type()) {
