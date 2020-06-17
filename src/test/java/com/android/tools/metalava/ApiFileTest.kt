@@ -868,6 +868,15 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                     package test.pkg
+                    enum class Language {
+                        KOTLIN,
+                        JAVA
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
                     class Issue {
                         fun setAndroidSpecific(value: Boolean): Issue { return this }
                         companion object {
@@ -931,6 +940,12 @@ class ApiFileTest : DriverTest() {
                   }
                   public static final class Issue.Companion {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
+                  }
+                  public enum Language {
+                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
+                    method public static test.pkg.Language[] values();
+                    enum_constant public static final test.pkg.Language JAVA;
+                    enum_constant public static final test.pkg.Language KOTLIN;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
                     method public abstract String[] value();
