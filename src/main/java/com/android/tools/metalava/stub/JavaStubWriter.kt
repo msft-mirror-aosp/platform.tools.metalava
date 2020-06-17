@@ -95,7 +95,7 @@ class JavaStubWriter(
         writer.print(cls.simpleName())
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
-        generateSuperClassStatement(cls)
+        generateSuperClassDeclaration(cls)
         if (!cls.notStrippable) {
             generateInterfaceList(cls)
         }
@@ -186,7 +186,7 @@ class JavaStubWriter(
         )
     }
 
-    private fun generateSuperClassStatement(cls: ClassItem) {
+    private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType()) {
             // No extends statement for enums and annotations; it's implied by the "enum" and "@interface" keywords
             return
