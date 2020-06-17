@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.SdkConstants.VALUE_FALSE
 import com.intellij.util.execution.ParametersListUtil
 import java.io.File
 import java.io.IOException
@@ -97,7 +98,7 @@ internal fun maybeDumpArgv(
     modifiedArgs: Array<String>
 ) {
     val dumpOption = System.getenv(ENV_VAR_METALAVA_DUMP_ARGV)
-    if (dumpOption == null || isUnderTest()) {
+    if (dumpOption == null || dumpOption == VALUE_FALSE || isUnderTest()) {
         return
     }
 
