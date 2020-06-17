@@ -27,6 +27,7 @@ abstract class TextItem(
     override var modifiers: TextModifiers
 ) : DefaultItem() {
 
+    override val synthetic = false
     override var originallyHidden = false
     override var hidden = false
     override var removed = false

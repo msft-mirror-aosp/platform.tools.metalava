@@ -72,7 +72,6 @@ import com.android.tools.metalava.doclava1.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.doclava1.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.doclava1.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.doclava1.Issues.EXTENDS_ERROR
-import com.android.tools.metalava.doclava1.Issues.Issue
 import com.android.tools.metalava.doclava1.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.doclava1.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.doclava1.Issues.GENERIC_EXCEPTION
@@ -85,6 +84,7 @@ import com.android.tools.metalava.doclava1.Issues.INTENT_NAME
 import com.android.tools.metalava.doclava1.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.doclava1.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.doclava1.Issues.INTERNAL_FIELD
+import com.android.tools.metalava.doclava1.Issues.Issue
 import com.android.tools.metalava.doclava1.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.doclava1.Issues.LISTENER_INTERFACE
 import com.android.tools.metalava.doclava1.Issues.LISTENER_LAST
@@ -98,7 +98,6 @@ import com.android.tools.metalava.doclava1.Issues.MISSING_BUILD_METHOD
 import com.android.tools.metalava.doclava1.Issues.MISSING_GETTER_MATCHING_BUILDER
 import com.android.tools.metalava.doclava1.Issues.MISSING_NULLABILITY
 import com.android.tools.metalava.doclava1.Issues.MUTABLE_BARE_FIELD
-import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.doclava1.Issues.NOT_CLOSEABLE
 import com.android.tools.metalava.doclava1.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.doclava1.Issues.NO_CLONE
@@ -128,6 +127,7 @@ import com.android.tools.metalava.doclava1.Issues.SINGLE_METHOD_INTERFACE
 import com.android.tools.metalava.doclava1.Issues.SINGULAR_CALLBACK
 import com.android.tools.metalava.doclava1.Issues.START_WITH_LOWER
 import com.android.tools.metalava.doclava1.Issues.START_WITH_UPPER
+import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.doclava1.Issues.STATIC_UTILS
 import com.android.tools.metalava.doclava1.Issues.STREAM_FILES
 import com.android.tools.metalava.doclava1.Issues.TOP_LEVEL_BUILDER
@@ -148,8 +148,8 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -2746,6 +2746,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         */
         for (method in methodsAndConstructors) {
+            if (method.synthetic) {
+                continue
+            }
             for (throws in method.filteredThrowsTypes(filterReference)) {
                 when (throws.qualifiedName()) {
                     "java.lang.NullPointerException",
