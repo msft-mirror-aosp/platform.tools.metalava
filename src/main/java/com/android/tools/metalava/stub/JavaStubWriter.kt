@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -95,7 +94,7 @@ class JavaStubWriter(
         writer.print(cls.simpleName())
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
-        generateSuperClassStatement(cls)
+        generateSuperClassDeclaration(cls)
         if (!cls.notStrippable) {
             generateInterfaceList(cls)
         }
@@ -186,7 +185,7 @@ class JavaStubWriter(
         )
     }
 
-    private fun generateSuperClassStatement(cls: ClassItem) {
+    private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType()) {
             // No extends statement for enums and annotations; it's implied by the "enum" and "@interface" keywords
             return
@@ -363,10 +362,7 @@ class JavaStubWriter(
         val isEnum = containingClass.isEnum()
         val isAnnotation = containingClass.isAnnotationType()
 
-        if (isEnum && (method.name() == "values" ||
-                method.name() == "valueOf" && method.parameters().size == 1 &&
-                method.parameters()[0].type().toTypeString() == JAVA_LANG_STRING)
-        ) {
+        if (method.isEnumSyntheticMethod()) {
             // Skip the values() and valueOf(String) methods in enums: these are added by
             // the compiler for enums anyway, but was part of the doclava1 signature files
             // so inserted in compat mode.
