@@ -739,6 +739,7 @@ class StubsTest : DriverTest() {
                 B,
                 A;
                 public java.lang.String valueOf(int x) { throw new RuntimeException("Stub!"); }
+                public java.lang.String values(java.lang.String separator) { throw new RuntimeException("Stub!"); }
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 }
             """
@@ -4255,7 +4256,10 @@ class StubsTest : DriverTest() {
                     @file:JvmName("Driver")
                     package test.pkg
                     /** My class doc */
-                    class Kotlin(val property1: String = "Default Value", arg2: Int) : Parent() {
+                    class Kotlin(
+                        val property1: String = "Default Value",
+                        arg2: Int
+                    ) : Parent() {
                         override fun method() = "Hello World"
                         /** My method doc */
                         fun otherMethod(ok: Boolean, times: Int) {
@@ -4293,13 +4297,40 @@ class StubsTest : DriverTest() {
                     package test.pkg
                     /** My class doc */
                     @file:Suppress("ALL")
-                    class Kotlin {
+                    class Kotlin : test.pkg.Parent() {
                     }
                 """,
                 """
                     package test.pkg
                     @file:Suppress("ALL")
                     open class ExtendableClass<T> {
+                    }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_KOTLIN_STUBS
+            ),
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+                    class MainClass: MyParentClass(), MyInterface1, MyInterface2
+                    
+                    open class MyParentClass
+                    interface MyInterface1
+                    interface MyInterface2
+                """)
+            ),
+            stubs = arrayOf(
+                """
+                    package test.pkg
+                    @file:Suppress("ALL")
+                    class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
                     }
                 """
             )

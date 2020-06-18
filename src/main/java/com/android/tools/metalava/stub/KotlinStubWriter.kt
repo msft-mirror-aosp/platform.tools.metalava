@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
+import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.options
@@ -88,7 +89,10 @@ class KotlinStubWriter(
         writer.print(cls.simpleName())
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
-
+        val printedSuperClass = generateSuperClassDeclaration(cls)
+        if (!cls.notStrippable) {
+            generateInterfaceList(cls, printedSuperClass)
+        }
         writer.print(" {\n")
     }
 
@@ -127,6 +131,66 @@ class KotlinStubWriter(
             separateLines = separateLines,
             language = Language.KOTLIN
         )
+    }
+
+    private fun generateSuperClassDeclaration(cls: ClassItem): Boolean {
+        if (cls.isEnum() || cls.isAnnotationType()) {
+            // No extends statement for enums and annotations; it's implied by the "enum" and "@interface" keywords
+            return false
+        }
+
+        val superClass = if (preFiltered)
+            cls.superClassType()
+        else cls.filteredSuperClassType(filterReference)
+
+        if (superClass != null && !superClass.isJavaLangObject()) {
+            val qualifiedName = superClass.toTypeString() // TODO start passing language = Language.KOTLIN
+            writer.print(" : ")
+
+            if (qualifiedName.contains("<")) {
+                // TODO: push this into the model at filter-time such that clients don't need
+                // to remember to do this!!
+                val s = superClass.asClass()
+                if (s != null) {
+                    val map = cls.mapTypeVariables(s)
+                    val replaced = superClass.convertTypeString(map)
+                    writer.print(replaced)
+                    return true
+                }
+            }
+            (cls as PsiClassItem).psiClass.superClassType
+            writer.print(qualifiedName)
+            // TODO: print out arguments to the parent constructor
+            writer.print("()")
+            return true
+        }
+        return false
+    }
+
+    private fun generateInterfaceList(cls: ClassItem, printedSuperClass: Boolean) {
+        if (cls.isAnnotationType()) {
+            // No extends statement for annotations; it's implied by the "@interface" keyword
+            return
+        }
+
+        val interfaces = if (preFiltered)
+            cls.interfaceTypes().asSequence()
+        else cls.filteredInterfaceTypes(filterReference).asSequence()
+
+        if (interfaces.any()) {
+            if (printedSuperClass) {
+                writer.print(",")
+            } else {
+                writer.print(" :")
+            }
+            interfaces.forEachIndexed { index, type ->
+                if (index > 0) {
+                    writer.print(",")
+                }
+                writer.print(" ")
+                writer.print(type.toTypeString()) // TODO start passing language = Language.KOTLIN
+            }
+        }
     }
 
     private fun appendDocumentation(item: Item, writer: PrintWriter) {
