@@ -90,9 +90,7 @@ class KotlinStubWriter(
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
         val printedSuperClass = generateSuperClassDeclaration(cls)
-        if (!cls.notStrippable) {
-            generateInterfaceList(cls, printedSuperClass)
-        }
+        generateInterfaceList(cls, printedSuperClass)
         writer.print(" {\n")
     }
 

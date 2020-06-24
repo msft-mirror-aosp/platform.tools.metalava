@@ -47,12 +47,6 @@ class SignatureWriter(
     filterReference = filterReference,
     showUnannotated = options.showUnannotated
 ) {
-    override fun skip(item: Item): Boolean {
-        val superSkip = super.skip(item)
-        val otherSkip = item is ClassItem && item.notStrippable
-        return superSkip || otherSkip
-    }
-
     init {
         if (options.includeSignatureFormatVersion) {
             writer.print(options.outputFormat.header())

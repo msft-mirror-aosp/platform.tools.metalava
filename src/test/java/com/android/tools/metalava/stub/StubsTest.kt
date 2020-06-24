@@ -3972,19 +3972,6 @@ class StubsTest : DriverTest() {
                 public class PublicInterface {
                 public PublicInterface() { throw new RuntimeException("Stub!"); }
                 }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                final class HiddenType {
-                }
-                """,
-                """
-                package test.pkg;
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class HiddenType4 {
-                }
                 """
             )
         )
@@ -4028,10 +4015,6 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class PublicApi {
                 public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public static class HiddenInner {
-                }
                 }
                 """
             )
