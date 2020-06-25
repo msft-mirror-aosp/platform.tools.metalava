@@ -54,11 +54,7 @@ class StubWriter(
     // Methods are by default sorted in source order in stubs, to encourage methods
     // that are near each other in the source to show up near each other in the documentation
     methodComparator = MethodItem.sourceOrderComparator,
-    filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs))
-        // In stubs we have to include non-strippable things too. This is an error in the API,
-        // and we've removed all of it from the framework, but there are libraries which still
-        // have reference errors.
-        .or { it is ClassItem && it.notStrippable },
+    filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs)),
     filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
     includeEmptyOuterClasses = true
 ) {

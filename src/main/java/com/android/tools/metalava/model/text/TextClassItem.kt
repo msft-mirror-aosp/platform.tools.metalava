@@ -55,8 +55,6 @@ open class TextClassItem(
 
     override val isTypeParameter: Boolean = false
 
-    override var notStrippable = false
-
     override var artifact: String? = null
 
     override fun equals(other: Any?): Boolean {
