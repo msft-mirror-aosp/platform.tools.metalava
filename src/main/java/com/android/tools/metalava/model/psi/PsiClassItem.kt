@@ -87,7 +87,6 @@ open class PsiClassItem(
     }
 
     override var stubConstructor: ConstructorItem? = null
-    override var notStrippable = false
     override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
