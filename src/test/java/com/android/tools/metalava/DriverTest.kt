@@ -1121,6 +1121,19 @@ abstract class DriverTest {
             expectedFail = expectedFail
         )
 
+        if (expectedIssues != null) {
+            assertEquals(
+                expectedIssues.trimIndent().trim(),
+                cleanupString(allReportedIssues.toString(), project)
+            )
+        }
+        if (errorSeverityExpectedIssues != null) {
+            assertEquals(
+                errorSeverityExpectedIssues.trimIndent().trim(),
+                cleanupString(errorSeverityReportedIssues.toString(), project)
+            )
+        }
+
         if (expectedOutput != null) {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
@@ -1237,19 +1250,6 @@ abstract class DriverTest {
         if (sdk_widgets != null) {
             val actual = readFile(File(sdkFilesDir, "widgets.txt"), stripBlankLines, trim)
             assertEquals(sdk_widgets.trimIndent().trim(), actual.trim())
-        }
-
-        if (expectedIssues != null) {
-            assertEquals(
-                expectedIssues.trimIndent().trim(),
-                cleanupString(allReportedIssues.toString(), project)
-            )
-        }
-        if (errorSeverityExpectedIssues != null) {
-            assertEquals(
-                errorSeverityExpectedIssues.trimIndent().trim(),
-                cleanupString(errorSeverityReportedIssues.toString(), project)
-            )
         }
 
         if (extractAnnotations != null && extractedAnnotationsZip != null) {
