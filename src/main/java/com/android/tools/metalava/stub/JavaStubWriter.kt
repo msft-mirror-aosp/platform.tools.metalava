@@ -95,9 +95,7 @@ class JavaStubWriter(
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
         generateSuperClassDeclaration(cls)
-        if (!cls.notStrippable) {
-            generateInterfaceList(cls)
-        }
+        generateInterfaceList(cls)
         writer.print(" {\n")
 
         if (cls.isEnum()) {
@@ -258,9 +256,6 @@ class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        if (constructor.containingClass().notStrippable) {
-            return
-        }
         writeConstructor(constructor, constructor.superConstructor)
     }
 
@@ -351,9 +346,6 @@ class JavaStubWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
-        if (method.containingClass().notStrippable) {
-            return
-        }
         writeMethod(method.containingClass(), method, false)
     }
 
@@ -413,10 +405,6 @@ class JavaStubWriter(
     override fun visitField(field: FieldItem) {
         // Handled earlier in visitClass
         if (field.isEnumConstant()) {
-            return
-        }
-
-        if (field.containingClass().notStrippable) {
             return
         }
 
