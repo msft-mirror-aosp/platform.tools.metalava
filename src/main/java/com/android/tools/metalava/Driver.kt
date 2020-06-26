@@ -1115,7 +1115,7 @@ private fun addHiddenPackages(
     file: File,
     pkg: String
 ) {
-    if (file.isDirectory) {
+    if (FileReadSandbox.isDirectory(file)) {
         if (skippableDirectory(file)) {
             return
         }
@@ -1131,7 +1131,7 @@ private fun addHiddenPackages(
         if (files != null) {
             for (child in files) {
                 var subPkg =
-                    if (child.isDirectory)
+                    if (FileReadSandbox.isDirectory(child))
                         if (pkg.isEmpty())
                             child.name
                         else pkg + "." + child.name
@@ -1146,7 +1146,7 @@ private fun addHiddenPackages(
                 addHiddenPackages(packageToDoc, packageToOverview, hiddenPackages, child, subPkg)
             }
         }
-    } else if (file.isFile) {
+    } else if (FileReadSandbox.isFile(file)) {
         var javadoc = false
         val map = when (file.name) {
             "package.html" -> {
