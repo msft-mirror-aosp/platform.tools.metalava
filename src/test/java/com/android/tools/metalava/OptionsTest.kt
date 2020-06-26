@@ -255,9 +255,6 @@ Diffs and Checks:
 --api-lint-ignore-prefix [prefix]
                                              A list of package prefixes to ignore API issues in when running with
                                              --api-lint.
---check-kotlin-interop
-                                             Check API intended to be used from both Kotlin and Java for
-                                             interoperability issues
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
