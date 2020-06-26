@@ -126,7 +126,7 @@ class StubWriter(
             }
             startFile(sourceFile)
 
-            appendDocumentation(pkg, packageInfoWriter)
+            appendDocumentation(pkg, packageInfoWriter, docStubs)
 
             if (annotations.isNotEmpty()) {
                 ModifierList.writeAnnotations(
@@ -202,21 +202,6 @@ class StubWriter(
         stubWriter?.visitClass(cls)
     }
 
-    private fun appendDocumentation(item: Item, writer: PrintWriter) {
-        if (options.includeDocumentationInStubs || docStubs) {
-            val documentation = if (docStubs) {
-                item.fullyQualifiedDocumentation()
-            } else {
-                item.documentation
-            }
-            if (documentation.isNotBlank()) {
-                val trimmed = trimDocIndent(documentation)
-                writer.println(trimmed)
-                writer.println()
-            }
-        }
-    }
-
     override fun afterVisitClass(cls: ClassItem) {
         stubWriter?.afterVisitClass(cls)
 
@@ -250,5 +235,24 @@ class StubWriter(
 
     override fun afterVisitField(field: FieldItem) {
         stubWriter?.afterVisitField(field)
+    }
+}
+
+internal fun appendDocumentation(
+    item: Item,
+    writer: PrintWriter,
+    docStubs: Boolean
+) {
+    if (options.includeDocumentationInStubs || docStubs) {
+        val documentation = if (docStubs) {
+            item.fullyQualifiedDocumentation()
+        } else {
+            item.documentation
+        }
+        if (documentation.isNotBlank()) {
+            val trimmed = trimDocIndent(documentation)
+            writer.println(trimmed)
+            writer.println()
+        }
     }
 }

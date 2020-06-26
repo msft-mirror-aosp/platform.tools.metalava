@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.options
 import java.io.PrintWriter
@@ -75,7 +74,7 @@ class JavaStubWriter(
             }
         }
 
-        appendDocumentation(cls, writer)
+        appendDocumentation(cls, writer, docStubs)
 
         // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
         writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
@@ -111,7 +110,7 @@ class JavaStubWriter(
                     } else {
                         writer.write(",\n")
                     }
-                    appendDocumentation(field, writer)
+                    appendDocumentation(field, writer, docStubs)
 
                     // Can't just appendModifiers(field, true, true): enum constants
                     // don't take modifier lists, only annotations
@@ -134,21 +133,6 @@ class JavaStubWriter(
         }
 
         generateMissingConstructors(cls)
-    }
-
-    private fun appendDocumentation(item: Item, writer: PrintWriter) {
-        if (options.includeDocumentationInStubs || docStubs) {
-            val documentation = if (docStubs) {
-                item.fullyQualifiedDocumentation()
-            } else {
-                item.documentation
-            }
-            if (documentation.isNotBlank()) {
-                val trimmed = trimDocIndent(documentation)
-                writer.println(trimmed)
-                writer.println()
-            }
-        }
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -267,7 +251,7 @@ class JavaStubWriter(
         superConstructor: MethodItem?
     ) {
         writer.println()
-        appendDocumentation(constructor, writer)
+        appendDocumentation(constructor, writer, docStubs)
         appendModifiers(constructor, false)
         generateTypeParameterList(
             typeList = constructor.typeParameterList(),
@@ -365,7 +349,7 @@ class JavaStubWriter(
         }
 
         writer.println()
-        appendDocumentation(method, writer)
+        appendDocumentation(method, writer, docStubs)
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
@@ -413,7 +397,7 @@ class JavaStubWriter(
 
         writer.println()
 
-        appendDocumentation(field, writer)
+        appendDocumentation(field, writer, docStubs)
         appendModifiers(field, removeAbstract = false, removeFinal = false)
         writer.print(
             field.type().toTypeString(
