@@ -422,7 +422,6 @@ fun subtractApi(codebase: Codebase, subtractApiFile: File) {
 
     CodebaseComparator().compare(object : ComparisonVisitor() {
         override fun compare(old: ClassItem, new: ClassItem) {
-            new.included = false
             new.emit = false
         }
     }, oldCodebase, codebase, ApiType.ALL.getReferenceFilter())
