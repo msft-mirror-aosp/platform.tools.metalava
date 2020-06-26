@@ -92,9 +92,6 @@ open class PsiClassItem(
     private var containingClass: PsiClassItem? = null
     override fun containingClass(): PsiClassItem? = containingClass
 
-    // TODO: Come up with a better scheme for how to compute this
-    override var included: Boolean = true
-
     override var hasPrivateConstructor: Boolean = false
 
     override fun interfaceTypes(): List<TypeItem> = interfaceTypes
