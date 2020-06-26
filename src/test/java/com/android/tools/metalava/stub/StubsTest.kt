@@ -3275,7 +3275,7 @@ class StubsTest : DriverTest() {
             sourceFiles = arrayOf(
                 java(
                     """
-                    package java.lang;
+                    package com.android.metalava.test;
 
                     import java.lang.annotation.*;
 
@@ -3288,7 +3288,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             source = """
-                package java.lang;
+                package com.android.metalava.test;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
@@ -3306,7 +3306,7 @@ class StubsTest : DriverTest() {
             sourceFiles = arrayOf(
                 java(
                     """
-                    package java.lang;
+                    package com.android.metalava.test;
 
                     @SuppressWarnings("something") @FunctionalInterface
                     public interface MyInterface {
@@ -3317,7 +3317,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             source = """
-                package java.lang;
+                package com.android.metalava.test;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.FunctionalInterface
                 public interface MyInterface {
