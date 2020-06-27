@@ -26,9 +26,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate
 
@@ -64,7 +62,7 @@ class KotlinStubWriter(
                 writer.println()
             }
         }
-        appendDocumentation(cls, writer)
+        appendDocumentation(cls, writer, docStubs)
 
         writer.println("@file:Suppress(\"ALL\")")
 
@@ -183,21 +181,6 @@ class KotlinStubWriter(
                 }
                 writer.print(" ")
                 writer.print(type.toTypeString()) // TODO start passing language = Language.KOTLIN
-            }
-        }
-    }
-
-    private fun appendDocumentation(item: Item, writer: PrintWriter) {
-        if (options.includeDocumentationInStubs || docStubs) {
-            val documentation = if (docStubs) {
-                item.fullyQualifiedDocumentation()
-            } else {
-                item.documentation
-            }
-            if (documentation.isNotBlank()) {
-                val trimmed = trimDocIndent(documentation)
-                writer.println(trimmed)
-                writer.println()
             }
         }
     }
