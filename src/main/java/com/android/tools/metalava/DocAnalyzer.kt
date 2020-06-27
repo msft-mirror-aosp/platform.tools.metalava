@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.VisibleItemVisitor
 import com.google.common.io.Files
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
@@ -81,7 +80,7 @@ class DocAnalyzer(
 
         artifacts.tag(codebase)
 
-        codebase.accept(object : VisibleItemVisitor() {
+        codebase.accept(object : ApiVisitor() {
             override fun visitClass(cls: ClassItem) {
                 cls.artifact?.let {
                     cls.appendDocumentation(it, "@artifactId")
@@ -639,7 +638,7 @@ class DocAnalyzer(
     )
 
     private fun tweakGrammar() {
-        codebase.accept(object : VisibleItemVisitor() {
+        codebase.accept(object : ApiVisitor() {
             override fun visitItem(item: Item) {
                 var doc = item.documentation
                 if (doc.isBlank()) {
