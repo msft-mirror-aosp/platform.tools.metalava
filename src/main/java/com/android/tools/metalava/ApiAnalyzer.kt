@@ -1058,12 +1058,6 @@ class ApiAnalyzer(
             } else if (cl.deprecated) {
                 // not hidden, but deprecated
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
-            } else if (reporter.isSuppressed(Issues.REFERENCES_HIDDEN, cl)) {
-                // If we're not reporting hidden references, bring the type back
-                // Bring this class back
-                cl.hidden = false
-                cl.removed = false
-                cl.notStrippable = true
             }
         }
     }
@@ -1092,7 +1086,6 @@ class ApiAnalyzer(
                     false
                 )}"
             )
-            cl.notStrippable = true
         }
 
         if (!notStrippable.add(cl)) {
