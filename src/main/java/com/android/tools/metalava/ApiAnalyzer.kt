@@ -516,7 +516,6 @@ class ApiAnalyzer(
         for (pkgName in options.hidePackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.hidden = true
-            pkg.included = false // because included has already been initialized
         }
     }
 
