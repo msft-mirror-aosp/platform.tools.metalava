@@ -25,11 +25,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate
 
@@ -50,25 +47,22 @@ class KotlinStubWriter(
                 writer.println("package $qualifiedName")
                 writer.println()
             }
-            @Suppress("ConstantConditionIf")
-            if (EXPAND_DOCUMENTATION) {
-                val compilationUnit = cls.getCompilationUnit()
-                compilationUnit?.getImportStatements(filterReference)?.let {
-                    for (item in it) {
-                        when (item) {
-                            is PackageItem ->
-                                writer.println("import ${item.qualifiedName()}.*")
-                            is ClassItem ->
-                                writer.println("import ${item.qualifiedName()}")
-                            is MemberItem ->
-                                writer.println("import static ${item.containingClass().qualifiedName()}.${item.name()}")
-                        }
+            val compilationUnit = cls.getCompilationUnit()
+            compilationUnit?.getImportStatements(filterReference)?.let {
+                for (item in it) {
+                    when (item) {
+                        is PackageItem ->
+                            writer.println("import ${item.qualifiedName()}.*")
+                        is ClassItem ->
+                            writer.println("import ${item.qualifiedName()}")
+                        is MemberItem ->
+                            writer.println("import static ${item.containingClass().qualifiedName()}.${item.name()}")
                     }
-                    writer.println()
                 }
+                writer.println()
             }
         }
-        appendDocumentation(cls, writer)
+        appendDocumentation(cls, writer, docStubs)
 
         writer.println("@file:Suppress(\"ALL\")")
 
@@ -90,9 +84,7 @@ class KotlinStubWriter(
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
         val printedSuperClass = generateSuperClassDeclaration(cls)
-        if (!cls.notStrippable) {
-            generateInterfaceList(cls, printedSuperClass)
-        }
+        generateInterfaceList(cls, printedSuperClass)
         writer.print(" {\n")
     }
 
@@ -189,21 +181,6 @@ class KotlinStubWriter(
                 }
                 writer.print(" ")
                 writer.print(type.toTypeString()) // TODO start passing language = Language.KOTLIN
-            }
-        }
-    }
-
-    private fun appendDocumentation(item: Item, writer: PrintWriter) {
-        if (options.includeDocumentationInStubs || docStubs) {
-            val documentation = if (docStubs && EXPAND_DOCUMENTATION) {
-                item.fullyQualifiedDocumentation()
-            } else {
-                item.documentation
-            }
-            if (documentation.isNotBlank()) {
-                val trimmed = trimDocIndent(documentation)
-                writer.println(trimmed)
-                writer.println()
             }
         }
     }
