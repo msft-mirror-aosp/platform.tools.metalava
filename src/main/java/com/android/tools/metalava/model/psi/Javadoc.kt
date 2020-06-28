@@ -50,12 +50,6 @@ import org.intellij.lang.annotations.Language
  */
 
 /**
- * If true, we'll rewrite all the javadoc documentation in doc stubs
- * to include fully qualified names
- */
-const val EXPAND_DOCUMENTATION = true
-
-/**
  * If the reference is to a class in the same package, include the package prefix?
  * This should not be necessary, but doclava has problems finding classes without
  * it. Consider turning this off when we switch to Dokka.

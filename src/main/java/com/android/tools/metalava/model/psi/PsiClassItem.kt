@@ -87,14 +87,10 @@ open class PsiClassItem(
     }
 
     override var stubConstructor: ConstructorItem? = null
-    override var notStrippable = false
     override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
     override fun containingClass(): PsiClassItem? = containingClass
-
-    // TODO: Come up with a better scheme for how to compute this
-    override var included: Boolean = true
 
     override var hasPrivateConstructor: Boolean = false
 

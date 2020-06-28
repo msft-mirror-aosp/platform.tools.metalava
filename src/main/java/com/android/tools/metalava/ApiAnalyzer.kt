@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import java.util.ArrayList
@@ -486,13 +485,6 @@ class ApiAnalyzer(
             method.inheritedMethod = true
             method.inheritedFrom = it.containingClass()
 
-            // The documentation may use relative references to classes in import statements
-            // in the original class, so expand the documentation to be fully qualified.
-            @Suppress("ConstantConditionIf")
-            if (!EXPAND_DOCUMENTATION) {
-                method.documentation = it.fullyQualifiedDocumentation()
-            }
-
             val name = method.name()
             val candidates = existingMethodMap[name]
             if (candidates != null) {
@@ -516,7 +508,6 @@ class ApiAnalyzer(
         for (pkgName in options.hidePackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.hidden = true
-            pkg.included = false // because included has already been initialized
         }
     }
 
@@ -1058,12 +1049,6 @@ class ApiAnalyzer(
             } else if (cl.deprecated) {
                 // not hidden, but deprecated
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
-            } else if (reporter.isSuppressed(Issues.REFERENCES_HIDDEN, cl)) {
-                // If we're not reporting hidden references, bring the type back
-                // Bring this class back
-                cl.hidden = false
-                cl.removed = false
-                cl.notStrippable = true
             }
         }
     }
@@ -1092,7 +1077,6 @@ class ApiAnalyzer(
                     false
                 )}"
             )
-            cl.notStrippable = true
         }
 
         if (!notStrippable.add(cl)) {

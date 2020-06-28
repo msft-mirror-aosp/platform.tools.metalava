@@ -27,9 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.options
 import java.io.PrintWriter
@@ -52,9 +50,10 @@ class JavaStubWriter(
                 writer.println("package $qualifiedName;")
                 writer.println()
             }
-
-            @Suppress("ConstantConditionIf")
-            if (EXPAND_DOCUMENTATION && options.includeDocumentationInStubs) {
+            if (options.includeDocumentationInStubs) {
+                // All the classes referenced in the stubs are fully qualified, so no imports are
+                // needed. However, in some cases for javadoc, replacement with fully qualified name
+                // fails and thus we need to include imports for the stubs to compile.
                 val compilationUnit = cls.getCompilationUnit()
                 compilationUnit?.getImportStatements(filterReference)?.let {
                     for (item in it) {
@@ -64,7 +63,10 @@ class JavaStubWriter(
                             is ClassItem ->
                                 writer.println("import ${item.qualifiedName()};")
                             is MemberItem ->
-                                writer.println("import static ${item.containingClass().qualifiedName()}.${item.name()};")
+                                writer.println(
+                                    "import static ${item.containingClass()
+                                        .qualifiedName()}.${item.name()};"
+                                )
                         }
                     }
                     writer.println()
@@ -72,7 +74,7 @@ class JavaStubWriter(
             }
         }
 
-        appendDocumentation(cls, writer)
+        appendDocumentation(cls, writer, docStubs)
 
         // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
         writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
@@ -95,9 +97,7 @@ class JavaStubWriter(
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
         generateSuperClassDeclaration(cls)
-        if (!cls.notStrippable) {
-            generateInterfaceList(cls)
-        }
+        generateInterfaceList(cls)
         writer.print(" {\n")
 
         if (cls.isEnum()) {
@@ -110,7 +110,7 @@ class JavaStubWriter(
                     } else {
                         writer.write(",\n")
                     }
-                    appendDocumentation(field, writer)
+                    appendDocumentation(field, writer, docStubs)
 
                     // Can't just appendModifiers(field, true, true): enum constants
                     // don't take modifier lists, only annotations
@@ -133,21 +133,6 @@ class JavaStubWriter(
         }
 
         generateMissingConstructors(cls)
-    }
-
-    private fun appendDocumentation(item: Item, writer: PrintWriter) {
-        if (options.includeDocumentationInStubs || docStubs) {
-            val documentation = if (docStubs && EXPAND_DOCUMENTATION) {
-                item.fullyQualifiedDocumentation()
-            } else {
-                item.documentation
-            }
-            if (documentation.isNotBlank()) {
-                val trimmed = trimDocIndent(documentation)
-                writer.println(trimmed)
-                writer.println()
-            }
-        }
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -258,9 +243,6 @@ class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        if (constructor.containingClass().notStrippable) {
-            return
-        }
         writeConstructor(constructor, constructor.superConstructor)
     }
 
@@ -269,7 +251,7 @@ class JavaStubWriter(
         superConstructor: MethodItem?
     ) {
         writer.println()
-        appendDocumentation(constructor, writer)
+        appendDocumentation(constructor, writer, docStubs)
         appendModifiers(constructor, false)
         generateTypeParameterList(
             typeList = constructor.typeParameterList(),
@@ -351,9 +333,6 @@ class JavaStubWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
-        if (method.containingClass().notStrippable) {
-            return
-        }
         writeMethod(method.containingClass(), method, false)
     }
 
@@ -370,7 +349,7 @@ class JavaStubWriter(
         }
 
         writer.println()
-        appendDocumentation(method, writer)
+        appendDocumentation(method, writer, docStubs)
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
@@ -416,13 +395,9 @@ class JavaStubWriter(
             return
         }
 
-        if (field.containingClass().notStrippable) {
-            return
-        }
-
         writer.println()
 
-        appendDocumentation(field, writer)
+        appendDocumentation(field, writer, docStubs)
         appendModifiers(field, removeAbstract = false, removeFinal = false)
         writer.print(
             field.type().toTypeString(
