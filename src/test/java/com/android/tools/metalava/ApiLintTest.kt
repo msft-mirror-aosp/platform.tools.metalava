@@ -153,7 +153,8 @@ class ApiLintTest : DriverTest() {
                     inline class Dp(val value: Float)
                     fun greatCall(width: Dp)
                     fun badCALL(width: Dp)
-                """)
+                """),
+                androidxNullableSource
             )
             /*
             expectedOutput = """
@@ -248,7 +249,9 @@ class ApiLintTest : DriverTest() {
                         public static final String FOO = System.getProperty("foo");
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             )
         )
     }
@@ -542,7 +545,8 @@ class ApiLintTest : DriverTest() {
                         public boolean equals(@Nullable Object other, int bar) { return false; } // wrong signature
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -634,7 +638,8 @@ class ApiLintTest : DriverTest() {
                         public static final android.os.Parcelable.Creator<android.app.WallpaperColors> CREATOR = null;
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -747,7 +752,8 @@ class ApiLintTest : DriverTest() {
                         public void bad3(@Nullable android.net.URL param) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -797,7 +803,15 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                java(
+                    """
+                    package com.google.common.util.concurrent;
+                    public class ListenableFuture<T> {
+                    }
+                    """
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -904,7 +918,8 @@ class ApiLintTest : DriverTest() {
                         void registerOverriddenUnpairedCallback(@Nullable Runnable r) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -988,7 +1003,9 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource,
+                nullableSource
             )
         )
     }
@@ -1018,7 +1035,8 @@ class ApiLintTest : DriverTest() {
                         public Intent createIntentNow() { return null; } // WARN
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1235,7 +1253,9 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             )
         )
     }
@@ -1341,7 +1361,8 @@ class ApiLintTest : DriverTest() {
                         public Bitmap wrong(@Nullable View view, @Nullable Bitmap bitmap) { return null; }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1445,7 +1466,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1588,7 +1610,8 @@ class ApiLintTest : DriverTest() {
                         public BitSet reverse(@Nullable BitSet bitset) { return null; }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1632,7 +1655,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1669,7 +1693,8 @@ class ApiLintTest : DriverTest() {
                         public Short getDouble(@Nullable Double l) { return null; }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1773,7 +1798,8 @@ class ApiLintTest : DriverTest() {
                         public void wrong(int i, @Nullable ContentResolver resolver) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1811,7 +1837,8 @@ class ApiLintTest : DriverTest() {
                     public abstract class MyCallback {
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1912,7 +1939,8 @@ class ApiLintTest : DriverTest() {
                     public abstract class MyCallback {
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2001,7 +2029,8 @@ class ApiLintTest : DriverTest() {
                         public void error(int i, @Nullable File file) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2033,7 +2062,8 @@ class ApiLintTest : DriverTest() {
                         public void error(int i, @Nullable File file) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2343,7 +2373,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import com.android.annotations.NonNull;
+                    import android.annotation.NonNull;
                     import java.util.TimeZone;
 
                     public abstract class MyErrorClass1 {
@@ -2353,7 +2383,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                nonNullSource
             )
         )
     }
@@ -2374,7 +2405,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import com.android.annotations.NonNull;
+                    import android.annotation.NonNull;
                     import java.util.TimeZone;
 
                     public abstract class MyErrorClass1 {
@@ -2384,7 +2415,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                nonNullSource
             )
         )
     }
@@ -2415,7 +2447,9 @@ class ApiLintTest : DriverTest() {
                         public final int as = 0; // error
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             )
         )
     }
@@ -2452,7 +2486,8 @@ class ApiLintTest : DriverTest() {
                         public void plusAssign(@Nullable JavaClass other) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2485,7 +2520,8 @@ class ApiLintTest : DriverTest() {
                         public void ok(@Nullable Number... args) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2524,7 +2560,8 @@ class ApiLintTest : DriverTest() {
                         public void error(int i, @Nullable UserHandle handle) {}
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2660,7 +2697,8 @@ class ApiLintTest : DriverTest() {
                         public CloneTest clone() { return super.clone(); } // error
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2688,7 +2726,8 @@ class ApiLintTest : DriverTest() {
                         public abstract java.text.BreakIterator foo(@Nullable java.text.Collator collator);
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2734,7 +2773,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.yada;
 
-                    import com.android.annotations.NonNull;
+                    import android.annotation.NonNull;
 
                     public class YadaService extends android.app.Service {
                         @Override
@@ -2742,7 +2781,9 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource,
+                nonNullSource
             )
         )
     }
@@ -2811,7 +2852,8 @@ class ApiLintTest : DriverTest() {
                         public void foo() { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2920,7 +2962,8 @@ class ApiLintTest : DriverTest() {
                             }
                         }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
