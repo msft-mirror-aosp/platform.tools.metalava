@@ -44,6 +44,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
@@ -133,6 +134,19 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         // Make sure we only process the units once; sometimes there's overlap in the source lists
         for (unit in units.asSequence().distinct()) {
             tick() // show progress
+
+            unit.accept(object : JavaRecursiveElementVisitor() {
+                override fun visitImportStatement(element: PsiImportStatement) {
+                    super.visitImportStatement(element)
+                    if (element.resolve() == null) {
+                        reporter.report(
+                            Issues.UNRESOLVED_IMPORT,
+                            element,
+                            "Unresolved import: `${element.qualifiedName}`"
+                        )
+                    }
+                }
+            })
 
             var classes = (unit as? PsiClassOwner)?.classes?.toList() ?: emptyList()
             if (classes.isEmpty()) {
