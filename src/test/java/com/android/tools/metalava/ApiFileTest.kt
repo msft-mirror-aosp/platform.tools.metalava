@@ -652,7 +652,9 @@ class ApiFileTest : DriverTest() {
                         return null
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             ),
             api = """
                 // Signature format: 3.0
@@ -3077,6 +3079,13 @@ class ApiFileTest : DriverTest() {
                     package com.squareup.okhttp;
                     public interface OkCacheContainer {
                       Cache getCache();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package com.squareup.okhttp;
+                    public class Cache {
                     }
                     """
                 )

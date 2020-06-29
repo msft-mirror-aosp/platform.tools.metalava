@@ -485,6 +485,9 @@ class ShowAnnotationTest : DriverTest() {
                     """
                 )
             ),
+            expectedIssues = """
+                src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
+                """,
             api = """
                 // Signature format: 3.0
                 package androidx.room {
@@ -493,6 +496,7 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
+
             extraArguments = arrayOf(
                 ARG_HIDE_ANNOTATION, "androidx.annotation.IntDef"
             )
