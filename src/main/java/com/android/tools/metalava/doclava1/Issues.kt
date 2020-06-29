@@ -128,6 +128,7 @@ object Issues {
     val FORBIDDEN_TAG = Issue(162, Severity.ERROR)
     val MISSING_COLUMN = Issue(163, Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX = Issue(164, Severity.ERROR)
+    val UNRESOLVED_IMPORT = Issue(165, Severity.INFO)
 
     // API lint
     val START_WITH_LOWER = Issue(300, Severity.ERROR, Category.API_LINT, "S1")
