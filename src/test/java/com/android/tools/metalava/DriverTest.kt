@@ -1598,6 +1598,20 @@ val libcoreNonNullSource: TestFile = java(
     """
 ).indented()
 
+val libcoreNullFromTypeParamSource: TestFile = java(
+    """
+    package libcore.util;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.*;
+    @Documented
+    @Retention(SOURCE)
+    @Target({TYPE_USE})
+    public @interface NullFromTypeParam {
+    }
+    """
+).indented()
+
 val libcoreNullableSource: TestFile = java(
     """
     package libcore.util;
