@@ -1121,6 +1121,19 @@ abstract class DriverTest {
             expectedFail = expectedFail
         )
 
+        if (expectedIssues != null) {
+            assertEquals(
+                expectedIssues.trimIndent().trim(),
+                cleanupString(allReportedIssues.toString(), project)
+            )
+        }
+        if (errorSeverityExpectedIssues != null) {
+            assertEquals(
+                errorSeverityExpectedIssues.trimIndent().trim(),
+                cleanupString(errorSeverityReportedIssues.toString(), project)
+            )
+        }
+
         if (expectedOutput != null) {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
@@ -1237,19 +1250,6 @@ abstract class DriverTest {
         if (sdk_widgets != null) {
             val actual = readFile(File(sdkFilesDir, "widgets.txt"), stripBlankLines, trim)
             assertEquals(sdk_widgets.trimIndent().trim(), actual.trim())
-        }
-
-        if (expectedIssues != null) {
-            assertEquals(
-                expectedIssues.trimIndent().trim(),
-                cleanupString(allReportedIssues.toString(), project)
-            )
-        }
-        if (errorSeverityExpectedIssues != null) {
-            assertEquals(
-                errorSeverityExpectedIssues.trimIndent().trim(),
-                cleanupString(errorSeverityReportedIssues.toString(), project)
-            )
         }
 
         if (extractAnnotations != null && extractedAnnotationsZip != null) {
@@ -1594,6 +1594,20 @@ val libcoreNonNullSource: TestFile = java(
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface NonNull {
+    }
+    """
+).indented()
+
+val libcoreNullFromTypeParamSource: TestFile = java(
+    """
+    package libcore.util;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.*;
+    @Documented
+    @Retention(SOURCE)
+    @Target({TYPE_USE})
+    public @interface NullFromTypeParam {
     }
     """
 ).indented()
