@@ -242,9 +242,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         return super.skip(item) || item is ClassItem && !isInteresting(item)
     }
 
-    // The previous Kotlin interop tests are also part of API lint now (though they can be
-    // run independently as well; therefore, only run them here if not running separately)
-    private val kotlinInterop = if (!options.checkKotlinInterop) KotlinInteropChecks(reporter) else null
+    private val kotlinInterop = KotlinInteropChecks(reporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -268,13 +266,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
         }
-        kotlinInterop?.checkMethod(method)
+        kotlinInterop.checkMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
         checkField(field)
         checkType(field.type(), field)
-        kotlinInterop?.checkField(field)
+        kotlinInterop.checkField(field)
     }
 
     private fun checkType(type: TypeItem, item: Item) {
