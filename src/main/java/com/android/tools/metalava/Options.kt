@@ -792,7 +792,7 @@ class Options(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
+                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path, false))
                     }
                 }
 
@@ -1977,7 +1977,7 @@ class Options(
         return FileReadSandbox.allowAccess(files)
     }
 
-    private fun stringToExistingDirsOrJars(value: String): List<File> {
+    private fun stringToExistingDirsOrJars(value: String, exempt: Boolean = true): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
@@ -1986,7 +1986,10 @@ class Options(
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        if (exempt) {
+            return FileReadSandbox.allowAccess(files)
+        }
+        return files
     }
 
     private fun stringToExistingDirsOrFiles(value: String): List<File> {
@@ -2189,7 +2192,10 @@ class Options(
                 "@ followed by a path to a text file containing paths to the full set of files to parse.",
 
             "$ARG_SOURCE_PATH <paths>", "One or more directories (separated by `${File.pathSeparator}`) " +
-                "containing source files (within a package hierarchy)",
+                "containing source files (within a package hierarchy). If $ARG_STRICT_INPUT_FILES, " +
+                "$ARG_STRICT_INPUT_FILES_WARN, or $ARG_STRICT_INPUT_FILES_STACK are used, files accessed under " +
+                "$ARG_SOURCE_PATH that are not explicitly specified in $ARG_SOURCE_FILES are reported as " +
+                "violations.",
 
             "$ARG_CLASS_PATH <paths>", "One or more directories or jars (separated by " +
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
