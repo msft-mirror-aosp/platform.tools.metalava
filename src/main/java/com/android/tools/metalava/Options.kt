@@ -355,9 +355,6 @@ class Options(
     /** If non null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
 
-    /** Whether to validate the API for Kotlin interop */
-    var checkKotlinInterop = false
-
     /** Packages to include (if null, include all) */
     var stubPackages: PackageFilter? = null
 
@@ -792,7 +789,7 @@ class Options(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
+                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path, false))
                     }
                 }
 
@@ -1154,8 +1151,6 @@ class Options(
                 ARG_API_LINT_IGNORE_PREFIX -> {
                     checkApiIgnorePrefix.add(getValue(args, ++index))
                 }
-
-                ARG_CHECK_KOTLIN_INTEROP -> checkKotlinInterop = true
 
                 ARG_COLOR -> color = true
                 ARG_NO_COLOR -> color = false
@@ -1642,7 +1637,6 @@ class Options(
             externalAnnotations = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
-            checkKotlinInterop = false
             mutableCompatibilityChecks.clear()
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
@@ -1668,7 +1662,6 @@ class Options(
             externalAnnotations = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
-            checkKotlinInterop = false
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
             mutableConvertToXmlFiles.clear()
@@ -1977,7 +1970,7 @@ class Options(
         return FileReadSandbox.allowAccess(files)
     }
 
-    private fun stringToExistingDirsOrJars(value: String): List<File> {
+    private fun stringToExistingDirsOrJars(value: String, exempt: Boolean = true): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
@@ -1986,7 +1979,10 @@ class Options(
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        if (exempt) {
+            return FileReadSandbox.allowAccess(files)
+        }
+        return files
     }
 
     private fun stringToExistingDirsOrFiles(value: String): List<File> {
@@ -2189,7 +2185,10 @@ class Options(
                 "@ followed by a path to a text file containing paths to the full set of files to parse.",
 
             "$ARG_SOURCE_PATH <paths>", "One or more directories (separated by `${File.pathSeparator}`) " +
-                "containing source files (within a package hierarchy)",
+                "containing source files (within a package hierarchy). If $ARG_STRICT_INPUT_FILES, " +
+                "$ARG_STRICT_INPUT_FILES_WARN, or $ARG_STRICT_INPUT_FILES_STACK are used, files accessed under " +
+                "$ARG_SOURCE_PATH that are not explicitly specified in $ARG_SOURCE_FILES are reported as " +
+                "violations.",
 
             "$ARG_CLASS_PATH <paths>", "One or more directories or jars (separated by " +
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
@@ -2332,8 +2331,6 @@ class Options(
                 "provided, only the APIs that are new since the API will be checked.",
             "$ARG_API_LINT_IGNORE_PREFIX [prefix]", "A list of package prefixes to ignore API issues in " +
                 "when running with $ARG_API_LINT.",
-            ARG_CHECK_KOTLIN_INTEROP, "Check API intended to be used from both Kotlin and Java for interoperability " +
-                "issues",
             "$ARG_MIGRATE_NULLNESS <api file>", "Compare nullness information with the previous stable API " +
                 "and mark newly annotated APIs as under migration.",
             ARG_WARNINGS_AS_ERRORS, "Promote all warnings to errors",

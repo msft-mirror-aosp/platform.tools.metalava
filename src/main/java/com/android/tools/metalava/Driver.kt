@@ -36,13 +36,13 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.FilterPredicate
 import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.android.utils.StdLogger
@@ -786,12 +786,6 @@ private fun loadFromSources(): Codebase {
     options.nullabilityAnnotationsValidator?.report()
     analyzer.handleStripping()
 
-    val apiLintReporter = options.reporterApiLint
-
-    if (options.checkKotlinInterop) {
-        KotlinInteropChecks(apiLintReporter).check(codebase)
-    }
-
     // General API checks for Android APIs
     AndroidApiChecks().check(codebase)
 
@@ -809,6 +803,7 @@ private fun loadFromSources(): Codebase {
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
             }
+        val apiLintReporter = options.reporterApiLint
         ApiLint.check(codebase, previous, apiLintReporter)
         progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}")
     }
@@ -1114,7 +1109,7 @@ private fun addHiddenPackages(
     file: File,
     pkg: String
 ) {
-    if (file.isDirectory) {
+    if (FileReadSandbox.isDirectory(file)) {
         if (skippableDirectory(file)) {
             return
         }
@@ -1130,7 +1125,7 @@ private fun addHiddenPackages(
         if (files != null) {
             for (child in files) {
                 var subPkg =
-                    if (child.isDirectory)
+                    if (FileReadSandbox.isDirectory(child))
                         if (pkg.isEmpty())
                             child.name
                         else pkg + "." + child.name
@@ -1145,7 +1140,7 @@ private fun addHiddenPackages(
                 addHiddenPackages(packageToDoc, packageToOverview, hiddenPackages, child, subPkg)
             }
         }
-    } else if (file.isFile) {
+    } else if (FileReadSandbox.isFile(file)) {
         var javadoc = false
         val map = when (file.name) {
             "package.html" -> {
