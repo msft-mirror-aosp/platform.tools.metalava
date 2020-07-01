@@ -70,7 +70,10 @@ API sources:
                                              parse.
 --source-path <paths>
                                              One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy)
+                                             a package hierarchy). If --strict-input-files, --strict-input-files:warn,
+                                             or --strict-input-files:stack are used, files accessed under --source-path
+                                             that are not explicitly specified in --source-files are reported as
+                                             violations.
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -255,9 +258,6 @@ Diffs and Checks:
 --api-lint-ignore-prefix [prefix]
                                              A list of package prefixes to ignore API issues in when running with
                                              --api-lint.
---check-kotlin-interop
-                                             Check API intended to be used from both Kotlin and Java for
-                                             interoperability issues
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
