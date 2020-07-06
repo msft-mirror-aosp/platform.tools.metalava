@@ -428,6 +428,8 @@ interface AnnotationItem {
                 "java.lang.SuppressWarnings",
                 "java.lang.Override",
                 "kotlin.Suppress",
+                "androidx.annotation.experimental.UseExperimental",
+                "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
                 // TODO(aurimas): consider using annotation directly instead of modifiers
