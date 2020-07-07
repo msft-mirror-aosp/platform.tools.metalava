@@ -1165,6 +1165,92 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test Experimental and UseExperimental`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    @Experimental
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+                    annotation class ExperimentalBar
+
+                    @ExperimentalBar
+                    class FancyBar
+
+                    @UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
+                    class SimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+
+                    @androidx.annotation.experimental.UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
+                    class AnotherSimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+                """
+                ),
+                kotlin("""
+                    package androidx.annotation.experimental
+
+                    import kotlin.annotation.Retention
+                    import kotlin.annotation.Target
+                    import kotlin.reflect.KClass
+
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.PROPERTY,
+                        AnnotationTarget.LOCAL_VARIABLE,
+                        AnnotationTarget.VALUE_PARAMETER,
+                        AnnotationTarget.CONSTRUCTOR,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.PROPERTY_GETTER,
+                        AnnotationTarget.PROPERTY_SETTER,
+                        AnnotationTarget.FILE,
+                        AnnotationTarget.TYPEALIAS
+                    )
+                    annotation class UseExperimental(
+                        /**
+                         * Defines the experimental API(s) whose usage this annotation allows.
+                         */
+                        vararg val markerClass: KClass<out Annotation>
+                    )
+                """)
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package androidx.annotation.experimental {
+                  @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.LOCAL_VARIABLE, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FILE, AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
+                    method public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
+                  }
+                }
+                package test.pkg {
+                  public final class AnotherSimpleClass {
+                    ctor public AnotherSimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                  @kotlin.Experimental @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Extract class with generics`() {
         // Basic interface with generics; makes sure <T extends Object> is written as just <T>
         // Also include some more complex generics expressions to make sure they're serialized
