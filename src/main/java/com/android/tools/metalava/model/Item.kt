@@ -161,8 +161,29 @@ interface Item {
     fun isKotlin() = !isJava()
 
     fun hasShowAnnotation(): Boolean = modifiers.hasShowAnnotation()
+    fun hasShowForStubPurposesAnnotation(): Boolean = modifiers.hasShowForStubPurposesAnnotation()
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
     fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
+
+    /**
+     * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
+     * annotations.
+     *
+     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for
+     * some visibility calculation we need to take it into account.
+     * (See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.)
+     */
+    fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
+
+    /**
+     * Same as [hasShowForStubPurposesAnnotation], except if it's a method, take into account super methods'
+     * annotations.
+     *
+     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for
+     * some visibility calculation we need to take it into account.
+     * (See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.)
+     */
+    fun hasShowForStubPurposesAnnotationInherited(): Boolean = hasShowForStubPurposesAnnotation()
 
     fun checkLevel(): Boolean {
         return modifiers.checkLevel()
