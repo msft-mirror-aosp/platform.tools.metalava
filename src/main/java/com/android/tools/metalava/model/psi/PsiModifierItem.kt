@@ -67,14 +67,11 @@ class PsiModifierItem(
         }
 
         private fun computeFlag(element: PsiModifierListOwner, modifierList: PsiModifierList): Int {
-            var visibilityFlags = if (modifierList.hasModifierProperty(PsiModifier.PUBLIC)) {
-                PUBLIC
-            } else if (modifierList.hasModifierProperty(PsiModifier.PROTECTED)) {
-                PROTECTED
-            } else if (modifierList.hasModifierProperty(PsiModifier.PRIVATE)) {
-                PRIVATE
-            } else {
-                PACKAGE_PRIVATE
+            var visibilityFlags = when {
+                modifierList.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
+                modifierList.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
+                modifierList.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
+                else -> PACKAGE_PRIVATE
             }
             var flags = 0
             if (modifierList.hasModifierProperty(PsiModifier.STATIC)) {
@@ -213,7 +210,7 @@ class PsiModifierItem(
 
             return if (uAnnotations.isEmpty()) {
                 val psiAnnotations = modifierList.annotations
-                if (!psiAnnotations.isEmpty()) {
+                if (psiAnnotations.isNotEmpty()) {
                     val annotations: MutableList<AnnotationItem> =
                         psiAnnotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
                     PsiModifierItem(codebase, flags, annotations)

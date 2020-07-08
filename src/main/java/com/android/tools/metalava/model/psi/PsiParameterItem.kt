@@ -114,6 +114,8 @@ class PsiParameterItem(
         return null
     }
 
+    override val synthetic: Boolean get() = containingMethod.isEnumSyntheticMethod()
+
     private var defaultValue: String? = null
 
     override fun defaultValue(): String? {
@@ -137,7 +139,7 @@ class PsiParameterItem(
                     UExpression::class.java
                 ) as? UExpression ?: return INVALID_VALUE
                 val constant = defaultExpression.evaluate()
-                return if (constant != null && constant !is kotlin.Pair<*, *>) {
+                return if (constant != null && constant !is Pair<*, *>) {
                     constantToSource(constant)
                 } else {
                     // Expression: Compute from UAST rather than just using the source text

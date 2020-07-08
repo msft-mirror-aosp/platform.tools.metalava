@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.Severity.ERROR
 import com.android.tools.metalava.Severity.HIDDEN
 import com.android.tools.metalava.Severity.INFO
@@ -88,17 +87,15 @@ class Reporter(
      */
     private val errorMessage: String?
 ) {
-    var errorCount = 0
-        private set
-    var warningCount = 0
-        private set
+    private var errorCount = 0
+    private var warningCount = 0
     val totalCount get() = errorCount + warningCount
 
     private var hasErrors = false
 
     // Note we can't set [options.baseline] as the default for [customBaseline], because
     // options.baseline will be initialized after the global [Reporter] is instantiated.
-    fun getBaseline(): Baseline? = customBaseline ?: options.baseline
+    private fun getBaseline(): Baseline? = customBaseline ?: options.baseline
 
     fun report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
         val severity = configuration.getSeverity(id)
@@ -184,28 +181,31 @@ class Reporter(
         item ?: return false
 
         if (severity == LINT || severity == WARNING || severity == ERROR) {
-            val annotation = item.modifiers.findAnnotation("android.annotation.SuppressLint")
-            if (annotation != null) {
-                val attribute = annotation.findAttribute(ATTR_VALUE)
-                if (attribute != null) {
-                    val id1 = "Doclava${id.code}"
-                    val id2 = id.name
-                    val value = attribute.value
-                    if (value is AnnotationArrayAttributeValue) {
-                        // Example: @SuppressLint({"DocLava1", "DocLava2"})
-                        for (innerValue in value.values) {
-                            val string = innerValue.value()?.toString() ?: continue
-                            if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
+            for (annotation in item.modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName()
+                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes()) {
+                        val id1 = "Doclava${id.code}"
+                        val id2 = id.name
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varargs of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"DocLava1", "DocLava2"})
+                            for (innerValue in value.values) {
+                                val string = innerValue.value()?.toString() ?: continue
+                                if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
+                                    return true
+                                }
+                            }
+                        } else {
+                            // Example: @SuppressLint("DocLava1")
+                            val string = value.value()?.toString()
+                            if (string != null && (
+                                    suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
+                            ) {
                                 return true
                             }
-                        }
-                    } else {
-                        // Example: @SuppressLint("DocLava1")
-                        val string = value.value()?.toString()
-                        if (string != null && (
-                                suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
-                        ) {
-                            return true
                         }
                     }
                 }
@@ -248,7 +248,7 @@ class Reporter(
         return range
     }
 
-    fun elementToLocation(element: PsiElement?, includeDocs: Boolean = true): String? {
+    private fun elementToLocation(element: PsiElement?, includeDocs: Boolean = true): String? {
         element ?: return null
         val psiFile = element.containingFile ?: return null
         val virtualFile = psiFile.virtualFile ?: return null
@@ -277,7 +277,7 @@ class Reporter(
     private fun getLineNumber(text: String, offset: Int): Int {
         var line = 0
         var curr = 0
-        val target = Math.min(offset, text.length)
+        val target = offset.coerceAtMost(text.length)
         while (curr < target) {
             if (text[curr++] == '\n') {
                 line++
@@ -286,7 +286,7 @@ class Reporter(
         return line
     }
 
-    /** Alias to allow method reference in [report.dispatch] */
+    /** Alias to allow method reference to `dispatch` in [report] */
     private fun doReport(severity: Severity, location: String?, message: String, id: Issues.Issue?) =
         report(severity, location, message, id)
 
@@ -456,3 +456,9 @@ class Reporter(
         }
     }
 }
+
+private val SUPPRESS_ANNOTATIONS = listOf(
+    ANDROID_SUPPRESS_LINT,
+    JAVA_LANG_SUPPRESS_WARNINGS,
+    KOTLIN_SUPPRESS
+)

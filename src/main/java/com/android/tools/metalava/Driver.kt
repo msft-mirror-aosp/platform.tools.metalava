@@ -36,13 +36,13 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.FilterPredicate
 import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.android.utils.StdLogger
@@ -59,14 +59,15 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
+import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
 
 const val PROGRAM_NAME = "metalava"
@@ -85,6 +86,8 @@ val BANNER: String = """
 fun main(args: Array<String>) {
     run(args, setExitCode = true)
 }
+
+internal var hasFileReadViolations = false
 
 /**
  * The metadata driver is a command line interface to extracting various metadata
@@ -111,10 +114,18 @@ fun run(
         compatibility = Compatibility(compat = Options.useCompatMode(modifiedArgs))
         options = Options(modifiedArgs, stdout, stderr)
 
+        maybeActivateSandbox()
+
         processFlags()
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             exitCode = -1
+        }
+        if (hasFileReadViolations) {
+            stderr.println("$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details.")
+            if (options.strictInputFiles == Options.StrictInputFileMode.STRICT) {
+                exitCode = -1
+            }
         }
     } catch (e: DriverException) {
         stdout.flush()
@@ -143,6 +154,7 @@ fun run(
     }
 
     options.reportEvenIfSuppressedWriter?.close()
+    options.strictInputViolationsPrintWriter?.close()
 
     // Show failure messages, if any.
     options.allReporters.forEach {
@@ -165,7 +177,42 @@ private fun exit(exitCode: Int = 0) {
     }
     options.stdout.flush()
     options.stderr.flush()
-    System.exit(exitCode)
+    exitProcess(exitCode)
+}
+
+private fun maybeActivateSandbox() {
+    // Set up a sandbox to detect access to files that are not explicitly specified.
+    if (options.strictInputFiles == Options.StrictInputFileMode.PERMISSIVE) {
+        return
+    }
+
+    val writer = options.strictInputViolationsPrintWriter!!
+
+    // Writes all violations to [Options.strictInputFiles].
+    // If Options.StrictInputFile.Mode is STRICT, then all violations on reads are logged, and the
+    // tool exits with a negative error code if there are any file read violations. Directory read
+    // violations are logged, but are considered to be a "warning" and doesn't affect the exit code.
+    // If STRICT_WARN, all violations on reads are logged similar to STRICT, but the exit code is
+    // unaffected.
+    // If STRICT_WITH_STACK, similar to STRICT, but also logs the stack trace to
+    // Options.strictInputFiles.
+    // See [FileReadSandbox] for the details.
+    FileReadSandbox.activate(object : FileReadSandbox.Listener {
+        var seen = mutableSetOf<String>()
+        override fun onViolation(absolutePath: String, isDirectory: Boolean) {
+            if (!seen.contains(absolutePath)) {
+                val suffix = if (isDirectory) "/" else ""
+                writer.println("$absolutePath$suffix")
+                if (options.strictInputFiles == Options.StrictInputFileMode.STRICT_WITH_STACK) {
+                    Throwable().printStackTrace(writer)
+                }
+                seen.add(absolutePath)
+                if (!isDirectory) {
+                    hasFileReadViolations = true
+                }
+            }
+        }
+    })
 }
 
 private fun processFlags() {
@@ -175,7 +222,7 @@ private fun processFlags() {
 
     val sources = options.sources
     val codebase =
-        if (sources.size >= 1 && sources[0].path.endsWith(DOT_TXT)) {
+        if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
             // Make sure all the source files have .txt extensions.
             sources.firstOrNull { !it.path.endsWith(DOT_TXT) }?. let {
                 throw DriverException("Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}")
@@ -193,7 +240,7 @@ private fun processFlags() {
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
-        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(TimeUnit.SECONDS)} seconds\n")
+        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
     }
 
     options.subtractApi?.let {
@@ -240,17 +287,6 @@ private fun processFlags() {
         }
     }
 
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val apiReference = ApiPredicate(ignoreShown = true)
-        val dexApiEmit = memberIsNotCloned.and(apiFilter)
-
-        createReportFile(
-            codebase, apiFile, "DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
-    }
-
     options.apiXmlFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
         val apiEmit = apiType.getEmitFilter()
@@ -258,22 +294,6 @@ private fun processFlags() {
 
         createReportFile(codebase, apiFile, "XML API") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
-        }
-    }
-
-    options.dexApiMappingFile?.let { apiFile ->
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
-
-        createReportFile(
-            codebase, apiFile, "DEX API Mapping"
-        ) { printWriter ->
-            DexApiWriter(
-                printWriter, apiEmit, apiReference,
-                membersOnly = true,
-                includePositions = true
-            )
         }
     }
 
@@ -300,38 +320,6 @@ private fun processFlags() {
         createReportFile(
             unfiltered, apiFile, "removed DEX API"
         ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
-    }
-
-    options.privateApiFile?.let { apiFile ->
-        val apiType = ApiType.PRIVATE
-        val privateEmit = apiType.getEmitFilter()
-        val privateReference = apiType.getReferenceFilter()
-
-        createReportFile(codebase, apiFile, "private API") { printWriter ->
-            SignatureWriter(printWriter, privateEmit, privateReference, codebase.original != null)
-        }
-    }
-
-    options.privateDexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-        val privateEmit = apiFilter.negate()
-        val privateReference = Predicate<Item> { true }
-
-        createReportFile(
-            codebase, apiFile, "private DEX API"
-        ) { printWriter ->
-            DexApiWriter(
-                printWriter, privateEmit, privateReference, inlineInheritedFields = false
-            )
-        }
-    }
-
-    options.proguard?.let { proguard ->
-        val apiEmit = FilterPredicate(ApiPredicate())
-        val apiReference = ApiPredicate(ignoreShown = true)
-        createReportFile(
-            codebase, proguard, "Proguard file"
-        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
     }
 
     options.sdkValueDir?.let { dir ->
@@ -434,7 +422,6 @@ fun subtractApi(codebase: Codebase, subtractApiFile: File) {
 
     CodebaseComparator().compare(object : ComparisonVisitor() {
         override fun compare(old: ClassItem, new: ClassItem) {
-            new.included = false
             new.emit = false
         }
     }, oldCodebase, codebase, ApiType.ALL.getReferenceFilter())
@@ -799,12 +786,6 @@ private fun loadFromSources(): Codebase {
     options.nullabilityAnnotationsValidator?.report()
     analyzer.handleStripping()
 
-    val apiLintReporter = options.reporterApiLint
-
-    if (options.checkKotlinInterop) {
-        KotlinInteropChecks(apiLintReporter).check(codebase)
-    }
-
     // General API checks for Android APIs
     AndroidApiChecks().check(codebase)
 
@@ -822,6 +803,7 @@ private fun loadFromSources(): Codebase {
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
             }
+        val apiLintReporter = options.reporterApiLint
         ApiLint.check(codebase, previous, apiLintReporter)
         progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}")
     }
@@ -851,6 +833,7 @@ internal fun parseSources(
     sourcePath: List<File> = options.sourcePath,
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
+    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
     manifest: File? = options.manifest,
     currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
 ): PsiBasedCodebase {
@@ -864,16 +847,26 @@ internal fun parseSources(
     val joined = mutableListOf<File>()
     joined.addAll(sourcePath.mapNotNull { if (it.path.isNotBlank()) it.absoluteFile else null })
     joined.addAll(classpath.map { it.absoluteFile })
+
     // Add in source roots implied by the source files
     val sourceRoots = mutableListOf<File>()
-    extractRoots(sources, sourceRoots)
-    joined.addAll(sourceRoots)
+    if (options.allowImplicitRoot) {
+        extractRoots(sources, sourceRoots)
+        joined.addAll(sourceRoots)
+    }
 
     // Create project environment with those paths
     projectEnvironment.registerPaths(joined)
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project, environment)
+    val trace = KotlinLintAnalyzerFacade().analyze(
+        files = kotlinFiles,
+        contentRoots = joined,
+        project = project,
+        environment = environment,
+        javaLanguageLevel = javaLanguageLevel,
+        kotlinLanguageLevel = kotlinLanguageLevel
+    )
 
     val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
@@ -917,16 +910,6 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     analyzer.generateInheritedStubs(apiEmit, apiReference)
     codebase.bindingContext = trace.bindingContext
     return codebase
-}
-
-private fun loadFromApiSignatureFiles(files: List<File>, kotlinStyleNulls: Boolean? = null): Codebase {
-    // Make sure all the source files have .txt extensions.
-    files.forEach { file ->
-        if (!file.path.endsWith(DOT_TXT)) {
-                throw DriverException("Inconsistent input file types: The first file is of .$DOT_TXT, but detected different extension in ${file.path}")
-        }
-    }
-    return SignatureFileLoader.loadFiles(files, kotlinStyleNulls)
 }
 
 private fun createProjectEnvironment(): UastEnvironment {
@@ -1116,7 +1099,7 @@ fun gatherSources(sourcePath: List<File>): List<File> {
         }
         addSourceFiles(sources, file.absoluteFile)
     }
-    return sources.sortedWith(compareBy({ it.name }))
+    return sources.sortedWith(compareBy { it.name })
 }
 
 private fun addHiddenPackages(
@@ -1126,7 +1109,7 @@ private fun addHiddenPackages(
     file: File,
     pkg: String
 ) {
-    if (file.isDirectory) {
+    if (FileReadSandbox.isDirectory(file)) {
         if (skippableDirectory(file)) {
             return
         }
@@ -1142,7 +1125,7 @@ private fun addHiddenPackages(
         if (files != null) {
             for (child in files) {
                 var subPkg =
-                    if (child.isDirectory)
+                    if (FileReadSandbox.isDirectory(child))
                         if (pkg.isEmpty())
                             child.name
                         else pkg + "." + child.name
@@ -1157,13 +1140,13 @@ private fun addHiddenPackages(
                 addHiddenPackages(packageToDoc, packageToOverview, hiddenPackages, child, subPkg)
             }
         }
-    } else if (file.isFile) {
+    } else if (FileReadSandbox.isFile(file)) {
         var javadoc = false
-        val map = when {
-            file.name == "package.html" -> {
+        val map = when (file.name) {
+            "package.html" -> {
                 javadoc = true; packageToDoc
             }
-            file.name == "overview.html" -> {
+            "overview.html" -> {
                 packageToOverview
             }
             else -> return
@@ -1179,7 +1162,7 @@ private fun addHiddenPackages(
         // passed in (and is instead some directory containing the source path)
         // then we compute the wrong package here. Instead, look for an adjacent
         // java class and pick the package from it
-        for (sibling in file.parentFile.listFiles()) {
+        for (sibling in file.parentFile?.listFiles() ?: emptyArray()) {
             if (sibling.path.endsWith(DOT_JAVA)) {
                 val javaPkg = ClassName(sibling.readText()).packageName
                 if (javaPkg != null) {

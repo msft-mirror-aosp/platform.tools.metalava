@@ -13,6 +13,10 @@ buildscript {
     }
 }
 
+if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
+    throw GradleException("You are using Java ${JavaVersion.current()}, but this build only supports Java 8. Please set your JAVA_HOME to JDK 8")
+}
+
 buildDir = getBuildDirectory()
 
 defaultTasks = mutableListOf("installDist", "test", "createArchive", "ktlint")
@@ -66,7 +70,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "27.1.0-alpha10"
+    "27.2.0-alpha01"
 }
 val kotlinVersion: String = "1.3.72"
 

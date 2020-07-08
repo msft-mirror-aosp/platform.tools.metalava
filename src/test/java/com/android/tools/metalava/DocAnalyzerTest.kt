@@ -1680,7 +1680,7 @@ class DocAnalyzerTest : DriverTest() {
                  * @deprecated Use Jetpack preference library
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @kotlin.Deprecated(message="Use Jetpack preference library", level=DeprecationLevel.ERROR)
+                @Deprecated
                 public final class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 public void foo() { throw new RuntimeException("Stub!"); }
@@ -1688,15 +1688,15 @@ class DocAnalyzerTest : DriverTest() {
                  * {@inheritDoc}
                  * @deprecated Blah blah blah 1
                  */
+                @Deprecated
                 @androidx.annotation.NonNull
-                @kotlin.Deprecated(message="Blah blah blah 1", level=DeprecationLevel.ERROR)
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 /**
                  * My description
                  * @deprecated Existing deprecation message.
                  * Blah blah blah 2
                  */
-                @kotlin.Deprecated(message="Blah blah blah 2", level=DeprecationLevel.ERROR)
+                @Deprecated
                 public int hashCode() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -2054,7 +2054,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
                 columnSource
             ),
-            checkCompilation = true,
+            checkCompilation = false, // stubs contain Cursor.NONEXISTENT so it does not compile
             expectedIssues = """
                 src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,

@@ -235,7 +235,7 @@ class Baseline(
 
     private fun write(): Boolean {
         val updateFile = this.updateFile ?: return false
-        if (!map.isEmpty() || !options.deleteEmptyBaselines) {
+        if (map.isNotEmpty() || !options.deleteEmptyBaselines) {
             val sb = StringBuilder()
             sb.append(format.header())
             sb.append(headerComment)

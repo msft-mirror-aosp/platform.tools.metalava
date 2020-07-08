@@ -45,8 +45,8 @@ import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.checks.AnnotationDetector
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.doclava1.ApiFile
-import com.android.tools.metalava.doclava1.ApiParseException
+import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -512,7 +512,7 @@ class AnnotationsMerger(
         assert(tagName == "annotation") { tagName }
 
         val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName != null && !qualifiedName.isEmpty())
+        assert(qualifiedName != null && qualifiedName.isNotEmpty())
         return qualifiedName
     }
 
@@ -563,7 +563,7 @@ class AnnotationsMerger(
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }
         val name = annotationElement.getAttribute(ATTR_NAME)
-        assert(name != null && !name.isEmpty())
+        assert(name != null && name.isNotEmpty())
         when {
             name == "org.jetbrains.annotations.Range" -> {
                 val children = getChildren(annotationElement)
@@ -705,7 +705,7 @@ class AnnotationsMerger(
                 val valueElement = children[0]
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
-                return if (pure != null && !pure.isEmpty()) {
+                return if (pure != null && pure.isNotEmpty()) {
                     PsiAnnotationItem.create(
                         codebase, XmlBackedAnnotationItem(
                             codebase, name,

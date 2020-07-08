@@ -308,6 +308,56 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
+    fun `Can't expose item from a hidden parent `() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    public class Class1 {
+                        /** @hide */
+                        @SystemApi
+                        public void method1() { }
+
+                        /** @hide */
+                        @SystemApi
+                        public static class InnerClass1 {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    @SystemApi
+                    public class Class2 {
+                        /** @hide */
+                        public static class InnerClass2 {
+                            /** @hide */
+                            @SystemApi
+                            public void method2() { }
+                        }
+                    }
+                    """
+                ),
+                systemApiSource
+            ),
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues = """
+                src/test/pkg/Class1.java:6: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                src/test/pkg/Class1.java:10: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                src/test/pkg/Class2.java:9: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                """
+        )
+    }
+
+    @Test
     fun `showAnnotation with parameters`() {
         check(
             sourceFiles = arrayOf(
@@ -435,6 +485,9 @@ class ShowAnnotationTest : DriverTest() {
                     """
                 )
             ),
+            expectedIssues = """
+                src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
+                """,
             api = """
                 // Signature format: 3.0
                 package androidx.room {
@@ -443,6 +496,7 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
+
             extraArguments = arrayOf(
                 ARG_HIDE_ANNOTATION, "androidx.annotation.IntDef"
             )

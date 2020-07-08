@@ -72,7 +72,6 @@ import com.android.tools.metalava.doclava1.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.doclava1.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.doclava1.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.doclava1.Issues.EXTENDS_ERROR
-import com.android.tools.metalava.doclava1.Issues.Issue
 import com.android.tools.metalava.doclava1.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.doclava1.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.doclava1.Issues.GENERIC_EXCEPTION
@@ -85,6 +84,7 @@ import com.android.tools.metalava.doclava1.Issues.INTENT_NAME
 import com.android.tools.metalava.doclava1.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.doclava1.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.doclava1.Issues.INTERNAL_FIELD
+import com.android.tools.metalava.doclava1.Issues.Issue
 import com.android.tools.metalava.doclava1.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.doclava1.Issues.LISTENER_INTERFACE
 import com.android.tools.metalava.doclava1.Issues.LISTENER_LAST
@@ -98,13 +98,12 @@ import com.android.tools.metalava.doclava1.Issues.MISSING_BUILD_METHOD
 import com.android.tools.metalava.doclava1.Issues.MISSING_GETTER_MATCHING_BUILDER
 import com.android.tools.metalava.doclava1.Issues.MISSING_NULLABILITY
 import com.android.tools.metalava.doclava1.Issues.MUTABLE_BARE_FIELD
-import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.doclava1.Issues.NOT_CLOSEABLE
 import com.android.tools.metalava.doclava1.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.doclava1.Issues.NO_CLONE
 import com.android.tools.metalava.doclava1.Issues.NO_SETTINGS_PROVIDER
 import com.android.tools.metalava.doclava1.Issues.ON_NAME_EXPECTED
-import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT
+import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
 import com.android.tools.metalava.doclava1.Issues.OVERLAPPING_CONSTANTS
 import com.android.tools.metalava.doclava1.Issues.PACKAGE_LAYERING
 import com.android.tools.metalava.doclava1.Issues.PAIRED_REGISTRATION
@@ -128,6 +127,7 @@ import com.android.tools.metalava.doclava1.Issues.SINGLE_METHOD_INTERFACE
 import com.android.tools.metalava.doclava1.Issues.SINGULAR_CALLBACK
 import com.android.tools.metalava.doclava1.Issues.START_WITH_LOWER
 import com.android.tools.metalava.doclava1.Issues.START_WITH_UPPER
+import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.doclava1.Issues.STATIC_UTILS
 import com.android.tools.metalava.doclava1.Issues.STREAM_FILES
 import com.android.tools.metalava.doclava1.Issues.TOP_LEVEL_BUILDER
@@ -148,8 +148,8 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -242,9 +242,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         return super.skip(item) || item is ClassItem && !isInteresting(item)
     }
 
-    // The previous Kotlin interop tests are also part of API lint now (though they can be
-    // run independently as well; therefore, only run them here if not running separately)
-    private val kotlinInterop = if (!options.checkKotlinInterop) KotlinInteropChecks(reporter) else null
+    private val kotlinInterop = KotlinInteropChecks(reporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -268,13 +266,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
         }
-        kotlinInterop?.checkMethod(method)
+        kotlinInterop.checkMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
         checkField(field)
         checkType(field.type(), field)
-        kotlinInterop?.checkField(field)
+        kotlinInterop.checkField(field)
     }
 
     private fun checkType(type: TypeItem, item: Item) {
@@ -714,8 +712,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             )
             return
         }
-        val className = field.containingClass().qualifiedName()
-        val prefix = when (className) {
+        val prefix = when (field.containingClass().qualifiedName()) {
             "android.content.Intent" -> "android.intent.action"
             "android.provider.Settings" -> "android.settings"
             "android.app.admin.DevicePolicyManager", "android.app.admin.DeviceAdminReceiver" -> "android.app.action"
@@ -1370,7 +1367,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             for (arg in constructor.parameters()) {
                 if (arg.modifiers.isNullable()) {
                     report(
-                        OPTIONAL_BUILDER_CONSTRUCTOR_AGRUMENT, arg,
+                        OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT, arg,
                         "Builder constructor arguments must be mandatory (i.e. not @Nullable): ${arg.describe()}"
                     )
                 }
@@ -1722,8 +1719,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
-        val raw = type.asClass()?.qualifiedName()
-        when (raw) {
+        when (type.asClass()?.qualifiedName()) {
             "java.util.Vector",
             "java.util.LinkedList",
             "java.util.ArrayList",
@@ -1826,8 +1822,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                             warn(clazz, m, "S1", "Methods taking no arguments should throw IllegalStateException")
         */
         for (exception in method.filteredThrowsTypes(filterReference)) {
-            val qualifiedName = exception.qualifiedName()
-            when (qualifiedName) {
+            when (val qualifiedName = exception.qualifiedName()) {
                 "java.lang.Exception",
                 "java.lang.Throwable",
                 "java.lang.Error" -> {
@@ -2616,8 +2611,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         var hasStream: MutableSet<String>? = null
         for (method in methodsAndConstructors) {
             for (parameter in method.parameters()) {
-                val type = parameter.type().toTypeString()
-                when (type) {
+                when (parameter.type().toTypeString()) {
                     "java.io.File" -> {
                         val set = hasFile ?: run {
                             val new = mutableSetOf<MethodItem>()
@@ -2750,6 +2744,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         */
         for (method in methodsAndConstructors) {
+            if (method.synthetic) {
+                continue
+            }
             for (throws in method.filteredThrowsTypes(filterReference)) {
                 when (throws.qualifiedName()) {
                     "java.lang.NullPointerException",
@@ -3001,8 +2998,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             if (method.modifiers.isStatic() || method.modifiers.isOperator() || method.superMethods().isNotEmpty()) {
                 continue
             }
-            val name = method.name()
-            when (name) {
+            when (val name = method.name()) {
                 // https://kotlinlang.org/docs/reference/operator-overloading.html#unary-prefix-operators
                 "unaryPlus", "unaryMinus", "not" -> {
                     if (method.parameters().isEmpty()) {
@@ -3709,18 +3705,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         private fun hasAcronyms(name: String): Boolean {
             // Require 3 capitals, or 2 if it's at the end of a word.
             val result = acronymPattern2.find(name) ?: return false
-            return result.range.start == name.length - 2 || acronymPattern3.find(name) != null
+            return result.range.first == name.length - 2 || acronymPattern3.find(name) != null
         }
 
         private fun getFirstAcronym(name: String): String? {
             // Require 3 capitals, or 2 if it's at the end of a word.
             val result = acronymPattern2.find(name) ?: return null
-            if (result.range.start == name.length - 2) {
+            if (result.range.first == name.length - 2) {
                 return name.substring(name.length - 2)
             }
             val result2 = acronymPattern3.find(name)
             return if (result2 != null) {
-                name.substring(result2.range.start, result2.range.endInclusive + 1)
+                name.substring(result2.range.first, result2.range.last + 1)
             } else {
                 null
             }
