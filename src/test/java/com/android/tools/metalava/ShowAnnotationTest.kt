@@ -677,4 +677,102 @@ class ShowAnnotationTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Methods inherit showAnnotations but fields and classes don't`() {
+        // "ShowAnnotations" are implicitly inheritted between functions, but but between
+        // fields or clases. In this test:
+        // - Class2.member() is implicitly a @SystemApi, so the stub class includes it.
+        // (Though it's not included in the API file because it's redundant.)
+        // - However, there's no inheritance for fields, so Class2.FIELD is *not* in the stub class,
+        // and if a client refers to Class2.FIELD, that resolves to Class*1*.FIELD.
+        // - Class3 is (very naturally) hidden even though the super class is visible.
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    @SystemApi
+                    public class Class1 {
+                        /** @hide */
+                        @SystemApi
+                        public static final String FIELD = "Class1.FIELD";
+
+                        /** @hide */
+                        @SystemApi
+                        public void member() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    @SystemApi
+                    public class Class2 extends Class1 {
+                        /** @hide */
+                        public static final String FIELD = "Class2.FIELD";
+
+                        /** @hide */
+                        public void member() {}
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    public class Class3 extends Class1 {
+                    }
+                    """
+                ),
+                systemApiSource
+            ),
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues = """
+                """,
+            api = """
+                package test.pkg {
+                  public class Class1 {
+                    ctor public Class1();
+                    method public void member();
+                    field public static final java.lang.String FIELD = "Class1.FIELD";
+                  }
+                  public class Class2 extends test.pkg.Class1 {
+                    ctor public Class2();
+                  }
+                }
+                """,
+            stubs = arrayOf("""
+                package test.pkg;
+                /** @hide */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Class1 {
+                public Class1() { throw new RuntimeException("Stub!"); }
+                /** @hide */
+                public void member() { throw new RuntimeException("Stub!"); }
+                /** @hide */
+                public static final java.lang.String FIELD = "Class1.FIELD";
+                }
+                """,
+                """
+                package test.pkg;
+                /** @hide */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Class2 extends test.pkg.Class1 {
+                public Class2() { throw new RuntimeException("Stub!"); }
+                /** @hide */
+                public void member() { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
 }

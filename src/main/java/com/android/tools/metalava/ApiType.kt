@@ -34,7 +34,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
 
         override fun getEmitFilter(): Predicate<Item> {
-            val apiFilter = FilterPredicate(ApiPredicate())
+            // This filter is for API signature files, where we don't need the "for stub purposes" APIs.
+            val apiFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false))
             val apiReference = ApiPredicate(ignoreShown = true)
             return apiFilter.and(ElidingPredicate(apiReference))
         }
@@ -51,7 +52,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
 
         override fun getEmitFilter(): Predicate<Item> {
-            val removedFilter = FilterPredicate(ApiPredicate(matchRemoved = true))
+            // This filter is for API signature files, where we don't need the "for stub purposes" APIs.
+            val removedFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false, matchRemoved = true))
             val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
             return removedFilter.and(ElidingPredicate(removedReference))
         }
