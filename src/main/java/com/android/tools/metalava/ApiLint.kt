@@ -174,7 +174,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     // Sort by source order such that warnings follow source line number order
     methodComparator = MethodItem.sourceOrderComparator,
     fieldComparator = FieldItem.comparator,
-    ignoreShown = options.showUnannotated
+    ignoreShown = options.showUnannotated,
+    // No need to check "for stubs only APIs" (== "implicit" APIs)
+    includeApisForStubPurposes = false
 ) {
     private fun report(id: Issue, item: Item, message: String, element: PsiElement? = null) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
