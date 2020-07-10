@@ -304,6 +304,8 @@ abstract class DriverTest {
         @Language("TEXT") migrateNullsApi: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
+        /** "Show for stub purposes" API annotation ([ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION]) */
+        showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
         /** Hide meta-annotations (--hide-meta-annotation arguments) */
@@ -751,6 +753,17 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        val showForStubPurposesAnnotationArguments = if (showForStubPurposesAnnotations.isNotEmpty()) {
+            val args = mutableListOf<String>()
+            for (annotation in showForStubPurposesAnnotations) {
+                args.add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
+                args.add(annotation)
+            }
+            args.toTypedArray()
+        } else {
+            emptyArray()
+        }
+
         val hideMetaAnnotationArguments = if (hideMetaAnnotations.isNotEmpty()) {
             val args = mutableListOf<String>()
             for (annotation in hideMetaAnnotations) {
@@ -1102,6 +1115,7 @@ abstract class DriverTest {
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *hideMetaAnnotationArguments,
+            *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
             *includeSourceRetentionAnnotationArgs,
             *apiLintArgs,

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.visitors
 
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
@@ -97,12 +98,15 @@ open class ApiVisitor(
         methodComparator: Comparator<MethodItem>? = null,
 
         /** Comparator to sort fields with, or null to use natural (source) order */
-        fieldComparator: Comparator<FieldItem>? = null
+        fieldComparator: Comparator<FieldItem>? = null,
+
+        /** Whether to include "for stub purposes" APIs. See [Options.showForStubPurposesAnnotations] */
+        includeApisForStubPurposes: Boolean = true
     ) : this(
         visitConstructorsAsMethods, nestInnerClasses,
         true, methodComparator,
         fieldComparator,
-        ApiPredicate(ignoreShown = ignoreShown, matchRemoved = remove),
+        ApiPredicate(ignoreShown = ignoreShown, matchRemoved = remove, includeApisForStubPurposes = includeApisForStubPurposes),
         ApiPredicate(ignoreShown = true, ignoreRemoved = remove)
     )
 
