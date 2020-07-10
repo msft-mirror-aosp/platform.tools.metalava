@@ -514,6 +514,24 @@ interface MethodItem : MemberItem {
         return false
     }
 
+    override fun hasShowAnnotationInherited(): Boolean {
+        if (super.hasShowAnnotationInherited()) {
+            return true
+        }
+        return superMethods().any {
+            it.hasShowAnnotationInherited()
+        }
+    }
+
+    override fun hasShowForStubPurposesAnnotationInherited(): Boolean {
+        if (super.hasShowForStubPurposesAnnotationInherited()) {
+            return true
+        }
+        return superMethods().any {
+            it.hasShowForStubPurposesAnnotationInherited()
+        }
+    }
+
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
