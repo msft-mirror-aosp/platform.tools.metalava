@@ -107,6 +107,7 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
+const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
@@ -196,6 +197,8 @@ class Options(
     private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
+    /** Internal list backing [showForStubPurposesAnnotations] */
+    private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -331,7 +334,11 @@ class Options(
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
-    /** Whether to include APIs with annotations (intended for documentation purposes) */
+    /**
+     * Whether to include APIs with annotations (intended for documentation purposes).
+     * This includes [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
+     * [ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION].
+     */
     var showAnnotations: AnnotationFilter = mutableShowAnnotations
 
     /**
@@ -374,6 +381,13 @@ class Options(
 
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
+
+    /**
+     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
+     * will be included in included in certain kinds of output such as stubs, but others (e.g.
+     * API lint and the API signature file) ignore them.
+     */
+    var showForStubPurposesAnnotations: AnnotationFilter = mutableShowForStubPurposesAnnotation
 
     /** Whether the generated API can contain classes that are not present in the source but are present on the
      * classpath. Defaults to true for backwards compatibility but is set to false if any API signatures are imported
@@ -854,6 +868,13 @@ class Options(
                 ARG_SHOW_SINGLE_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     mutableShowSingleAnnotations.add(annotation)
+                    // These should also be counted as show annotations
+                    mutableShowAnnotations.add(annotation)
+                }
+
+                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION, "--show-for-stub-purposes-annotations", "-show-for-stub-purposes-annotation" -> {
+                    val annotation = getValue(args, ++index)
+                    mutableShowForStubPurposesAnnotation.add(annotation)
                     // These should also be counted as show annotations
                     mutableShowAnnotations.add(annotation)
                 }
@@ -2235,6 +2256,9 @@ class Options(
                 "with the given annotation",
             "$ARG_SHOW_SINGLE_ANNOTATION <annotation>", "Like $ARG_SHOW_ANNOTATION, but does not apply " +
                 "to members; these must also be explicitly annotated",
+            "$ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION <annotation class>", "Like $ARG_SHOW_ANNOTATION, but elements annotated " +
+                "with it are assumed to be \"implicitly\" included in the API surface, and they'll be included " +
+                "in certain kinds of output such as stubs, but not in others, such as the signature file and API lint",
             "$ARG_HIDE_ANNOTATION <annotation class>", "Treat any elements annotated with the given annotation " +
                 "as hidden",
             "$ARG_HIDE_META_ANNOTATION <meta-annotation class>", "Treat as hidden any elements annotated with an " +
