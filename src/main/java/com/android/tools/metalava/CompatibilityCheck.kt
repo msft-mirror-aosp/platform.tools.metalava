@@ -880,7 +880,7 @@ class CompatibilityCheck(
                 configuration = previousConfiguration
             }
 
-            val message = "Aborting: Found compatibility problems checking " +
+            val message = "Found compatibility problems checking " +
                 "the ${apiType.displayName} API (${codebase.location}) against the API in ${previous.location}"
 
             if (checker.foundProblems) {
