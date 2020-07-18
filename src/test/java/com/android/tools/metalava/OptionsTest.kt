@@ -61,6 +61,8 @@ General:
                                              Cancel any other "action" flags other than checking signature files. This
                                              is here to make it easier customize build system tasks, particularly for
                                              the "make checkapi" task.
+--repeat-errors-max <N>
+                                             When specified, repeat at most N errors before finishing.
 
 
 API sources:
@@ -456,7 +458,7 @@ METALAVA_APPEND_ARGS
         assertEquals(
             """
 
-Invalid argument --blah-blah-blah
+Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
@@ -550,7 +552,7 @@ $FLAGS
     fun `Test issue severity options with non-existing issue`() {
         check(
             extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Unknown issue id: --hide ThisIssueDoesNotExist"
+            expectedFail = "Aborting: Unknown issue id: --hide ThisIssueDoesNotExist"
         )
     }
 
