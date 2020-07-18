@@ -4069,7 +4069,7 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+            expectedFail = "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
         )
     }
 
@@ -4087,7 +4087,7 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Unable to parse signature file: Cannot merge different formats of signature files. " +
+            expectedFail = "Aborting: Unable to parse signature file: Cannot merge different formats of signature files. " +
                 "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
         )
     }

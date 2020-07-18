@@ -412,7 +412,9 @@ abstract class DriverTest {
          */
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
-        sourceFiles: Array<TestFile> = emptyArray()
+        sourceFiles: Array<TestFile> = emptyArray(),
+        /** [ARG_REPEAT_ERRORS_MAX] */
+        repeatErrorsMax: Int = 0
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -1059,6 +1061,12 @@ abstract class DriverTest {
             arrayOf(ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT, it)
         }
 
+        val repeatErrorsMaxArgs = if (repeatErrorsMax > 0) {
+            arrayOf(ARG_REPEAT_ERRORS_MAX, repeatErrorsMax.toString())
+        } else {
+            emptyArray()
+        }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1132,6 +1140,7 @@ abstract class DriverTest {
             *errorMessageApiLintArgs,
             *errorMessageCheckCompatibilityReleasedArgs,
             *errorMessageCheckCompatibilityCurrentArgs,
+            *repeatErrorsMaxArgs,
             expectedFail = expectedFail
         )
 
