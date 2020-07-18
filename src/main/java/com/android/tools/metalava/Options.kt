@@ -174,6 +174,7 @@ const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
 const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
+const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 
 class Options(
     private val args: Array<String>,
@@ -684,9 +685,15 @@ class Options(
 
     enum class StrictInputFileMode {
         PERMISSIVE,
-        STRICT,
+        STRICT {
+            override val shouldFail = true
+        },
         STRICT_WARN,
-        STRICT_WITH_STACK;
+        STRICT_WITH_STACK {
+            override val shouldFail = true
+        };
+
+        open val shouldFail = false
 
         companion object {
             fun fromArgument(arg: String): StrictInputFileMode {
@@ -721,6 +728,9 @@ class Options(
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
+
+    /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
+    var repeatErrorsMax = 0
 
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
@@ -1383,6 +1393,10 @@ class Options(
                         // allowed list.
                         stringToExistingFilesOrDirs(path)
                     }
+                }
+
+                ARG_REPEAT_ERRORS_MAX -> {
+                    repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
 
                 "--temp-folder" -> {
@@ -2200,6 +2214,7 @@ class Options(
                 "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
             ARG_CHECK_API, "Cancel any other \"action\" flags other than checking signature files. This is here " +
                 "to make it easier customize build system tasks, particularly for the \"make checkapi\" task.",
+            "$ARG_REPEAT_ERRORS_MAX <N>", "When specified, repeat at most N errors before finishing.",
 
             "", "\nAPI sources:",
             "$ARG_SOURCE_FILES <files>", "A comma separated list of source files to be parsed. Can also be " +
