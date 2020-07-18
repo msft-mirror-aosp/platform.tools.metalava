@@ -119,22 +119,32 @@ fun run(
         processFlags()
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
+            // Repeat the errors at the end to make it easy to find the actual problems.
+            if (options.repeatErrorsMax > 0) {
+                repeatErrors(stderr, options.allReporters, options.repeatErrorsMax)
+            }
             exitCode = -1
         }
         if (hasFileReadViolations) {
-            stderr.println("$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details.")
-            if (options.strictInputFiles == Options.StrictInputFileMode.STRICT) {
+            if (options.strictInputFiles.shouldFail) {
+                stderr.print("Error: ")
                 exitCode = -1
+            } else {
+                stderr.print("Warning: ")
             }
+            stderr.println("$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details.")
         }
     } catch (e: DriverException) {
         stdout.flush()
         stderr.flush()
+
+        val prefix = if (e.exitCode != 0) { "Aborting: " } else { "" }
+
         if (e.stderr.isNotBlank()) {
-            stderr.println("\n${e.stderr}")
+            stderr.println("\n${prefix}${e.stderr}")
         }
         if (e.stdout.isNotBlank()) {
-            stdout.println("\n${e.stdout}")
+            stdout.println("\n${prefix}${e.stdout}")
         }
         exitCode = e.exitCode
     } finally {
@@ -213,6 +223,21 @@ private fun maybeActivateSandbox() {
             }
         }
     })
+}
+
+private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: Int) {
+    writer.println("Error: $PROGRAM_NAME detected the following problems:")
+    val totalErrors = reporters.sumBy { it.errorCount }
+    var remainingCap = max
+    var totalShown = 0
+    reporters.forEach {
+        var numShown = it.printErrors(writer, remainingCap)
+        remainingCap -= numShown
+        totalShown += numShown
+    }
+    if (totalShown < totalErrors) {
+        writer.println("${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them.")
+    }
 }
 
 private fun processFlags() {
@@ -614,7 +639,7 @@ fun checkCompatibility(
                 ""
             val message =
                 """
-                    Aborting: Your changes have resulted in differences in the signature file
+                    Your changes have resulted in differences in the signature file
                     for the ${apiType.displayName} API.
 
                     The changes may be compatible, but the signature file needs to be updated.

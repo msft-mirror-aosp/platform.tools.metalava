@@ -164,7 +164,7 @@ class AnnotationsMerger(
                 val xml = Files.asCharSource(file, UTF_8).read()
                 mergeAnnotationsXml(file.path, xml)
             } catch (e: IOException) {
-                error("Aborting: I/O problem during transform: $e")
+                error("I/O problem during transform: $e")
             }
         } else if (file.path.endsWith(".txt") ||
             file.path.endsWith(".signatures") ||
@@ -175,7 +175,7 @@ class AnnotationsMerger(
                 // Others: new signature files (e.g. kotlin-style nullness info)
                 mergeAnnotationsSignatureFile(file.path)
             } catch (e: IOException) {
-                error("Aborting: I/O problem during transform: $e")
+                error("I/O problem during transform: $e")
             }
         }
     }
@@ -197,7 +197,7 @@ class AnnotationsMerger(
                 entry = zis.nextEntry
             }
         } catch (e: IOException) {
-            error("Aborting: I/O problem during transform: $e")
+            error("I/O problem during transform: $e")
         } finally {
             try {
                 Closeables.close(zis, true /* swallowIOException */)
