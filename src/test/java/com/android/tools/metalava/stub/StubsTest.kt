@@ -4281,12 +4281,18 @@ class StubsTest : DriverTest() {
                     /** My class doc */
                     @file:Suppress("ALL")
                     class Kotlin : test.pkg.Parent() {
+                    open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
+                    open fun method(): java.lang.String = error("Stub!")
+                    /** My method doc */
+                    open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
+                    open fun getProperty1(): java.lang.String = error("Stub!")
                     }
                 """,
                 """
                     package test.pkg
                     @file:Suppress("ALL")
                     open class ExtendableClass<T> {
+                    open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
                     }
                 """
             )
@@ -4314,6 +4320,7 @@ class StubsTest : DriverTest() {
                     package test.pkg
                     @file:Suppress("ALL")
                     class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
+                    open fun MainClass(): test.pkg.MainClass! = error("Stub!")
                     }
                 """
             )
