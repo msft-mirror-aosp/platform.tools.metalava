@@ -529,15 +529,6 @@ class Options(
     /** Whether to emit coverage statistics for annotations in the API surface */
     var dumpAnnotationStatistics = false
 
-    /** Only used for tests: Normally we want to treat classes not found as source (e.g. supplied via
-     * classpath) as hidden, but for the unit tests (where we're not passing in
-     * a complete API surface) this makes the tests more cumbersome.
-     * This option lets the testing infrastructure treat these classes differently.
-     * To see the what this means in practice, try turning it back on for the tests
-     * and see what it does to the results :)
-     */
-    var hideClasspathClasses = true
-
     /**
      * mapping from API level to android.jar files, if computing API levels
      */
