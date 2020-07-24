@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
@@ -115,6 +116,7 @@ class KotlinStubWriter(
             writer, modifiers, item,
             target = annotationTarget,
             includeAnnotations = true,
+            skipNullnessAnnotations = true,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,
             removeAbstract = removeAbstract,
@@ -185,7 +187,116 @@ class KotlinStubWriter(
         }
     }
 
+    private fun writeType(
+        item: Item,
+        type: TypeItem?
+    ) {
+        type ?: return
+
+        val typeString = type.toTypeString(
+            outerAnnotations = false,
+            innerAnnotations = generateAnnotations,
+            erased = false,
+            kotlinStyleNulls = true,
+            context = item,
+            filter = filterReference
+            // TODO pass in language = Language.KOTLIN
+        )
+
+        writer.print(typeString)
+    }
+
+    override fun visitMethod(method: MethodItem) {
+        if (method.isKotlinProperty()) return // will be handled by visitProperty
+        val containingClass = method.containingClass()
+        val modifiers = method.modifiers
+        val isEnum = containingClass.isEnum()
+        val isAnnotation = containingClass.isAnnotationType()
+
+        writer.println()
+        appendDocumentation(method, writer, docStubs)
+
+        // TODO: Should be an annotation
+        generateThrowsList(method)
+
+        // Need to filter out abstract from the modifiers list and turn it
+        // into a concrete method to make the stub compile
+        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
+
+        appendModifiers(method, modifiers, removeAbstract, false)
+        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+
+        writer.print("fun ")
+        writer.print(method.name())
+        generateParameterList(method)
+
+        writer.print(": ")
+        val returnType = method.returnType()
+        writeType(method, returnType)
+
+        if (isAnnotation) {
+            val default = method.defaultValue()
+            if (default.isNotEmpty()) {
+                writer.print(" default ")
+                writer.print(default)
+            }
+        }
+
+        if (modifiers.isAbstract() && !isEnum || isAnnotation || modifiers.isNative()) {
+            // do nothing
+        } else {
+            writer.print(" = ")
+            writeThrowStub()
+        }
+        writer.println()
+    }
+
     override fun afterVisitClass(cls: ClassItem) {
         writer.println("}\n\n")
+    }
+
+    private fun writeThrowStub() {
+        writer.write("error(\"Stub!\")")
+    }
+
+    private fun generateParameterList(method: MethodItem) {
+        writer.print("(")
+        method.parameters().asSequence().forEachIndexed { i, parameter ->
+            if (i > 0) {
+                writer.print(", ")
+            }
+            appendModifiers(
+                parameter,
+                parameter.modifiers,
+                removeAbstract = false,
+                removeFinal = false,
+                addPublic = false
+            )
+            val name = parameter.publicName() ?: parameter.name()
+            writer.print(name)
+            writer.print(": ")
+            writeType(method, parameter.type())
+        }
+        writer.print(")")
+    }
+
+    private fun generateThrowsList(method: MethodItem) {
+        // Note that throws types are already sorted internally to help comparison matching
+        val throws = if (preFiltered) {
+            method.throwsTypes().asSequence()
+        } else {
+            method.filteredThrowsTypes(filterReference).asSequence()
+        }
+        if (throws.any()) {
+            writer.print("@Throws(")
+            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+                if (i > 0) {
+                    writer.print(",")
+                }
+                writer.print(type.qualifiedName())
+                writer.print("::class")
+            }
+            writer.print(")")
+        }
     }
 }
