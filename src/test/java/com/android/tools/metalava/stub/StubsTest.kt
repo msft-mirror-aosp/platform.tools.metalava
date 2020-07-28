@@ -2141,7 +2141,7 @@ class StubsTest : DriverTest() {
         checkStubs(
             sourceFiles = arrayOf(
                 // TODO: Try using prefixes like "A", and "AA" to make sure my generics
-                // variable renaming doesn't do something really dumb
+                // variable renaming doesn't do something really unexpected
                 java(
                     """
                     package test.pkg;
