@@ -3202,4 +3202,36 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `No issues for ignored packages`() {
+        check(
+            apiLint = """
+                package java.math {
+                  public class BigInteger {
+                    ctor public BigInteger();
+                  }
+                }
+            """.trimIndent(),
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_API_LINT_IGNORE_PREFIX,
+                "java."
+            ),
+            expectedIssues = "",
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package java.math;
+
+                    public class BigInteger {
+                        public byte newMethod() {
+                            return 0;
+                        }
+                    }
+                    """
+                )
+            )
+        )
+    }
 }
