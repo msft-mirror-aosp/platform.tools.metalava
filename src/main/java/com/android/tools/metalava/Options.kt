@@ -1848,7 +1848,8 @@ class Options(
         }
 
         val apiLevelFiles = mutableListOf<File>()
-        apiLevelFiles.add(File("there is no api 0")) // api level 0: dummy, should not be processed
+        // api level 0: placeholder, should not be processed
+        apiLevelFiles.add(File("there is no api 0"))
         val minApi = 1
 
         // Get all the android.jar. They are in platforms-#
