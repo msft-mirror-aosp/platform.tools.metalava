@@ -239,21 +239,22 @@ abstract class DriverTest {
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
-        @Language("TEXT")
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
         api: String? = null,
         /** The API signature content (corresponds to --api-xml) */
-        @Language("XML")
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         apiXml: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The removed dex API (corresponds to --removed-dex-api) */
         removedDexApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
-        @Language("TEXT")
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
         subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) in order corresponding to [sourceFiles]. Use
          * [NO_STUB] as a marker for source files that are not expected to generate stubs */
-        @Language("JAVA") stubs: Array<String> = emptyArray(),
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        stubs: Array<String> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
         /** Doc Stub source file list generated */
@@ -275,33 +276,44 @@ abstract class DriverTest {
         errorSeverityExpectedIssues: String? = null,
         checkCompilation: Boolean = false,
         /** Annotations to merge in (in .xml format) */
-        @Language("XML") mergeXmlAnnotations: String? = null,
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
-        @Language("TEXT") mergeSignatureAnnotations: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeSignatureAnnotations: String? = null,
         /** Qualifier annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeJavaStubAnnotations: String? = null,
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeJavaStubAnnotations: String? = null,
         /** Inclusion annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeInclusionAnnotations: String? = null,
-        /** Otional API signature files content to load **instead** of Java/Kotlin source files */
-        @Language("TEXT") signatureSources: Array<String> = emptyArray(),
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeInclusionAnnotations: String? = null,
+        /** Optional API signature files content to load **instead** of Java/Kotlin source files */
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        signatureSources: Array<String> = emptyArray(),
         /**
-         * An otional API signature file content to load **instead** of Java/Kotlin source files.
+         * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
          */
-        @Language("TEXT") signatureSource: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
         /** An optional API signature to check the current API's compatibility with */
-        @Language("TEXT") checkCompatibilityApi: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityApi: String? = null,
         /** An optional API signature to check the last released API's compatibility with */
-        @Language("TEXT") checkCompatibilityApiReleased: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityApiReleased: String? = null,
         /** An optional API signature to check the current removed API's compatibility with */
-        @Language("TEXT") checkCompatibilityRemovedApiCurrent: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityRemovedApiCurrent: String? = null,
         /** An optional API signature to check the last released removed API's compatibility with */
-        @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
+        // @Language("TEXT")
+        checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to compute nullness migration status from */
         allowCompatibleDifferences: Boolean = true,
-        @Language("TEXT") migrateNullsApi: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        migrateNullsApi: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
         /** "Show for stub purposes" API annotation ([ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION]) */
@@ -327,7 +339,7 @@ abstract class DriverTest {
         /** List of extra jar files to record annotation coverage from */
         coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
-        @Language("XML")
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         manifest: String? = null,
         /** Packages to pre-import (these will therefore NOT be included in emitted stubs, signature files etc */
         importedPackages: List<String> = emptyList(),
@@ -410,7 +422,8 @@ abstract class DriverTest {
          * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
          * are linted.
          */
-        @Language("TEXT") apiLint: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
         /** [ARG_REPEAT_ERRORS_MAX] */
