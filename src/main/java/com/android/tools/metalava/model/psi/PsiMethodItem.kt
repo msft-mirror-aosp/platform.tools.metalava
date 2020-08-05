@@ -363,16 +363,7 @@ open class PsiMethodItem(
                 // methods with super methods also consider this method non-final.)
                 modifiers.setFinal(false)
             }
-            val parameters =
-                if (psiMethod is UMethod) {
-                    psiMethod.uastParameters.mapIndexed { index, parameter ->
-                        PsiParameterItem.create(codebase, parameter, index)
-                    }
-                } else {
-                    psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                        PsiParameterItem.create(codebase, parameter, index)
-                    }
-                }
+            val parameters = parameterList(codebase, psiMethod)
             var psiReturnType = psiMethod.returnType
 
             // UAST workaround: the enum synthetic methods are sometimes missing return types,
@@ -420,6 +411,21 @@ open class PsiMethodItem(
             method.inheritedMethod = original.inheritedMethod
 
             return method
+        }
+
+        internal fun parameterList(
+            codebase: PsiBasedCodebase,
+            psiMethod: PsiMethod
+        ): List<PsiParameterItem> {
+            return if (psiMethod is UMethod) {
+                psiMethod.uastParameters.mapIndexed { index, parameter ->
+                    PsiParameterItem.create(codebase, parameter, index)
+                }
+            } else {
+                psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
+                    PsiParameterItem.create(codebase, parameter, index)
+                }
+            }
         }
 
         private fun throwsTypes(codebase: PsiBasedCodebase, psiMethod: PsiMethod): List<ClassItem> {
