@@ -153,7 +153,7 @@ abstract class DriverTest {
                 fail("Printed newlines with nothing else")
             }
 
-            UastEnvironment.ensureDisposed()
+            UastEnvironment.checkApplicationEnvironmentDisposed()
             Disposer.assertIsEmpty(true)
 
             return printedOutput
