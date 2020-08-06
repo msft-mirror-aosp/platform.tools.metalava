@@ -4164,4 +4164,37 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `@IntRange value in kotlin`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    class KotlinClass(@IntRange(from = 1) val param: Int) {
+                        constructor(@IntRange(from = 2) val differentParam: Int)
+                        fun myMethod(@IntRange(from = 3) val methodParam: Int) {}
+                    }
+                """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class KotlinClass {
+                    ctor public KotlinClass(@IntRange(from=1) int param);
+                    ctor public KotlinClass(@IntRange(from=2) int differentParam);
+                    method public int getParam();
+                    method public void myMethod(@IntRange(from=3) int methodParam);
+                  }
+                }
+            """
+        )
+    }
 }
