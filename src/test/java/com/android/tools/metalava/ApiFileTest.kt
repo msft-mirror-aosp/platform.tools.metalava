@@ -4197,4 +4197,38 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Kotlin properties with overriding get`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    class KotlinClass() {
+                        val propertyWithGetter: Boolean get() = true
+                        val propertyWithNoGetter: Boolean = true
+                    }
+                """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class KotlinClass {
+                    ctor public KotlinClass();
+                    method public boolean getPropertyWithGetter();
+                    method public boolean getPropertyWithNoGetter();
+                    property public final boolean propertyWithGetter;
+                    property public final boolean propertyWithNoGetter;
+                  }
+                }
+            """
+        )
+    }
 }
