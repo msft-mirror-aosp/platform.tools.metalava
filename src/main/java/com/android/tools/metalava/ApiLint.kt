@@ -3121,6 +3121,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if (item.name() == "values" && item.containingClass().isEnum()) {
                             return
                         }
+                        if (item.containingClass().extends("java.lang.annotation.Annotation")) {
+                            // Annotation are allowed to use arrays
+                            return
+                        }
                         "Method should return"
                     }
                     is FieldItem -> "Field should be"
