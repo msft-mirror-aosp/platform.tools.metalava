@@ -3234,4 +3234,27 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `vararg use in annotations`() {
+        check(
+            apiLint = "",
+            // enabled
+            compatibilityMode = false,
+            expectedIssues = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import kotlin.reflect.KClass
+
+                        annotation class MyAnnotation(
+                            vararg val markerClass: KClass<out Annotation>
+                        )
+                    """
+                )
+            )
+        )
+    }
 }
