@@ -3238,8 +3238,7 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `vararg use in annotations`() {
         check(
-            apiLint = "",
-            // enabled
+            apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = "",
             sourceFiles = arrayOf(
