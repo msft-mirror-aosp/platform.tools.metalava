@@ -27,6 +27,8 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskProvider
 import java.io.File
 
+const val CREATE_BUILD_INFO_TASK = "createBuildInfo"
+
 abstract class CreateLibraryBuildInfoTask : DefaultTask() {
     @get:Input
     abstract val artifactId: Property<String>
@@ -61,7 +63,7 @@ fun configureBuildInfoTask(
     project: Project,
     distributionDirectory: File
 ): TaskProvider<CreateLibraryBuildInfoTask> {
-    return project.tasks.register("createBuildInfo", CreateLibraryBuildInfoTask::class.java) {
+    return project.tasks.register(CREATE_BUILD_INFO_TASK, CreateLibraryBuildInfoTask::class.java) {
         it.artifactId.set(project.provider<String> { project.name })
         it.groupId.set(project.provider<String> { project.group as String })
         it.version.set(project.provider<String> { project.version as String })
