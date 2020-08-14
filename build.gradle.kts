@@ -8,15 +8,6 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.util.Properties
 
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath("com.github.jengelman.gradle.plugins:shadow:4.0.4")
-    }
-}
-
 if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
     throw GradleException("You are using Java ${JavaVersion.current()}, but this build only supports Java 8. Please set your JAVA_HOME to JDK 8")
 }
@@ -50,7 +41,7 @@ plugins {
     id("maven-publish")
 }
 
-group = "com.android"
+group = "com.android.tools.metalava"
 version = getMetalavaVersion()
 
 application {
