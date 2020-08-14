@@ -1,4 +1,7 @@
+import com.android.tools.metalava.CREATE_ARCHIVE_TASK
+import com.android.tools.metalava.CREATE_BUILD_INFO_TASK
 import com.android.tools.metalava.configureBuildInfoTask
+import com.android.tools.metalava.configurePublishingArchive
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
@@ -20,7 +23,13 @@ if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
 
 buildDir = getBuildDirectory()
 
-defaultTasks = mutableListOf("installDist", "test", "createArchive", "ktlint")
+defaultTasks = mutableListOf(
+    "installDist",
+    "test",
+    CREATE_ARCHIVE_TASK,
+    CREATE_BUILD_INFO_TASK,
+    "ktlint"
+)
 
 repositories {
     google()
@@ -186,12 +195,12 @@ tasks.register("ktlintFormat", JavaExec::class.java) {
     args = listOf("-F", "src/**/*.kt", "build.gradle.kts")
 }
 
-val libraryName = "Metalava"
+val publicationName = "Metalava"
 val repositoryName = "Dist"
 
 publishing {
     publications {
-        create<MavenPublication>(libraryName) {
+        create<MavenPublication>(publicationName) {
             from(components["java"])
             pom {
                 licenses {
@@ -221,16 +230,6 @@ publishing {
     }
 }
 
-tasks.register("createArchive", Zip::class.java) {
-    description = "Create a zip of the library in a maven format"
-    group = "publishing"
-
-    from("${getDistributionDirectory().canonicalPath}/repo")
-    archiveFileName.set("top-of-tree-m2repository-all-${getBuildId()}.zip")
-    destinationDirectory.set(getDistributionDirectory())
-    dependsOn("publish${libraryName}PublicationTo${repositoryName}Repository")
-}
-
 // Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     doLast {
@@ -245,3 +244,10 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
 }
 
 configureBuildInfoTask(project, getDistributionDirectory())
+configurePublishingArchive(
+    project,
+    publicationName,
+    repositoryName,
+    getBuildId(),
+    getDistributionDirectory()
+)
