@@ -234,7 +234,7 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     }
 }
 
-configureBuildInfoTask(project, getDistributionDirectory())
+configureBuildInfoTask(project, isBuildingOnServer(), getDistributionDirectory())
 configurePublishingArchive(
     project,
     publicationName,
