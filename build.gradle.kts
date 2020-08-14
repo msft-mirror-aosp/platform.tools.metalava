@@ -1,3 +1,4 @@
+import com.android.tools.metalava.configureBuildInfoTask
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
@@ -242,3 +243,5 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
         )
     }
 }
+
+configureBuildInfoTask(project, getDistributionDirectory())
