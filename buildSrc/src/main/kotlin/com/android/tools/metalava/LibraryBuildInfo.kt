@@ -44,6 +44,9 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
     @get:OutputFile
     abstract val outputFile: Property<File>
 
+    @get:OutputFile
+    abstract val aggregateOutputFile: Property<File>
+
     @TaskAction
     fun createFile() {
         val info = LibraryBuildInfoFile()
@@ -58,6 +61,12 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
         val gson = GsonBuilder().setPrettyPrinting().create()
         val serializedInfo: String = gson.toJson(info)
         outputFile.get().writeText(serializedInfo)
+
+        aggregateOutputFile.get().let {
+            it.writeText("{ \"artifacts\": [\n")
+            it.appendText(serializedInfo)
+            it.appendText("]}")
+        }
     }
 }
 
@@ -72,7 +81,15 @@ fun configureBuildInfoTask(
         it.version.set(project.provider<String> { project.version as String })
         // Only set sha when in CI to keep local builds faster
         it.sha.set(project.provider<String> { if (inCI) getGitSha(project.projectDir) else "" })
-        it.outputFile.set(project.provider<File> { File(distributionDirectory, "build-info/${project.group}_${project.name}_build_info.txt")})
+        it.outputFile.set(project.provider<File> {
+            File(
+                distributionDirectory,
+                "build-info/${project.group}_${project.name}_build_info.txt"
+            )
+        })
+        it.aggregateOutputFile.set(project.provider<File> {
+            File(distributionDirectory, "androidx_aggregate_build_info.txt")}
+        )
     }
 }
 
