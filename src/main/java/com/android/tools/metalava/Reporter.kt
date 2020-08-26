@@ -87,11 +87,15 @@ class Reporter(
      */
     private val errorMessage: String?
 ) {
-    private var errorCount = 0
+    private var errors = mutableListOf<String>()
     private var warningCount = 0
-    val totalCount get() = errorCount + warningCount
+    val totalCount get() = errors.size + warningCount
 
-    private var hasErrors = false
+    /** The number of errors. */
+    val errorCount get() = errors.size
+
+    /** Returns whether any errors have been detected. */
+    fun hasErrors(): Boolean = errors.size > 0
 
     // Note we can't set [options.baseline] as the default for [customBaseline], because
     // options.baseline will be initialized after the global [Reporter] is instantiated.
@@ -188,7 +192,7 @@ class Reporter(
                         val id1 = "Doclava${id.code}"
                         val id2 = id.name
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varags of String
+                        // one attribute such as value/names that is varargs of String
                         val value = attribute.value
                         if (value is AnnotationArrayAttributeValue) {
                             // Example: @SuppressLint({"DocLava1", "DocLava2"})
@@ -286,7 +290,7 @@ class Reporter(
         return line
     }
 
-    /** Alias to allow method reference in [report.dispatch] */
+    /** Alias to allow method reference to `dispatch` in [report] */
     private fun doReport(severity: Severity, location: String?, message: String, id: Issues.Issue?) =
         report(severity, location, message, id)
 
@@ -310,17 +314,14 @@ class Reporter(
                 severity
             }
 
+        val formattedMessage = format(effectiveSeverity, location, message, id, color, options.omitLocations)
         if (effectiveSeverity == ERROR) {
-            hasErrors = true
-            errorCount++
+            errors.add(formattedMessage)
         } else if (severity == WARNING) {
             warningCount++
         }
 
-        reportPrinter(
-            format(effectiveSeverity, location, message, id, color, options.omitLocations),
-            effectiveSeverity
-        )
+        reportPrinter(formattedMessage, effectiveSeverity)
         return true
     }
 
@@ -420,7 +421,20 @@ class Reporter(
         return true
     }
 
-    fun hasErrors(): Boolean = hasErrors
+    /**
+     * Print all the recorded errors to the given writer. Returns the number of errors printer.
+     */
+    fun printErrors(writer: PrintWriter, maxErrors: Int): Int {
+        var i = 0
+        errors.forEach loop@{
+            if (i >= maxErrors) {
+                return@loop
+            }
+            i++
+            writer.println(it)
+        }
+        return i
+    }
 
     /** Write the error message set to this [Reporter], if any errors have been detected. */
     fun writeErrorMessage(writer: PrintWriter) {

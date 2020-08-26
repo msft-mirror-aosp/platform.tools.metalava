@@ -185,7 +185,9 @@ class AnnotationsMergerTest : DriverTest() {
                         Appendable append(CharSequence csq) throws IOException;
                     }
                     """
-                )
+                ),
+                libcoreNonNullSource,
+                libcoreNullableSource
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
@@ -206,7 +208,10 @@ class AnnotationsMergerTest : DriverTest() {
                     method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "libcore.util"
+            )
         )
     }
 
@@ -234,7 +239,9 @@ class AnnotationsMergerTest : DriverTest() {
                         void foo();
                     }
                     """
-                )
+                ),
+                libcoreNonNullSource,
+                libcoreNullableSource
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
@@ -273,7 +280,10 @@ class AnnotationsMergerTest : DriverTest() {
                     method public void foo();
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "libcore.util"
+            )
         )
     }
 
@@ -335,7 +345,9 @@ class AnnotationsMergerTest : DriverTest() {
                     public class PublicClass extends HiddenSuperClass {
                     }
                     """
-                )
+                ),
+                libcoreNonNullSource,
+                libcoreNullableSource
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
@@ -357,7 +369,8 @@ class AnnotationsMergerTest : DriverTest() {
                     method @androidx.annotation.NonNull public java.lang.String publicMethod(@androidx.annotation.Nullable java.lang.Object);
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
         )
     }
 

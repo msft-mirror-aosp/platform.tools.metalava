@@ -41,13 +41,6 @@ interface Item {
     val modifiers: ModifierList
 
     /**
-     * Whether this element should be part of the API. The algorithm for this is complicated, so it can't
-     * be computed initially; we'll make passes over the source code to determine eligibility and mark all
-     * items as included or not.
-     */
-    var included: Boolean
-
-    /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property
      * tracks whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
      */
@@ -73,6 +66,12 @@ interface Item {
 
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
+
+    /**
+     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods
+     * in enums
+     */
+    val synthetic: Boolean
 
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
@@ -162,8 +161,29 @@ interface Item {
     fun isKotlin() = !isJava()
 
     fun hasShowAnnotation(): Boolean = modifiers.hasShowAnnotation()
+    fun hasShowForStubPurposesAnnotation(): Boolean = modifiers.hasShowForStubPurposesAnnotation()
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
     fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
+
+    /**
+     * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
+     * annotations.
+     *
+     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for
+     * some visibility calculation we need to take it into account.
+     * (See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.)
+     */
+    fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
+
+    /**
+     * Same as [hasShowForStubPurposesAnnotation], except if it's a method, take into account super methods'
+     * annotations.
+     *
+     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for
+     * some visibility calculation we need to take it into account.
+     * (See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.)
+     */
+    fun hasShowForStubPurposesAnnotationInherited(): Boolean = hasShowForStubPurposesAnnotation()
 
     fun checkLevel(): Boolean {
         return modifiers.checkLevel()
@@ -363,11 +383,6 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank++) : Item {
 
     override var emit = true
     override var tag: Boolean = false
-
-    // TODO: Get rid of this; with the new predicate approach it's redundant (and
-    // storing it per element is problematic since the predicate sometimes includes
-    // methods from parent interfaces etc)
-    override var included: Boolean = true
 
     companion object {
         private var nextRank: Int = 1

@@ -26,7 +26,6 @@ import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.ProcessInfoBuilder
 import com.android.ide.common.process.ProcessOutput
 import com.android.ide.common.process.ProcessOutputHandler
-import com.android.tools.lint.KotlinLintAnalyzerFacade
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -36,13 +35,13 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.FilterPredicate
 import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.android.utils.StdLogger
@@ -51,14 +50,13 @@ import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.core.CoreApplicationEnvironment
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.DefaultLogger
-import com.intellij.openapi.extensions.Extensions
-import com.intellij.openapi.roots.LanguageLevelProjectExtension
 import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
+import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -118,22 +116,32 @@ fun run(
         processFlags()
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
+            // Repeat the errors at the end to make it easy to find the actual problems.
+            if (options.repeatErrorsMax > 0) {
+                repeatErrors(stderr, options.allReporters, options.repeatErrorsMax)
+            }
             exitCode = -1
         }
         if (hasFileReadViolations) {
-            stderr.println("$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details.")
-            if (options.strictInputFiles == Options.StrictInputFileMode.STRICT) {
+            if (options.strictInputFiles.shouldFail) {
+                stderr.print("Error: ")
                 exitCode = -1
+            } else {
+                stderr.print("Warning: ")
             }
+            stderr.println("$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details.")
         }
     } catch (e: DriverException) {
         stdout.flush()
         stderr.flush()
+
+        val prefix = if (e.exitCode != 0) { "Aborting: " } else { "" }
+
         if (e.stderr.isNotBlank()) {
-            stderr.println("\n${e.stderr}")
+            stderr.println("\n${prefix}${e.stderr}")
         }
         if (e.stdout.isNotBlank()) {
-            stdout.println("\n${e.stdout}")
+            stdout.println("\n${prefix}${e.stdout}")
         }
         exitCode = e.exitCode
     } finally {
@@ -212,6 +220,21 @@ private fun maybeActivateSandbox() {
             }
         }
     })
+}
+
+private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: Int) {
+    writer.println("Error: $PROGRAM_NAME detected the following problems:")
+    val totalErrors = reporters.sumBy { it.errorCount }
+    var remainingCap = max
+    var totalShown = 0
+    reporters.forEach {
+        var numShown = it.printErrors(writer, remainingCap)
+        remainingCap -= numShown
+        totalShown += numShown
+    }
+    if (totalShown < totalErrors) {
+        writer.println("${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them.")
+    }
 }
 
 private fun processFlags() {
@@ -421,7 +444,6 @@ fun subtractApi(codebase: Codebase, subtractApiFile: File) {
 
     CodebaseComparator().compare(object : ComparisonVisitor() {
         override fun compare(old: ClassItem, new: ClassItem) {
-            new.included = false
             new.emit = false
         }
     }, oldCodebase, codebase, ApiType.ALL.getReferenceFilter())
@@ -614,7 +636,7 @@ fun checkCompatibility(
                 ""
             val message =
                 """
-                    Aborting: Your changes have resulted in differences in the signature file
+                    Your changes have resulted in differences in the signature file
                     for the ${apiType.displayName} API.
 
                     The changes may be compatible, but the signature file needs to be updated.
@@ -786,12 +808,6 @@ private fun loadFromSources(): Codebase {
     options.nullabilityAnnotationsValidator?.report()
     analyzer.handleStripping()
 
-    val apiLintReporter = options.reporterApiLint
-
-    if (options.checkKotlinInterop) {
-        KotlinInteropChecks(apiLintReporter).check(codebase)
-    }
-
     // General API checks for Android APIs
     AndroidApiChecks().check(codebase)
 
@@ -809,6 +825,7 @@ private fun loadFromSources(): Codebase {
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
             }
+        val apiLintReporter = options.reporterApiLint
         ApiLint.check(codebase, previous, apiLintReporter)
         progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}")
     }
@@ -838,61 +855,51 @@ internal fun parseSources(
     sourcePath: List<File> = options.sourcePath,
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
+    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
     manifest: File? = options.manifest,
     currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
 ): PsiBasedCodebase {
-    val environment = createProjectEnvironment()
-    val projectEnvironment = environment.projectEnvironment
-    val project = projectEnvironment.project
-
-    // Push language level to PSI handler
-    project.getComponent(LanguageLevelProjectExtension::class.java)?.languageLevel = javaLanguageLevel
-
-    val joined = mutableListOf<File>()
-    joined.addAll(sourcePath.mapNotNull { if (it.path.isNotBlank()) it.absoluteFile else null })
-    joined.addAll(classpath.map { it.absoluteFile })
-
-    // Add in source roots implied by the source files
     val sourceRoots = mutableListOf<File>()
+    sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
+    // Add in source roots implied by the source files
     if (options.allowImplicitRoot) {
         extractRoots(sources, sourceRoots)
-        joined.addAll(sourceRoots)
     }
 
-    // Create project environment with those paths
-    projectEnvironment.registerPaths(joined)
+    val config = UastEnvironment.Configuration.create()
+    config.javaLanguageLevel = javaLanguageLevel
+    config.kotlinLanguageLevel = kotlinLanguageLevel
+    config.addSourceRoots(sourceRoots.map { it.absoluteFile })
+    config.addClasspathRoots(classpath.map { it.absoluteFile })
+
+    val environment = createProjectEnvironment(config)
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, joined, project, environment)
+    environment.analyzeFiles(kotlinFiles)
 
     val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
-    val units = Extractor.createUnitsForFiles(project, sources)
+    val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherHiddenPackagesFromJavaDocs(sourcePath)
 
     val codebase = PsiBasedCodebase(rootDir, description)
-    codebase.initialize(project, units, packageDocs)
+    codebase.initialize(environment, units, packageDocs)
     codebase.manifest = manifest
     codebase.apiLevel = currentApiLevel
-    codebase.bindingContext = trace.bindingContext
     return codebase
 }
 
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
-    val environment = createProjectEnvironment()
-    val projectEnvironment = environment.projectEnvironment
-
     progress("Processing jar file: ")
 
-    // Create project environment with those paths
-    val project = projectEnvironment.project
-    projectEnvironment.registerPaths(listOf(apiJar))
+    val config = UastEnvironment.Configuration.create()
+    config.addClasspathRoots(listOf(apiJar))
 
-    val kotlinFiles = emptyList<File>()
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project, environment)
+    val environment = createProjectEnvironment(config)
+    environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
 
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
-    codebase.initialize(project, apiJar, preFiltered)
+    codebase.initialize(environment, apiJar, preFiltered)
     if (manifest != null) {
         codebase.manifest = options.manifest
     }
@@ -905,45 +912,52 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     options.nullabilityAnnotationsValidator?.validateAllFrom(codebase, options.validateNullabilityFromList)
     options.nullabilityAnnotationsValidator?.report()
     analyzer.generateInheritedStubs(apiEmit, apiReference)
-    codebase.bindingContext = trace.bindingContext
     return codebase
 }
 
-private fun createProjectEnvironment(): UastEnvironment {
+internal const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
+
+private fun createProjectEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
     ensurePsiFileCapacity()
-    val disposable = Disposer.newDisposable()
-    disposables.add(disposable)
-    val environment = UastEnvironment.create(disposable)
+
+    // Note: the Kotlin module name affects the naming of certain synthetic methods.
+    config.kotlinCompilerConfig.put(MODULE_NAME, METALAVA_SYNTHETIC_SUFFIX)
+
+    val environment = UastEnvironment.create(config)
+    uastEnvironments.add(environment)
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
         !isUnderTest()
     ) {
-        DefaultLogger.disableStderrDumping(disposable)
+        DefaultLogger.disableStderrDumping(environment.ideaProject)
     }
 
-    val projectEnvironment = environment.projectEnvironment
-
     // Missing service needed in metalava but not in lint: javadoc handling
-    projectEnvironment.project.registerService(
+    environment.ideaProject.registerService(
         com.intellij.psi.javadoc.JavadocManager::class.java,
         com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
     )
-    projectEnvironment.registerProjectExtensionPoint(JavadocTagInfo.EP_NAME,
-        com.intellij.psi.javadoc.JavadocTagInfo::class.java)
     CoreApplicationEnvironment.registerExtensionPoint(
-        Extensions.getRootArea(), CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
+        environment.ideaProject.extensionArea, JavadocTagInfo.EP_NAME, JavadocTagInfo::class.java
+    )
+    CoreApplicationEnvironment.registerApplicationExtensionPoint(
+        CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
     )
 
     return environment
 }
 
-private val disposables = mutableListOf<Disposable>()
+private val uastEnvironments = mutableListOf<UastEnvironment>()
 
 private fun disposeUastEnvironment() {
-    for (project in disposables) {
-        Disposer.dispose(project)
+    // Codebase.dispose() is not consistently called, so we dispose the environments here too.
+    for (env in uastEnvironments) {
+        if (!Disposer.isDisposed(env.ideaProject)) {
+            env.dispose()
+        }
     }
+    uastEnvironments.clear()
     UastEnvironment.disposeApplicationEnvironment()
 }
 
@@ -1106,7 +1120,7 @@ private fun addHiddenPackages(
     file: File,
     pkg: String
 ) {
-    if (file.isDirectory) {
+    if (FileReadSandbox.isDirectory(file)) {
         if (skippableDirectory(file)) {
             return
         }
@@ -1122,7 +1136,7 @@ private fun addHiddenPackages(
         if (files != null) {
             for (child in files) {
                 var subPkg =
-                    if (child.isDirectory)
+                    if (FileReadSandbox.isDirectory(child))
                         if (pkg.isEmpty())
                             child.name
                         else pkg + "." + child.name
@@ -1137,7 +1151,7 @@ private fun addHiddenPackages(
                 addHiddenPackages(packageToDoc, packageToOverview, hiddenPackages, child, subPkg)
             }
         }
-    } else if (file.isFile) {
+    } else if (FileReadSandbox.isFile(file)) {
         var javadoc = false
         val map = when (file.name) {
             "package.html" -> {
@@ -1159,7 +1173,7 @@ private fun addHiddenPackages(
         // passed in (and is instead some directory containing the source path)
         // then we compute the wrong package here. Instead, look for an adjacent
         // java class and pick the package from it
-        for (sibling in file.parentFile.listFiles()) {
+        for (sibling in file.parentFile?.listFiles() ?: emptyArray()) {
             if (sibling.path.endsWith(DOT_JAVA)) {
                 val javaPkg = ClassName(sibling.readText()).packageName
                 if (javaPkg != null) {

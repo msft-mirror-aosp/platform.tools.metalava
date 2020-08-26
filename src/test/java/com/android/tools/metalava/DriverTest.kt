@@ -64,7 +64,6 @@ import java.net.URL
 import kotlin.text.Charsets.UTF_8
 
 const val CHECK_JDIFF = false
-const val CHECK_STUB_COMPILATION = false
 
 /**
  * Marker class for stubs argument to [DriverTest.check] indicating that no
@@ -154,7 +153,7 @@ abstract class DriverTest {
                 fail("Printed newlines with nothing else")
             }
 
-            UastEnvironment.ensureDisposed()
+            UastEnvironment.checkApplicationEnvironmentDisposed()
             Disposer.assertIsEmpty(true)
 
             return printedOutput
@@ -240,21 +239,22 @@ abstract class DriverTest {
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
-        @Language("TEXT")
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
         api: String? = null,
         /** The API signature content (corresponds to --api-xml) */
-        @Language("XML")
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         apiXml: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The removed dex API (corresponds to --removed-dex-api) */
         removedDexApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
-        @Language("TEXT")
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
         subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) in order corresponding to [sourceFiles]. Use
          * [NO_STUB] as a marker for source files that are not expected to generate stubs */
-        @Language("JAVA") stubs: Array<String> = emptyArray(),
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        stubs: Array<String> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
         /** Doc Stub source file list generated */
@@ -276,35 +276,48 @@ abstract class DriverTest {
         errorSeverityExpectedIssues: String? = null,
         checkCompilation: Boolean = false,
         /** Annotations to merge in (in .xml format) */
-        @Language("XML") mergeXmlAnnotations: String? = null,
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
-        @Language("TEXT") mergeSignatureAnnotations: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeSignatureAnnotations: String? = null,
         /** Qualifier annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeJavaStubAnnotations: String? = null,
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeJavaStubAnnotations: String? = null,
         /** Inclusion annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeInclusionAnnotations: String? = null,
-        /** Otional API signature files content to load **instead** of Java/Kotlin source files */
-        @Language("TEXT") signatureSources: Array<String> = emptyArray(),
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeInclusionAnnotations: String? = null,
+        /** Optional API signature files content to load **instead** of Java/Kotlin source files */
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        signatureSources: Array<String> = emptyArray(),
         /**
-         * An otional API signature file content to load **instead** of Java/Kotlin source files.
+         * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
          */
-        @Language("TEXT") signatureSource: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
         /** An optional API signature to check the current API's compatibility with */
-        @Language("TEXT") checkCompatibilityApi: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityApi: String? = null,
         /** An optional API signature to check the last released API's compatibility with */
-        @Language("TEXT") checkCompatibilityApiReleased: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityApiReleased: String? = null,
         /** An optional API signature to check the current removed API's compatibility with */
-        @Language("TEXT") checkCompatibilityRemovedApiCurrent: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityRemovedApiCurrent: String? = null,
         /** An optional API signature to check the last released removed API's compatibility with */
-        @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
+        // @Language("TEXT")
+        checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to compute nullness migration status from */
         allowCompatibleDifferences: Boolean = true,
-        @Language("TEXT") migrateNullsApi: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        migrateNullsApi: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
+        /** "Show for stub purposes" API annotation ([ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION]) */
+        showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
         /** Hide meta-annotations (--hide-meta-annotation arguments) */
@@ -326,7 +339,7 @@ abstract class DriverTest {
         /** List of extra jar files to record annotation coverage from */
         coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
-        @Language("XML")
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         manifest: String? = null,
         /** Packages to pre-import (these will therefore NOT be included in emitted stubs, signature files etc */
         importedPackages: List<String> = emptyList(),
@@ -409,9 +422,12 @@ abstract class DriverTest {
          * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
          * are linted.
          */
-        @Language("TEXT") apiLint: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        apiLint: String? = null,
         /** The source files to pass to the analyzer */
-        sourceFiles: Array<TestFile> = emptyArray()
+        sourceFiles: Array<TestFile> = emptyArray(),
+        /** [ARG_REPEAT_ERRORS_MAX] */
+        repeatErrorsMax: Int = 0
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -752,6 +768,17 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        val showForStubPurposesAnnotationArguments = if (showForStubPurposesAnnotations.isNotEmpty()) {
+            val args = mutableListOf<String>()
+            for (annotation in showForStubPurposesAnnotations) {
+                args.add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
+                args.add(annotation)
+            }
+            args.toTypedArray()
+        } else {
+            emptyArray()
+        }
+
         val hideMetaAnnotationArguments = if (hideMetaAnnotations.isNotEmpty()) {
             val args = mutableListOf<String>()
             for (annotation in hideMetaAnnotations) {
@@ -1047,6 +1074,12 @@ abstract class DriverTest {
             arrayOf(ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT, it)
         }
 
+        val repeatErrorsMaxArgs = if (repeatErrorsMax > 0) {
+            arrayOf(ARG_REPEAT_ERRORS_MAX, repeatErrorsMax.toString())
+        } else {
+            emptyArray()
+        }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1103,6 +1136,7 @@ abstract class DriverTest {
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *hideMetaAnnotationArguments,
+            *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
             *includeSourceRetentionAnnotationArgs,
             *apiLintArgs,
@@ -1119,8 +1153,22 @@ abstract class DriverTest {
             *errorMessageApiLintArgs,
             *errorMessageCheckCompatibilityReleasedArgs,
             *errorMessageCheckCompatibilityCurrentArgs,
+            *repeatErrorsMaxArgs,
             expectedFail = expectedFail
         )
+
+        if (expectedIssues != null) {
+            assertEquals(
+                expectedIssues.trimIndent().trim(),
+                cleanupString(allReportedIssues.toString(), project)
+            )
+        }
+        if (errorSeverityExpectedIssues != null) {
+            assertEquals(
+                errorSeverityExpectedIssues.trimIndent().trim(),
+                cleanupString(errorSeverityReportedIssues.toString(), project)
+            )
+        }
 
         if (expectedOutput != null) {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
@@ -1240,19 +1288,6 @@ abstract class DriverTest {
             assertEquals(sdk_widgets.trimIndent().trim(), actual.trim())
         }
 
-        if (expectedIssues != null) {
-            assertEquals(
-                expectedIssues.trimIndent().trim(),
-                cleanupString(allReportedIssues.toString(), project)
-            )
-        }
-        if (errorSeverityExpectedIssues != null) {
-            assertEquals(
-                errorSeverityExpectedIssues.trimIndent().trim(),
-                cleanupString(errorSeverityReportedIssues.toString(), project)
-            )
-        }
-
         if (extractAnnotations != null && extractedAnnotationsZip != null) {
             assertTrue(
                 "Using --extract-annotations but $extractedAnnotationsZip was not created",
@@ -1352,7 +1387,7 @@ abstract class DriverTest {
             assertEquals(stripComments(docStubsSourceList, stripLineComments = false).trimIndent(), actualText)
         }
 
-        if (checkCompilation && stubsDir != null && CHECK_STUB_COMPILATION) {
+        if (checkCompilation && stubsDir != null) {
             val generated = gatherSources(listOf(stubsDir)).asSequence().map { it.path }.toList().toTypedArray()
 
             // Also need to include on the compile path annotation classes referenced in the stubs
@@ -1599,6 +1634,20 @@ val libcoreNonNullSource: TestFile = java(
     """
 ).indented()
 
+val libcoreNullFromTypeParamSource: TestFile = java(
+    """
+    package libcore.util;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.*;
+    @Documented
+    @Retention(SOURCE)
+    @Target({TYPE_USE})
+    public @interface NullFromTypeParam {
+    }
+    """
+).indented()
+
 val libcoreNullableSource: TestFile = java(
     """
     package libcore.util;
@@ -1727,7 +1776,7 @@ val androidxNonNullSource: TestFile = java(
     import static java.lang.annotation.RetentionPolicy.SOURCE;
     @SuppressWarnings("WeakerAccess")
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
     public @interface NonNull {
     }
     """
@@ -1741,7 +1790,7 @@ val androidxNullableSource: TestFile = java(
     import static java.lang.annotation.RetentionPolicy.SOURCE;
     @SuppressWarnings("WeakerAccess")
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
     public @interface Nullable {
     }
     """
@@ -1771,6 +1820,21 @@ val recentlyNullableSource: TestFile = java(
     @Retention(SOURCE)
     @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
     public @interface RecentlyNullable {
+    }
+    """
+).indented()
+
+val androidxIntRangeSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @Retention(CLASS)
+    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, ANNOTATION_TYPE})
+    public @interface IntRange {
+        long from() default Long.MIN_VALUE;
+        long to() default Long.MAX_VALUE;
     }
     """
 ).indented()

@@ -120,6 +120,19 @@ interface ModifierList {
 
     /**
      * Returns true if this modifier list contains any annotations explicitly passed in
+     * via [Options.showForStubPurposesAnnotations]
+     */
+    fun hasShowForStubPurposesAnnotation(): Boolean {
+        if (options.showForStubPurposesAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any {
+            options.showForStubPurposesAnnotations.matches(it)
+        }
+    }
+
+    /**
+     * Returns true if this modifier list contains any annotations explicitly passed in
      * via [Options.hideAnnotations] or any annotations which are themselves annotated
      * with meta-annotations explicitly passed in via [Options.hideMetaAnnotations]
      *

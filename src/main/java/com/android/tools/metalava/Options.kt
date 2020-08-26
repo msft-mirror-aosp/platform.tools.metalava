@@ -17,7 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
@@ -26,6 +28,11 @@ import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
 import com.intellij.pom.java.LanguageLevel
+import org.jetbrains.jps.model.java.impl.JavaSdkUtil
+import org.jetbrains.kotlin.config.ApiVersion
+import org.jetbrains.kotlin.config.LanguageVersion
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -100,6 +107,7 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
+const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
@@ -126,6 +134,10 @@ const val ARG_PRIVATE = "--private"
 const val ARG_HIDDEN = "--hidden"
 const val ARG_NO_DOCS = "--no-docs"
 const val ARG_JAVA_SOURCE = "--java-source"
+const val ARG_KOTLIN_SOURCE = "--kotlin-source"
+const val ARG_SDK_HOME = "--sdk-home"
+const val ARG_JDK_HOME = "--jdk-home"
+const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_REGISTER_ARTIFACT = "--register-artifact"
 const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
@@ -162,6 +174,7 @@ const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
 const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
+const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 
 class Options(
     private val args: Array<String>,
@@ -185,6 +198,8 @@ class Options(
     private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
+    /** Internal list backing [showForStubPurposesAnnotations] */
+    private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -320,7 +335,11 @@ class Options(
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
-    /** Whether to include APIs with annotations (intended for documentation purposes) */
+    /**
+     * Whether to include APIs with annotations (intended for documentation purposes).
+     * This includes [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
+     * [ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION].
+     */
     var showAnnotations: AnnotationFilter = mutableShowAnnotations
 
     /**
@@ -344,9 +363,6 @@ class Options(
     /** If non null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
 
-    /** Whether to validate the API for Kotlin interop */
-    var checkKotlinInterop = false
-
     /** Packages to include (if null, include all) */
     var stubPackages: PackageFilter? = null
 
@@ -366,6 +382,13 @@ class Options(
 
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
+
+    /**
+     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
+     * will be included in included in certain kinds of output such as stubs, but others (e.g.
+     * API lint and the API signature file) ignore them.
+     */
+    var showForStubPurposesAnnotations: AnnotationFilter = mutableShowForStubPurposesAnnotation
 
     /** Whether the generated API can contain classes that are not present in the source but are present on the
      * classpath. Defaults to true for backwards compatibility but is set to false if any API signatures are imported
@@ -506,15 +529,6 @@ class Options(
     /** Whether to emit coverage statistics for annotations in the API surface */
     var dumpAnnotationStatistics = false
 
-    /** Only used for tests: Normally we want to treat classes not found as source (e.g. supplied via
-     * classpath) as hidden, but for the unit tests (where we're not passing in
-     * a complete API surface) this makes the tests more cumbersome.
-     * This option lets the testing infrastructure treat these classes differently.
-     * To see the what this means in practice, try turning it back on for the tests
-     * and see what it does to the results :)
-     */
-    var hideClasspathClasses = true
-
     /**
      * mapping from API level to android.jar files, if computing API levels
      */
@@ -617,6 +631,31 @@ class Options(
      */
     var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
 
+    /**
+     * The language level to use for Java files, set with [ARG_KOTLIN_SOURCE]
+     */
+    var kotlinLanguageLevel: LanguageVersionSettings = LanguageVersionSettingsImpl.DEFAULT
+
+    /**
+     * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set
+     * when metalava is used for non-Android projects.
+     */
+    var jdkHome: File? = null
+
+    /**
+     * The JDK to use as a platform, if set with [ARG_SDK_HOME]. If this is set
+     * along with [ARG_COMPILE_SDK_VERSION], metalava will automatically add
+     * the platform's android.jar file to the classpath if it does not already
+     * find the android.jar file in the classpath.
+     */
+    var sdkHome: File? = null
+
+    /**
+     * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example,
+     * for R it would be "29". For R preview, if would be "R".
+     */
+    var compileSdkVersion: String? = null
+
     /** Map from XML API descriptor file to corresponding artifact id name */
     val artifactRegistrations = ArtifactTagger()
 
@@ -637,9 +676,15 @@ class Options(
 
     enum class StrictInputFileMode {
         PERMISSIVE,
-        STRICT,
+        STRICT {
+            override val shouldFail = true
+        },
         STRICT_WARN,
-        STRICT_WITH_STACK;
+        STRICT_WITH_STACK {
+            override val shouldFail = true
+        };
+
+        open val shouldFail = false
 
         companion object {
             fun fromArgument(arg: String): StrictInputFileMode {
@@ -674,6 +719,9 @@ class Options(
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
+
+    /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
+    var repeatErrorsMax = 0
 
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
@@ -756,7 +804,7 @@ class Options(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
+                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path, false))
                     }
                 }
 
@@ -821,6 +869,13 @@ class Options(
                 ARG_SHOW_SINGLE_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     mutableShowSingleAnnotations.add(annotation)
+                    // These should also be counted as show annotations
+                    mutableShowAnnotations.add(annotation)
+                }
+
+                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION, "--show-for-stub-purposes-annotations", "-show-for-stub-purposes-annotation" -> {
+                    val annotation = getValue(args, ++index)
+                    mutableShowForStubPurposesAnnotation.add(annotation)
                     // These should also be counted as show annotations
                     mutableShowAnnotations.add(annotation)
                 }
@@ -895,7 +950,8 @@ class Options(
                         "inline" -> TypedefMode.INLINE
                         "none" -> TypedefMode.NONE
                         else -> throw DriverException(
-                            stderr = "$ARG_TYPEDEFS_IN_SIGNATURES must be one of ref, inline, none; was $type")
+                            stderr = "$ARG_TYPEDEFS_IN_SIGNATURES must be one of ref, inline, none; was $type"
+                        )
                     }
                 }
 
@@ -1118,8 +1174,6 @@ class Options(
                     checkApiIgnorePrefix.add(getValue(args, ++index))
                 }
 
-                ARG_CHECK_KOTLIN_INTEROP -> checkKotlinInterop = true
-
                 ARG_COLOR -> color = true
                 ARG_NO_COLOR -> color = false
                 ARG_NO_BANNER -> {
@@ -1287,6 +1341,28 @@ class Options(
                     }
                 }
 
+                ARG_KOTLIN_SOURCE -> {
+                    val value = getValue(args, ++index)
+                    val languageLevel =
+                        LanguageVersion.fromVersionString(value)
+                            ?: throw DriverException("$value is not a valid or supported Kotlin language level")
+                    val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
+                    val settings = LanguageVersionSettingsImpl(languageLevel, apiVersion)
+                    kotlinLanguageLevel = settings
+                }
+
+                ARG_JDK_HOME -> {
+                    jdkHome = stringToExistingDir(getValue(args, ++index))
+                }
+
+                ARG_SDK_HOME -> {
+                    sdkHome = stringToExistingDir(getValue(args, ++index))
+                }
+
+                ARG_COMPILE_SDK_VERSION -> {
+                    compileSdkVersion = getValue(args, ++index)
+                }
+
                 ARG_NO_IMPLICIT_ROOT -> {
                     allowImplicitRoot = false
                 }
@@ -1304,9 +1380,14 @@ class Options(
                 ARG_STRICT_INPUT_FILES_EXEMPT -> {
                     val listString = getValue(args, ++index)
                     listString.split(File.pathSeparatorChar).forEach { path ->
-                        // Throw away the result; just let the function add the files to the whitelist.
+                        // Throw away the result; just let the function add the files to the
+                        // allowed list.
                         stringToExistingFilesOrDirs(path)
                     }
+                }
+
+                ARG_REPEAT_ERRORS_MAX -> {
+                    repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
 
                 "--temp-folder" -> {
@@ -1533,6 +1614,9 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
+            // <String> is redundant here but while IDE (with newer type inference engine
+            // understands that) the current 1.3.x compiler does not
+            @Suppress("RemoveExplicitTypeArguments")
             val patterns = androidJarPatterns ?: run {
                 mutableListOf<String>()
             }
@@ -1579,7 +1663,6 @@ class Options(
             externalAnnotations = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
-            checkKotlinInterop = false
             mutableCompatibilityChecks.clear()
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
@@ -1605,7 +1688,6 @@ class Options(
             externalAnnotations = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
-            checkKotlinInterop = false
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
             mutableConvertToXmlFiles.clear()
@@ -1670,7 +1752,33 @@ class Options(
             reporterCompatibilityCurrent
         )
 
+        updateClassPath()
         checkFlagConsistency()
+    }
+
+    /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
+    private fun updateClassPath() {
+        val sdkHome = sdkHome
+        val jdkHome = jdkHome
+
+        if (sdkHome != null &&
+            compileSdkVersion != null &&
+            classpath.none { it.name == FN_FRAMEWORK_LIBRARY }) {
+            val jar = File(sdkHome, "platforms/android-$compileSdkVersion")
+            if (jar.isFile) {
+                mutableClassPath.add(jar)
+            } else {
+                throw DriverException(stderr = "Could not find android.jar for API level " +
+                    "$compileSdkVersion in SDK $sdkHome: $jar does not exist")
+            }
+            if (jdkHome != null) {
+                throw DriverException(stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
+            }
+        } else if (jdkHome != null) {
+                val isJre = !isJdkFolder(jdkHome)
+                val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
+            mutableClassPath.addAll(roots)
+        }
     }
 
     private fun findCompatibilityFlag(arg: String): KMutableProperty1<Compatibility, Boolean>? {
@@ -1740,7 +1848,8 @@ class Options(
         }
 
         val apiLevelFiles = mutableListOf<File>()
-        apiLevelFiles.add(File("there is no api 0")) // api level 0: dummy, should not be processed
+        // api level 0: placeholder, should not be processed
+        apiLevelFiles.add(File("there is no api 0"))
         val minApi = 1
 
         // Get all the android.jar. They are in platforms-#
@@ -1888,7 +1997,7 @@ class Options(
         return FileReadSandbox.allowAccess(files)
     }
 
-    private fun stringToExistingDirsOrJars(value: String): List<File> {
+    private fun stringToExistingDirsOrJars(value: String, exempt: Boolean = true): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
@@ -1897,7 +2006,10 @@ class Options(
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        if (exempt) {
+            return FileReadSandbox.allowAccess(files)
+        }
+        return files
     }
 
     private fun stringToExistingDirsOrFiles(value: String): List<File> {
@@ -2094,13 +2206,17 @@ class Options(
                 "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
             ARG_CHECK_API, "Cancel any other \"action\" flags other than checking signature files. This is here " +
                 "to make it easier customize build system tasks, particularly for the \"make checkapi\" task.",
+            "$ARG_REPEAT_ERRORS_MAX <N>", "When specified, repeat at most N errors before finishing.",
 
             "", "\nAPI sources:",
             "$ARG_SOURCE_FILES <files>", "A comma separated list of source files to be parsed. Can also be " +
                 "@ followed by a path to a text file containing paths to the full set of files to parse.",
 
             "$ARG_SOURCE_PATH <paths>", "One or more directories (separated by `${File.pathSeparator}`) " +
-                "containing source files (within a package hierarchy)",
+                "containing source files (within a package hierarchy). If $ARG_STRICT_INPUT_FILES, " +
+                "$ARG_STRICT_INPUT_FILES_WARN, or $ARG_STRICT_INPUT_FILES_STACK are used, files accessed under " +
+                "$ARG_SOURCE_PATH that are not explicitly specified in $ARG_SOURCE_FILES are reported as " +
+                "violations.",
 
             "$ARG_CLASS_PATH <paths>", "One or more directories or jars (separated by " +
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
@@ -2147,12 +2263,19 @@ class Options(
                 "with the given annotation",
             "$ARG_SHOW_SINGLE_ANNOTATION <annotation>", "Like $ARG_SHOW_ANNOTATION, but does not apply " +
                 "to members; these must also be explicitly annotated",
+            "$ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION <annotation class>", "Like $ARG_SHOW_ANNOTATION, but elements annotated " +
+                "with it are assumed to be \"implicitly\" included in the API surface, and they'll be included " +
+                "in certain kinds of output such as stubs, but not in others, such as the signature file and API lint",
             "$ARG_HIDE_ANNOTATION <annotation class>", "Treat any elements annotated with the given annotation " +
                 "as hidden",
             "$ARG_HIDE_META_ANNOTATION <meta-annotation class>", "Treat as hidden any elements annotated with an " +
                 "annotation which is itself annotated with the given meta-annotation",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
+            "$ARG_KOTLIN_SOURCE <level>", "Sets the source level for Kotlin source files; default is ${LanguageVersionSettingsImpl.DEFAULT.languageVersion}.",
+            "$ARG_SDK_HOME <dir>", "If set, locate the `android.jar` file from the given Android SDK",
+            "$ARG_COMPILE_SDK_VERSION <api>", "Use the given API level",
+            "$ARG_JDK_HOME <dir>", "If set, add the Java APIs from the given JDK to the classpath",
             "$ARG_STUB_PACKAGES <package-list>", "List of packages (separated by ${File.pathSeparator}) which will " +
                 "be used to filter out irrelevant code. If specified, only code in these packages will be " +
                 "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
@@ -2210,8 +2333,8 @@ class Options(
                 "be written in Kotlin rather than the Java programming language.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
             ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
-            "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of" +
-                " annotation classes that must be passed through unchanged.",
+            "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
+                "annotation classes that must be passed through unchanged.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                 "Documentation stubs (--doc-stubs) are not affected.)",
@@ -2239,8 +2362,6 @@ class Options(
                 "provided, only the APIs that are new since the API will be checked.",
             "$ARG_API_LINT_IGNORE_PREFIX [prefix]", "A list of package prefixes to ignore API issues in " +
                 "when running with $ARG_API_LINT.",
-            ARG_CHECK_KOTLIN_INTEROP, "Check API intended to be used from both Kotlin and Java for interoperability " +
-                "issues",
             "$ARG_MIGRATE_NULLNESS <api file>", "Compare nullness information with the previous stable API " +
                 "and mark newly annotated APIs as under migration.",
             ARG_WARNINGS_AS_ERRORS, "Promote all warnings to errors",
@@ -2274,9 +2395,9 @@ class Options(
                 "to include.",
             "$ARG_ERROR_MESSAGE_API_LINT <message>", "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
             "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED <message>", "If set, $PROGRAM_NAME shows it " +
-                " when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
+                "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
             "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT <message>", "If set, $PROGRAM_NAME shows it " +
-                " when errors are detected in $ARG_CHECK_COMPATIBILITY_API_CURRENT and $ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT.",
+                "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_CURRENT and $ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT.",
 
             "", "\nJDiff:",
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",
@@ -2380,26 +2501,32 @@ class Options(
                     out.println(description)
                 }
             } else {
-                if (colorize) {
-                    val colorArg = bold(arg)
-                    val invisibleChars = colorArg.length - arg.length
-                    // +invisibleChars: the extra chars in the above are counted but don't contribute to width
-                    // so allow more space
-                    val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
+                val output =
+                    if (colorize) {
+                        val colorArg = bold(arg)
+                        val invisibleChars = colorArg.length - arg.length
+                        // +invisibleChars: the extra chars in the above are counted but don't contribute to width
+                        // so allow more space
+                        val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
 
-                    out.print(
                         wrap(
                             String.format(colorFormatString, colorArg, description),
                             MAX_LINE_WIDTH + invisibleChars, MAX_LINE_WIDTH, indent
                         )
-                    )
-                } else {
-                    out.print(
+                    } else {
                         wrap(
                             String.format(formatString, arg, description),
                             MAX_LINE_WIDTH, indent
                         )
-                    )
+                    }
+
+                // Remove trailing whitespace
+                val lines = output.lines()
+                lines.forEachIndexed { index, line ->
+                    out.print(line.trimEnd())
+                    if (index < lines.size - 1) {
+                        out.println()
+                    }
                 }
             }
             i += 2

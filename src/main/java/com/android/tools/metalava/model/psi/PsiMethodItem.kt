@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
+import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
@@ -32,6 +33,7 @@ import com.intellij.psi.util.TypeConversionUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
@@ -106,6 +108,8 @@ open class PsiMethodItem(
 
     override fun parameters(): List<ParameterItem> = parameters
 
+    override val synthetic: Boolean get() = isEnumSyntheticMethod()
+
     private var superMethods: List<MethodItem>? = null
     override fun superMethods(): List<MethodItem> {
         if (superMethods == null) {
@@ -165,7 +169,9 @@ open class PsiMethodItem(
     }
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is KotlinUMethod && psiMethod.sourcePsi is KtProperty
+        return psiMethod is KotlinUMethod && (
+            psiMethod.sourcePsi is KtProperty ||
+            psiMethod.sourcePsi is KtPropertyAccessor)
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
@@ -360,17 +366,20 @@ open class PsiMethodItem(
                 // methods with super methods also consider this method non-final.)
                 modifiers.setFinal(false)
             }
-            val parameters =
-                if (psiMethod is UMethod) {
-                    psiMethod.uastParameters.mapIndexed { index, parameter ->
-                        PsiParameterItem.create(codebase, parameter, index)
-                    }
-                } else {
-                    psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
-                        PsiParameterItem.create(codebase, parameter, index)
-                    }
+            val parameters = parameterList(codebase, psiMethod)
+            var psiReturnType = psiMethod.returnType
+
+            // UAST workaround: the enum synthetic methods are sometimes missing return types,
+            // see https://youtrack.jetbrains.com/issue/KT-39560
+            if (psiReturnType == null && containingClass.isEnum()) {
+                if (name == "valueOf") {
+                    psiReturnType = codebase.getClassType(containingClass.psiClass)
+                } else if (name == "values") {
+                    psiReturnType = PsiArrayType(codebase.getClassType(containingClass.psiClass))
                 }
-            val returnType = codebase.getType(psiMethod.returnType!!)
+            }
+
+            val returnType = codebase.getType(psiReturnType!!)
             val method = PsiMethodItem(
                 codebase = codebase,
                 psiMethod = psiMethod,
@@ -405,6 +414,21 @@ open class PsiMethodItem(
             method.inheritedMethod = original.inheritedMethod
 
             return method
+        }
+
+        internal fun parameterList(
+            codebase: PsiBasedCodebase,
+            psiMethod: PsiMethod
+        ): List<PsiParameterItem> {
+            return if (psiMethod is UMethod) {
+                psiMethod.uastParameters.mapIndexed { index, parameter ->
+                    PsiParameterItem.create(codebase, parameter, index)
+                }
+            } else {
+                psiMethod.parameterList.parameters.mapIndexed { index, parameter ->
+                    PsiParameterItem.create(codebase, parameter, index)
+                }
+            }
         }
 
         private fun throwsTypes(codebase: PsiBasedCodebase, psiMethod: PsiMethod): List<ClassItem> {

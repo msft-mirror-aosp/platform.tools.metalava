@@ -43,7 +43,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
         codebase.accept(object : ApiVisitor(
             // Sort by source order such that warnings follow source line number order
             methodComparator = MethodItem.sourceOrderComparator,
-            fieldComparator = FieldItem.comparator
+            fieldComparator = FieldItem.comparator,
+            // No need to check "for stubs only APIs" (== "implicit" APIs)
+            includeApisForStubPurposes = false
         ) {
             private var isKotlin = false
 
@@ -158,10 +160,14 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     val ktProperties = sourcePsi.declarations.filter { declaration ->
                         declaration is KtProperty && declaration.isPublic && !declaration.isVar &&
                             !declaration.hasModifier(KtTokens.CONST_KEYWORD) &&
-                            declaration.annotationEntries.filter { annotationEntry ->
-                                annotationEntry.shortName!!.asString() == "JvmField" }.isEmpty() }
+                            declaration.annotationEntries.none { annotationEntry ->
+                                annotationEntry.shortName?.asString() == "JvmField"
+                            }
+                    }
                     for (ktProperty in ktProperties) {
-                        if (ktProperty.annotationEntries.filter { annotationEntry -> annotationEntry.shortName!!.asString() == "JvmStatic" }.isEmpty()) {
+                        if (ktProperty.annotationEntries.none { annotationEntry ->
+                                annotationEntry.shortName?.asString() == "JvmStatic"
+                            }) {
                             reporter.report(
                                 Issues.MISSING_JVMSTATIC, ktProperty,
                                 "Companion object constants like ${ktProperty.name} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"

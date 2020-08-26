@@ -204,7 +204,7 @@ class ApiFileTest : DriverTest() {
                     method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
                     method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
                     method public void method3(String str, int p, int int2 = double(int) + str.length);
-                    field public static final test.pkg.Foo.Companion! Companion;
+                    field public static final test.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
                     method public int double(int p);
@@ -652,7 +652,9 @@ class ApiFileTest : DriverTest() {
                         return null
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             ),
             api = """
                 // Signature format: 3.0
@@ -865,6 +867,53 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                 ),
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Language {
+                        KOTLIN,
+                        JAVA
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    class Issue {
+                        fun setAndroidSpecific(value: Boolean): Issue { return this }
+                        companion object {
+                            @JvmStatic
+                            fun create(
+                                id: String,
+                                briefDescription: String,
+                                explanation: String
+                            ): Issue {
+                                return Issue()
+                            }
+                        }
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    object MySingleton {
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.pkg;
+                    public class WrongCallDetector {
+                        public static final Issue ISSUE =
+                                Issue.create(
+                                                "WrongCall",
+                                                "Using wrong draw/layout method",
+                                                "Custom views typically need to call `measure()`)
+                                        .setAndroidSpecific(true));
+                    }
+                    """
+                ).indented(),
                 androidxNonNullSource,
                 androidxNullableSource
             ),
@@ -885,8 +934,30 @@ class ApiFileTest : DriverTest() {
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
+                  public final class Issue {
+                    ctor public Issue();
+                    method public static test.pkg.Issue create(String id, String briefDescription, String explanation);
+                    method public test.pkg.Issue setAndroidSpecific(boolean value);
+                    field public static final test.pkg.Issue.Companion Companion;
+                  }
+                  public static final class Issue.Companion {
+                    method public test.pkg.Issue create(String id, String briefDescription, String explanation);
+                  }
+                  public enum Language {
+                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
+                    method public static test.pkg.Language[] values();
+                    enum_constant public static final test.pkg.Language JAVA;
+                    enum_constant public static final test.pkg.Language KOTLIN;
+                  }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
                     method public abstract String[] value();
+                  }
+                  public final class MySingleton {
+                    field public static final test.pkg.MySingleton INSTANCE;
+                  }
+                  public class WrongCallDetector {
+                    ctor public WrongCallDetector();
+                    field public static final test.pkg.Issue ISSUE;
                   }
                 }
                 """,
@@ -958,7 +1029,6 @@ class ApiFileTest : DriverTest() {
                         companion object {
                             @JvmStatic
                             fun jvmStaticMethod() {}
-                            
                             fun nonJvmStaticMethod() {}
                         }
                     }
@@ -972,7 +1042,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public static void jvmStaticMethod();
-                    field public static final test.pkg.SimpleClass.Companion! Companion;
+                    field public static final test.pkg.SimpleClass.Companion Companion;
                   }
                   public static final class SimpleClass.Companion {
                     method public void jvmStaticMethod();
@@ -1081,6 +1151,92 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   @kotlin.RequiresOptIn @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                  public final class SimpleClass {
+                    ctor public SimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test Experimental and UseExperimental`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    @Experimental
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+                    annotation class ExperimentalBar
+
+                    @ExperimentalBar
+                    class FancyBar
+
+                    @UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
+                    class SimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+
+                    @androidx.annotation.experimental.UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
+                    class AnotherSimpleClass {
+                        fun methodUsingFancyBar() {
+                            val fancyBar = FancyBar()
+                        }
+                    }
+                """
+                ),
+                kotlin("""
+                    package androidx.annotation.experimental
+
+                    import kotlin.annotation.Retention
+                    import kotlin.annotation.Target
+                    import kotlin.reflect.KClass
+
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.PROPERTY,
+                        AnnotationTarget.LOCAL_VARIABLE,
+                        AnnotationTarget.VALUE_PARAMETER,
+                        AnnotationTarget.CONSTRUCTOR,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.PROPERTY_GETTER,
+                        AnnotationTarget.PROPERTY_SETTER,
+                        AnnotationTarget.FILE,
+                        AnnotationTarget.TYPEALIAS
+                    )
+                    annotation class UseExperimental(
+                        /**
+                         * Defines the experimental API(s) whose usage this annotation allows.
+                         */
+                        vararg val markerClass: KClass<out Annotation>
+                    )
+                """)
+            ),
+            format = FileFormat.V3,
+            api = """
+                // Signature format: 3.0
+                package androidx.annotation.experimental {
+                  @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.LOCAL_VARIABLE, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FILE, AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
+                    method public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
+                  }
+                }
+                package test.pkg {
+                  public final class AnotherSimpleClass {
+                    ctor public AnotherSimpleClass();
+                    method public void methodUsingFancyBar();
+                  }
+                  @kotlin.Experimental @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1283,7 +1439,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Foo extends java.lang.Enum {
-                    method public static test.pkg.Foo valueOf(java.lang.String);
+                    method public static test.pkg.Foo valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
@@ -1970,7 +2126,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class FooBar extends java.lang.Enum {
                     method protected abstract void foo();
-                    method public static test.pkg.FooBar valueOf(java.lang.String);
+                    method public static test.pkg.FooBar valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.FooBar[] values();
                     enum_constant public static final test.pkg.FooBar ABC;
                     enum_constant public static final test.pkg.FooBar DEF;
@@ -2139,10 +2295,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class ChronUnit extends java.lang.Enum implements test.pkg.TempUnit {
-                    method public static test.pkg.ChronUnit valueOf(java.lang.String);
                     method public java.lang.String valueOf(int);
-                    method public static final test.pkg.ChronUnit[] values();
+                    method public static test.pkg.ChronUnit valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public final java.lang.String values(java.lang.String);
+                    method public static final test.pkg.ChronUnit[] values();
                     enum_constant public static final test.pkg.ChronUnit A;
                     enum_constant public static final test.pkg.ChronUnit B;
                     enum_constant public static final test.pkg.ChronUnit C;
@@ -3009,6 +3165,13 @@ class ApiFileTest : DriverTest() {
                     package com.squareup.okhttp;
                     public interface OkCacheContainer {
                       Cache getCache();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package com.squareup.okhttp;
+                    public class Cache {
                     }
                     """
                 )
@@ -3906,7 +4069,7 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+            expectedFail = "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
         )
     }
 
@@ -3924,7 +4087,7 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Unable to parse signature file: Cannot merge different formats of signature files. " +
+            expectedFail = "Aborting: Unable to parse signature file: Cannot merge different formats of signature files. " +
                 "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
         )
     }
@@ -3996,6 +4159,73 @@ class ApiFileTest : DriverTest() {
                   public final class RadioGroupScope {
                     ctor public RadioGroupScope();
                     method @test.pkg.Composable public void RadioGroupItem(boolean selected, kotlin.jvm.functions.Function0<kotlin.Unit> onSelect, kotlin.jvm.functions.Function0<kotlin.Unit> content);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@IntRange value in kotlin`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    class KotlinClass(@IntRange(from = 1) val param: Int) {
+                        constructor(@IntRange(from = 2) val differentParam: Int)
+                        fun myMethod(@IntRange(from = 3) val methodParam: Int) {}
+                    }
+                """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class KotlinClass {
+                    ctor public KotlinClass(@IntRange(from=1) int param);
+                    ctor public KotlinClass(@IntRange(from=2) int differentParam);
+                    method public int getParam();
+                    method public void myMethod(@IntRange(from=3) int methodParam);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Kotlin properties with overriding get`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    class KotlinClass() {
+                        val propertyWithGetter: Boolean get() = true
+                        val propertyWithNoGetter: Boolean = true
+                    }
+                """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class KotlinClass {
+                    ctor public KotlinClass();
+                    method public boolean getPropertyWithGetter();
+                    method public boolean getPropertyWithNoGetter();
+                    property public final boolean propertyWithGetter;
+                    property public final boolean propertyWithNoGetter;
                   }
                 }
             """

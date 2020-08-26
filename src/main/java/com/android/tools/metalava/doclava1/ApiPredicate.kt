@@ -49,7 +49,10 @@ class ApiPredicate(
     private val allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
 
     /** Whether we should include doc-only items */
-    private val includeDocOnly: Boolean = false
+    private val includeDocOnly: Boolean = false,
+
+    /** Whether to include "for stub purposes" APIs. See [Options.showForStubPurposesAnnotations] */
+    private val includeApisForStubPurposes: Boolean = true
 ) : Predicate<Item> {
 
     override fun test(member: Item): Boolean {
@@ -65,6 +68,9 @@ class ApiPredicate(
         var visible = member.isPublic || member.isProtected || (member.isInternal && member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
         var hidden = member.hidden
         if (!visible || hidden) {
+            return false
+        }
+        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(member)) {
             return false
         }
 
@@ -107,5 +113,31 @@ class ApiPredicate(
         }
 
         return visible && hasShowAnnotation && !hidden && !docOnly && removed == matchRemoved
+    }
+
+    /**
+     * Returns true, if an item should be included only for "stub" purposes; that is,
+     * the item does *not* have a [Options.showAnnotations] annotation but
+     * has a [Options.showForStubPurposesAnnotations] annotation.
+     */
+    private fun includeOnlyForStubPurposes(item: Item): Boolean {
+        if (options.showForStubPurposesAnnotations.isEmpty()) {
+            return false
+        }
+
+        // If the item has a "show" annotation, then return whether it has a "for stubs" annotation
+        // or not.
+        //
+        // Note, If the item does not have a show annotation, then it can't have a "for stubs" one,
+        // because the later must be a subset of the former, which we don't detect in *this*
+        // run (unfortunately it's hard to do so due to how things work), but when metalava
+        // is executed for the parent API, we'd detect it as
+        // [Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS].
+        if (item.hasShowAnnotationInherited()) {
+            return item.hasShowForStubPurposesAnnotationInherited()
+        }
+        // If this item has neither --show-annotation nor --parent-api-annotation,
+        // Then defer to the "parent" item (i.e. the enclosing class or package).
+        return item.parent()?.let { includeOnlyForStubPurposes(it) } ?: false
     }
 }

@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import java.util.ArrayList
@@ -196,7 +195,7 @@ class ApiAnalyzer(
 
             // Try and use a publicly accessible constructor first.
             val constructors = cls.filteredConstructors(filter).toList()
-            if (!constructors.isEmpty()) {
+            if (constructors.isNotEmpty()) {
                 // Try to pick the constructor, select first by fewest throwables, then fewest parameters,
                 // then based on order in listFilter.test(cls)
                 cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
@@ -486,13 +485,6 @@ class ApiAnalyzer(
             method.inheritedMethod = true
             method.inheritedFrom = it.containingClass()
 
-            // The documentation may use relative references to classes in import statements
-            // in the original class, so expand the documentation to be fully qualified.
-            @Suppress("ConstantConditionIf")
-            if (!EXPAND_DOCUMENTATION) {
-                method.documentation = it.fullyQualifiedDocumentation()
-            }
-
             val name = method.name()
             val candidates = existingMethodMap[name]
             if (candidates != null) {
@@ -516,7 +508,6 @@ class ApiAnalyzer(
         for (pkgName in options.hidePackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.hidden = true
-            pkg.included = false // because included has already been initialized
         }
     }
 
@@ -533,14 +524,14 @@ class ApiAnalyzer(
      * from all configured sources.
      */
     fun mergeExternalQualifierAnnotations() {
-        if (!options.mergeQualifierAnnotations.isEmpty()) {
+        if (options.mergeQualifierAnnotations.isNotEmpty()) {
             AnnotationsMerger(codebase).mergeQualifierAnnotations(options.mergeQualifierAnnotations)
         }
     }
 
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
-        if (!options.mergeInclusionAnnotations.isEmpty()) {
+        if (options.mergeInclusionAnnotations.isNotEmpty()) {
             AnnotationsMerger(codebase).mergeInclusionAnnotations(options.mergeInclusionAnnotations)
         }
     }
@@ -668,15 +659,25 @@ class ApiAnalyzer(
 
             private fun ensureParentVisible(item: Item) {
                 val parent = item.parent() ?: return
-                if (parent.hidden && item.modifiers.hasShowSingleAnnotation()) {
-                    val annotation = item.modifiers.annotations().find {
+                if (!parent.hidden) {
+                    return
+                }
+                val violatingAnnotation = if (item.modifiers.hasShowAnnotation()) {
+                    item.modifiers.annotations().find {
+                        options.showAnnotations.matches(it)
+                    } ?: options.showAnnotations.firstQualifiedName()
+                } else if (item.modifiers.hasShowSingleAnnotation()) {
+                    item.modifiers.annotations().find {
                         options.showSingleAnnotations.matches(it)
                     } ?: options.showSingleAnnotations.firstQualifiedName()
+                } else {
+                    null
+                }
+                if (violatingAnnotation != null) {
                     reporter.report(
                         Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS, item,
                         "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                            "hidden and should also be annotated with $annotation"
-                    )
+                            "hidden and should also be annotated with $violatingAnnotation")
                 }
             }
         })
@@ -743,7 +744,7 @@ class ApiAnalyzer(
 
                 if (system.isEmpty() && nonSystem.isEmpty()) {
                     hasAnnotation = false
-                } else if (any && !nonSystem.isEmpty() || !any && system.isEmpty()) {
+                } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
                             "' must be protected with a system permission; it currently" +
@@ -891,10 +892,20 @@ class ApiAnalyzer(
                 // but iterating through the type argument classes below will find and
                 // check the component class
                 if (cls != null && !filterReference.test(cls) && !cls.isFromClassPath()) {
-                    reporter.report(
-                        Issues.HIDDEN_TYPE_PARAMETER, item,
-                        "${item.toString().capitalize()} references hidden type $type."
-                    )
+                    if (cls.modifiers.isCompanion() &&
+                        cls.isPrivate &&
+                        cls.containingClass()?.isInterface() == true
+                    ) {
+                        reporter.report(
+                            Issues.PRIVATE_COMPANION, cls, "Do not use private companion " +
+                                "objects inside interfaces as these become public if targeting " +
+                                "Java 8 or older.")
+                    } else {
+                        reporter.report(
+                            Issues.HIDDEN_TYPE_PARAMETER, item,
+                            "${item.toString().capitalize()} references hidden type $type."
+                        )
+                    }
                 }
 
                 type.typeArgumentClasses()
@@ -1048,12 +1059,6 @@ class ApiAnalyzer(
             } else if (cl.deprecated) {
                 // not hidden, but deprecated
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
-            } else if (reporter.isSuppressed(Issues.REFERENCES_HIDDEN, cl)) {
-                // If we're not reporting hidden references, bring the type back
-                // Bring this class back
-                cl.hidden = false
-                cl.removed = false
-                cl.notStrippable = true
             }
         }
     }
@@ -1082,7 +1087,6 @@ class ApiAnalyzer(
                     false
                 )}"
             )
-            cl.notStrippable = true
         }
 
         if (!notStrippable.add(cl)) {

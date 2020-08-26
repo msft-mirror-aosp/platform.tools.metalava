@@ -199,7 +199,7 @@ public class ApiFile {
 
         // If the same package showed up multiple times, make sure they have the same modifiers.
         // (Packages can't have public/private/etc, but they can have annotations, which are part of ModifierList.)
-        // ModifierList doesn't provide equals(), neither does AnnotationItem which ModifilerList contains,
+        // ModifierList doesn't provide equals(), neither does AnnotationItem which ModifierList contains,
         // so we just use toString() here for equality comparison.
         // However, ModifierList.toString() throws if the owner is not yet set, so we have to instantiate an
         // (owner) TextPackageItem here.

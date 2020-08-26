@@ -79,7 +79,7 @@ interface MethodItem : MemberItem {
     fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = TODO("Not yet implemented")
+    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ClassItem>
@@ -298,7 +298,7 @@ interface MethodItem : MemberItem {
             }
 
             assert(parameterList1.size == parameterList2.size)
-            for (i in 0 until parameterList1.size) {
+            for (i in parameterList1.indices) {
                 val p1 = parameterList1[i]
                 val p2 = parameterList2[i]
                 val pt1 = p1.type()
@@ -327,7 +327,7 @@ interface MethodItem : MemberItem {
             }
 
             assert(throwsList12.size == throwsList2.size)
-            for (i in 0 until throwsList12.size) {
+            for (i in throwsList12.indices) {
                 val p1 = throwsList12[i]
                 val p2 = throwsList2[i]
                 val pt1 = p1.qualifiedName()
@@ -349,7 +349,7 @@ interface MethodItem : MemberItem {
         }
         val sb = StringBuilder()
         for (parameter in parameters()) {
-            if (!sb.isEmpty()) {
+            if (sb.isNotEmpty()) {
                 sb.append(", ")
             }
             sb.append(parameter.type().toTypeString())
@@ -440,7 +440,7 @@ interface MethodItem : MemberItem {
             return false
         }
 
-        for (i in 0 until parameters1.size) {
+        for (i in parameters1.indices) {
             val parameter1 = parameters1[i]
             val parameter2 = parameters2[i]
             val typeString1 = parameter1.type().toString()
@@ -514,6 +514,32 @@ interface MethodItem : MemberItem {
         return false
     }
 
+    override fun hasShowAnnotationInherited(): Boolean {
+        if (super.hasShowAnnotationInherited()) {
+            return true
+        }
+        return superMethods().any {
+            it.hasShowAnnotationInherited()
+        }
+    }
+
+    override fun hasShowForStubPurposesAnnotationInherited(): Boolean {
+        if (super.hasShowForStubPurposesAnnotationInherited()) {
+            return true
+        }
+        return superMethods().any {
+            it.hasShowForStubPurposesAnnotationInherited()
+        }
+    }
+
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
+
+    /** Returns true if this is a synthetic enum method */
+    fun isEnumSyntheticMethod(): Boolean {
+        return containingClass().isEnum() &&
+            (name() == "values" && parameters().isEmpty() ||
+                name() == "valueOf" && parameters().size == 1 &&
+                parameters()[0].type().isString())
+    }
 }

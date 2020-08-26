@@ -38,6 +38,12 @@ import com.android.tools.metalava.RECENTLY_NULLABLE
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
+import com.intellij.psi.PsiCallExpression
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiReference
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
+import org.jetbrains.uast.UElement
 import java.util.function.Predicate
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
@@ -422,6 +428,8 @@ interface AnnotationItem {
                 "java.lang.SuppressWarnings",
                 "java.lang.Override",
                 "kotlin.Suppress",
+                "androidx.annotation.experimental.UseExperimental",
+                "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
                 // TODO(aurimas): consider using annotation directly instead of modifiers
@@ -579,11 +587,50 @@ interface AnnotationItem {
         fun getImplicitNullness(item: Item): Boolean? {
             var nullable: Boolean? = null
 
+            // Is this a Kotlin object declaration (such as a companion object) ?
+            // If so, it is always non null.
+            val sourcePsi = item.psi()
+            if (sourcePsi is UElement && sourcePsi.sourcePsi is KtObjectDeclaration) {
+                nullable = false
+            }
+
             // Constant field not initialized to null?
             if (item is FieldItem &&
                 (item.isEnumConstant() || item.modifiers.isFinal() && item.initialValue(false) != null)
             ) {
                 // Assigned to constant: not nullable
+                nullable = false
+            } else if (item is FieldItem && item.modifiers.isFinal()) {
+                // If we're looking at a final field, look at the right hand side
+                // of the field to the field initialization. If that right hand side
+                // for example represents a method call, and the method we're calling
+                // is annotated with @NonNull, then the field (since it is final) will
+                // always be @NonNull as well.
+                val initializer = (item.psi() as? PsiField)?.initializer
+                if (initializer != null && initializer is PsiReference) {
+                    val resolved = initializer.resolve()
+                    if (resolved is PsiModifierListOwner &&
+                        resolved.annotations.any {
+                            isNonNullAnnotation(it.qualifiedName ?: "")
+                        }
+                    ) {
+                        nullable = false
+                    }
+                } else if (initializer != null && initializer is PsiCallExpression) {
+                    val resolved = initializer.resolveMethod()
+                    if (resolved != null &&
+                        resolved.annotations.any {
+                            isNonNullAnnotation(it.qualifiedName ?: "")
+                        }
+                    ) {
+                        nullable = false
+                    }
+                }
+            } else if (item.synthetic && (item is MethodItem && item.isEnumSyntheticMethod() ||
+                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
+            ) {
+                // Workaround the fact that the Kotlin synthetic enum methods
+                // do not have nullness information
                 nullable = false
             }
 
