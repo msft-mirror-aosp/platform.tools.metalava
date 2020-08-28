@@ -4374,6 +4374,36 @@ class StubsTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `NaN constants`() {
+        check(
+            checkCompilation = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MyClass {
+                        public static final float floatNaN = 0.0f / 0.0f;
+                        public static final double doubleNaN = 0.0d / 0.0;
+                    }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyClass {
+                    public MyClass() { throw new RuntimeException("Stub!"); }
+                    public static final double doubleNaN = (0.0/0.0);
+                    public static final float floatNaN = (0.0f/0.0f);
+                    }
+                """
+            )
+        )
+    }
+
     // TODO: Test what happens when a class extends a hidden extends a public in separate packages,
     // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
     // check for this and fail build.
