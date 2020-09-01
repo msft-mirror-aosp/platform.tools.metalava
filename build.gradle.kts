@@ -35,7 +35,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
     id("application")
     id("java")
     id("maven-publish")
@@ -60,8 +60,8 @@ tasks.withType(KotlinCompile::class.java) {
 
     kotlinOptions {
         jvmTarget = "1.8"
-        apiVersion = "1.3"
-        languageVersion = "1.3"
+        apiVersion = "1.4"
+        languageVersion = "1.4"
         allWarningsAsErrors = true
     }
 }
@@ -73,7 +73,7 @@ val studioVersion: String = if (customLintVersion != null) {
 } else {
     "27.2.0-alpha07"
 }
-val kotlinVersion: String = "1.3.72"
+val kotlinVersion: String = "1.4.0"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
