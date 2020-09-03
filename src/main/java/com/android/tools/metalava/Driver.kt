@@ -344,6 +344,14 @@ private fun processFlags() {
         ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
     }
 
+    options.proguard?.let { proguard ->
+        val apiEmit = FilterPredicate(ApiPredicate())
+        val apiReference = ApiPredicate(ignoreShown = true)
+        createReportFile(
+            codebase, proguard, "Proguard file"
+        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
+    }
+
     options.sdkValueDir?.let { dir ->
         dir.mkdirs()
         SdkFileWriter(codebase, dir).generate()
