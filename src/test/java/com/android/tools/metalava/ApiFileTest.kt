@@ -341,6 +341,7 @@ class ApiFileTest : DriverTest() {
                     method public java.lang.String getProperty2();
                     method public void otherMethod(boolean ok, int times);
                     method public void setProperty2(java.lang.String p);
+                    property public final java.lang.String property1;
                     property public final java.lang.String property2;
                     field public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
@@ -784,6 +785,8 @@ class ApiFileTest : DriverTest() {
                     ctor public NonNullableKotlinPair(F first, S second);
                     method public F getFirst();
                     method public S getSecond();
+                    property public final F first;
+                    property public final S second;
                   }
                   public class NullableJavaPair<F, S> {
                     ctor public NullableJavaPair(F?, S?);
@@ -794,6 +797,8 @@ class ApiFileTest : DriverTest() {
                     ctor public NullableKotlinPair(F? first, S? second);
                     method public F? getFirst();
                     method public S? getSecond();
+                    property public final F? first;
+                    property public final S? second;
                   }
                   public class PlatformJavaPair<F, S> {
                     ctor public PlatformJavaPair(F!, S!);
@@ -1229,6 +1234,7 @@ class ApiFileTest : DriverTest() {
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.LOCAL_VARIABLE, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FILE, AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
+                    property public abstract Class<? extends java.lang.annotation.Annotation>![] markerClass;
                   }
                 }
                 package test.pkg {
@@ -4192,6 +4198,7 @@ class ApiFileTest : DriverTest() {
                     ctor public KotlinClass(@IntRange(from=2) int differentParam);
                     method public int getParam();
                     method public void myMethod(@IntRange(from=3) int methodParam);
+                    property public final int param;
                   }
                 }
             """
@@ -4226,6 +4233,38 @@ class ApiFileTest : DriverTest() {
                     method public boolean getPropertyWithNoGetter();
                     property public final boolean propertyWithGetter;
                     property public final boolean propertyWithNoGetter;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Constructor property tracking`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+                    sealed class MyClass(
+                        val firstConstructorProperty: Int,
+                        val secondConstructorProperty: Boolean
+                    ) {
+                        val nonConstructorProperty: String = "PROP"
+                    }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public abstract sealed class MyClass {
+                    method public final int getFirstConstructorProperty();
+                    method public final String getNonConstructorProperty();
+                    method public final boolean getSecondConstructorProperty();
+                    property public final int firstConstructorProperty;
+                    property public final String nonConstructorProperty;
+                    property public final boolean secondConstructorProperty;
                   }
                 }
             """
