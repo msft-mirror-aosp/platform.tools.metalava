@@ -282,7 +282,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -949,8 +949,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1155,7 +1153,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1232,7 +1230,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 // Signature format: 3.0
                 package androidx.annotation.experimental {
-                  @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.LOCAL_VARIABLE, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FILE, AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface UseExperimental {
                     method public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
                     property public abstract Class<? extends java.lang.annotation.Annotation>![] markerClass;
                   }
@@ -1242,7 +1240,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AnotherSimpleClass();
                     method public void methodUsingFancyBar();
                   }
-                  @kotlin.Experimental @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1745,7 +1743,7 @@ class ApiFileTest : DriverTest() {
               }
             }
             package test.pkg {
-              @kotlin.annotation.Retention(AnnotationRetention.RUNTIME) public @interface ExplicitRuntimeRetention {
+              @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) public @interface ExplicitRuntimeRetention {
               }
               @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                 method public abstract String value();
