@@ -472,7 +472,7 @@ class ApiFileTest : DriverTest() {
                     class MyClass {
                         // This property should have no public setter
                         var readOnlyVar = false
-                            internal set 
+                            internal set
                     }
                     """
                 )
@@ -1097,7 +1097,7 @@ class ApiFileTest : DriverTest() {
                     class SimpleClass {
                         @get:JvmName("myPropertyJvmGetter")
                         var myProperty = -1
-                        
+
                         var anotherProperty = -1
                     }
                 """
@@ -1128,7 +1128,7 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                     package test.pkg
-                    
+
                     @RequiresOptIn
                     @Retention(AnnotationRetention.BINARY)
                     @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
@@ -3048,7 +3048,15 @@ class ApiFileTest : DriverTest() {
                         ctor public Parent();
                       }
                     }
-                    """
+                    """,
+            dexApi = """
+                Ltest/pkg/Child;
+                Ltest/pkg/Child;-><init>()V
+                Ltest/pkg/Child;->toString()Ljava/lang/String;
+                Ltest/pkg/Parent;
+                Ltest/pkg/Parent;-><init>()V
+                Ltest/pkg/Parent;->toString()Ljava/lang/String;
+            """
         )
     }
 
