@@ -290,7 +290,7 @@ interface TypeItem {
                 "char" -> "C"
                 "short" -> "S"
                 "int" -> "I"
-                "long" -> "L"
+                "long" -> "J"
                 "float" -> "F"
                 "double" -> "D"
                 else -> "L" + ClassContext.getInternalName(name) + ";"
