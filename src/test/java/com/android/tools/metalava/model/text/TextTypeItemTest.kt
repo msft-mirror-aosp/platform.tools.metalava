@@ -182,4 +182,20 @@ class TextTypeItemTest {
         assertThat(TextTypeItem.stripKotlinNullChars("Map<? extends K, ? extends V>")).isEqualTo("Map<? extends K, ? extends V>")
         assertThat(TextTypeItem.stripKotlinNullChars("Map<?extends K,?extends V>")).isEqualTo("Map<?extends K,?extends V>")
     }
+
+    @Test
+    fun `long internal JVM type`() {
+        val codebase = ApiFile.parseApi(
+            "test", """
+            package test.pkg {
+              public final class TestClass {
+                method public long build();
+              }
+            }
+        """.trimIndent(), false
+        )
+        val cls = codebase.findClass("test.pkg.TestClass")
+        val method = cls?.findMethod("build", "") as TextMethodItem
+        assertThat(method.returnType()?.internalName()).isEqualTo("J")
+    }
 }
