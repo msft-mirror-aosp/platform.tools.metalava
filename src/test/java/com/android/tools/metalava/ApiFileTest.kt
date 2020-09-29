@@ -4251,7 +4251,11 @@ class ApiFileTest : DriverTest() {
                         val nonConstructorProperty: String = "PROP"
                     }
                     """
-                )
+                ),
+                kotlin("""
+                    package test.pkg
+                    data class MyDataClass(val constructorProperty: String)
+                """)
             ),
             api = """
                 // Signature format: 3.0
@@ -4263,6 +4267,13 @@ class ApiFileTest : DriverTest() {
                     property public final int firstConstructorProperty;
                     property public final String nonConstructorProperty;
                     property public final boolean secondConstructorProperty;
+                  }
+                  public final class MyDataClass {
+                    ctor public MyDataClass(String constructorProperty);
+                    method public String component1();
+                    method public test.pkg.MyDataClass copy(String constructorProperty);
+                    method public String getConstructorProperty();
+                    property public final String constructorProperty;
                   }
                 }
             """
