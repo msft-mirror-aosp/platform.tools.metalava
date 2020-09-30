@@ -4279,4 +4279,183 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Concise default Values Names in Java`() {
+        // Java code which explicitly specifies parameter names
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import androidx.annotation.DefaultValue;
+
+                    public class Foo {
+                        public void foo(
+                            @DefaultValue("null") String prefix,
+                            @DefaultValue("\"Hello World\"") String greeting,
+                            @DefaultValue("42") int meaning) {
+                        }
+                    }
+                    """
+                ),
+                supportDefaultValue
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void foo(optional String!, optional String!, optional int);
+                  }
+                }
+                 """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `Concise default Values and Names in Kotlin`() {
+        // Kotlin code which explicitly specifies parameter names
+        check(
+            format = FileFormat.V4,
+            compatibilityMode = false,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    import some.other.pkg.Constants.Misc.SIZE
+                    import android.graphics.Bitmap
+                    import android.view.View
+
+                    class Foo {
+                        fun method1(int: Int = 42,
+                            int2: Int? = null,
+                            byte: Int = 2 * 21,
+                            str: String = "hello " + "world",
+                            vararg args: String) { }
+
+                        fun method2(int: Int, int2: Int = (2*int) * SIZE) { }
+
+                        fun method3(str: String, int: Int, int2: Int = double(int) + str.length) { }
+
+                        fun emptyLambda(sizeOf: () -> Unit = {  }) {}
+
+                        fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
+
+                        companion object {
+                            fun double(int: Int) = 2 * int
+                            fun print(foo: Foo = Foo()) { println(foo) }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package some.other.pkg;
+                    public class Constants {
+                        public static class Misc {
+                            public static final int SIZE = 5;
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
+                    method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
+                    method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
+                    method public void method2(int p, optional int int2);
+                    method public void method3(String str, int p, optional int int2);
+                    field public static final test.pkg.Foo.Companion Companion;
+                  }
+                  public static final class Foo.Companion {
+                    method public int double(int p);
+                    method public void print(optional test.pkg.Foo foo);
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "some.other.pkg"),
+            includeSignatureVersion = true
+        )
+    }
+
+    @Test
+    fun `Concise default Values in Kotlin for expressions`() {
+        // Testing trickier default values; regression test for problem
+        // observed in androidx.core.util with LruCache
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package androidx.core.util
+
+                    import android.util.LruCache
+
+                    inline fun <K : Any, V : Any> lruCache(
+                        maxSize: Int,
+                        crossinline sizeOf: (key: K, value: V) -> Int = { _, _ -> 1 },
+                        @Suppress("USELESS_CAST") // https://youtrack.jetbrains.com/issue/KT-21946
+                        crossinline create: (key: K) -> V? = { null as V? },
+                        crossinline onEntryRemoved: (evicted: Boolean, key: K, oldValue: V, newValue: V?) -> Unit =
+                            { _, _, _, _ -> }
+                    ): LruCache<K, V> {
+                        return object : LruCache<K, V>(maxSize) {
+                            override fun sizeOf(key: K, value: V) = sizeOf(key, value)
+                            override fun create(key: K) = create(key)
+                            override fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {
+                                onEntryRemoved(evicted, key, oldValue, newValue)
+                            }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package androidx.collection;
+
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
+
+                    import java.util.LinkedHashMap;
+                    import java.util.Locale;
+                    import java.util.Map;
+
+                    public class LruCache<K, V> {
+                        @Nullable
+                        protected V create(@NonNull K key) {
+                            return null;
+                        }
+
+                        protected int sizeOf(@NonNull K key, @NonNull V value) {
+                            return 1;
+                        }
+
+                        protected void entryRemoved(boolean evicted, @NonNull K key, @NonNull V oldValue,
+                                @Nullable V newValue) {
+                        }
+                    }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            ),
+            api = """
+                // Signature format: 4.0
+                package androidx.core.util {
+                  public final class TestKt {
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "androidx.collection"),
+            includeSignatureVersion = true
+        )
+    }
 }

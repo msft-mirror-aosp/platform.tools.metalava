@@ -310,6 +310,12 @@ class Options(
     /** Whether default values should be included in signature files */
     var outputDefaultValues = !compatOutput
 
+    /**
+     *  Whether only the presence of default values should be included in signature files, and not
+     *  the full body of the default value.
+     */
+    var outputConciseDefaultValues = false // requires V4
+
     /** The output format version being used */
     var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
 
@@ -1555,10 +1561,13 @@ class Options(
                             "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
                                 FileFormat.V2
                             }
-                            "$ARG_FORMAT=v3", "$ARG_FORMAT=latest" -> {
+                            "$ARG_FORMAT=v3" -> {
                                 FileFormat.V3
                             }
-                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
+                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
+                                FileFormat.V4
+                            }
+                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
@@ -1632,9 +1641,11 @@ class Options(
             apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
         }
 
-        // outputKotlinStyleNulls implies format=v3
+        // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
-            outputFormat = FileFormat.V3
+            if (outputFormat < FileFormat.V3) {
+                outputFormat = FileFormat.V3
+            }
             outputFormat.configureOptions(this, compatibility)
         }
 
