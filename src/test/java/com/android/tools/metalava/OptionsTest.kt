@@ -182,6 +182,8 @@ Documentation:
 Extracting Signature Files:
 --api <file>
                                              Generate a signature descriptor file
+--dex-api <file>
+                                             Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
 --format=<v1,v2,v3,...>
