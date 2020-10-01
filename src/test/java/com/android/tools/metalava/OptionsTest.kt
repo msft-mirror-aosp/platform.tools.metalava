@@ -61,6 +61,8 @@ General:
                                              Cancel any other "action" flags other than checking signature files. This
                                              is here to make it easier customize build system tasks, particularly for
                                              the "make checkapi" task.
+--repeat-errors-max <N>
+                                             When specified, repeat at most N errors before finishing.
 
 
 API sources:
@@ -135,7 +137,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.3.
+                                             Sets the source level for Kotlin source files; default is 1.4.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -180,6 +182,8 @@ Documentation:
 Extracting Signature Files:
 --api <file>
                                              Generate a signature descriptor file
+--dex-api <file>
+                                             Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
 --format=<v1,v2,v3,...>
@@ -202,6 +206,8 @@ Extracting Signature Files:
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
+--proguard <file>
+                                             Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
 
@@ -456,7 +462,7 @@ METALAVA_APPEND_ARGS
         assertEquals(
             """
 
-Invalid argument --blah-blah-blah
+Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
@@ -550,7 +556,7 @@ $FLAGS
     fun `Test issue severity options with non-existing issue`() {
         check(
             extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Unknown issue id: --hide ThisIssueDoesNotExist"
+            expectedFail = "Aborting: Unknown issue id: --hide ThisIssueDoesNotExist"
         )
     }
 

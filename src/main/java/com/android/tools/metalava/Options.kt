@@ -66,6 +66,7 @@ const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
 const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
 const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
 const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
+const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
@@ -81,6 +82,7 @@ const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
+const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
@@ -174,6 +176,7 @@ const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
 const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
+const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 
 class Options(
     private val args: Array<String>,
@@ -308,6 +311,12 @@ class Options(
     /** Whether default values should be included in signature files */
     var outputDefaultValues = !compatOutput
 
+    /**
+     *  Whether only the presence of default values should be included in signature files, and not
+     *  the full body of the default value.
+     */
+    var outputConciseDefaultValues = false // requires V4
+
     /** The output format version being used */
     var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
 
@@ -420,11 +429,17 @@ class Options(
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
     var kotlinStubs = false
 
+    /** Proguard Keep list file to write */
+    var proguard: File? = null
+
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
+
+    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
+    var dexApiFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -527,15 +542,6 @@ class Options(
 
     /** Whether to emit coverage statistics for annotations in the API surface */
     var dumpAnnotationStatistics = false
-
-    /** Only used for tests: Normally we want to treat classes not found as source (e.g. supplied via
-     * classpath) as hidden, but for the unit tests (where we're not passing in
-     * a complete API surface) this makes the tests more cumbersome.
-     * This option lets the testing infrastructure treat these classes differently.
-     * To see the what this means in practice, try turning it back on for the tests
-     * and see what it does to the results :)
-     */
-    var hideClasspathClasses = true
 
     /**
      * mapping from API level to android.jar files, if computing API levels
@@ -684,9 +690,15 @@ class Options(
 
     enum class StrictInputFileMode {
         PERMISSIVE,
-        STRICT,
+        STRICT {
+            override val shouldFail = true
+        },
         STRICT_WARN,
-        STRICT_WITH_STACK;
+        STRICT_WITH_STACK {
+            override val shouldFail = true
+        };
+
+        open val shouldFail = false
 
         companion object {
             fun fromArgument(arg: String): StrictInputFileMode {
@@ -721,6 +733,9 @@ class Options(
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
+
+    /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
+    var repeatErrorsMax = 0
 
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
@@ -857,6 +872,7 @@ class Options(
                 "-sdkvalues", ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_API, "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
+                ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
@@ -916,6 +932,8 @@ class Options(
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
+
+                ARG_PROGUARD, "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
 
                 ARG_HIDE_PACKAGE, "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
 
@@ -1385,6 +1403,10 @@ class Options(
                     }
                 }
 
+                ARG_REPEAT_ERRORS_MAX -> {
+                    repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
+                }
+
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
                 }
@@ -1544,10 +1566,13 @@ class Options(
                             "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
                                 FileFormat.V2
                             }
-                            "$ARG_FORMAT=v3", "$ARG_FORMAT=latest" -> {
+                            "$ARG_FORMAT=v3" -> {
                                 FileFormat.V3
                             }
-                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
+                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
+                                FileFormat.V4
+                            }
+                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
@@ -1621,9 +1646,11 @@ class Options(
             apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
         }
 
-        // outputKotlinStyleNulls implies format=v3
+        // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
-            outputFormat = FileFormat.V3
+            if (outputFormat < FileFormat.V3) {
+                outputFormat = FileFormat.V3
+            }
             outputFormat.configureOptions(this, compatibility)
         }
 
@@ -1656,6 +1683,7 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
+            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             mutableCompatibilityChecks.clear()
@@ -1681,6 +1709,7 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
+            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             mutableAnnotationCoverageOf.clear()
@@ -1693,6 +1722,7 @@ class Options(
             validateNullabilityFromList = null
             apiFile = null
             apiXmlFile = null
+            dexApiFile = null
             removedApiFile = null
             removedDexApiFile = null
         }
@@ -1843,7 +1873,8 @@ class Options(
         }
 
         val apiLevelFiles = mutableListOf<File>()
-        apiLevelFiles.add(File("there is no api 0")) // api level 0: dummy, should not be processed
+        // api level 0: placeholder, should not be processed
+        apiLevelFiles.add(File("there is no api 0"))
         val minApi = 1
 
         // Get all the android.jar. They are in platforms-#
@@ -2200,6 +2231,7 @@ class Options(
                 "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
             ARG_CHECK_API, "Cancel any other \"action\" flags other than checking signature files. This is here " +
                 "to make it easier customize build system tasks, particularly for the \"make checkapi\" task.",
+            "$ARG_REPEAT_ERRORS_MAX <N>", "When specified, repeat at most N errors before finishing.",
 
             "", "\nAPI sources:",
             "$ARG_SOURCE_FILES <files>", "A comma separated list of source files to be parsed. Can also be " +
@@ -2296,6 +2328,7 @@ class Options(
             "", "\nExtracting Signature Files:",
             // TODO: Document --show-annotation!
             "$ARG_API <file>", "Generate a signature descriptor file",
+            "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]", "Controls whether nullness annotations should be formatted as " +
@@ -2312,6 +2345,7 @@ class Options(
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
+            "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
 
             "", "\nGenerating Stubs:",
