@@ -4466,4 +4466,25 @@ class ApiFileTest : DriverTest() {
             includeSignatureVersion = true
         )
     }
+
+    @Test
+    fun `Test type erasure and dexApi from signature`() {
+        check(
+            signatureSources = arrayOf("""
+                package android.widget {
+
+                  @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
+                    method protected <T extends android.view.View> T findViewTraversal(@IdRes int);
+                    method protected long tryAcquireShared(long);
+                  }
+
+                }
+"""),
+            dexApi = """
+            Landroid/widget/ListView;
+            Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
+            Landroid/widget/ListView;->tryAcquireShared(J)J
+            """
+        )
+    }
 }
