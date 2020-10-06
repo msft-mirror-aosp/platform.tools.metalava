@@ -3106,6 +3106,61 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Remove fun modifier from interface`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/FunctionalInterface.kt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                """,
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    interface FunctionalInterface {
+                        fun methodOne(number: Int): Boolean
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Remove fun modifier from interface signature files`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                """,
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                }
+                """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                }
+            """.trimIndent()
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

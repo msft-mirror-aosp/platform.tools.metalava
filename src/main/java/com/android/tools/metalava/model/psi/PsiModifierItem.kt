@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
@@ -151,6 +152,9 @@ class PsiModifierItem(
                 }
                 if (ktModifierList.hasModifier(KtTokens.COMPANION_KEYWORD)) {
                     flags = flags or COMPANION
+                }
+                if (ktModifierList.hasFunModifier()) {
+                    flags = flags or FUN
                 }
             } else {
                 // UAST returns a null modifierList.kotlinOrigin for get/set methods for
