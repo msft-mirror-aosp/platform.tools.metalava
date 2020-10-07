@@ -4487,4 +4487,34 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Functional interface in signature`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    fun interface FunctionalInterface {
+                        fun methodOne(number: Int): Boolean
+                    }
+
+                    fun userOfFunctionalInterface(parameter: FunctionalInterface) { }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                  public final class FunctionalInterfaceKt {
+                    method public static void userOfFunctionalInterface(test.pkg.FunctionalInterface parameter);
+                  }
+                }
+            """
+        )
+    }
 }
