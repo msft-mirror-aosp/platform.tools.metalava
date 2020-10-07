@@ -684,6 +684,10 @@ public class ApiFile {
                     modifiers.setVarArg(true);
                     token = tokenizer.requireToken();
                     break;
+                case "fun":
+                    modifiers.setFunctional(true);
+                    token = tokenizer.requireToken();
+                    break;
                 default:
                     break processModifiers;
             }
