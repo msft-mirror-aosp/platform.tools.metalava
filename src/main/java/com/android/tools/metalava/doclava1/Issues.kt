@@ -131,61 +131,61 @@ object Issues {
     val HIDDEN_ABSTRACT_METHOD = Issue(Severity.ERROR)
 
     // API lint
-    val START_WITH_LOWER = Issue(Severity.ERROR, Category.API_LINT, "S1")
-    val START_WITH_UPPER = Issue(Severity.ERROR, Category.API_LINT, "S1")
-    val ALL_UPPER = Issue(Severity.ERROR, Category.API_LINT, "C2")
-    val ACRONYM_NAME = Issue(Severity.WARNING, Category.API_LINT, "S1")
-    val ENUM = Issue(Severity.ERROR, Category.API_LINT, "F5")
+    val START_WITH_LOWER = Issue(Severity.ERROR, Category.API_LINT)
+    val START_WITH_UPPER = Issue(Severity.ERROR, Category.API_LINT)
+    val ALL_UPPER = Issue(Severity.ERROR, Category.API_LINT)
+    val ACRONYM_NAME = Issue(Severity.WARNING, Category.API_LINT)
+    val ENUM = Issue(Severity.ERROR, Category.API_LINT)
     val ENDS_WITH_IMPL = Issue(Severity.ERROR, Category.API_LINT)
-    val MIN_MAX_CONSTANT = Issue(Severity.WARNING, Category.API_LINT, "C8")
+    val MIN_MAX_CONSTANT = Issue(Severity.WARNING, Category.API_LINT)
     val COMPILE_TIME_CONSTANT = Issue(Severity.ERROR, Category.API_LINT)
-    val SINGULAR_CALLBACK = Issue(Severity.ERROR, Category.API_LINT, "L1")
-    val CALLBACK_NAME = Issue(Severity.WARNING, Category.API_LINT, "L1")
-    val CALLBACK_INTERFACE = Issue(Severity.ERROR, Category.API_LINT, "CL3")
-    val CALLBACK_METHOD_NAME = Issue(Severity.ERROR, Category.API_LINT, "L1")
-    val LISTENER_INTERFACE = Issue(Severity.ERROR, Category.API_LINT, "L1")
-    val SINGLE_METHOD_INTERFACE = Issue(Severity.ERROR, Category.API_LINT, "L1")
-    val INTENT_NAME = Issue(Severity.ERROR, Category.API_LINT, "C3")
-    val ACTION_VALUE = Issue(Severity.ERROR, Category.API_LINT, "C4")
-    val EQUALS_AND_HASH_CODE = Issue(Severity.ERROR, Category.API_LINT, "M8")
-    val PARCEL_CREATOR = Issue(Severity.ERROR, Category.API_LINT, "FW3")
-    val PARCEL_NOT_FINAL = Issue(Severity.ERROR, Category.API_LINT, "FW8")
-    val PARCEL_CONSTRUCTOR = Issue(Severity.ERROR, Category.API_LINT, "FW3")
-    val PROTECTED_MEMBER = Issue(Severity.ERROR, Category.API_LINT, "M7")
-    val PAIRED_REGISTRATION = Issue(Severity.ERROR, Category.API_LINT, "L2")
-    val REGISTRATION_NAME = Issue(Severity.ERROR, Category.API_LINT, "L3")
-    val VISIBLY_SYNCHRONIZED = Issue(Severity.ERROR, Category.API_LINT, "M5")
-    val INTENT_BUILDER_NAME = Issue(Severity.WARNING, Category.API_LINT, "FW1")
-    val CONTEXT_NAME_SUFFIX = Issue(Severity.ERROR, Category.API_LINT, "C4")
-    val INTERFACE_CONSTANT = Issue(Severity.ERROR, Category.API_LINT, "C4")
+    val SINGULAR_CALLBACK = Issue(Severity.ERROR, Category.API_LINT)
+    val CALLBACK_NAME = Issue(Severity.WARNING, Category.API_LINT)
+    val CALLBACK_INTERFACE = Issue(Severity.ERROR, Category.API_LINT)
+    val CALLBACK_METHOD_NAME = Issue(Severity.ERROR, Category.API_LINT)
+    val LISTENER_INTERFACE = Issue(Severity.ERROR, Category.API_LINT)
+    val SINGLE_METHOD_INTERFACE = Issue(Severity.ERROR, Category.API_LINT)
+    val INTENT_NAME = Issue(Severity.ERROR, Category.API_LINT)
+    val ACTION_VALUE = Issue(Severity.ERROR, Category.API_LINT)
+    val EQUALS_AND_HASH_CODE = Issue(Severity.ERROR, Category.API_LINT)
+    val PARCEL_CREATOR = Issue(Severity.ERROR, Category.API_LINT)
+    val PARCEL_NOT_FINAL = Issue(Severity.ERROR, Category.API_LINT)
+    val PARCEL_CONSTRUCTOR = Issue(Severity.ERROR, Category.API_LINT)
+    val PROTECTED_MEMBER = Issue(Severity.ERROR, Category.API_LINT)
+    val PAIRED_REGISTRATION = Issue(Severity.ERROR, Category.API_LINT)
+    val REGISTRATION_NAME = Issue(Severity.ERROR, Category.API_LINT)
+    val VISIBLY_SYNCHRONIZED = Issue(Severity.ERROR, Category.API_LINT)
+    val INTENT_BUILDER_NAME = Issue(Severity.WARNING, Category.API_LINT)
+    val CONTEXT_NAME_SUFFIX = Issue(Severity.ERROR, Category.API_LINT)
+    val INTERFACE_CONSTANT = Issue(Severity.ERROR, Category.API_LINT)
     val ON_NAME_EXPECTED = Issue(Severity.WARNING, Category.API_LINT)
     val TOP_LEVEL_BUILDER = Issue(Severity.WARNING, Category.API_LINT)
     val MISSING_BUILD_METHOD = Issue(Severity.WARNING, Category.API_LINT)
     val BUILDER_SET_STYLE = Issue(Severity.WARNING, Category.API_LINT)
-    val SETTER_RETURNS_THIS = Issue(Severity.WARNING, Category.API_LINT, "M4")
+    val SETTER_RETURNS_THIS = Issue(Severity.WARNING, Category.API_LINT)
     val RAW_AIDL = Issue(Severity.ERROR, Category.API_LINT)
     val INTERNAL_CLASSES = Issue(Severity.ERROR, Category.API_LINT)
-    val PACKAGE_LAYERING = Issue(Severity.WARNING, Category.API_LINT, "FW6")
-    val GETTER_SETTER_NAMES = Issue(Severity.ERROR, Category.API_LINT, "M6")
-    val CONCRETE_COLLECTION = Issue(Severity.ERROR, Category.API_LINT, "CL2")
-    val OVERLAPPING_CONSTANTS = Issue(Severity.WARNING, Category.API_LINT, "C1")
-    val GENERIC_EXCEPTION = Issue(Severity.ERROR, Category.API_LINT, "S1")
-    val ILLEGAL_STATE_EXCEPTION = Issue(Severity.WARNING, Category.API_LINT, "S1")
-    val RETHROW_REMOTE_EXCEPTION = Issue(Severity.ERROR, Category.API_LINT, "FW9")
+    val PACKAGE_LAYERING = Issue(Severity.WARNING, Category.API_LINT)
+    val GETTER_SETTER_NAMES = Issue(Severity.ERROR, Category.API_LINT)
+    val CONCRETE_COLLECTION = Issue(Severity.ERROR, Category.API_LINT)
+    val OVERLAPPING_CONSTANTS = Issue(Severity.WARNING, Category.API_LINT)
+    val GENERIC_EXCEPTION = Issue(Severity.ERROR, Category.API_LINT)
+    val ILLEGAL_STATE_EXCEPTION = Issue(Severity.WARNING, Category.API_LINT)
+    val RETHROW_REMOTE_EXCEPTION = Issue(Severity.ERROR, Category.API_LINT)
     val MENTIONS_GOOGLE = Issue(Severity.ERROR, Category.API_LINT)
     val HEAVY_BIT_SET = Issue(Severity.ERROR, Category.API_LINT)
     val MANAGER_CONSTRUCTOR = Issue(Severity.ERROR, Category.API_LINT)
     val MANAGER_LOOKUP = Issue(Severity.ERROR, Category.API_LINT)
-    val AUTO_BOXING = Issue(Severity.ERROR, Category.API_LINT, "M11")
+    val AUTO_BOXING = Issue(Severity.ERROR, Category.API_LINT)
     val STATIC_UTILS = Issue(Severity.ERROR, Category.API_LINT)
-    val CONTEXT_FIRST = Issue(Severity.ERROR, Category.API_LINT, "M3")
-    val LISTENER_LAST = Issue(Severity.WARNING, Category.API_LINT, "M3")
-    val EXECUTOR_REGISTRATION = Issue(Severity.WARNING, Category.API_LINT, "L1")
+    val CONTEXT_FIRST = Issue(Severity.ERROR, Category.API_LINT)
+    val LISTENER_LAST = Issue(Severity.WARNING, Category.API_LINT)
+    val EXECUTOR_REGISTRATION = Issue(Severity.WARNING, Category.API_LINT)
     val CONFIG_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
     val RESOURCE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
-    val RESOURCE_VALUE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT, "C7")
-    val RESOURCE_STYLE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT, "C7")
-    val STREAM_FILES = Issue(Severity.WARNING, Category.API_LINT, "M10")
+    val RESOURCE_VALUE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
+    val RESOURCE_STYLE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
+    val STREAM_FILES = Issue(Severity.WARNING, Category.API_LINT)
     val PARCELABLE_LIST = Issue(Severity.WARNING, Category.API_LINT)
     val ABSTRACT_INNER = Issue(Severity.WARNING, Category.API_LINT)
     val BANNED_THROW = Issue(Severity.ERROR, Category.API_LINT)
@@ -199,27 +199,27 @@ object Issues {
     val ARRAY_RETURN = Issue(Severity.WARNING, Category.API_LINT)
     val USER_HANDLE = Issue(Severity.WARNING, Category.API_LINT)
     val USER_HANDLE_NAME = Issue(Severity.WARNING, Category.API_LINT)
-    val SERVICE_NAME = Issue(Severity.ERROR, Category.API_LINT, "C4")
+    val SERVICE_NAME = Issue(Severity.ERROR, Category.API_LINT)
     val METHOD_NAME_TENSE = Issue(Severity.WARNING, Category.API_LINT)
     val NO_CLONE = Issue(Severity.ERROR, Category.API_LINT)
     val USE_ICU = Issue(Severity.WARNING, Category.API_LINT)
-    val USE_PARCEL_FILE_DESCRIPTOR = Issue(Severity.ERROR, Category.API_LINT, "FW11")
-    val NO_BYTE_OR_SHORT = Issue(Severity.WARNING, Category.API_LINT, "FW12")
+    val USE_PARCEL_FILE_DESCRIPTOR = Issue(Severity.ERROR, Category.API_LINT)
+    val NO_BYTE_OR_SHORT = Issue(Severity.WARNING, Category.API_LINT)
     val SINGLETON_CONSTRUCTOR = Issue(Severity.ERROR, Category.API_LINT)
-    val COMMON_ARGS_FIRST = Issue(Severity.WARNING, Category.API_LINT, "M2")
-    val CONSISTENT_ARGUMENT_ORDER = Issue(Severity.ERROR, Category.API_LINT, "M2")
-    val KOTLIN_KEYWORD = Issue(Severity.ERROR, Category.API_LINT) // Formerly 141
+    val COMMON_ARGS_FIRST = Issue(Severity.WARNING, Category.API_LINT)
+    val CONSISTENT_ARGUMENT_ORDER = Issue(Severity.ERROR, Category.API_LINT)
+    val KOTLIN_KEYWORD = Issue(Severity.ERROR, Category.API_LINT)
     val UNIQUE_KOTLIN_OPERATOR = Issue(Severity.ERROR, Category.API_LINT)
-    val SAM_SHOULD_BE_LAST = Issue(Severity.WARNING, Category.API_LINT) // Formerly 142
-    val MISSING_JVMSTATIC = Issue(Severity.WARNING, Category.API_LINT) // Formerly 143
-    val DEFAULT_VALUE_CHANGE = Issue(Severity.ERROR, Category.API_LINT) // Formerly 144
-    val DOCUMENT_EXCEPTIONS = Issue(Severity.ERROR, Category.API_LINT) // Formerly 145
+    val SAM_SHOULD_BE_LAST = Issue(Severity.WARNING, Category.API_LINT)
+    val MISSING_JVMSTATIC = Issue(Severity.WARNING, Category.API_LINT)
+    val DEFAULT_VALUE_CHANGE = Issue(Severity.ERROR, Category.API_LINT)
+    val DOCUMENT_EXCEPTIONS = Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS = Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT)
-    val MUTABLE_BARE_FIELD = Issue(Severity.ERROR, Category.API_LINT, "F2")
-    val INTERNAL_FIELD = Issue(Severity.ERROR, Category.API_LINT, "F2")
-    val PUBLIC_TYPEDEF = Issue(Severity.ERROR, Category.API_LINT, "FW15")
-    val ANDROID_URI = Issue(Severity.ERROR, Category.API_LINT, "FW14")
+    val MUTABLE_BARE_FIELD = Issue(Severity.ERROR, Category.API_LINT)
+    val INTERNAL_FIELD = Issue(Severity.ERROR, Category.API_LINT)
+    val PUBLIC_TYPEDEF = Issue(Severity.ERROR, Category.API_LINT)
+    val ANDROID_URI = Issue(Severity.ERROR, Category.API_LINT)
     val BAD_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val STATIC_FINAL_BUILDER = Issue(Severity.WARNING, Category.API_LINT)
     val GETTER_ON_BUILDER = Issue(Severity.WARNING, Category.API_LINT)
@@ -250,9 +250,7 @@ object Issues {
         /** Applicable category  */
         val category: Category,
         /** Related rule, if any  */
-        val rule: String?,
-        /** Related explanation, if any  */
-        val explanation: String?
+        val rule: String?
     ) {
         /**
          * The name of this issue
@@ -263,18 +261,18 @@ object Issues {
         internal constructor(
             defaultLevel: Severity,
             category: Category = Category.UNKNOWN
-        ) : this(defaultLevel, null, category, null, null)
+        ) : this(defaultLevel, null, category, null)
 
         internal constructor(
             defaultLevel: Severity,
             category: Category,
             rule: String
-        ) : this(defaultLevel, null, category, rule, null)
+        ) : this(defaultLevel, null, category, rule)
 
         internal constructor(
             parent: Issue,
             category: Category
-        ) : this(Severity.INHERIT, parent, category, null, null)
+        ) : this(Severity.INHERIT, parent, category, null)
 
         override fun toString(): String {
             return "Issue $name"
@@ -288,7 +286,7 @@ object Issues {
     enum class Category(val description: String, val ruleLink: String?) {
         COMPATIBILITY("Compatibility", null),
         DOCUMENTATION("Documentation", null),
-        API_LINT("API Lint", "go/android-api-guidelines"),
+        API_LINT("API Lint", null),
         UNKNOWN("Default", null)
     }
 
