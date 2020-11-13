@@ -22,7 +22,6 @@ import com.android.tools.metalava.Severity.INFO
 import com.android.tools.metalava.Severity.INHERIT
 import com.android.tools.metalava.Severity.LINT
 import com.android.tools.metalava.Severity.WARNING
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.configuration
