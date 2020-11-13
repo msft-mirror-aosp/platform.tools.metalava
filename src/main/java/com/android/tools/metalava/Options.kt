@@ -2578,21 +2578,8 @@ class Options(
                 }
                 return
             }
-
-            val numericId = try {
-                id.toInt()
-            } catch (e: NumberFormatException) {
-                -1
-            }
-
             val issue = Issues.findIssueById(id)
-                ?: Issues.findIssueById(numericId)?.also {
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION, null as File?,
-                        "Issue lookup by numeric id is deprecated, use " +
-                            "$arg ${it.name} instead of $arg $id"
-                    )
-                } ?: Issues.findIssueByIdIgnoringCase(id)?.also {
+                ?: Issues.findIssueByIdIgnoringCase(id)?.also {
                     reporter.report(
                         Issues.DEPRECATED_OPTION, null as File?,
                         "Case-insensitive issue matching is deprecated, use " +
