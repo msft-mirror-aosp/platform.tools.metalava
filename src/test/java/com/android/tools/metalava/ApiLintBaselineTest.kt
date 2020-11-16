@@ -107,7 +107,7 @@ class ApiLintBaselineTest : DriverTest() {
                     Enums are discouraged in Android APIs
             """,
             expectedIssues = """
-                src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum] [Rule F5 in go/android-api-guidelines]
+                src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
