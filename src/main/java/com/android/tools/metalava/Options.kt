@@ -21,7 +21,6 @@ import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher

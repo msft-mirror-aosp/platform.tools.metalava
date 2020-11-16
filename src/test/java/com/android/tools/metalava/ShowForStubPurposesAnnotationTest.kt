@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.doclava1.Issues
 import org.junit.Test
 
 class ShowForStubPurposesAnnotationTest : DriverTest() {
