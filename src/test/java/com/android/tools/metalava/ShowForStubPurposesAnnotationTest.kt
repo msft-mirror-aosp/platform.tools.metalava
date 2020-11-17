@@ -675,7 +675,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             expectedIssues = """
-                src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability]
+                src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 """
         )
     }
