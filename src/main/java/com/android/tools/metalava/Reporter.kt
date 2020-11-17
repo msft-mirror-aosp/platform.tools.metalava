@@ -367,12 +367,9 @@ class Reporter(
                 sb.append(" [")
                 sb.append(it.name)
                 sb.append("]")
-                if (it.rule != null) {
-                    sb.append(" [Rule ").append(it.rule)
-                    val link = it.category.ruleLink
-                    if (link != null) {
-                        sb.append(" in ").append(link)
-                    }
+                val link = it.category.ruleLink
+                if (it.rule != null && link != null) {
+                    sb.append(" [See ").append(link).append(it.rule)
                     sb.append("]")
                 }
             }
