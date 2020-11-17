@@ -24,11 +24,11 @@ class ReporterTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues = """
-                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [Rule S1 in go/android-api-guidelines]
-                src/test/pkg/foo.java:4: warning: If min/max could change in future, make them dynamic methods: test.pkg.foo#MAX_BAR [MinMaxConstant] [Rule C8 in go/android-api-guidelines]
+                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper]
+                src/test/pkg/foo.java:4: warning: If min/max could change in future, make them dynamic methods: test.pkg.foo#MAX_BAR [MinMaxConstant]
             """,
             errorSeverityExpectedIssues = """
-                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [Rule S1 in go/android-api-guidelines]
+                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper]
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -50,8 +50,8 @@ class ReporterTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues = """
-                src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [Rule S1 in go/android-api-guidelines]
-                src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [Rule S1 in go/android-api-guidelines]
+                src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower]
+                src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower]
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
