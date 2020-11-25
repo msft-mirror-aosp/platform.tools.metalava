@@ -429,6 +429,7 @@ interface AnnotationItem {
                 "java.lang.Override",
                 "kotlin.Suppress",
                 "androidx.annotation.experimental.UseExperimental",
+                "androidx.annotation.OptIn",
                 "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
