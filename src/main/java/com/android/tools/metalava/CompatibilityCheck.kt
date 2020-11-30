@@ -18,9 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.doclava1.Issues.Issue
+import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -230,6 +228,14 @@ class CompatibilityCheck(
             )
         }
 
+        if (oldModifiers.isFunctional() && !newModifiers.isFunctional()) {
+            report(
+                Issues.FUN_REMOVAL,
+                new,
+                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change"
+            )
+        }
+
         // Check for changes in final & static, but not in enums (since PSI and signature files differ
         // a bit in whether they include these for enums
         if (!new.isEnum()) {
@@ -402,7 +408,14 @@ class CompatibilityCheck(
                     new,
                     capitalize = true
                 )} has changed value from $prevString to $newString"
-                report(Issues.CHANGED_VALUE, new, message)
+
+                // Adding a default value to an annotation method is safe
+                val annotationMethodAddingDefaultValue =
+                    new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+
+                if (!annotationMethodAddingDefaultValue) {
+                    report(Issues.CHANGED_VALUE, new, message)
+                }
             }
         }
 

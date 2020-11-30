@@ -1,14 +1,26 @@
-package com.android.tools.metalava.doclava1
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.android.tools.metalava.Options
+package com.android.tools.metalava
+
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.options
 import java.util.function.Predicate
-
-// Ported from doclava1
 
 /**
  * Predicate that decides if the given member should be considered part of an
@@ -125,8 +137,8 @@ class ApiPredicate(
             return false
         }
 
-        // If the item has a "show" annotation, then return whether it has a "for stubs" annotation
-        // or not.
+        // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
+        // show annotation or not.
         //
         // Note, If the item does not have a show annotation, then it can't have a "for stubs" one,
         // because the later must be a subset of the former, which we don't detect in *this*
@@ -134,7 +146,7 @@ class ApiPredicate(
         // is executed for the parent API, we'd detect it as
         // [Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS].
         if (item.hasShowAnnotationInherited()) {
-            return item.hasShowForStubPurposesAnnotationInherited()
+            return item.onlyShowForStubPurposesInherited()
         }
         // If this item has neither --show-annotation nor --parent-api-annotation,
         // Then defer to the "parent" item (i.e. the enclosing class or package).
