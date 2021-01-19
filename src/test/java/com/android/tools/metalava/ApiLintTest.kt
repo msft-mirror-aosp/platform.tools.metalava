@@ -2119,23 +2119,26 @@ class ApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "NoByteOrShort"),
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/UnitNameTest.java:5: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
-                src/android/pkg/UnitNameTest.java:6: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits]
-                src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits]
-                src/android/pkg/UnitNameTest.java:8: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorNanos` [MethodNameUnits]
-                src/android/pkg/UnitNameTest.java:9: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorMicros` [MethodNameUnits]
-                src/android/pkg/UnitNameTest.java:10: error: Returned time values must be in milliseconds, was `getErrorSeconds` [MethodNameUnits]
-                src/android/pkg/UnitNameTest.java:16: error: Fractions must use floats, was `int` in `getErrorFraction` [FractionFloat]
-                src/android/pkg/UnitNameTest.java:17: error: Fractions must use floats, was `int` in `setErrorFraction` [FractionFloat]
-                src/android/pkg/UnitNameTest.java:21: error: Percentage must use ints, was `float` in `getErrorPercentage` [PercentageInt]
-                src/android/pkg/UnitNameTest.java:22: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
-                src/android/pkg/UnitNameTest.java:24: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:8: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:9: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:10: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorNanos` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:11: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorMicros` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:12: error: Returned time values must be in milliseconds, was `getErrorSeconds` [MethodNameUnits]
+                    src/android/pkg/UnitNameTest.java:18: error: Fractions must use floats, was `int` in `getErrorFraction` [FractionFloat]
+                    src/android/pkg/UnitNameTest.java:19: error: Fractions must use floats, was `int` in `setErrorFraction` [FractionFloat]
+                    src/android/pkg/UnitNameTest.java:23: error: Percentage must use ints, was `float` in `getErrorPercentage` [PercentageInt]
+                    src/android/pkg/UnitNameTest.java:24: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
+                    src/android/pkg/UnitNameTest.java:26: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
+                androidxNonNullSource,
                 java(
                     """
                     package android.pkg;
+
+                    import androidx.annotation.NonNull;
 
                     public class UnitNameTest {
                         public int okay() { return 0; }
@@ -2160,6 +2163,18 @@ class ApiLintTest : DriverTest() {
 
                         public int readSingleByte() { return 0; }
 
+                        public static final class UnitNameTestBuilder {
+                            public UnitNameTestBuilder() {}
+
+                            @NonNull
+                            public UnitNameTest build() { return null; }
+
+                            @NonNull
+                            public UnitNameTestBuilder setOkFraction(float f) { return this; }
+
+                            @NonNull
+                            public UnitNameTestBuilder setOkPercentage(int i) { return this; }
+                        }
                     }
                     """
                 )
