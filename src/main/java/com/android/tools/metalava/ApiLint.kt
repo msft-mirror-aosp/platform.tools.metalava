@@ -484,6 +484,11 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
+        // Only enforce constant naming rules for Kotlin on `const val`
+        if (field.isKotlin() && !field.modifiers.isConst()) {
+            return
+        }
+
         val name = field.name()
         if (!constantNamePattern.matches(name)) {
             val suggested = SdkVersionInfo.camelCaseToUnderlines(name).toUpperCase(Locale.US)
