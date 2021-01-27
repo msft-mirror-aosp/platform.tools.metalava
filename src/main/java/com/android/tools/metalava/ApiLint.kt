@@ -473,6 +473,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if f.typ in req and f.value is None:
                             error(clazz, f, None, "All constants must be defined at compile time")
          */
+
+        // Skip this check on Kotlin
+        if (field.isKotlin()) {
+            return
+        }
+
         // Existing violations
         val qualified = field.containingClass().qualifiedName()
         if (qualified.startsWith("android.os.Build") ||
@@ -481,11 +487,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             qualified.startsWith("android.opengl.") ||
             qualified.startsWith("android.R.")
         ) {
-            return
-        }
-
-        // Only enforce constant naming rules for Kotlin on `const val`
-        if (field.isKotlin() && !field.modifiers.isConst()) {
             return
         }
 
@@ -977,7 +978,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             report(INTERNAL_FIELD, field,
                     "Internal field ${field.name()} must not be exposed")
         }
-        if (constantNamePattern.matches(field.name())) {
+        if (constantNamePattern.matches(field.name()) && field.isJava()) {
             if (!modifiers.isStatic() || !modifiers.isFinal()) {
                 report(ALL_UPPER, field,
                         "Constant ${field.name()} must be marked static final")
