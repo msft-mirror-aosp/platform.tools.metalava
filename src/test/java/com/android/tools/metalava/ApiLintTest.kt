@@ -653,7 +653,6 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/KotlinClass.kt:5: error: Constant field names must be named with only upper case characters: `android.pkg.KotlinClass#BadConstant`, should be `BAD_CONSTANT`? [AllUpper] [See https://s.android.com/api-guidelines#constant-naming]
                 src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
                 src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper] [See https://s.android.com/api-guidelines#constant-naming]
                 src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
@@ -695,10 +694,12 @@ class ApiLintTest : DriverTest() {
 
                     class KotlinClass(val ok: Int) {
                         companion object {
-                            const val BadConstant = 1
+                            const val OkConstant = 1
                             const val OK_CONSTANT = 2
                             @JvmField
                             val OkSingleton = KotlinClass(3)
+                            @JvmField
+                            val OK_SINGLETON = KotlinClass(4)
                         }
 
                         object OkObject
