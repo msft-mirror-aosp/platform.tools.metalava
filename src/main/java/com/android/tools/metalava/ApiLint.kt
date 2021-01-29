@@ -46,97 +46,97 @@ import com.android.resources.ResourceType.STYLE_ITEM
 import com.android.resources.ResourceType.TRANSITION
 import com.android.resources.ResourceType.XML
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.doclava1.Issues.ABSTRACT_INNER
-import com.android.tools.metalava.doclava1.Issues.ACRONYM_NAME
-import com.android.tools.metalava.doclava1.Issues.ACTION_VALUE
-import com.android.tools.metalava.doclava1.Issues.ALL_UPPER
-import com.android.tools.metalava.doclava1.Issues.ANDROID_URI
-import com.android.tools.metalava.doclava1.Issues.ARRAY_RETURN
-import com.android.tools.metalava.doclava1.Issues.AUTO_BOXING
-import com.android.tools.metalava.doclava1.Issues.BAD_FUTURE
-import com.android.tools.metalava.doclava1.Issues.BANNED_THROW
-import com.android.tools.metalava.doclava1.Issues.BUILDER_SET_STYLE
-import com.android.tools.metalava.doclava1.Issues.CALLBACK_INTERFACE
-import com.android.tools.metalava.doclava1.Issues.CALLBACK_METHOD_NAME
-import com.android.tools.metalava.doclava1.Issues.CALLBACK_NAME
-import com.android.tools.metalava.doclava1.Issues.COMMON_ARGS_FIRST
-import com.android.tools.metalava.doclava1.Issues.COMPILE_TIME_CONSTANT
-import com.android.tools.metalava.doclava1.Issues.CONCRETE_COLLECTION
-import com.android.tools.metalava.doclava1.Issues.CONFIG_FIELD_NAME
-import com.android.tools.metalava.doclava1.Issues.CONSISTENT_ARGUMENT_ORDER
-import com.android.tools.metalava.doclava1.Issues.CONTEXT_FIRST
-import com.android.tools.metalava.doclava1.Issues.CONTEXT_NAME_SUFFIX
-import com.android.tools.metalava.doclava1.Issues.ENDS_WITH_IMPL
-import com.android.tools.metalava.doclava1.Issues.ENUM
-import com.android.tools.metalava.doclava1.Issues.EQUALS_AND_HASH_CODE
-import com.android.tools.metalava.doclava1.Issues.EXCEPTION_NAME
-import com.android.tools.metalava.doclava1.Issues.EXECUTOR_REGISTRATION
-import com.android.tools.metalava.doclava1.Issues.EXTENDS_ERROR
-import com.android.tools.metalava.doclava1.Issues.FORBIDDEN_SUPER_CLASS
-import com.android.tools.metalava.doclava1.Issues.FRACTION_FLOAT
-import com.android.tools.metalava.doclava1.Issues.GENERIC_EXCEPTION
-import com.android.tools.metalava.doclava1.Issues.GETTER_ON_BUILDER
-import com.android.tools.metalava.doclava1.Issues.GETTER_SETTER_NAMES
-import com.android.tools.metalava.doclava1.Issues.HEAVY_BIT_SET
-import com.android.tools.metalava.doclava1.Issues.ILLEGAL_STATE_EXCEPTION
-import com.android.tools.metalava.doclava1.Issues.INTENT_BUILDER_NAME
-import com.android.tools.metalava.doclava1.Issues.INTENT_NAME
-import com.android.tools.metalava.doclava1.Issues.INTERFACE_CONSTANT
-import com.android.tools.metalava.doclava1.Issues.INTERNAL_CLASSES
-import com.android.tools.metalava.doclava1.Issues.INTERNAL_FIELD
-import com.android.tools.metalava.doclava1.Issues.Issue
-import com.android.tools.metalava.doclava1.Issues.KOTLIN_OPERATOR
-import com.android.tools.metalava.doclava1.Issues.LISTENER_INTERFACE
-import com.android.tools.metalava.doclava1.Issues.LISTENER_LAST
-import com.android.tools.metalava.doclava1.Issues.MANAGER_CONSTRUCTOR
-import com.android.tools.metalava.doclava1.Issues.MANAGER_LOOKUP
-import com.android.tools.metalava.doclava1.Issues.MENTIONS_GOOGLE
-import com.android.tools.metalava.doclava1.Issues.METHOD_NAME_TENSE
-import com.android.tools.metalava.doclava1.Issues.METHOD_NAME_UNITS
-import com.android.tools.metalava.doclava1.Issues.MIN_MAX_CONSTANT
-import com.android.tools.metalava.doclava1.Issues.MISSING_BUILD_METHOD
-import com.android.tools.metalava.doclava1.Issues.MISSING_GETTER_MATCHING_BUILDER
-import com.android.tools.metalava.doclava1.Issues.MISSING_NULLABILITY
-import com.android.tools.metalava.doclava1.Issues.MUTABLE_BARE_FIELD
-import com.android.tools.metalava.doclava1.Issues.NOT_CLOSEABLE
-import com.android.tools.metalava.doclava1.Issues.NO_BYTE_OR_SHORT
-import com.android.tools.metalava.doclava1.Issues.NO_CLONE
-import com.android.tools.metalava.doclava1.Issues.NO_SETTINGS_PROVIDER
-import com.android.tools.metalava.doclava1.Issues.ON_NAME_EXPECTED
-import com.android.tools.metalava.doclava1.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
-import com.android.tools.metalava.doclava1.Issues.OVERLAPPING_CONSTANTS
-import com.android.tools.metalava.doclava1.Issues.PACKAGE_LAYERING
-import com.android.tools.metalava.doclava1.Issues.PAIRED_REGISTRATION
-import com.android.tools.metalava.doclava1.Issues.PARCELABLE_LIST
-import com.android.tools.metalava.doclava1.Issues.PARCEL_CONSTRUCTOR
-import com.android.tools.metalava.doclava1.Issues.PARCEL_CREATOR
-import com.android.tools.metalava.doclava1.Issues.PARCEL_NOT_FINAL
-import com.android.tools.metalava.doclava1.Issues.PERCENTAGE_INT
-import com.android.tools.metalava.doclava1.Issues.PROTECTED_MEMBER
-import com.android.tools.metalava.doclava1.Issues.PUBLIC_TYPEDEF
-import com.android.tools.metalava.doclava1.Issues.RAW_AIDL
-import com.android.tools.metalava.doclava1.Issues.REGISTRATION_NAME
-import com.android.tools.metalava.doclava1.Issues.RESOURCE_FIELD_NAME
-import com.android.tools.metalava.doclava1.Issues.RESOURCE_STYLE_FIELD_NAME
-import com.android.tools.metalava.doclava1.Issues.RESOURCE_VALUE_FIELD_NAME
-import com.android.tools.metalava.doclava1.Issues.RETHROW_REMOTE_EXCEPTION
-import com.android.tools.metalava.doclava1.Issues.SERVICE_NAME
-import com.android.tools.metalava.doclava1.Issues.SETTER_RETURNS_THIS
-import com.android.tools.metalava.doclava1.Issues.SINGLETON_CONSTRUCTOR
-import com.android.tools.metalava.doclava1.Issues.SINGLE_METHOD_INTERFACE
-import com.android.tools.metalava.doclava1.Issues.SINGULAR_CALLBACK
-import com.android.tools.metalava.doclava1.Issues.START_WITH_LOWER
-import com.android.tools.metalava.doclava1.Issues.START_WITH_UPPER
-import com.android.tools.metalava.doclava1.Issues.STATIC_FINAL_BUILDER
-import com.android.tools.metalava.doclava1.Issues.STATIC_UTILS
-import com.android.tools.metalava.doclava1.Issues.STREAM_FILES
-import com.android.tools.metalava.doclava1.Issues.TOP_LEVEL_BUILDER
-import com.android.tools.metalava.doclava1.Issues.UNIQUE_KOTLIN_OPERATOR
-import com.android.tools.metalava.doclava1.Issues.USER_HANDLE
-import com.android.tools.metalava.doclava1.Issues.USER_HANDLE_NAME
-import com.android.tools.metalava.doclava1.Issues.USE_ICU
-import com.android.tools.metalava.doclava1.Issues.USE_PARCEL_FILE_DESCRIPTOR
-import com.android.tools.metalava.doclava1.Issues.VISIBLY_SYNCHRONIZED
+import com.android.tools.metalava.Issues.ABSTRACT_INNER
+import com.android.tools.metalava.Issues.ACRONYM_NAME
+import com.android.tools.metalava.Issues.ACTION_VALUE
+import com.android.tools.metalava.Issues.ALL_UPPER
+import com.android.tools.metalava.Issues.ANDROID_URI
+import com.android.tools.metalava.Issues.ARRAY_RETURN
+import com.android.tools.metalava.Issues.AUTO_BOXING
+import com.android.tools.metalava.Issues.BAD_FUTURE
+import com.android.tools.metalava.Issues.BANNED_THROW
+import com.android.tools.metalava.Issues.BUILDER_SET_STYLE
+import com.android.tools.metalava.Issues.CALLBACK_INTERFACE
+import com.android.tools.metalava.Issues.CALLBACK_METHOD_NAME
+import com.android.tools.metalava.Issues.CALLBACK_NAME
+import com.android.tools.metalava.Issues.COMMON_ARGS_FIRST
+import com.android.tools.metalava.Issues.COMPILE_TIME_CONSTANT
+import com.android.tools.metalava.Issues.CONCRETE_COLLECTION
+import com.android.tools.metalava.Issues.CONFIG_FIELD_NAME
+import com.android.tools.metalava.Issues.CONSISTENT_ARGUMENT_ORDER
+import com.android.tools.metalava.Issues.CONTEXT_FIRST
+import com.android.tools.metalava.Issues.CONTEXT_NAME_SUFFIX
+import com.android.tools.metalava.Issues.ENDS_WITH_IMPL
+import com.android.tools.metalava.Issues.ENUM
+import com.android.tools.metalava.Issues.EQUALS_AND_HASH_CODE
+import com.android.tools.metalava.Issues.EXCEPTION_NAME
+import com.android.tools.metalava.Issues.EXECUTOR_REGISTRATION
+import com.android.tools.metalava.Issues.EXTENDS_ERROR
+import com.android.tools.metalava.Issues.FORBIDDEN_SUPER_CLASS
+import com.android.tools.metalava.Issues.FRACTION_FLOAT
+import com.android.tools.metalava.Issues.GENERIC_EXCEPTION
+import com.android.tools.metalava.Issues.GETTER_ON_BUILDER
+import com.android.tools.metalava.Issues.GETTER_SETTER_NAMES
+import com.android.tools.metalava.Issues.HEAVY_BIT_SET
+import com.android.tools.metalava.Issues.ILLEGAL_STATE_EXCEPTION
+import com.android.tools.metalava.Issues.INTENT_BUILDER_NAME
+import com.android.tools.metalava.Issues.INTENT_NAME
+import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
+import com.android.tools.metalava.Issues.INTERNAL_CLASSES
+import com.android.tools.metalava.Issues.INTERNAL_FIELD
+import com.android.tools.metalava.Issues.Issue
+import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
+import com.android.tools.metalava.Issues.LISTENER_INTERFACE
+import com.android.tools.metalava.Issues.LISTENER_LAST
+import com.android.tools.metalava.Issues.MANAGER_CONSTRUCTOR
+import com.android.tools.metalava.Issues.MANAGER_LOOKUP
+import com.android.tools.metalava.Issues.MENTIONS_GOOGLE
+import com.android.tools.metalava.Issues.METHOD_NAME_TENSE
+import com.android.tools.metalava.Issues.METHOD_NAME_UNITS
+import com.android.tools.metalava.Issues.MIN_MAX_CONSTANT
+import com.android.tools.metalava.Issues.MISSING_BUILD_METHOD
+import com.android.tools.metalava.Issues.MISSING_GETTER_MATCHING_BUILDER
+import com.android.tools.metalava.Issues.MISSING_NULLABILITY
+import com.android.tools.metalava.Issues.MUTABLE_BARE_FIELD
+import com.android.tools.metalava.Issues.NOT_CLOSEABLE
+import com.android.tools.metalava.Issues.NO_BYTE_OR_SHORT
+import com.android.tools.metalava.Issues.NO_CLONE
+import com.android.tools.metalava.Issues.NO_SETTINGS_PROVIDER
+import com.android.tools.metalava.Issues.ON_NAME_EXPECTED
+import com.android.tools.metalava.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
+import com.android.tools.metalava.Issues.OVERLAPPING_CONSTANTS
+import com.android.tools.metalava.Issues.PACKAGE_LAYERING
+import com.android.tools.metalava.Issues.PAIRED_REGISTRATION
+import com.android.tools.metalava.Issues.PARCELABLE_LIST
+import com.android.tools.metalava.Issues.PARCEL_CONSTRUCTOR
+import com.android.tools.metalava.Issues.PARCEL_CREATOR
+import com.android.tools.metalava.Issues.PARCEL_NOT_FINAL
+import com.android.tools.metalava.Issues.PERCENTAGE_INT
+import com.android.tools.metalava.Issues.PROTECTED_MEMBER
+import com.android.tools.metalava.Issues.PUBLIC_TYPEDEF
+import com.android.tools.metalava.Issues.RAW_AIDL
+import com.android.tools.metalava.Issues.REGISTRATION_NAME
+import com.android.tools.metalava.Issues.RESOURCE_FIELD_NAME
+import com.android.tools.metalava.Issues.RESOURCE_STYLE_FIELD_NAME
+import com.android.tools.metalava.Issues.RESOURCE_VALUE_FIELD_NAME
+import com.android.tools.metalava.Issues.RETHROW_REMOTE_EXCEPTION
+import com.android.tools.metalava.Issues.SERVICE_NAME
+import com.android.tools.metalava.Issues.SETTER_RETURNS_THIS
+import com.android.tools.metalava.Issues.SINGLETON_CONSTRUCTOR
+import com.android.tools.metalava.Issues.SINGLE_METHOD_INTERFACE
+import com.android.tools.metalava.Issues.SINGULAR_CALLBACK
+import com.android.tools.metalava.Issues.START_WITH_LOWER
+import com.android.tools.metalava.Issues.START_WITH_UPPER
+import com.android.tools.metalava.Issues.STATIC_FINAL_BUILDER
+import com.android.tools.metalava.Issues.STATIC_UTILS
+import com.android.tools.metalava.Issues.STREAM_FILES
+import com.android.tools.metalava.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.Issues.UNIQUE_KOTLIN_OPERATOR
+import com.android.tools.metalava.Issues.USER_HANDLE
+import com.android.tools.metalava.Issues.USER_HANDLE_NAME
+import com.android.tools.metalava.Issues.USE_ICU
+import com.android.tools.metalava.Issues.USE_PARCEL_FILE_DESCRIPTOR
+import com.android.tools.metalava.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.getImplicitNullness
 import com.android.tools.metalava.model.ClassItem
@@ -195,8 +195,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun check() {
-        val prevCount = reporter.totalCount
-
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator().compare(object : ComparisonVisitor() {
@@ -207,36 +205,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         } else {
             // No previous codebase to compare with: visit the whole thing
             codebase.accept(this)
-        }
-
-        val apiLintIssues = reporter.totalCount - prevCount
-        if (apiLintIssues > 0) {
-            // We've reported API lint violations; emit some verbiage to explain
-            // how to suppress the error rules.
-            options.stdout.println("\n$apiLintIssues new API lint issues were found.")
-            val baseline = options.baseline
-            if (baseline?.updateFile != null && baseline.file != null && !baseline.silentUpdate) {
-                options.stdout.println("""
-                ************************************************************
-                Your API changes are triggering API Lint warnings or errors.
-                To make these errors go away, fix the code according to the
-                error and/or warning messages above.
-
-                If it's not possible to do so, there are two workarounds:
-
-                1. You can suppress the errors with @SuppressLint("<id>")
-                2. You can update the baseline by executing the following
-                   command:
-                       cp \
-                       ${baseline.updateFile} \
-                       ${baseline.file}
-                   To submit the revised baseline.txt to the main Android
-                   repository, you will need approval.
-                ************************************************************
-                """.trimIndent())
-            } else {
-                options.stdout.println("See tools/metalava/API-LINT.md for how to handle these.")
-            }
         }
     }
 
@@ -505,6 +473,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if f.typ in req and f.value is None:
                             error(clazz, f, None, "All constants must be defined at compile time")
          */
+
+        // Skip this check on Kotlin
+        if (field.isKotlin()) {
+            return
+        }
+
         // Existing violations
         val qualified = field.containingClass().qualifiedName()
         if (qualified.startsWith("android.os.Build") ||
@@ -1004,7 +978,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             report(INTERNAL_FIELD, field,
                     "Internal field ${field.name()} must not be exposed")
         }
-        if (constantNamePattern.matches(field.name())) {
+        if (constantNamePattern.matches(field.name()) && field.isJava()) {
             if (!modifiers.isStatic() || !modifiers.isFinal()) {
                 report(ALL_UPPER, field,
                         "Constant ${field.name()} must be marked static final")
@@ -1378,7 +1352,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
             }
         }
-        val expectedGetters = mutableListOf<Pair<Item, String>>()
+        // Maps each setter to a list of potential getters that would satisfy it.
+        val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
         val clsType = cls.toType().toTypeString()
 
@@ -1410,23 +1385,41 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         "Builder setter must be @NonNull: ${method.describe()}"
                     )
                 }
-                when {
-                    name.startsWith("set") -> name.removePrefix("set")
-                    name.startsWith("add") -> "${name.removePrefix("add")}s"
-                    else -> null
-                }?.let { getterSuffix ->
-                    val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {
-                        "boolean", "java.lang.Boolean" -> true
-                        else -> false
-                    }
-                    val expectedGetter = if (isBool && name.startsWith("set")) {
-                        val pattern = goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::setter)!!
-                        "${pattern.getter}${name.removePrefix(pattern.setter)}"
-                    } else {
-                        "get$getterSuffix"
-                    }
-                    expectedGetters.add(method to expectedGetter)
+                val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {
+                    "boolean", "java.lang.Boolean" -> true
+                    else -> false
                 }
+                val allowedGetters: Set<String>? = if (isBool && name.startsWith("set")) {
+                    val pattern = goodBooleanGetterSetterPrefixes.match(
+                            name, GetterSetterPattern::setter)!!
+                    setOf("${pattern.getter}${name.removePrefix(pattern.setter)}")
+                } else {
+                    when {
+                        name.startsWith("set") -> listOf(name.removePrefix("set"))
+                        name.startsWith("add") -> {
+                            val nameWithoutPrefix = name.removePrefix("add")
+                            when {
+                                name.endsWith("s") -> {
+                                    // If the name ends with s, it may already be a plural. If the
+                                    // add method accepts a single value, it is called addFoo() and
+                                    // getFoos() is right. If an add method accepts a collection, it
+                                    // is called addFoos() and getFoos() is right. So we allow both.
+                                    listOf(nameWithoutPrefix, "${nameWithoutPrefix}es")
+                                }
+                                name.endsWith("sh") || name.endsWith("ch") || name.endsWith("x") ||
+                                        name.endsWith("z") -> listOf("${nameWithoutPrefix}es")
+                                name.endsWith("y") &&
+                                        name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u')
+                                -> {
+                                    listOf("${nameWithoutPrefix.removeSuffix("y")}ies")
+                                }
+                                else -> listOf("${nameWithoutPrefix}s")
+                            }
+                        }
+                        else -> null
+                    }?.map { "get$it" }?.toSet()
+                }
+                allowedGetters?.let { expectedGetters.add(method to it) }
             } else {
                 report(
                     BUILDER_SET_STYLE, method,
@@ -1442,12 +1435,20 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
         builtType?.asClass()?.let { builtClass ->
             val builtMethods = builtClass.filteredMethods(filterReference).map { it.name() }.toSet()
-            for ((setter, expectedGetterName) in expectedGetters) {
-                if (!builtMethods.contains(expectedGetterName))
-                report(
-                    MISSING_GETTER_MATCHING_BUILDER, setter,
-                    "${builtClass.qualifiedName()} does not declare a `$expectedGetterName()` method matching ${setter.describe()}"
-                )
+            for ((setter, expectedGetterNames) in expectedGetters) {
+                if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
+                    val expectedGetterCalls = expectedGetterNames.map { "$it()" }
+                    val errorString = if (expectedGetterCalls.size == 1) {
+                        "${builtClass.qualifiedName()} does not declare a " +
+                                "`${expectedGetterCalls.first()}` method matching " +
+                                "${setter.describe()}"
+                    } else {
+                        "${builtClass.qualifiedName()} does not declare a getter method " +
+                                "matching ${setter.describe()} (expected one of: " +
+                                "$expectedGetterCalls)"
+                    }
+                    report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
+                }
             }
         }
     }
@@ -2852,9 +2853,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if len(m.args) != 1: continue
                         typ = m.args[0]
 
-                    if m.name.endswith("Fraction") and typ != "float":
+                    if m.name.endswith("Fraction") and typ in ["short, "int", "long"]:
                         error(clazz, m, None, "Fractions must use floats")
-                    if m.name.endswith("Percentage") and typ != "int":
+                    if m.name.endswith("Percentage") and typ in ["float", "double"]:
                         error(clazz, m, None, "Percentage must use ints")
 
         */
@@ -2886,12 +2887,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             }
             type = method.parameters()[0].type().toTypeString()
         }
-        if (name.endsWith("Fraction") && type != "float") {
+        if (name.endsWith("Fraction") && (type == "int" || type == "long" || type == "short")) {
             report(
                 FRACTION_FLOAT, method,
                 "Fractions must use floats, was `$type` in `$name`"
             )
-        } else if (name.endsWith("Percentage") && type != "int") {
+        } else if (name.endsWith("Percentage") && (type == "float" || type == "double")) {
             report(
                 PERCENTAGE_INT, method,
                 "Percentage must use ints, was `$type` in `$name`"
@@ -3768,3 +3769,16 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 }
+
+internal const val DefaultLintErrorMessage = """
+************************************************************
+Your API changes are triggering API Lint warnings or errors.
+To make these errors go away, fix the code according to the
+error and/or warning messages above.
+
+If it's not possible to do so, there are two workarounds:
+
+1. Suppress the issues with @Suppress("<id>") / @SuppressWarnings("<id>")
+2. Update the baseline passed into metalava
+************************************************************
+"""

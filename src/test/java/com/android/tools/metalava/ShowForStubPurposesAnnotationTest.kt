@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.doclava1.Issues
 import org.junit.Test
 
 class ShowForStubPurposesAnnotationTest : DriverTest() {
@@ -55,6 +54,12 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 @test.annotation.Hide
                 @test.annotation.ModuleApi
                 public void module() {
+                }
+
+                @test.annotation.Hide
+                @test.annotation.ModuleApi
+                @test.annotation.SystemApi
+                public void moduleAndSystem() {
                 }
 
                 public static class NestedDefault {
@@ -248,6 +253,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   public class SystemClass {
                     ctor public SystemClass();
                     method public void module();
+                    method public void moduleAndSystem();
                     method public void noAnnotation();
                     method public void referFromModuleToSystem(test.pkg.SystemClass2);
                     method public void system();
@@ -290,6 +296,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                   public class SystemClass {
                     ctor public SystemClass();
+                    method public void moduleAndSystem();
                     method public void noAnnotation();
                     method public void system();
                   }
@@ -336,6 +343,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                   public class SystemClass {
                     method public void module();
+                    method public void moduleAndSystem();
                     method public void referFromModuleToSystem(test.pkg.SystemClass2);
                   }
                   public static class SystemClass.NestedDefault {
@@ -356,6 +364,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 public void noAnnotation() { throw new RuntimeException("Stub!"); }
                 public void system() { throw new RuntimeException("Stub!"); }
                 public void module() { throw new RuntimeException("Stub!"); }
+                public void moduleAndSystem() { throw new RuntimeException("Stub!"); }
                 public void referFromModuleToSystem(test.pkg.SystemClass2 arg) { throw new RuntimeException("Stub!"); }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class NestedDefault {
@@ -664,12 +673,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 }
                 """,
             apiLint = "",
-            expectedFail = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-                """,
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues = """
-                src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability]
+                src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 """
         )
     }

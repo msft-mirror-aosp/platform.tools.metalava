@@ -474,6 +474,9 @@ class ApiFileTest : DriverTest() {
                         // This property should have no public setter
                         var readOnlyVar = false
                             internal set
+                        // This property should have no public setter
+                        public var readOnlyVarWithPublicModifer = false
+                            internal set
                     }
                     """
                 )
@@ -484,7 +487,9 @@ class ApiFileTest : DriverTest() {
                   public final class MyClass {
                     ctor public MyClass();
                     method public boolean getReadOnlyVar();
+                    method public boolean getReadOnlyVarWithPublicModifer();
                     property public final boolean readOnlyVar;
+                    property public final boolean readOnlyVarWithPublicModifer;
                   }
                 }
                 """
@@ -1598,6 +1603,9 @@ class ApiFileTest : DriverTest() {
         // Real life example: StringBuilder.setLength
         // This is just like the above test, but with compat mode disabled.
         check(
+            expectedIssues = """
+                src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+            """,
             compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
@@ -4262,7 +4270,10 @@ class ApiFileTest : DriverTest() {
                 ),
                 kotlin("""
                     package test.pkg
-                    data class MyDataClass(val constructorProperty: String)
+                    data class MyDataClass(
+                        val constructorProperty: String
+                        internal val internalConstructorProperty: String
+                    )
                 """)
             ),
             api = """
@@ -4277,9 +4288,9 @@ class ApiFileTest : DriverTest() {
                     property public final boolean secondConstructorProperty;
                   }
                   public final class MyDataClass {
-                    ctor public MyDataClass(String constructorProperty);
+                    ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
-                    method public test.pkg.MyDataClass copy(String constructorProperty);
+                    method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
                     method public String getConstructorProperty();
                     property public final String constructorProperty;
                   }
@@ -4464,6 +4475,57 @@ class ApiFileTest : DriverTest() {
                 """,
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "androidx.collection"),
             includeSignatureVersion = true
+        )
+    }
+
+    @Test
+    fun `Test type erasure and dexApi from signature`() {
+        check(
+            signatureSources = arrayOf("""
+                package android.widget {
+
+                  @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
+                    method protected <T extends android.view.View> T findViewTraversal(@IdRes int);
+                    method protected long tryAcquireShared(long);
+                  }
+
+                }
+"""),
+            dexApi = """
+            Landroid/widget/ListView;
+            Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
+            Landroid/widget/ListView;->tryAcquireShared(J)J
+            """
+        )
+    }
+
+    @Test
+    fun `Functional interface in signature`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    fun interface FunctionalInterface {
+                        fun methodOne(number: Int): Boolean
+                    }
+
+                    fun userOfFunctionalInterface(parameter: FunctionalInterface) { }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                  public final class FunctionalInterfaceKt {
+                    method public static void userOfFunctionalInterface(test.pkg.FunctionalInterface parameter);
+                  }
+                }
+            """
         )
     }
 }
