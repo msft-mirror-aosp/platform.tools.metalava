@@ -184,7 +184,7 @@ object Issues {
     val STATIC_UTILS = Issue(Severity.ERROR, Category.API_LINT)
     val CONTEXT_FIRST = Issue(Severity.ERROR, Category.API_LINT)
     val LISTENER_LAST = Issue(Severity.WARNING, Category.API_LINT, "placement-of-sam-parameters")
-    val EXECUTOR_REGISTRATION = Issue(Severity.WARNING, Category.API_LINT)
+    val EXECUTOR_REGISTRATION = Issue(Severity.WARNING, Category.API_LINT, "callbacks-listener")
     val CONFIG_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
     val RESOURCE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
     val RESOURCE_VALUE_FIELD_NAME = Issue(Severity.ERROR, Category.API_LINT)
