@@ -4386,7 +4386,6 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(optional String a, optional String b);
-                    ctor public Foo();
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
                     method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
                     method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
