@@ -2864,43 +2864,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkUnits(method: MethodItem) {
-        /*
-            def verify_units(clazz):
-                """Verifies that we use consistent naming for units."""
-
-                # If we find K, recommend replacing with V
-                bad = {
-                    "Ns": "Nanos",
-                    "Ms": "Millis or Micros",
-                    "Sec": "Seconds", "Secs": "Seconds",
-                    "Hr": "Hours", "Hrs": "Hours",
-                    "Mo": "Months", "Mos": "Months",
-                    "Yr": "Years", "Yrs": "Years",
-                    "Byte": "Bytes", "Space": "Bytes",
-                }
-
-                for m in clazz.methods:
-                    if m.typ not in ["short","int","long"]: continue
-                    for k, v in bad.iteritems():
-                        if m.name.endswith(k):
-                            error(clazz, m, None, "Expected method name units to be " + v)
-                    if m.name.endswith("Nanos") or m.name.endswith("Micros"):
-                        warn(clazz, m, None, "Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision")
-                    if m.name.endswith("Seconds"):
-                        error(clazz, m, None, "Returned time values must be in milliseconds")
-
-                for m in clazz.methods:
-                    typ = m.typ
-                    if typ == "void":
-                        if len(m.args) != 1: continue
-                        typ = m.args[0]
-
-                    if m.name.endswith("Fraction") and typ in ["short, "int", "long"]:
-                        error(clazz, m, None, "Fractions must use floats")
-                    if m.name.endswith("Percentage") and typ in ["float", "double"]:
-                        error(clazz, m, None, "Percentage must use ints")
-
-        */
         val returnType = method.returnType() ?: return
         var type = returnType.toTypeString()
         val name = method.name()
@@ -2911,16 +2874,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 report(
                     METHOD_NAME_UNITS, method,
                     "Expected method name units to be `$value`, was `$badUnit` in `$name`"
-                )
-            } else if (name.endsWith("Nanos") || name.endsWith("Micros")) {
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `$name`"
-                )
-            } else if (name.endsWith("Seconds")) {
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Returned time values must be in milliseconds, was `$name`"
                 )
             }
         } else if (type == "void") {
