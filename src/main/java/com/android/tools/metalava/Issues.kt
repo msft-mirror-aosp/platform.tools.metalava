@@ -195,7 +195,7 @@ object Issues {
     val BANNED_THROW = Issue(Severity.ERROR, Category.API_LINT)
     val EXTENDS_ERROR = Issue(Severity.ERROR, Category.API_LINT)
     val EXCEPTION_NAME = Issue(Severity.ERROR, Category.API_LINT)
-    val METHOD_NAME_UNITS = Issue(Severity.ERROR, Category.API_LINT)
+    val METHOD_NAME_UNITS = Issue(Severity.ERROR, Category.API_LINT, "unit-names")
     val FRACTION_FLOAT = Issue(Severity.ERROR, Category.API_LINT)
     val PERCENTAGE_INT = Issue(Severity.ERROR, Category.API_LINT)
     val NOT_CLOSEABLE = Issue(Severity.WARNING, Category.API_LINT)
