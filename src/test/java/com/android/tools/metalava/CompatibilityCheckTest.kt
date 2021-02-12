@@ -2258,6 +2258,39 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Test check release with base api`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class SomeClass {
+                      method public static void publicMethodA();
+                      method public static void publicMethodB();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class SomeClass {
+                      public static void publicMethodA();
+                    }
+                    """
+                )
+            ),
+            checkCompatibilityBaseApi = """
+                package test.pkg {
+                  public class SomeClass {
+                      method public static void publicMethodB();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Implicit nullness`() {
         check(
             compatibilityMode = false,
