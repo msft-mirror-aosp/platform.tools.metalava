@@ -240,6 +240,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val returnType = method.returnType()
         if (returnType != null) {
             checkType(returnType, method)
+            checkNullableCollections(returnType, method)
         }
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
@@ -259,7 +260,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkNumbers(typeString, item)
         checkCollections(type, item)
         checkCollectionsOverArrays(type, typeString, item)
-        checkNullableCollections(type, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
         checkBitSet(type, typeString, item)
@@ -327,6 +327,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkServices(field)
         checkFieldName(field)
         checkSettingKeys(field)
+        checkNullableCollections(field.type(), field)
     }
 
     private fun checkMethod(
@@ -591,11 +592,17 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             else -> return
         }
         val methodName = method.name()
+
         if (!onCallbackNamePattern.matches(methodName)) {
             report(
                 CALLBACK_METHOD_NAME, method,
                 "$kind method names must follow the on<Something> style: $methodName"
             )
+        }
+
+        for (parameter in method.parameters()) {
+            // We require nonnull collections as parameters to callback methods
+            checkNullableCollections(parameter.type(), parameter)
         }
     }
 
