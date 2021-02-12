@@ -1475,17 +1475,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:6: warning: Type of parameter coll in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Collection`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:7: warning: Type of parameter list in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:8: warning: Type of parameter bundle in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`android.os.Bundle`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:9: warning: Type of parameter persistableBundle in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`android.os.PersistableBundle`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:10: warning: Type of parameter set in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Set`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:11: warning: Type of parameter map in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Map`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:13: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:14: warning: Type of parameter list in android.pkg.MyClass.getList(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:17: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyCallback.java:4: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:8: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:12: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
                 src/android/pkg/MySubClass.java:12: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MySubClass.java:14: warning: Type of parameter list in android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -1495,13 +1488,8 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     public class MyClass {
-                        public MyClass(@Nullable java.util.Collection<String> coll,
-                                @Nullable java.util.List<Object> list,
-                                @Nullable android.os.Bundle bundle,
-                                @Nullable android.os.PersistableBundle persistableBundle,
-                                @Nullable java.util.Set<Integer> set,
-                                @Nullable java.util.Map<String,String> map) {
-                        }
+                        public MyClass() { }
+                        
                         @Nullable
                         public java.util.List<String> getList(@Nullable java.util.List<String> list) {
                             return null;
@@ -1552,6 +1540,16 @@ class ApiLintTest : DriverTest() {
                         public java.util.List<String> getOtherList(@Nullable java.util.List<String> list) {
                             // Reported because the super method is hidden.
                             return null;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public class MyCallback {
+                        public void onFoo(@Nullable java.util.List<String> list) {
                         }
                     }
                     """
