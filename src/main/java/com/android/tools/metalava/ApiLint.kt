@@ -3102,7 +3102,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
          */
 
-        if (!type.isArray() || typeString.endsWith("...")) {
+        if (!type.isArray() || (item is ParameterItem && item.isVarArgs())) {
             return
         }
 
