@@ -2577,6 +2577,10 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                 ),
+                kotlin("""
+                    package test.pkg
+                    fun okMethod(vararg values: Integer, foo: Float, bar: Float)
+                    """),
                 androidxNonNullSource
             )
         )
