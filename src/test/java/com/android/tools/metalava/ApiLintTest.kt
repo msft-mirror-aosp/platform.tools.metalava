@@ -727,16 +727,16 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import java.util.List;import java.util.concurrent.CompletableFuture;import java.util.concurrent.Future;
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
 
                     public final class MyClass {
-                        public @Nullable java.net.URL bad1() { return null; }
-                        public void bad2(@Nullable List<java.net.URI> param) { }
-                        public void bad3(@Nullable android.net.URL param) { }
+                        public @NonNull java.net.URL bad1() { throw new RuntimeException(); }
+                        public void bad2(@NonNull List<java.net.URI> param) { }
+                        public void bad3(@NonNull android.net.URL param) { }
                     }
                     """
                 ),
-                androidxNullableSource
+                androidxNonNullSource
             )
         )
     }
@@ -1451,15 +1451,105 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
+                    import androidx.annotation.NonNull;
+
+                    public class MyClass {
+                        public MyClass(@NonNull java.util.HashMap<String,String> map1,
+                                @NonNull java.util.Map<String,String> map2) {
+                        }
+                        @NonNull
+                        public java.util.Vector<String> getList(@NonNull java.util.LinkedList<String> list) {
+                            throw new RuntimeException();
+                        }
+                    }
+                    """
+                ),
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Check nullable collections`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            expectedIssues = """
+                src/android/pkg/MyCallback.java:4: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:8: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:12: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MySubClass.java:12: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
                     import androidx.annotation.Nullable;
 
                     public class MyClass {
-                        public MyClass(@Nullable java.util.HashMap<String,String> map1,
-                                @Nullable java.util.Map<String,String> map2) {
+                        public MyClass() { }
+                        
+                        @Nullable
+                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
+                            return null;
                         }
                         @Nullable
-                        public java.util.Vector<String> getList(@Nullable  java.util.LinkedList<String> list) {
+                        public static final String[] STRINGS = null;
+
+                        /** @deprecated don't use this. */
+                        @Deprecated
+                        @Nullable
+                        public String[] ignoredBecauseDeprecated(@Nullable String[] ignored) {
                             return null;
+                        }
+
+                        protected MyClass() {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+
+                    /** @hide */
+                    public interface MyHiddenInterface {
+                        @Nullable
+                        java.util.List<String> getOtherList(@Nullable java.util.List<String> list);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+
+                    public class MySubClass extends MyClass implements MyHiddenInterface {
+                        @Nullable
+                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
+                            // Ignored because it has the same nullability as its super method
+                            return null;
+                        }
+
+                        @Override
+                        @Nullable
+                        public java.util.List<String> getOtherList(@Nullable java.util.List<String> list) {
+                            // Reported because the super method is hidden.
+                            return null;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public class MyCallback {
+                        public void onFoo(@Nullable java.util.List<String> list) {
                         }
                     }
                     """
@@ -1868,8 +1958,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration]
-                src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration]
+                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration] [See https://s.android.com/api-guidelines#callbacks-listener]
+                src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration] [See https://s.android.com/api-guidelines#callbacks-listener]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2137,17 +2227,14 @@ class ApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "NoByteOrShort"),
             compatibilityMode = false,
             expectedIssues = """
-                    src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:8: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:9: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:10: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorNanos` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:11: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorMicros` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:12: error: Returned time values must be in milliseconds, was `getErrorSeconds` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:18: error: Fractions must use floats, was `int` in `getErrorFraction` [FractionFloat]
-                    src/android/pkg/UnitNameTest.java:19: error: Fractions must use floats, was `int` in `setErrorFraction` [FractionFloat]
-                    src/android/pkg/UnitNameTest.java:23: error: Percentage must use ints, was `float` in `getErrorPercentage` [PercentageInt]
-                    src/android/pkg/UnitNameTest.java:24: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
-                    src/android/pkg/UnitNameTest.java:26: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
+                src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
+                src/android/pkg/UnitNameTest.java:8: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
+                src/android/pkg/UnitNameTest.java:9: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
+                src/android/pkg/UnitNameTest.java:14: error: Fractions must use floats, was `int` in `getErrorFraction` [FractionFloat]
+                src/android/pkg/UnitNameTest.java:15: error: Fractions must use floats, was `int` in `setErrorFraction` [FractionFloat]
+                src/android/pkg/UnitNameTest.java:19: error: Percentage must use ints, was `float` in `getErrorPercentage` [PercentageInt]
+                src/android/pkg/UnitNameTest.java:20: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
+                src/android/pkg/UnitNameTest.java:22: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -2163,10 +2250,6 @@ class ApiLintTest : DriverTest() {
                         public int getErrorHr() { return 0; }
                         public int getErrorNs() { return 0; }
                         public short getErrorByte() { return (short)0; }
-                        public int getErrorNanos() { return 0; }
-                        public long getErrorMicros() { return 0L; }
-                        public long getErrorSeconds() { return 0L; }
-                        public float getErrorSeconds() { return 0; }
 
                         public float getOkFraction() { return 0f; }
                         public void setOkFraction(float f) { }
@@ -2479,22 +2562,26 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
 
                     public class ArrayTest {
-                        @Nullable
-                        public int[] ok1() { return null; }
-                        @Nullable
-                        public String[] ok2() { return null; }
+                        @NonNull
+                        public int[] ok1() { throw new RuntimeException(); }
+                        @NonNull
+                        public String[] ok2() { throw new RuntimeException(); }
                         public void ok3(@Nullable int[] i) { }
-                        @Nullable
-                        public Object[] error1() { return null; }
-                        public void error2(@Nullable Number[] i) { }
-                        public void ok(@Nullable Number... args) { }
+                        @NonNull
+                        public Object[] error1() { throw new RuntimeException(); }
+                        public void error2(@NonNull Number[] i) { }
+                        public void ok(@NonNull Number... args) { }
                     }
                     """
                 ),
-                androidxNullableSource
+                kotlin("""
+                    package test.pkg
+                    fun okMethod(vararg values: Integer, foo: Float, bar: Float)
+                    """),
+                androidxNonNullSource
             )
         )
     }

@@ -102,6 +102,7 @@ import com.android.tools.metalava.Issues.NOT_CLOSEABLE
 import com.android.tools.metalava.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.Issues.NO_CLONE
 import com.android.tools.metalava.Issues.NO_SETTINGS_PROVIDER
+import com.android.tools.metalava.Issues.NULLABLE_COLLECTION
 import com.android.tools.metalava.Issues.ON_NAME_EXPECTED
 import com.android.tools.metalava.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
 import com.android.tools.metalava.Issues.OVERLAPPING_CONSTANTS
@@ -185,6 +186,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
+        if (item is ParameterItem && item.containingMethod().deprecated) {
+            return
+        }
+
         // With show annotations we might be flagging API that is filtered out: hide these here
         val testItem = if (item is ParameterItem) item.containingMethod() else item
         if (!filterEmit.test(testItem)) {
@@ -235,6 +240,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val returnType = method.returnType()
         if (returnType != null) {
             checkType(returnType, method)
+            checkNullableCollections(returnType, method)
         }
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
@@ -321,6 +327,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkServices(field)
         checkFieldName(field)
         checkSettingKeys(field)
+        checkNullableCollections(field.type(), field)
     }
 
     private fun checkMethod(
@@ -585,11 +592,17 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             else -> return
         }
         val methodName = method.name()
+
         if (!onCallbackNamePattern.matches(methodName)) {
             report(
                 CALLBACK_METHOD_NAME, method,
                 "$kind method names must follow the on<Something> style: $methodName"
             )
+        }
+
+        for (parameter in method.parameters()) {
+            // We require nonnull collections as parameters to callback methods
+            checkNullableCollections(parameter.type(), parameter)
         }
     }
 
@@ -1760,6 +1773,42 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
+    private fun checkNullableCollections(type: TypeItem, item: Item) {
+        if (type.primitive) return
+        if (!item.modifiers.isNullable()) return
+        val typeAsClass = type.asClass() ?: return
+
+        val superItem: Item? = when (item) {
+            is MethodItem -> item.findPredicateSuperMethod(filterReference)
+            is ParameterItem -> item.containingMethod().findPredicateSuperMethod(filterReference)
+                    ?.parameters()?.find { it.parameterIndex == item.parameterIndex }
+            else -> null
+        }
+
+        if (superItem?.modifiers?.isNullable() == true) {
+            return
+        }
+
+        if (type.isArray() ||
+                typeAsClass.extendsOrImplements("java.util.Collection") ||
+                typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
+                typeAsClass.extendsOrImplements("java.util.Map") ||
+                typeAsClass.extendsOrImplements("kotlin.collections.Map") ||
+                typeAsClass.qualifiedName() == "android.os.Bundle" ||
+                typeAsClass.qualifiedName() == "android.os.PersistableBundle") {
+            val where = when (item) {
+                is MethodItem -> "Return type of ${item.describe()}"
+                else -> "Type of ${item.describe()}"
+            }
+
+            val erased = type.toErasedTypeString(item)
+            report(
+                    NULLABLE_COLLECTION, item,
+                    "$where is a nullable collection (`$erased`); must be non-null"
+            )
+        }
+    }
+
     private fun checkFlags(fields: Sequence<FieldItem>) {
         /*
             def verify_flags(clazz):
@@ -2822,43 +2871,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkUnits(method: MethodItem) {
-        /*
-            def verify_units(clazz):
-                """Verifies that we use consistent naming for units."""
-
-                # If we find K, recommend replacing with V
-                bad = {
-                    "Ns": "Nanos",
-                    "Ms": "Millis or Micros",
-                    "Sec": "Seconds", "Secs": "Seconds",
-                    "Hr": "Hours", "Hrs": "Hours",
-                    "Mo": "Months", "Mos": "Months",
-                    "Yr": "Years", "Yrs": "Years",
-                    "Byte": "Bytes", "Space": "Bytes",
-                }
-
-                for m in clazz.methods:
-                    if m.typ not in ["short","int","long"]: continue
-                    for k, v in bad.iteritems():
-                        if m.name.endswith(k):
-                            error(clazz, m, None, "Expected method name units to be " + v)
-                    if m.name.endswith("Nanos") or m.name.endswith("Micros"):
-                        warn(clazz, m, None, "Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision")
-                    if m.name.endswith("Seconds"):
-                        error(clazz, m, None, "Returned time values must be in milliseconds")
-
-                for m in clazz.methods:
-                    typ = m.typ
-                    if typ == "void":
-                        if len(m.args) != 1: continue
-                        typ = m.args[0]
-
-                    if m.name.endswith("Fraction") and typ in ["short, "int", "long"]:
-                        error(clazz, m, None, "Fractions must use floats")
-                    if m.name.endswith("Percentage") and typ in ["float", "double"]:
-                        error(clazz, m, None, "Percentage must use ints")
-
-        */
         val returnType = method.returnType() ?: return
         var type = returnType.toTypeString()
         val name = method.name()
@@ -2869,16 +2881,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 report(
                     METHOD_NAME_UNITS, method,
                     "Expected method name units to be `$value`, was `$badUnit` in `$name`"
-                )
-            } else if (name.endsWith("Nanos") || name.endsWith("Micros")) {
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `$name`"
-                )
-            } else if (name.endsWith("Seconds")) {
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Returned time values must be in milliseconds, was `$name`"
                 )
             }
         } else if (type == "void") {
@@ -3100,7 +3102,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
          */
 
-        if (!type.isArray() || typeString.endsWith("...")) {
+        if (!type.isArray() || (item is ParameterItem && item.isVarArgs())) {
             return
         }
 
