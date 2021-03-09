@@ -256,6 +256,8 @@ abstract class DriverTest {
          * [NO_STUB] as a marker for source files that are not expected to generate stubs */
         @Language("JAVA")
         stubs: Array<String> = emptyArray(),
+        /** Expected stubs (corresponds to --stubs) */
+        stubFiles: Array<TestFile> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
         /** Doc Stub source file list generated */
@@ -936,7 +938,7 @@ abstract class DriverTest {
         }
 
         var stubsDir: File? = null
-        val stubsArgs = if (stubs.isNotEmpty()) {
+        val stubsArgs = if (stubs.isNotEmpty() || stubFiles.isNotEmpty()) {
             stubsDir = temporaryFolder.newFolder("stubs")
             if (docStubs) {
                 arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1372,6 +1374,7 @@ abstract class DriverTest {
         }
 
         if (stubs.isNotEmpty() && stubsDir != null) {
+            val kotlinStubs = ARG_KOTLIN_STUBS in extraArguments
             for (i in stubs.indices) {
                 var stub = stubs[i].trimIndent()
 
@@ -1386,7 +1389,7 @@ abstract class DriverTest {
                     }
                 } else {
                     val sourceFile = sourceFiles[i]
-                    targetPath = if (sourceFile.targetPath.endsWith(DOT_KT)) {
+                    targetPath = if (!kotlinStubs && sourceFile.targetPath.endsWith(DOT_KT)) {
                         // Kotlin source stubs are rewritten as .java files for now
                         sourceFile.targetPath.substring(0, sourceFile.targetPath.length - 3) + DOT_JAVA
                     } else {
@@ -1421,6 +1424,20 @@ abstract class DriverTest {
                     throw FileNotFoundException(
                         "Could not find generated stub for $targetPath; consider " +
                             "setting target relative path in stub header as prefix surrounded by []"
+                    )
+                }
+            }
+        }
+
+        if (stubFiles.isNotEmpty()) {
+            for (expected in stubFiles) {
+                val actual = File(stubsDir!!, expected.targetRelativePath)
+                if (actual.exists()) {
+                    val actualContents = readFile(actual, stripBlankLines, trim)
+                    assertEquals(expected.contents, actualContents)
+                } else {
+                    throw FileNotFoundException(
+                        "Could not find a generated stub for ${expected.targetRelativePath}"
                     )
                 }
             }
