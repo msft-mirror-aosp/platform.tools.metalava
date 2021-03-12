@@ -282,7 +282,7 @@ interface AnnotationItem {
                 "android.support.annotation.LongDef",
                 "android.annotation.LongDef" -> return "androidx.annotation.LongDef"
 
-                //Context Types
+                // Context Types
                 "android.annotation.UiContext" -> return "androidx.annotation.UiContext"
                 "android.annotation.DisplayContext" -> return "androidx.annotation.DisplayContext"
                 "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
