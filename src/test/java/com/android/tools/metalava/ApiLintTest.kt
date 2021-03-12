@@ -1202,6 +1202,24 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
+                    public class SubOk extends Ok {
+
+                        public static final class Builder {
+                            public Builder() {}
+
+                            @NonNull
+                            public SubOk build() { return null; }
+
+                            @NonNull
+                            public Builder setInt(int value) { return this; }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
                     import androidx.annotation.NonNull;
                     import androidx.annotation.Nullable;
 
