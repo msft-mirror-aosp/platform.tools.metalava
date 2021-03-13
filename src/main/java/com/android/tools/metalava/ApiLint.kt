@@ -1447,7 +1447,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             )
         }
         builtType?.asClass()?.let { builtClass ->
-            val builtMethods = builtClass.filteredMethods(filterReference).map { it.name() }.toSet()
+            val builtMethods = builtClass.filteredMethods(filterReference, includeSuperClassMethods = true).map { it.name() }.toSet()
             for ((setter, expectedGetterNames) in expectedGetters) {
                 if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
                     val expectedGetterCalls = expectedGetterNames.map { "$it()" }
