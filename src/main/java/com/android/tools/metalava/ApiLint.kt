@@ -697,6 +697,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         if (!(name.contains("_ACTION") || name.contains("ACTION_") || value.contains(".action."))) {
             return
         }
+        val className = field.containingClass().qualifiedName()
+        when (className) {
+            "android.Manifest.permission" -> return
+        }
         if (!name.startsWith("ACTION_")) {
             report(
                 INTENT_NAME, field,
@@ -704,7 +708,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             )
             return
         }
-        val prefix = when (field.containingClass().qualifiedName()) {
+        val prefix = when (className) {
             "android.content.Intent" -> "android.intent.action"
             "android.provider.Settings" -> "android.settings"
             "android.app.admin.DevicePolicyManager", "android.app.admin.DeviceAdminReceiver" -> "android.app.action"
