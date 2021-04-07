@@ -169,7 +169,12 @@ class AnnotationsMergerTest : DriverTest() {
                     method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
                   }
                 }
-                """
+                """,
+            expectedIssues = """
+                TESTROOT/merged-annotations.txt:4: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
+                TESTROOT/merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
+                TESTROOT/merged-annotations.txt:7: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
+            """
         )
     }
 
