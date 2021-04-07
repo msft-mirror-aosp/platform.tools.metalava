@@ -480,4 +480,97 @@ class AnnotationsMergerTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Merge inclusion annotations on api in java namespace`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    "src/java/net/Example.java",
+                    """
+                    package java.net;
+
+                    public class Example {
+                        public void aNotAnnotated() { }
+                        public void bShown() { }
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
+            extraArguments = arrayOf(
+                ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
+            ),
+            mergeInclusionAnnotations = """
+                package java.net;
+
+                public class Example {
+                    void aNotAnnotated();
+                    @test.annotation.Show void bShown();
+                }
+                """,
+            api = """
+                package java.net {
+                  public class Example {
+                    method public void bShown();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Redefining java lang object plus using some internal classes`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package java.util;
+                    public class HashMap {
+                        static class Node {
+                        }
+                        static class TreeNode extends LinkedHashMap.LinkedHashMapEntry {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package java.util;
+
+                    public class LinkedHashMap<K,V>
+                        extends HashMap<K,V>
+                        implements Map<K,V>
+                    {
+                        static class LinkedHashMapEntry<K,V> extends HashMap.Node<K,V> {
+                        }
+                    }
+
+                    """
+                ),
+                java(
+                    """
+                    package java.lang;
+
+                    public class Object {
+                        protected void finalize() throws Throwable { }
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"
+            ),
+            mergeInclusionAnnotations = """
+                package java.util;
+
+                public class LinkedHashMap extends java.util.HashMap {
+                }
+                """,
+            api = "" // This test is checking that it doesn't crash
+        )
+    }
 }
