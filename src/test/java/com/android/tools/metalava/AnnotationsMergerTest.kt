@@ -578,4 +578,52 @@ class AnnotationsMergerTest : DriverTest() {
             api = "" // This test is checking that it doesn't crash
         )
     }
+
+    @Test
+    fun `Merge nullability into child`() {
+        // This is a contrived test that verifies that even if Child no longer directly declares
+        // method1, the inherited method1 is still found
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Child extends Parent {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class Parent {
+                        public void method1(String arg) {
+                        }
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            mergeJavaStubAnnotations = """
+                package test.pkg;
+
+                public class Child {
+                    public void method1(@Nullable String arg) {
+                    }
+                }
+                """,
+            api = """
+                package test.pkg {
+                  public class Child extends test.pkg.Parent {
+                    ctor public Child();
+                  }
+                  public class Parent {
+                    ctor public Parent();
+                    method public void method1(String);
+                  }
+                }
+                """,
+            expectedIssues = "" // should not report that Child.method1 is undefined
+        )
+    }
 }
