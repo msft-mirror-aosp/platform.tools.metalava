@@ -696,6 +696,11 @@ class CompatibilityCheck(
             return
         }
 
+        if (!filterReference.test(item)) {
+            // This item is something we weren't asked to verify
+            return
+        }
+
         var message = "Added ${describe(item)}"
 
         // Clarify error message for removed API to make it less ambiguous
@@ -908,7 +913,10 @@ class CompatibilityCheck(
             apiType: ApiType,
             base: Codebase? = null
         ) {
-            val filter = apiType.getEmitFilter()
+            val filter = apiType.getReferenceFilter()
+                .or(apiType.getEmitFilter())
+                .or(ApiType.PUBLIC_API.getReferenceFilter())
+                .or(ApiType.PUBLIC_API.getEmitFilter())
             val checker = CompatibilityCheck(filter, previous, apiType, base, getReporterForReleaseType(releaseType))
             val issueConfiguration = releaseType.getIssueConfiguration()
             val previousConfiguration = configuration
