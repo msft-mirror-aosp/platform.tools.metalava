@@ -3003,12 +3003,9 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            // Note, src/android/pkg/FontFamily.kt:1 warning should not be there, it is a bug in PSI
-            // https://youtrack.jetbrains.com/issue/KT-32556
             expectedIssues = """
                 src/android/pkg/A.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/Bar.kt:4: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
-                src/android/pkg/FontFamily.kt:1: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/Foo.java:7: info: Method can be invoked as a binary operator from Kotlin: `div` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 """,
             sourceFiles = arrayOf(
