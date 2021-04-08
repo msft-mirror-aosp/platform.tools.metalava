@@ -262,7 +262,7 @@ class CodebaseComparator {
         // Alternatively, it may have always truly been an inherited method, but if the base
         // class was hidden then the signature file may have listed the method as being
         // declared on the subclass
-        val inherited =
+        val inheritedMethod =
             if (old is MethodItem && !old.isConstructor() && newParent is ClassItem) {
                 val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
 
@@ -275,16 +275,38 @@ class CodebaseComparator {
                 null
             }
 
-        if (inherited != null) {
-            visitCompare(visitor, old, inherited)
+        if (inheritedMethod != null) {
+            visitCompare(visitor, old, inheritedMethod)
             // Compare the children (recurse)
-            if (inherited.parameters().isNotEmpty()) {
-                val parameters = inherited.parameters().map { ItemTree(it) }.toList()
-                compare(visitor, oldTree.children, parameters, oldTree.item(), inherited, filter)
+            if (inheritedMethod.parameters().isNotEmpty()) {
+                val parameters = inheritedMethod.parameters().map { ItemTree(it) }.toList()
+                compare(visitor, oldTree.children, parameters, oldTree.item(), inheritedMethod, filter)
             }
-        } else {
-            visitRemoved(visitor, old, newParent)
+            return
         }
+
+        // fields may also be moved to superclasses like methods may
+        val inheritedField =
+            if (old is FieldItem && newParent is ClassItem) {
+                val superField = newParent.findField(
+                    fieldName = old.name(),
+                    includeSuperClasses = true,
+                    includeInterfaces = true)
+
+                if (superField != null && (filter == null || filter.test(superField))) {
+                    superField.duplicate(newParent)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+
+        if (inheritedField != null) {
+            visitCompare(visitor, old, inheritedField)
+            return
+        }
+        visitRemoved(visitor, old, newParent)
     }
 
     @Suppress("USELESS_CAST") // Overloaded visitor methods: be explicit about which one is being invoked
