@@ -446,7 +446,8 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                     package test.pkg
-                    suspend inline fun hello() { }
+                    suspend inline fun hello(foo: Int) { }
+                    suspend fun helloTwoContinuations(myContinuation: kotlin.coroutines.Continuation<Any>) { }
                     internal suspend fun internalHello() { }
                     private suspend fun privateHello() { }
                     """
@@ -455,7 +456,8 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method @Nullable public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> ${'$'}completion);
+                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """
