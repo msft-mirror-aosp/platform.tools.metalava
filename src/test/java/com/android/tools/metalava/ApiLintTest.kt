@@ -3445,4 +3445,23 @@ class ApiLintTest : DriverTest() {
             extraArguments = arrayOf("--error", "NoSettingsProvider")
         )
     }
+
+    @Test
+    fun `No warnings about nullability on private constructor getters`() {
+        check(
+            compatibilityMode = false,
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class MyClass private constructor(
+                            val myParameter: Set<Int>
+                        )
+                    """
+                )
+            )
+        )
+    }
 }
