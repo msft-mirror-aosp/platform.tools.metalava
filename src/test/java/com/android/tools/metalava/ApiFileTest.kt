@@ -4350,7 +4350,7 @@ class ApiFileTest : DriverTest() {
                 kotlin("""
                     package test.pkg
                     data class MyDataClass(
-                        val constructorProperty: String
+                        val constructorProperty: String,
                         internal val internalConstructorProperty: String
                     )
                 """)
