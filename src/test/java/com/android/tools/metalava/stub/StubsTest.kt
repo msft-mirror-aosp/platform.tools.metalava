@@ -26,6 +26,7 @@ import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
+import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
@@ -2050,6 +2051,52 @@ class StubsTest : DriverTest() {
                 public java.lang.String anotherTestMethod() { throw new RuntimeException("Stub!"); }
                 }
                  """
+        )
+    }
+
+    @Test
+    fun `Skip RequiresApi annotation`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"
+            ),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package my.pkg;
+                    public class MyClass {
+                        @androidx.annotation.RequiresApi(21)
+                        public void testMethod() {}
+                    }
+                    """
+                ),
+                requiresApiSource
+            ),
+            expectedIssues = "",
+            api = """
+                    package androidx.annotation {
+                      public abstract class RequiresApi implements java.lang.annotation.Annotation {
+                      }
+                    }
+                    package my.pkg {
+                      public class MyClass {
+                        ctor public MyClass();
+                        method public void testMethod();
+                      }
+                    }
+                    """,
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package my.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyClass {
+                    public MyClass() { throw new RuntimeException("Stub!"); }
+                    public void testMethod() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
+            )
         )
     }
 
