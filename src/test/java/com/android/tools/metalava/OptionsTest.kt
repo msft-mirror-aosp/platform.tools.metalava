@@ -227,7 +227,7 @@ Generating Stubs:
                                              code will be written in Kotlin rather than the Java programming language.
 --include-annotations
                                              Include annotations such as @Nullable in the stub files.
---exclude-annotations
+--exclude-all-annotations
                                              Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that

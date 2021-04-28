@@ -21,7 +21,7 @@ package com.android.tools.metalava.stub
 import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CHECK_API
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATIONS
+import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
@@ -3486,9 +3486,9 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Ensure we emit both deprecated javadoc and annotation with exclude-annotations`() {
+    fun `Ensure we emit both deprecated javadoc and annotation with exclude-all-annotations`() {
         check(
-            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
+            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
@@ -3528,7 +3528,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Ensure we emit runtime and deprecated annotations in stubs with exclude-annotations`() {
         check(
-            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
+            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
@@ -3845,7 +3845,7 @@ class StubsTest : DriverTest() {
         check(
             extraArguments = arrayOf(
                 ARG_UPDATE_API,
-                ARG_EXCLUDE_ANNOTATIONS
+                ARG_EXCLUDE_ALL_ANNOTATIONS
             ),
             compatibilityMode = false,
             sourceFiles = arrayOf(
@@ -3886,7 +3886,7 @@ class StubsTest : DriverTest() {
         check(
             extraArguments = arrayOf(
                 ARG_CHECK_API,
-                ARG_EXCLUDE_ANNOTATIONS
+                ARG_EXCLUDE_ALL_ANNOTATIONS
             ),
             compatibilityMode = false,
             sourceFiles = arrayOf(
