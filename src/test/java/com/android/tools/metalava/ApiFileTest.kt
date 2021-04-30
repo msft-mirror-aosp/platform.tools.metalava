@@ -1708,7 +1708,7 @@ class ApiFileTest : DriverTest() {
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
         // it should show up in the stubs file.).
         check(
-            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
+            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             sourceFiles = arrayOf(
                 java(
                     """
