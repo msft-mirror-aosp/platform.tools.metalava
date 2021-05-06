@@ -92,7 +92,16 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }
 
-tasks.withType(Test::class.java) {
+val zipTask: TaskProvider<Zip> = project.tasks.register(
+    "zipResultsOf${name.capitalize()}",
+    Zip::class.java
+) {
+    destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
+    archiveFileName.set("metalava-tests.zip")
+}
+
+val testTask = tasks.named("test", Test::class.java)
+testTask.configure {
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
         TestLogEvent.PASSED,
@@ -100,17 +109,11 @@ tasks.withType(Test::class.java) {
         TestLogEvent.STANDARD_OUT,
         TestLogEvent.STANDARD_ERROR
     )
-    val zipTask = project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
-        destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
-        archiveFileName.set("metalava-tests.zip")
-    }
     if (isBuildingOnServer()) ignoreFailures = true
     finalizedBy(zipTask)
-    doFirst {
-        zipTask.configure {
-            from(reports.junitXml.destination)
-        }
-    }
+}
+zipTask.configure {
+    from(testTask.map { it.reports.junitXml.outputLocation.get() })
 }
 
 fun getMetalavaVersion(): Any {
@@ -227,13 +230,16 @@ publishing {
 
 // Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    val outDirProvider = project.providers.environmentVariable("DIST_DIR")
+    inputs.property("buildOutputDirectory", outDirProvider).optional(true)
     doLast {
         val metadata = outputFile.asFile.get()
         val text = metadata.readText()
+        val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
         metadata.writeText(
             text.replace(
                 "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${getBuildId()}\"")
+                "\"buildId:\": \"${buildId}\"")
         )
     }
 }
