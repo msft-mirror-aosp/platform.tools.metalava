@@ -3302,16 +3302,7 @@ CompatibilityCheckTest : DriverTest() {
             }
             println("Checking compatibility from API level ${apiLevel - 1} to $apiLevel...")
             val current = getAndroidJar(apiLevel)
-            if (current == null) {
-                println("Couldn't find $current: Check that pwd for test is correct. Skipping this test.")
-                return
-            }
-
             val previous = getAndroidJar(apiLevel - 1)
-            if (previous == null) {
-                println("Couldn't find $previous: Check that pwd for test is correct. Skipping this test.")
-                return
-            }
             val previousApi = previous.path
 
             // PSI based check

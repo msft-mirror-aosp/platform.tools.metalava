@@ -808,7 +808,7 @@ class PsiTypePrinterTest : DriverTest() {
                 classPath.add(file)
             }
         }
-        classPath.add(getPlatformFile("android.jar"))
+        classPath.add(getAndroidJar())
 
         // TestDriver#check normally sets this for all the other tests
         compatibility = Compatibility(false)

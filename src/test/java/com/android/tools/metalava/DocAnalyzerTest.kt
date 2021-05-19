@@ -2006,11 +2006,7 @@ class DocAnalyzerTest : DriverTest() {
             println("Ignoring external doc test: javadoc not found *or* not running on Linux/OSX")
             return
         }
-        val androidJar = getAndroidJar(API_LEVEL)?.path
-        if (androidJar == null) {
-            println("Ignoring external doc test: android.jar not found")
-            return
-        }
+        val androidJar = getAndroidJar().path
 
         val dir = Files.createTempDirectory(null).toFile()
         val html = "$dir/javadoc"
