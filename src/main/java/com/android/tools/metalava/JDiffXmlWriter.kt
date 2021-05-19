@@ -198,7 +198,7 @@ class JDiffXmlWriter(
         val initialValue = field.initialValue(true)
         val value = if (initialValue != null) {
             if (initialValue is Char && compatibility.xmlCharAsInt) {
-                initialValue.toInt().toString()
+                initialValue.code.toString()
             } else {
                 escapeAttributeValue(CodePrinter.constantToSource(initialValue))
             }
