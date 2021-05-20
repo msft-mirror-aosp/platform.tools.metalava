@@ -499,7 +499,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         val name = field.name()
         if (!constantNamePattern.matches(name)) {
-            val suggested = SdkVersionInfo.camelCaseToUnderlines(name).toUpperCase(Locale.US)
+            val suggested = SdkVersionInfo.camelCaseToUnderlines(name).uppercase(Locale.US)
             report(
                 ALL_UPPER, field,
                 "Constant field names must be named with only upper case characters: `$qualified#$name`, should be `$suggested`?"
@@ -1458,7 +1458,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     val errorString = if (expectedGetterCalls.size == 1) {
                         "${builtClass.qualifiedName()} does not declare a " +
                                 "`${expectedGetterCalls.first()}` method matching " +
-                                "${setter.describe()}"
+                            setter.describe()
                     } else {
                         "${builtClass.qualifiedName()} does not declare a getter method " +
                                 "matching ${setter.describe()} (expected one of: " +
@@ -3290,7 +3290,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     "`${name.removeSuffix("_MANAGER_SERVICE")}_SERVICE`, was `$name`"
             )
         } else if (endsWithService) {
-            val service = name.substring(0, name.length - "_SERVICE".length).toLowerCase(Locale.US)
+            val service = name.substring(0, name.length - "_SERVICE".length).lowercase(Locale.US)
             if (service != value) {
                 report(
                     SERVICE_NAME, field,
@@ -3301,7 +3301,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 )
             }
         } else {
-            val valueUpper = value.toUpperCase(Locale.US)
+            val valueUpper = value.uppercase(Locale.US)
             report(
                 SERVICE_NAME, field, "Inconsistent service constant name;" +
                     " expected `${valueUpper}_SERVICE`, was `$name`"
@@ -3749,7 +3749,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             if (s.none { it.isLowerCase() }) {
                 // The entire thing is capitalized. If so, just perform
                 // normal capitalization, but try dropping _'s.
-                return SdkVersionInfo.underlinesToCamelCase(s.toLowerCase(Locale.US)).capitalize()
+                return SdkVersionInfo.underlinesToCamelCase(s.lowercase(Locale.US))
+                    .replaceFirstChar {
+                        if (it.isLowerCase()) {
+                            it.titlecase(Locale.getDefault())
+                        } else {
+                            it.toString()
+                        }
+                    }
             }
 
             while (true) {
@@ -3762,13 +3769,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 // next word so capitalize it
                 s = if (index == s.length - acronym.length) {
                     // acronym at the end of the word word
-                    val decapitalized = acronym[0] + acronym.substring(1).toLowerCase(Locale.US)
+                    val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
                     s.replace(acronym, decapitalized)
                 } else {
                     val replacement = acronym[0] + acronym.substring(
-                        1,
-                        acronym.length - 1
-                    ).toLowerCase(Locale.US) + acronym[acronym.length - 1]
+                                        1,
+                                        acronym.length - 1
+                                    ).lowercase(Locale.US) + acronym[acronym.length - 1]
                     s.replace(acronym, replacement)
                 }
             }

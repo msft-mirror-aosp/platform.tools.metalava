@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.visitors.ItemVisitor
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.Locale
 import java.util.function.Predicate
 
 /**
@@ -1274,5 +1275,15 @@ class ApiAnalyzer(
             }
         }
         return null
+    }
+}
+
+private fun String.capitalize(): String {
+    return this.replaceFirstChar {
+        if (it.isLowerCase()) {
+            it.titlecase(Locale.getDefault())
+        } else {
+            it.toString()
+        }
     }
 }
