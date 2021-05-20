@@ -559,7 +559,8 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiClassReferenceType
             Canonical: java.util.Collection<? extends T>
             Annotated: java.util.Collection<? extends @Nullable T>
-            Printed: java.util.Collection<? extends T?>!
+            Merged: [@Nullable]
+            Printed: java.util.Collection<? extends T?>?
 
             Type: PsiWildcardType
             Canonical: ? extends T
