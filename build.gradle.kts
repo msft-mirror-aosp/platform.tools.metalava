@@ -102,6 +102,7 @@ val zipTask: TaskProvider<Zip> = project.tasks.register(
 
 val testTask = tasks.named("test", Test::class.java)
 testTask.configure {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
         TestLogEvent.PASSED,
