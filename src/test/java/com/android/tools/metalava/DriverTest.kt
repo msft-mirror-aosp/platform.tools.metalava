@@ -36,7 +36,6 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.text.ApiFile
-import com.android.utils.FileUtils
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
 import com.google.common.io.ByteStreams
@@ -488,7 +487,7 @@ abstract class DriverTest {
         }
 
         // Unit test which checks that a signature file is as expected
-        val androidJar = getPlatformFile("android.jar")
+        val androidJar = getAndroidJar()
 
         val project = createProject(*sourceFiles)
 
@@ -1504,39 +1503,26 @@ abstract class DriverTest {
     }
 
     companion object {
-        const val API_LEVEL = 27
+        private const val API_LEVEL = 30
 
-        private val latestAndroidPlatform: String
-            get() = "android-$API_LEVEL"
+        private fun getAndroidJarFromEnv(apiLevel: Int): File {
+            val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
+                ?: error("Expected ANDROID_SDK_ROOT to be set")
+            val jar = File(sdkRoot, "platforms/android-$apiLevel/android.jar")
+            if (!jar.exists()) {
+                error("Missing ${jar.absolutePath} file in the SDK")
+            }
+            return jar
+        }
 
-        private val sdk: File
-            get() = File(
-                System.getenv("ANDROID_HOME")
-                    ?: error("You must set \$ANDROID_HOME before running tests")
-            )
-
-        fun getAndroidJar(apiLevel: Int): File? {
+        fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
             val localFile = File("../../prebuilts/sdk/$apiLevel/public/android.jar")
             if (localFile.exists()) {
                 return localFile
             } else {
                 val androidJar = File("../../prebuilts/sdk/$apiLevel/android.jar")
-                if (androidJar.exists()) {
-                    return androidJar
-                }
-            }
-            return null
-        }
-
-        fun getPlatformFile(path: String): File {
-            return getAndroidJar(API_LEVEL) ?: run {
-                val file = FileUtils.join(sdk, SdkConstants.FD_PLATFORMS, latestAndroidPlatform, path)
-                if (!file.exists()) {
-                    throw IllegalArgumentException(
-                        "File \"$path\" not found in platform $latestAndroidPlatform"
-                    )
-                }
-                file
+                if (androidJar.exists()) return androidJar
+                return getAndroidJarFromEnv(apiLevel)
             }
         }
 
