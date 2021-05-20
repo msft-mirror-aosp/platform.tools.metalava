@@ -1363,7 +1363,7 @@ class Options(
 
                 "-encoding" -> {
                     val value = getValue(args, ++index)
-                    if (value.toUpperCase() != "UTF-8") {
+                    if (value.uppercase(Locale.getDefault()) != "UTF-8") {
                         throw DriverException("$value: Only UTF-8 encoding is supported")
                     }
                 }
@@ -1832,7 +1832,8 @@ class Options(
             .substring(0, if (index != -1) index else arg.length)
             .removePrefix("--")
             .replace('-', '_')
-        val propertyName = SdkVersionInfo.underlinesToCamelCase(name).decapitalize()
+        val propertyName = SdkVersionInfo.underlinesToCamelCase(name)
+            .replaceFirstChar { it.lowercase(Locale.getDefault()) }
         return Compatibility::class.memberProperties
             .filterIsInstance<KMutableProperty1<Compatibility, Boolean>>()
             .find {
@@ -1853,7 +1854,7 @@ class Options(
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
             fun annotationToPrefix(qualifiedName: String): String {
                 val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-                return name.toLowerCase(Locale.US).removeSuffix("api") + "-"
+                return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
             showAnnotations.getIncludedAnnotationNames().forEach { sb.append(annotationToPrefix(it)) }
