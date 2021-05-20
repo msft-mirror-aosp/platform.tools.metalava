@@ -176,6 +176,9 @@ interface AnnotationItem {
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return qualifiedName
             }
+            if (options.excludeAnnotations.contains(qualifiedName)) {
+                return null
+            }
             when (qualifiedName) {
                 // Resource annotations
                 "android.support.annotation.AnimRes",
@@ -436,6 +439,7 @@ interface AnnotationItem {
 
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
+                "com.android.modules.annotation.MinSdk",
                 "java.lang.annotation.Native",
                 "java.lang.SuppressWarnings",
                 "java.lang.Override",

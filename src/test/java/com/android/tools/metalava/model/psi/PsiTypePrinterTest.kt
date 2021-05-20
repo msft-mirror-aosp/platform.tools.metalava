@@ -559,7 +559,8 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiClassReferenceType
             Canonical: java.util.Collection<? extends T>
             Annotated: java.util.Collection<? extends @Nullable T>
-            Printed: java.util.Collection<? extends T?>!
+            Merged: [@Nullable]
+            Printed: java.util.Collection<? extends T?>?
 
             Type: PsiWildcardType
             Canonical: ? extends T
@@ -808,7 +809,7 @@ class PsiTypePrinterTest : DriverTest() {
                 classPath.add(file)
             }
         }
-        classPath.add(getPlatformFile("android.jar"))
+        classPath.add(getAndroidJar())
 
         // TestDriver#check normally sets this for all the other tests
         compatibility = Compatibility(false)
