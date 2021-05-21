@@ -67,7 +67,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.0.0-alpha14"
+    "30.1.0-alpha01"
 }
 val kotlinVersion: String = "1.5.0"
 
@@ -102,6 +102,7 @@ val zipTask: TaskProvider<Zip> = project.tasks.register(
 
 val testTask = tasks.named("test", Test::class.java)
 testTask.configure {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
         TestLogEvent.PASSED,
