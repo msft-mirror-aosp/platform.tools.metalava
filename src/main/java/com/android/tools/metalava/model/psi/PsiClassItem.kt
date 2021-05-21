@@ -167,6 +167,9 @@ open class PsiClassItem(
     override fun properties(): List<PropertyItem> = properties
     override fun fields(): List<FieldItem> = fields
 
+    final override var primaryConstructor: PsiConstructorItem? = null
+        private set
+
     override fun toType(): TypeItem {
         return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
     }
@@ -498,6 +501,10 @@ open class PsiClassItem(
             if (noArgConstructor != null && !hasConstructorWithOnlyOptionalArgs) {
                 constructors.add(noArgConstructor)
             }
+
+            // Note that this is dependent on the constructor filtering above. UAST sometimes
+            // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
+            constructors.singleOrNull { it.isPrimary }?.let { item.primaryConstructor = it }
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
