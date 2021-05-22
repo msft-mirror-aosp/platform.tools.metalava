@@ -221,11 +221,11 @@ private fun maybeActivateSandbox() {
 
 private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: Int) {
     writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumBy { it.errorCount }
+    val totalErrors = reporters.sumOf { it.errorCount }
     var remainingCap = max
     var totalShown = 0
     reporters.forEach {
-        var numShown = it.printErrors(writer, remainingCap)
+        val numShown = it.printErrors(writer, remainingCap)
         remainingCap -= numShown
         totalShown += numShown
     }
@@ -799,13 +799,11 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 private fun loadFromSources(): Codebase {
     progress("Processing sources: ")
 
-    val sources = if (options.sources.isEmpty()) {
+    val sources = options.sources.ifEmpty {
         if (options.verbose) {
             options.stdout.println("No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})")
         }
         gatherSources(options.sourcePath)
-    } else {
-        options.sources
     }
 
     progress("Reading Codebase: ")
