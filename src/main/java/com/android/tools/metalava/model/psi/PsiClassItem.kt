@@ -44,6 +44,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.getParentOfType
@@ -541,6 +542,9 @@ open class PsiClassItem(
 
             item.properties = emptyList()
             if (isKotlin) {
+                val primaryParameters = item.primaryConstructor?.parameters()
+                    ?.associateBy { (it.element as? UElement)?.sourcePsi as? KtParameter }
+                    .orEmpty()
                 // Try to initialize the Kotlin properties
                 val properties = mutableListOf<PsiPropertyItem>()
                 for (method in psiMethods) {
@@ -571,7 +575,14 @@ open class PsiClassItem(
                                     else -> null
                                 } ?: continue
                             val psiType = method.returnType ?: continue
-                            properties.add(PsiPropertyItem.create(codebase, item, name, psiType, method))
+                            PsiPropertyItem.create(
+                                codebase = codebase,
+                                containingClass = item,
+                                name = name,
+                                psiType = psiType,
+                                psiMethod = method,
+                                constructorParameter = primaryParameters[sourcePsi as? KtParameter]
+                            ).also { properties.add(it) }
                         }
                     }
                 }
