@@ -222,7 +222,7 @@ interface FieldItem : MemberItem {
                 }
                 is Char -> {
                     writer.print(" = ")
-                    val intValue = value.toInt()
+                    val intValue = value.code
                     writer.print(intValue)
                     writer.print("; // ")
                     writer.print(
@@ -260,7 +260,7 @@ fun javaEscapeString(str: String): String {
             '\'' -> "\\'"
             '\"' -> "\\\""
             in ' '..'~' -> c
-            else -> String.format("\\u%04x", c.toInt())
+            else -> String.format("\\u%04x", c.code)
         }
     }
     return result
@@ -336,11 +336,11 @@ fun javaUnescapeString(str: String): String {
             }
             CHAR1, CHAR2, CHAR3, CHAR4 -> {
 
-                escaped = (escaped.toInt() shl 4).toChar()
+                escaped = (escaped.code shl 4).toChar()
                 escaped = when (c) {
-                    in '0'..'9' -> (escaped.toInt() or (c - '0')).toChar()
-                    in 'a'..'f' -> (escaped.toInt() or (10 + (c - 'a'))).toChar()
-                    in 'A'..'F' -> (escaped.toInt() or (10 + (c - 'A'))).toChar()
+                    in '0'..'9' -> (escaped.code or (c - '0')).toChar()
+                    in 'a'..'f' -> (escaped.code or (10 + (c - 'a'))).toChar()
+                    in 'A'..'F' -> (escaped.code or (10 + (c - 'A'))).toChar()
                     else -> throw IllegalArgumentException(
                         "bad escape sequence: '" + c + "' at pos " + i + " in: \"" +
                             str + "\""
