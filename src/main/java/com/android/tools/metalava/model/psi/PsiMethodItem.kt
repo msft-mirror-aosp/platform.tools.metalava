@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
@@ -107,7 +106,7 @@ open class PsiMethodItem(
 
     override fun returnType(): TypeItem? = returnType
 
-    override fun parameters(): List<ParameterItem> = parameters
+    override fun parameters(): List<PsiParameterItem> = parameters
 
     override val synthetic: Boolean get() = isEnumSyntheticMethod()
 

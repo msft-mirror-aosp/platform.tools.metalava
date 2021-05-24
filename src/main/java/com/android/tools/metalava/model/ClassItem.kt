@@ -235,6 +235,10 @@ interface ClassItem : Item {
 
     var hasPrivateConstructor: Boolean
 
+    /** The primary constructor for this class in Kotlin, if present. */
+    val primaryConstructor: ConstructorItem?
+        get() = constructors().singleOrNull { it.isPrimary }
+
     /**
      * Maven artifact of this class, if any. (Not used for the Android SDK, but used in
      * for example support libraries.
