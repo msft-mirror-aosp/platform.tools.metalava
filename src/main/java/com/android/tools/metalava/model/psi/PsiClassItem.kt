@@ -44,6 +44,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.getParentOfType
@@ -166,6 +167,9 @@ open class PsiClassItem(
     override fun methods(): List<PsiMethodItem> = methods
     override fun properties(): List<PropertyItem> = properties
     override fun fields(): List<FieldItem> = fields
+
+    final override var primaryConstructor: PsiConstructorItem? = null
+        private set
 
     override fun toType(): TypeItem {
         return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
@@ -499,6 +503,10 @@ open class PsiClassItem(
                 constructors.add(noArgConstructor)
             }
 
+            // Note that this is dependent on the constructor filtering above. UAST sometimes
+            // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
+            constructors.singleOrNull { it.isPrimary }?.let { item.primaryConstructor = it }
+
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
                 constructors.add(PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass))
@@ -534,6 +542,9 @@ open class PsiClassItem(
 
             item.properties = emptyList()
             if (isKotlin) {
+                val primaryParameters = item.primaryConstructor?.parameters()
+                    ?.associateBy { (it.element as? UElement)?.sourcePsi as? KtParameter }
+                    .orEmpty()
                 // Try to initialize the Kotlin properties
                 val properties = mutableListOf<PsiPropertyItem>()
                 for (method in psiMethods) {
@@ -564,7 +575,14 @@ open class PsiClassItem(
                                     else -> null
                                 } ?: continue
                             val psiType = method.returnType ?: continue
-                            properties.add(PsiPropertyItem.create(codebase, item, name, psiType, method))
+                            PsiPropertyItem.create(
+                                codebase = codebase,
+                                containingClass = item,
+                                name = name,
+                                psiType = psiType,
+                                psiMethod = method,
+                                constructorParameter = primaryParameters[sourcePsi as? KtParameter]
+                            ).also { properties.add(it) }
                         }
                     }
                 }
