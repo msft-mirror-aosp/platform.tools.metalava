@@ -58,6 +58,7 @@ interface ModifierList {
     fun isSuspend(): Boolean = false
     fun isOperator(): Boolean = false
     fun isInline(): Boolean = false
+    fun isData(): Boolean = false
     fun isEmpty(): Boolean
 
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
@@ -467,6 +468,12 @@ interface ModifierList {
 
                 if (list.isFunctional()) {
                     writer.write("fun ")
+                }
+
+                if (language == Language.KOTLIN) {
+                    if (list.isData()) {
+                        writer.write("data ")
+                    }
                 }
             }
         }
