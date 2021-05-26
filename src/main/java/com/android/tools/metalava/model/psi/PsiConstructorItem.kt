@@ -27,6 +27,7 @@ import com.intellij.psi.PsiKeyword
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiMethodCallExpression
 import com.intellij.psi.PsiWhiteSpace
+import org.jetbrains.uast.kotlin.KotlinConstructorUMethod
 
 class PsiConstructorItem(
     codebase: PsiBasedCodebase,
@@ -37,7 +38,8 @@ class PsiConstructorItem(
     documentation: String,
     parameters: List<PsiParameterItem>,
     returnType: PsiTypeItem,
-    val implicitConstructor: Boolean = false
+    val implicitConstructor: Boolean = false,
+    override val isPrimary: Boolean = false
 ) :
     PsiMethodItem(
         codebase = codebase,
@@ -122,7 +124,8 @@ class PsiConstructorItem(
                 modifiers = modifiers,
                 parameters = parameters,
                 returnType = codebase.getType(containingClass.psiClass),
-                implicitConstructor = false
+                implicitConstructor = false,
+                isPrimary = (psiMethod as? KotlinConstructorUMethod)?.isPrimary ?: false
             )
             constructor.modifiers.setOwner(constructor)
             return constructor
