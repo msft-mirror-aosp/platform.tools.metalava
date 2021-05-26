@@ -33,6 +33,7 @@ interface MutableModifierList : ModifierList {
     fun setOperator(operator: Boolean)
     fun setInline(inline: Boolean)
     fun setVarArg(vararg: Boolean)
+    fun setData(data: Boolean)
 
     fun addAnnotation(annotation: AnnotationItem)
     fun removeAnnotation(annotation: AnnotationItem)

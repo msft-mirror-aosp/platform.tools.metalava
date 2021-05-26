@@ -156,6 +156,9 @@ class PsiModifierItem(
                 if (ktModifierList.hasFunModifier()) {
                     flags = flags or FUN
                 }
+                if (ktModifierList.hasModifier(KtTokens.DATA_KEYWORD)) {
+                    flags = flags or DATA
+                }
             }
             // Methods that are property accessors inherit visibility from the source element
             if (element is UMethod && (element.sourceElement is KtPropertyAccessor)) {
