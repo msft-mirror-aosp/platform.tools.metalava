@@ -45,6 +45,8 @@ class PsiParameterItem(
 ), ParameterItem {
     lateinit var containingMethod: PsiMethodItem
 
+    override var property: PsiPropertyItem? = null
+
     override fun name(): String = name
 
     override fun publicName(): String? {
