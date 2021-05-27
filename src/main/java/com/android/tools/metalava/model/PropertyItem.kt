@@ -20,6 +20,10 @@ import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 
 interface PropertyItem : MemberItem {
+    /** The primary constructor parameter that declared this property, if present */
+    val constructorParameter: ParameterItem?
+        get() = null
+
     /** The type of this property */
     override fun type(): TypeItem
 

@@ -147,6 +147,10 @@ open class DefaultModifierList(
         return isSet(INLINE)
     }
 
+    override fun isData(): Boolean {
+        return isSet(DATA)
+    }
+
     override fun setVisibilityLevel(level: VisibilityLevel) {
         flags = (flags and VISIBILITY_MASK.inv()) or level.visibilityFlagValue
     }
@@ -205,6 +209,10 @@ open class DefaultModifierList(
 
     override fun setInline(inline: Boolean) {
         set(INLINE, inline)
+    }
+
+    override fun setData(data: Boolean) {
+        set(DATA, data)
     }
 
     override fun setVarArg(vararg: Boolean) {
@@ -323,6 +331,7 @@ open class DefaultModifierList(
         const val SUSPEND = 1 shl 19
         const val COMPANION = 1 shl 20
         const val CONST = 1 shl 21
+        const val DATA = 1 shl 22
 
         /**
          * Modifiers considered significant to include signature files (and similarly
