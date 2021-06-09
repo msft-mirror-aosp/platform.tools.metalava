@@ -2591,8 +2591,7 @@ class Options(
     companion object {
         /** Whether we should use [Compatibility] mode */
         fun useCompatMode(args: Array<String>): Boolean {
-            return COMPAT_MODE_BY_DEFAULT && !args.contains("$ARG_COMPAT_OUTPUT=no") &&
-                (args.none { it.startsWith("$ARG_FORMAT=") } || args.contains("--format=v1"))
+            return args.contains("$ARG_COMPAT_OUTPUT=yes") || args.contains("--format=v1")
         }
 
         private fun setIssueSeverity(
