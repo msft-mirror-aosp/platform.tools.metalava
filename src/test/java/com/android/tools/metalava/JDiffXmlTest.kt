@@ -217,30 +217,6 @@ class JDiffXmlTest : DriverTest() {
              deprecated="not deprecated"
              visibility="public"
             >
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             <constructor name="Foo"
              type="test.pkg.Foo"
              static="false"
