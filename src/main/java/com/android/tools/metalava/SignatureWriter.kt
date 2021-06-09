@@ -121,13 +121,11 @@ class SignatureWriter(
         writeParameterList(method)
         writeThrowsList(method)
 
-        if (compatibility.includeAnnotationDefaults) {
-            if (method.containingClass().isAnnotationType()) {
-                val default = method.defaultValue()
-                if (default.isNotEmpty()) {
-                    writer.print(" default ")
-                    writer.print(default)
-                }
+        if (method.containingClass().isAnnotationType()) {
+            val default = method.defaultValue()
+            if (default.isNotEmpty()) {
+                writer.print(" default ")
+                writer.print(default)
             }
         }
 
