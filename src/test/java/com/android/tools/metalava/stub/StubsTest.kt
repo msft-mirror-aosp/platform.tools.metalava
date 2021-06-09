@@ -584,7 +584,7 @@ class StubsTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public final class Alignment extends java.lang.Enum {
+                  public final enum Alignment {
                     enum_constant public static final test.pkg.Alignment ALIGN_CENTER;
                     enum_constant public static final test.pkg.Alignment ALIGN_NORMAL;
                     enum_constant public static final test.pkg.Alignment ALIGN_OPPOSITE;

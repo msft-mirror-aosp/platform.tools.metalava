@@ -1451,7 +1451,7 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public final class Foo extends java.lang.Enum {
+                  public final enum Foo {
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -2145,7 +2145,7 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public class FooBar extends java.lang.Enum {
+                  public enum FooBar {
                     method protected abstract void foo();
                     enum_constant public static final test.pkg.FooBar ABC;
                     enum_constant public static final test.pkg.FooBar DEF;
@@ -2315,7 +2315,7 @@ class ApiFileTest : DriverTest() {
             importedPackages = emptyList(),
             api = """
                 package test.pkg {
-                  public final class ChronUnit extends java.lang.Enum implements test.pkg.TempUnit {
+                  public final enum ChronUnit implements test.pkg.TempUnit {
                     method public java.lang.String valueOf(int);
                     method public final java.lang.String values(java.lang.String);
                     enum_constant public static final test.pkg.ChronUnit A;
@@ -2335,7 +2335,7 @@ class ApiFileTest : DriverTest() {
         // Checks sorting order of enum constant values
         val source = """
             package java.nio.file.attribute {
-              public final class AclEntryPermission extends java.lang.Enum {
+              public final enum AclEntryPermission {
                 method public static java.nio.file.attribute.AclEntryPermission valueOf(java.lang.String);
                 method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
