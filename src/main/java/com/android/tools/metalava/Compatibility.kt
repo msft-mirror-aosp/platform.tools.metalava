@@ -179,37 +179,5 @@ class Compatibility(
      */
     var includeFieldsInApiDiff = !compat
 
-    /**
-     * Whether to escape the > character in JDiff XML files. The XML spec does not require
-     * this but doclava does it.
-     */
-    var xmlEscapeGreaterThan = compat
-
-    /**
-     * When producing JDiff output for field arrays but where we
-     * do not have the value, emit "null" into the JDiff report. This isn't right but matches
-     * what doclava did.
-     */
-    var xmlShowArrayFieldsAsNull = compat
-
-    /**
-     * Doclava was missing enum fields in JDiff reports
-     */
-    var xmlSkipEnumFields = compat
-
-    /**
-     * Doclava was missing annotation instance methods in JDiff reports
-     */
-    var xmlSkipAnnotationMethods = compat
-
-    /** Doclava lists character field values as integers instead of chars */
-    var xmlCharAsInt = compat
-
-    /**
-     * Doclava listed the superclass of annotations as
-     * java.lang.Object.
-     */
-    var xmlAnnotationAsObject = compat
-
     // Other examples: sometimes we sort by qualified name, sometimes by full name
 }
