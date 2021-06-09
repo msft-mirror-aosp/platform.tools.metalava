@@ -739,42 +739,8 @@ class JDiffXmlTest : DriverTest() {
     }
 
     @Test
-    fun `Interface extends, compat mode`() {
+    fun `Interface extends`() {
         check(
-            compatibilityMode = true,
-            format = FileFormat.V1,
-            signatureSource = """
-            // Signature format: 2.0
-            package android.companion {
-              public interface DeviceFilter<D extends android.os.Parcelable> extends android.os.Parcelable {
-              }
-            }
-            """,
-            apiXml =
-            """
-            <api xmlns:metalava="http://www.android.com/metalava/">
-            <package name="android.companion"
-            >
-            <interface name="DeviceFilter"
-             abstract="true"
-             static="false"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <implements name="android.os.Parcelable">
-            </implements>
-            </interface>
-            </package>
-            </api>
-            """
-        )
-    }
-
-    @Test
-    fun `Interface extends, non-compat mode`() {
-        check(
-            compatibilityMode = false,
             format = FileFormat.V2,
             signatureSource = """
             // Signature format: 2.0

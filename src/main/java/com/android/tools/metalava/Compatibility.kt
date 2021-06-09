@@ -30,11 +30,6 @@ class Compatibility(
     /** Whether compatibility is generally on */
     val compat: Boolean = COMPAT_MODE_BY_DEFAULT
 ) {
-
-    /** In signature files, use "implements" instead of "extends" for the super class of
-     * an interface */
-    var extendsForInterfaceSuperClass: Boolean = compat
-
     /** In signature files, refer to annotations as an "abstract class" instead of an "@interface"
      * and implementing this interface: java.lang.annotation.Annotation */
     var classForAnnotations: Boolean = compat
