@@ -30,10 +30,6 @@ class Compatibility(
     /** Whether compatibility is generally on */
     val compat: Boolean = COMPAT_MODE_BY_DEFAULT
 ) {
-    /** In signature files, refer to annotations as an "abstract class" instead of an "@interface"
-     * and implementing this interface: java.lang.annotation.Annotation */
-    var classForAnnotations: Boolean = compat
-
     /** Add in explicit `valueOf` and `values` methods into enum classes */
     var defaultEnumMethods: Boolean = compat
 
