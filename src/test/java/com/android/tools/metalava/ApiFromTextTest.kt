@@ -336,9 +336,9 @@ class ApiFromTextTest : DriverTest() {
               }
               public abstract interface MyBaseInterface {
               }
-              public abstract interface MyInterface<T> implements test.pkg.MyBaseInterface {
+              public abstract interface MyInterface<T> extends test.pkg.MyBaseInterface {
               }
-              public abstract interface MyInterface2<T extends java.lang.Number> implements test.pkg.MyBaseInterface {
+              public abstract interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
               }
               public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                 ctor public MyInterface2.Range();
