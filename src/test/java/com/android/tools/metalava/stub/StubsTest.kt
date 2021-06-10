@@ -1878,7 +1878,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(@androidx.annotation.NonNull char[]);
                       }
                     }
                     """,
@@ -1913,7 +1913,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(@androidx.annotation.NonNull char[]);
                       }
                     }
                     """,
@@ -2002,12 +2002,12 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package libcore.util {
-                      public @interface NonNull {
+                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
                       }
                     }
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(@libcore.util.NonNull char[]);
                       }
                     }
                     """,
@@ -2084,7 +2084,7 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package androidx.annotation {
-                      public @interface RequiresApi {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface RequiresApi {
                       }
                     }
                     package my.pkg {
@@ -2538,7 +2538,7 @@ class StubsTest : DriverTest() {
                       public class ConcurrentHashMap<K, V> {
                         ctor public ConcurrentHashMap();
                       }
-                      public static abstract class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection java.io.Serializable java.util.Set {
+                      public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection java.io.Serializable java.util.Set {
                         ctor public ConcurrentHashMap.KeySetView();
                         method public int size();
                         method public final java.lang.Object[] toArray();
@@ -2743,10 +2743,10 @@ class StubsTest : DriverTest() {
                       public class PickConstructors {
                         ctor public PickConstructors();
                       }
-                      public static abstract class PickConstructors.AutoCloseInputStream extends test.pkg.PickConstructors.FileInputStream {
+                      public abstract static class PickConstructors.AutoCloseInputStream extends test.pkg.PickConstructors.FileInputStream {
                         ctor public PickConstructors.AutoCloseInputStream(test.pkg.PickConstructors.ParcelFileDescriptor);
                       }
-                      public static abstract class PickConstructors.AutoCloseInputStream2 extends test.pkg.PickConstructors.FileInputStream {
+                      public abstract static class PickConstructors.AutoCloseInputStream2 extends test.pkg.PickConstructors.FileInputStream {
                         ctor public PickConstructors.AutoCloseInputStream2(test.pkg.PickConstructors.ParcelFileDescriptor);
                       }
                       public static interface PickConstructors.AutoCloseable {
@@ -2759,7 +2759,7 @@ class StubsTest : DriverTest() {
                       public static final class PickConstructors.FileDescriptor {
                         ctor public PickConstructors.FileDescriptor();
                       }
-                      public static abstract class PickConstructors.FileInputStream extends test.pkg.PickConstructors.InputStream {
+                      public abstract static class PickConstructors.FileInputStream extends test.pkg.PickConstructors.InputStream {
                         ctor public PickConstructors.FileInputStream(java.lang.String) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.File) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.FileDescriptor);
@@ -2770,7 +2770,7 @@ class StubsTest : DriverTest() {
                       public static class PickConstructors.IOException extends java.lang.Exception {
                         ctor public PickConstructors.IOException();
                       }
-                      public static abstract class PickConstructors.InputStream implements test.pkg.PickConstructors.Closeable {
+                      public abstract static class PickConstructors.InputStream implements test.pkg.PickConstructors.Closeable {
                         ctor public PickConstructors.InputStream();
                       }
                       public abstract class PickConstructors.ParcelFileDescriptor implements test.pkg.PickConstructors.Closeable {
@@ -3070,7 +3070,7 @@ class StubsTest : DriverTest() {
                         ctor public Layouts.View();
                         method protected void onLayout(boolean, int, int, int, int);
                       }
-                      public static abstract class Layouts.ViewGroup extends test.pkg.Layouts.View {
+                      public abstract static class Layouts.ViewGroup extends test.pkg.Layouts.View {
                         ctor public Layouts.ViewGroup();
                         method protected abstract void onLayout(boolean, int, int, int, int);
                       }
@@ -3439,7 +3439,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             api = """
-                package test.pkg {
+                package @androidx.annotation.Nullable test.pkg {
                   public class Test {
                     ctor public Test();
                   }

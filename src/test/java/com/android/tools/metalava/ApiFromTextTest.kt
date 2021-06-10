@@ -269,7 +269,6 @@ class ApiFromTextTest : DriverTest() {
     fun `Infer fully qualified names from shorter names`() {
         check(
             compatibilityMode = true,
-            extraArguments = arrayOf("--annotations-in-signatures"),
             signatureSource = """
                 package test.pkg {
                   public class MyTest {
@@ -308,10 +307,10 @@ class ApiFromTextTest : DriverTest() {
             signatureSource = source,
             api = """
                 package test.pkg {
-                  public deprecated class MyTest {
-                    ctor public deprecated MyTest(int, int);
-                    method public static final deprecated void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit>);
-                    field public static deprecated java.util.List<java.lang.String> LIST;
+                  @Deprecated public class MyTest {
+                    ctor @Deprecated public MyTest(int, int);
+                    method @Deprecated public static final void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit>);
+                    field @Deprecated public static java.util.List<java.lang.String> LIST;
                   }
                 }
                 """
@@ -340,7 +339,7 @@ class ApiFromTextTest : DriverTest() {
               }
               public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
               }
-              public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
+              public abstract static class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                 ctor public MyInterface2.Range();
               }
               public static class MyInterface2.TtsSpan<C extends test.pkg.MyInterface<?>> {
@@ -400,18 +399,18 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
-                    method public static final deprecated void method1();
-                    method public static final deprecated void method2();
+                    method @Deprecated public static final void method1();
+                    method @Deprecated public static final void method2();
                   }
-                  protected static final deprecated class Foo.Inner1 {
+                  @Deprecated protected static final class Foo.Inner1 {
                     ctor protected Foo.Inner1();
                   }
-                  protected static abstract deprecated class Foo.Inner2 {
+                  @Deprecated protected abstract static class Foo.Inner2 {
                     ctor protected Foo.Inner2();
                   }
-                  protected static deprecated interface Foo.Inner3 {
+                  @Deprecated protected static interface Foo.Inner3 {
                     method public default void method3();
-                    method public static abstract void method4(int);
+                    method public abstract static void method4(int);
                   }
                 }
                 """

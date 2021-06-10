@@ -80,7 +80,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                 package test.pkg {
                   public interface Foo {
                     method public default static void sayHello();
-                    field public static final test.pkg.Foo.Companion Companion;
+                    field @androidx.annotation.NonNull public static final test.pkg.Foo.Companion Companion;
                     field public static final int answer = 42; // 0x2a
                   }
                   public static final class Foo.Companion {
@@ -176,7 +176,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                     ctor public Java9LanguageFeatures();
                     method public static byte[] copy(byte[]) throws java.io.IOException;
                     method public <T> java.util.concurrent.atomic.AtomicReference<T> createReference(T);
-                    method public static <T> java.lang.String toListString(T...);
+                    method @java.lang.SafeVarargs public static <T> java.lang.String toListString(T...);
                   }
                   public static interface Java9LanguageFeatures.Person {
                     method public default boolean isPalindrome();

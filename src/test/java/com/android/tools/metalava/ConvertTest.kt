@@ -689,10 +689,10 @@ class ConvertTest : DriverTest() {
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
-                        method public deprecated int clamp(int);
+                        method @Deprecated public int clamp(int);
                         method public java.lang.Double convert(java.lang.Float);
                         field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
-                        field public deprecated java.lang.Number myNumber;
+                        field @Deprecated public java.lang.Number myNumber;
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
