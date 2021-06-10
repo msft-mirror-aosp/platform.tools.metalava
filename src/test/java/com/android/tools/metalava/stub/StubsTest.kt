@@ -2293,7 +2293,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewriting type parameters in interfaces from hidden super classes and in throws lists`() {
         checkStubs(
-            extraArguments = arrayOf("--skip-inherited-methods=false"),
             format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
@@ -2500,7 +2499,6 @@ class StubsTest : DriverTest() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
             compatibilityMode = true,
-            extraArguments = arrayOf("--skip-inherited-methods=false"),
             sourceFiles = arrayOf(
                 java(
                     """
