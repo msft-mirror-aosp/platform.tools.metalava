@@ -638,7 +638,7 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     package test.pkg.new {
-                      public abstract interface MyInterface {
+                      public interface MyInterface {
                       }
                       public abstract class MyTest3 implements java.util.List {
                       }
@@ -700,7 +700,7 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     package test.pkg.new {
-                      public abstract interface MyInterface {
+                      public interface MyInterface {
                       }
                       public abstract class MyTest3 implements java.util.List {
                       }

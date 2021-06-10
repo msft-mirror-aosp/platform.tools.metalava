@@ -584,7 +584,7 @@ class StubsTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public final enum Alignment {
+                  public enum Alignment {
                     enum_constant public static final test.pkg.Alignment ALIGN_CENTER;
                     enum_constant public static final test.pkg.Alignment ALIGN_NORMAL;
                     enum_constant public static final test.pkg.Alignment ALIGN_OPPOSITE;
@@ -1998,7 +1998,7 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package libcore.util {
-                      public abstract @interface NonNull {
+                      public @interface NonNull {
                       }
                     }
                     package my.pkg {
@@ -2080,7 +2080,7 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package androidx.annotation {
-                      public abstract @interface RequiresApi {
+                      public @interface RequiresApi {
                       }
                     }
                     package my.pkg {
@@ -2341,8 +2341,8 @@ class StubsTest : DriverTest() {
                     method public java.util.Map<X, java.util.Map<Y, java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
                     method public java.util.List<X> foo();
                   }
-                  public static abstract interface Generics.PublicInterface<A, B> {
-                    method public abstract java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
+                  public static interface Generics.PublicInterface<A, B> {
+                    method public java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
@@ -2745,9 +2745,9 @@ class StubsTest : DriverTest() {
                       public static abstract class PickConstructors.AutoCloseInputStream2 extends test.pkg.PickConstructors.FileInputStream {
                         ctor public PickConstructors.AutoCloseInputStream2(test.pkg.PickConstructors.ParcelFileDescriptor);
                       }
-                      public static abstract interface PickConstructors.AutoCloseable {
+                      public static interface PickConstructors.AutoCloseable {
                       }
-                      public static abstract interface PickConstructors.Closeable extends test.pkg.PickConstructors.AutoCloseable {
+                      public static interface PickConstructors.Closeable extends test.pkg.PickConstructors.AutoCloseable {
                       }
                       public static class PickConstructors.File {
                         ctor public PickConstructors.File();

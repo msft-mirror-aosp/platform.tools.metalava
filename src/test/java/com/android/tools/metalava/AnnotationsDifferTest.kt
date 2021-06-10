@@ -66,8 +66,8 @@ class AnnotationsDifferTest {
             """
             // Signature format: 2.0
             package test.pkg {
-              public abstract interface Appendable {
-                method public abstract test.pkg.Appendable append2(java.lang.CharSequence);
+              public interface Appendable {
+                method public test.pkg.Appendable append2(java.lang.CharSequence);
               }
             }
         """.trimIndent(), actual.trim()

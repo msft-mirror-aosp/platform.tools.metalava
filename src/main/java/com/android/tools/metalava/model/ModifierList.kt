@@ -317,16 +317,14 @@ interface ModifierList {
                     writer.write("default ")
                 }
 
-                if (list.isStatic() && (compatibility.staticEnums || classItem == null || !classItem.isEnum())) {
+                if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
                     writer.write("static ")
                 }
 
+                // Don't show final on parameters: that's an implementation side detail
                 if (list.isFinal() &&
-                    // Don't show final on parameters: that's an implementation side detail
                     item !is ParameterItem &&
-                    (classItem?.isEnum() != true || compatibility.finalInInterfaces) ||
-                    compatibility.forceFinalInEnumValueMethods &&
-                    methodItem?.name() == "values" && methodItem.containingClass().isEnum()
+                    classItem?.isEnum() != true
                 ) {
                     writer.write("final ")
                 }
@@ -355,11 +353,10 @@ interface ModifierList {
                     (methodItem?.containingClass()?.isInterface() == true &&
                         !list.isDefault() && !list.isStatic())
 
-                if ((compatibility.abstractInInterfaces && isInterface ||
-                        list.isAbstract() &&
-                        (classItem?.isEnum() != true &&
-                            (compatibility.abstractInAnnotations || classItem?.isAnnotationType() != true))) &&
-                    (!isInterface || compatibility.abstractInInterfaces)
+                if (list.isAbstract() &&
+                    classItem?.isEnum() != true &&
+                    classItem?.isAnnotationType() != true &&
+                    !isInterface
                 ) {
                     writer.write("abstract ")
                 }
@@ -402,11 +399,10 @@ interface ModifierList {
                     (methodItem?.containingClass()?.isInterface() == true &&
                         !list.isDefault() && !list.isStatic())
 
-                if ((compatibility.abstractInInterfaces && isInterface ||
-                        list.isAbstract() &&
-                        (classItem?.isEnum() != true &&
-                            (compatibility.abstractInAnnotations || classItem?.isAnnotationType() != true))) &&
-                    (!isInterface || compatibility.abstractInInterfaces)
+                if (list.isAbstract() &&
+                    classItem?.isEnum() != true &&
+                    classItem?.isAnnotationType() != true &&
+                    !isInterface
                 ) {
                     writer.write("abstract ")
                 }
@@ -415,7 +411,7 @@ interface ModifierList {
                     writer.write("default ")
                 }
 
-                if (list.isStatic() && (compatibility.staticEnums || classItem == null || !classItem.isEnum())) {
+                if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
                     writer.write("static ")
                 }
 
@@ -423,7 +419,7 @@ interface ModifierList {
                     language == Language.JAVA &&
                     // Don't show final on parameters: that's an implementation side detail
                     item !is ParameterItem &&
-                    (classItem?.isEnum() != true || compatibility.finalInInterfaces)
+                    classItem?.isEnum() != true
                 ) {
                     writer.write("final ")
                 } else if (!list.isFinal() && language == Language.KOTLIN) {

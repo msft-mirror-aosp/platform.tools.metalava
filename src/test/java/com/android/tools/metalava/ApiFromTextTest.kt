@@ -322,11 +322,11 @@ class ApiFromTextTest : DriverTest() {
     fun `Test generics, superclasses and interfaces`() {
         val source = """
             package a.b.c {
-              public abstract interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
+              public interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
               }
             }
             package test.pkg {
-              public final enum Foo {
+              public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
                 method public static test.pkg.Foo valueOf(java.lang.String);
@@ -334,11 +334,11 @@ class ApiFromTextTest : DriverTest() {
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
-              public abstract interface MyBaseInterface {
+              public interface MyBaseInterface {
               }
-              public abstract interface MyInterface<T> extends test.pkg.MyBaseInterface {
+              public interface MyInterface<T> extends test.pkg.MyBaseInterface {
               }
-              public abstract interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
+              public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
               }
               public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                 ctor public MyInterface2.Range();
@@ -409,7 +409,7 @@ class ApiFromTextTest : DriverTest() {
                   protected static abstract deprecated class Foo.Inner2 {
                     ctor protected Foo.Inner2();
                   }
-                  protected static abstract deprecated interface Foo.Inner3 {
+                  protected static deprecated interface Foo.Inner3 {
                     method public default void method3();
                     method public static abstract void method4(int);
                   }
@@ -537,12 +537,12 @@ class ApiFromTextTest : DriverTest() {
                     """,
             api = """
                     package android.accounts {
-                      public abstract interface AccountManagerFuture<V> {
-                        method public abstract boolean cancel(boolean);
-                        method public abstract V getResult() throws android.accounts.AuthenticatorException, java.io.IOException, android.accounts.OperationCanceledException;
-                        method public abstract V getResult(long, java.util.concurrent.TimeUnit) throws android.accounts.AuthenticatorException, java.io.IOException, android.accounts.OperationCanceledException;
-                        method public abstract boolean isCancelled();
-                        method public abstract boolean isDone();
+                      public interface AccountManagerFuture<V> {
+                        method public boolean cancel(boolean);
+                        method public V getResult() throws android.accounts.AuthenticatorException, java.io.IOException, android.accounts.OperationCanceledException;
+                        method public V getResult(long, java.util.concurrent.TimeUnit) throws android.accounts.AuthenticatorException, java.io.IOException, android.accounts.OperationCanceledException;
+                        method public boolean isCancelled();
+                        method public boolean isDone();
                       }
                       public class AuthenticatorException extends java.lang.Throwable {
                       }
