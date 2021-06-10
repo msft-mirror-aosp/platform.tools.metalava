@@ -26,6 +26,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Private Interface Method`() {
         // Basic class; also checks that default constructor is made explicit
         check(
+            format = FileFormat.V1,
             checkCompilation = false, // Not compiling with JDK 9 yet
             sourceFiles = arrayOf(
                 java(
@@ -56,6 +57,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Kotlin language level`() {
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -96,6 +98,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Basic class signature extraction`() {
         // Basic class; also checks that default constructor is made explicit
         check(
+            format = FileFormat.V1,
             checkCompilation = false, // Not compiling with JDK 9 yet
             sourceFiles = arrayOf(
                 java(
