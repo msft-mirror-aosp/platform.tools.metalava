@@ -1524,11 +1524,11 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.annotation {
-                  public abstract class SuppressLint implements java.lang.annotation.Annotation {
+                  public abstract @interface SuppressLint {
                   }
                 }
                 package test.pkg {
-                  public abstract class Foo implements java.lang.annotation.Annotation {
+                  public abstract @interface Foo {
                   }
                 }
                 """

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -221,8 +220,6 @@ class JavaStubWriter(
                 writer.print(" ")
                 writer.print(type.toTypeString())
             }
-        } else if (compatibility.classForAnnotations && cls.isAnnotationType()) {
-            writer.print(" implements java.lang.annotation.Annotation")
         }
     }
 
