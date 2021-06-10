@@ -115,36 +115,6 @@ class JDiffXmlWriter(
         writer.println("\"\n>")
 
         writeInterfaceList(cls)
-
-        if (cls.isEnum() && compatibility.defaultEnumMethods) {
-            writer.println(
-                """
-                <method name="valueOf"
-                 return="${cls.qualifiedName()}"
-                 abstract="false"
-                 native="false"
-                 synchronized="false"
-                 static="true"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <parameter name="null" type="java.lang.String">
-                </parameter>
-                </method>
-                <method name="values"
-                 return="${cls.qualifiedName()}[]"
-                 abstract="false"
-                 native="false"
-                 synchronized="false"
-                 static="true"
-                 final="true"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </method>""".trimIndent()
-            )
-        }
     }
 
     fun deprecation(item: Item): String {
