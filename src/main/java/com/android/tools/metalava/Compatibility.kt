@@ -30,9 +30,6 @@ class Compatibility(
     /** Whether compatibility is generally on */
     val compat: Boolean = COMPAT_MODE_BY_DEFAULT
 ) {
-    /** Add in explicit `valueOf` and `values` methods into enum classes */
-    var defaultEnumMethods: Boolean = compat
-
     /** Whether signature files should contain annotation default values (as is already
      * done for field default values) */
     var includeAnnotationDefaults: Boolean = !compat
