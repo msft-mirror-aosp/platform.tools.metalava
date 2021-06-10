@@ -75,10 +75,6 @@ class SignatureWriter(
     }
 
     override fun visitField(field: FieldItem) {
-        if (compatibility.skipInheritedConstants && field.inheritedField) {
-            return
-        }
-
         val name = if (field.isEnumConstant()) "enum_constant" else "field"
         writer.print("    ")
         writer.print(name)
@@ -104,10 +100,6 @@ class SignatureWriter(
         if (compatibility.skipAnnotationInstanceMethods && method.containingClass().isAnnotationType() &&
             !method.modifiers.isStatic()
         ) {
-            return
-        }
-
-        if (compatibility.skipInheritedMethods && method.inheritedMethod) {
             return
         }
 
