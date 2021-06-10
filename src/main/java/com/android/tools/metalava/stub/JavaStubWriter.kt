@@ -159,7 +159,6 @@ class JavaStubWriter(
         ModifierList.write(
             writer, modifiers, item,
             target = annotationTarget,
-            includeAnnotations = true,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,
             removeAbstract = removeAbstract,

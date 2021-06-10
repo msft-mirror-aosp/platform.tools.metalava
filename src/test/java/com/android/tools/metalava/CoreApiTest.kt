@@ -78,13 +78,13 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public @interface IntraCoreApi {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
                   }
                 }
                 package test.pkg {
-                  public class Exposed {
-                    method public void exposed();
-                    field public java.lang.String exposed;
+                  @libcore.api.IntraCoreApi public class Exposed {
+                    method @libcore.api.IntraCoreApi public void exposed();
+                    field @libcore.api.IntraCoreApi public java.lang.String exposed;
                   }
                 }
                 """,
@@ -172,12 +172,12 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public @interface IntraCoreApi {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
                   }
                 }
                 package test.pkg {
-                  public class Exposed {
-                    method public void exposed();
+                  @libcore.api.IntraCoreApi public class Exposed {
+                    method @libcore.api.IntraCoreApi public void exposed();
                   }
                 }
                 """,
@@ -259,7 +259,7 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public @interface IntraCoreApi {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
                   }
                 }
                 """,
@@ -333,7 +333,7 @@ class CoreApiTest : DriverTest() {
             api =
                 """
                 package libcore.api {
-                  public @interface LibCoreMetaHidden {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE}) public @interface LibCoreMetaHidden {
                   }
                 }
                 package test.pkg {
