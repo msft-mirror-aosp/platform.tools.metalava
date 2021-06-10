@@ -430,7 +430,7 @@ class PsiTypePrinter(
         sb.append('<')
         for (i in types.indices) {
             if (i > 0) {
-                sb.append(if (!compatibility.spaceAfterCommaInTypes) "," else ", ")
+                sb.append(",")
             }
 
             val type = types[i]

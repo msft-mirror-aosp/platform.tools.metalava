@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.CompilationUnit
@@ -447,7 +446,7 @@ open class PsiClassItem(
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
             val isKotlin = isKotlin(psiClass)
 
-            if (classType == ClassType.ANNOTATION_TYPE && compatibility.explicitlyListClassRetention &&
+            if (classType == ClassType.ANNOTATION_TYPE &&
                 !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
