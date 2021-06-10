@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-const val COMPAT_MODE_BY_DEFAULT = true
+const val COMPAT_MODE_BY_DEFAULT = false
 
 /**
  * The old API generator code had a number of quirks. Initially we want to simulate these

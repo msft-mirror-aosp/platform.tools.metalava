@@ -22,11 +22,11 @@ import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
+import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
@@ -54,7 +54,7 @@ class StubsTest : DriverTest() {
 
     private fun checkStubs(
         @Language("JAVA") source: String,
-        compatibilityMode: Boolean = true,
+        compatibilityMode: Boolean = false,
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -454,6 +454,7 @@ class StubsTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         checkStubs(
+            compatibilityMode = true,
             warnings = null,
             sourceFiles = arrayOf(
                 java(
@@ -564,6 +565,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Skip hidden enum constants in stubs`() {
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1241,6 +1243,7 @@ class StubsTest : DriverTest() {
         // In signature files we don't include generics in the interface list.
         // In stubs, we do.
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1859,6 +1862,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as sdk stubs`() {
         check(
+            compatibilityMode = true,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1893,6 +1897,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as doc stubs`() {
         check(
+            compatibilityMode = true,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1976,6 +1981,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Pass through libcore annotations`() {
         check(
+            compatibilityMode = true,
             checkCompilation = true,
             extraArguments = arrayOf(
                 ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
@@ -2057,6 +2063,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Skip RequiresApi annotation`() {
         check(
+            compatibilityMode = true,
             extraArguments = arrayOf(
                 ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"
             ),
@@ -2490,6 +2497,7 @@ class StubsTest : DriverTest() {
     fun `Rewriting implements class references`() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
+            compatibilityMode = true,
             extraArguments = arrayOf("--skip-inherited-methods=false"),
             sourceFiles = arrayOf(
                 java(
@@ -2652,12 +2660,11 @@ class StubsTest : DriverTest() {
     @Test
     fun `Picking Super Constructors`() {
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
                     package test.pkg;
-
-                    import java.io.IOException;
 
                     @SuppressWarnings({"RedundantThrows", "JavaDoc", "WeakerAccess"})
                     public class PickConstructors {
@@ -3020,6 +3027,7 @@ class StubsTest : DriverTest() {
     fun `Overriding protected methods`() {
         // Checks a scenario where the stubs were missing overrides
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3408,6 +3416,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check writing package info file`() {
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """

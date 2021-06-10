@@ -267,7 +267,7 @@ abstract class DriverTest {
         /** Signature file format */
         format: FileFormat? = null,
         /** Whether to run in doclava1 compat mode */
-        compatibilityMode: Boolean = format == null || format == FileFormat.V1,
+        compatibilityMode: Boolean = format == FileFormat.V1,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /** Whether to remove blank lines in the output (the signature file usually contains a lot of these) */
