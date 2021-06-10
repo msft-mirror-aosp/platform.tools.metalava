@@ -188,11 +188,6 @@ class SignatureWriter(
             return
         }
 
-        if (cls.isInterface() && compatibility.extendsForInterfaceSuperClass) {
-            // Written in the interface section instead
-            return
-        }
-
         val superClass = if (preFiltered)
             cls.superClassType()
         else cls.filteredSuperClassType(filterReference)
@@ -221,20 +216,10 @@ class SignatureWriter(
         val interfaces = if (preFiltered)
             cls.interfaceTypes().asSequence()
         else cls.filteredInterfaceTypes(filterReference).asSequence()
-        val all: Sequence<TypeItem> = if (isInterface && compatibility.extendsForInterfaceSuperClass) {
-            val superClassType = cls.superClassType()
-            if (superClassType != null && !superClassType.isJavaLangObject()) {
-                interfaces.plus(sequenceOf(superClassType))
-            } else {
-                interfaces
-            }
-        } else {
-            interfaces
-        }
 
-        if (all.any()) {
+        if (interfaces.any()) {
             val label =
-                if (isInterface && !compatibility.extendsForInterfaceSuperClass) {
+                if (isInterface) {
                     val superInterface = cls.filteredSuperclass(filterReference)
                     if (superInterface != null && !superInterface.isJavaLangObject()) {
                         // For interfaces we've already listed "extends <super interface>"; we don't
@@ -247,7 +232,7 @@ class SignatureWriter(
                     " implements"
                 }
             writer.print(label)
-            all.sortedWith(TypeItem.comparator).forEach { item ->
+            interfaces.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print(" ")
                 writer.print(
                     item.toTypeString(

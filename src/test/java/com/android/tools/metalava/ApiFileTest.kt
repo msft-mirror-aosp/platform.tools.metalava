@@ -1325,7 +1325,7 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                     package a.b.c {
-                      public abstract interface MyStream<T, S extends a.b.c.MyStream<T, S>> implements test.pkg.AutoCloseable {
+                      public abstract interface MyStream<T, S extends a.b.c.MyStream<T, S>> extends test.pkg.AutoCloseable {
                       }
                     }
                     package test.pkg {
@@ -1334,9 +1334,9 @@ class ApiFileTest : DriverTest() {
                       public abstract interface MyBaseInterface {
                         method public abstract void fun(int, java.lang.String);
                       }
-                      public abstract interface MyInterface<T> implements test.pkg.MyBaseInterface {
+                      public abstract interface MyInterface<T> extends test.pkg.MyBaseInterface {
                       }
-                      public abstract interface MyInterface2<T extends java.lang.Number> implements test.pkg.MyBaseInterface {
+                      public abstract interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
                       }
                       public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                         ctor public MyInterface2.Range();
@@ -1345,7 +1345,7 @@ class ApiFileTest : DriverTest() {
                       public static class MyInterface2.TtsSpan<C extends test.pkg.MyInterface<?>> {
                         ctor public MyInterface2.TtsSpan();
                       }
-                      public abstract interface MyOtherInterface implements test.pkg.AutoCloseable test.pkg.MyBaseInterface {
+                      public abstract interface MyOtherInterface extends test.pkg.MyBaseInterface test.pkg.AutoCloseable {
                       }
                     }
                 """,
@@ -3274,7 +3274,7 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.content.res {
-                  public abstract interface XmlResourceParser implements android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
+                  public abstract interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
                     method public abstract void close();
                   }
                 }
