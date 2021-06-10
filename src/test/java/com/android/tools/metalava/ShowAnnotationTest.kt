@@ -406,7 +406,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Foo {
                     ctor public Foo();
                     method public void method1();
-                    method public void method2();
+                    method @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public void method2();
                     method public void method4();
                   }
                 }

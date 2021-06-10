@@ -23,7 +23,6 @@ import com.android.tools.metalava.DocLevel.PRIVATE
 import com.android.tools.metalava.DocLevel.PROTECTED
 import com.android.tools.metalava.DocLevel.PUBLIC
 import com.android.tools.metalava.Options
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.options
 import java.io.Writer
 
@@ -242,7 +241,6 @@ interface ModifierList {
             target: AnnotationTarget,
             // TODO: "deprecated" isn't a modifier; clarify method name
             includeDeprecated: Boolean = false,
-            includeAnnotations: Boolean = true,
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
             omitCommonPackages: Boolean = false,
@@ -272,25 +270,17 @@ interface ModifierList {
                 modifiers
             }
 
-            if (includeAnnotations) {
-                writeAnnotations(
-                    item,
-                    target,
-                    runtimeAnnotationsOnly,
-                    includeDeprecated,
-                    writer,
-                    separateLines,
-                    list,
-                    skipNullnessAnnotations,
-                    omitCommonPackages
-                )
-            } else {
-                // We always include @Deprecated annotation in stub files
-                if (item.deprecated && target.isStubsFile()) {
-                    writer.write("@Deprecated")
-                    writer.write(if (separateLines) "\n" else " ")
-                }
-            }
+            writeAnnotations(
+                item,
+                target,
+                runtimeAnnotationsOnly,
+                includeDeprecated,
+                writer,
+                separateLines,
+                list,
+                skipNullnessAnnotations,
+                omitCommonPackages
+            )
 
             if (item is PackageItem) {
                 // Packages use a modifier list, but only annotations apply
@@ -304,170 +294,90 @@ interface ModifierList {
             val classItem = item as? ClassItem
             val methodItem = item as? MethodItem
 
-            // Order based on the old stubs code: TODO, use Java standard order instead?
-
-            if (compatibility.nonstandardModifierOrder) {
-                val visibilityLevel = list.getVisibilityLevel()
-                if (visibilityLevel != VisibilityLevel.PACKAGE_PRIVATE) {
-                    writer.write(visibilityLevel.javaSourceCodeModifier + " ")
-                }
-
-                if (list.isDefault()) {
-                    writer.write("default ")
-                }
-
-                if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
-                    writer.write("static ")
-                }
-
-                // Don't show final on parameters: that's an implementation side detail
-                if (list.isFinal() &&
-                    item !is ParameterItem &&
-                    classItem?.isEnum() != true
-                ) {
-                    writer.write("final ")
-                }
-
-                if (list.isSealed()) {
-                    writer.write("sealed ")
-                }
-
-                if (list.isSuspend()) {
-                    writer.write("suspend ")
-                }
-
-                if (list.isInline()) {
-                    writer.write("inline ")
-                }
-
-                if (list.isInfix()) {
-                    writer.write("infix ")
-                }
-
-                if (list.isOperator()) {
-                    writer.write("operator ")
-                }
-
-                val isInterface = classItem?.isInterface() == true ||
-                    (methodItem?.containingClass()?.isInterface() == true &&
-                        !list.isDefault() && !list.isStatic())
-
-                if (list.isAbstract() &&
-                    classItem?.isEnum() != true &&
-                    classItem?.isAnnotationType() != true &&
-                    !isInterface
-                ) {
-                    writer.write("abstract ")
-                }
-
-                if (list.isNative() && target.isStubsFile()) {
-                    writer.write("native ")
-                }
-
-                if (item.deprecated && includeDeprecated && !target.isStubsFile() && !compatibility.deprecatedAsAnnotation) {
-                    writer.write("deprecated ")
-                }
-
-                if (list.isSynchronized() && target.isStubsFile()) {
-                    writer.write("synchronized ")
-                }
-
-                if (list.isTransient()) {
-                    writer.write("transient ")
-                }
-
-                if (list.isVolatile()) {
-                    writer.write("volatile ")
-                }
+            val visibilityLevel = list.getVisibilityLevel()
+            val modifier = if (language == Language.JAVA) {
+                visibilityLevel.javaSourceCodeModifier
             } else {
-                if (item.deprecated && includeDeprecated && !target.isStubsFile() && !compatibility.deprecatedAsAnnotation) {
-                    writer.write("deprecated ")
-                }
-                val visibilityLevel = list.getVisibilityLevel()
-                val modifier = if (language == Language.JAVA) {
-                    visibilityLevel.javaSourceCodeModifier
-                } else {
-                    visibilityLevel.kotlinSourceCodeModifier
-                }
-                if (modifier.isNotEmpty()) {
-                    writer.write("$modifier ")
-                }
+                visibilityLevel.kotlinSourceCodeModifier
+            }
+            if (modifier.isNotEmpty()) {
+                writer.write("$modifier ")
+            }
 
-                val isInterface = classItem?.isInterface() == true ||
-                    (methodItem?.containingClass()?.isInterface() == true &&
-                        !list.isDefault() && !list.isStatic())
+            val isInterface = classItem?.isInterface() == true ||
+                (methodItem?.containingClass()?.isInterface() == true &&
+                    !list.isDefault() && !list.isStatic())
 
-                if (list.isAbstract() &&
-                    classItem?.isEnum() != true &&
-                    classItem?.isAnnotationType() != true &&
-                    !isInterface
-                ) {
-                    writer.write("abstract ")
-                }
+            if (list.isAbstract() &&
+                classItem?.isEnum() != true &&
+                classItem?.isAnnotationType() != true &&
+                !isInterface
+            ) {
+                writer.write("abstract ")
+            }
 
-                if (list.isDefault() && item !is ParameterItem) {
-                    writer.write("default ")
-                }
+            if (list.isDefault() && item !is ParameterItem) {
+                writer.write("default ")
+            }
 
-                if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
-                    writer.write("static ")
-                }
+            if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
+                writer.write("static ")
+            }
 
-                if (list.isFinal() &&
-                    language == Language.JAVA &&
-                    // Don't show final on parameters: that's an implementation side detail
-                    item !is ParameterItem &&
-                    classItem?.isEnum() != true
-                ) {
-                    writer.write("final ")
-                } else if (!list.isFinal() && language == Language.KOTLIN) {
-                    writer.write("open ")
-                }
+            if (list.isFinal() &&
+                language == Language.JAVA &&
+                // Don't show final on parameters: that's an implementation side detail
+                item !is ParameterItem &&
+                classItem?.isEnum() != true
+            ) {
+                writer.write("final ")
+            } else if (!list.isFinal() && language == Language.KOTLIN) {
+                writer.write("open ")
+            }
 
-                if (list.isSealed()) {
-                    writer.write("sealed ")
-                }
+            if (list.isSealed()) {
+                writer.write("sealed ")
+            }
 
-                if (list.isSuspend()) {
-                    writer.write("suspend ")
-                }
+            if (list.isSuspend()) {
+                writer.write("suspend ")
+            }
 
-                if (list.isInline()) {
-                    writer.write("inline ")
-                }
+            if (list.isInline()) {
+                writer.write("inline ")
+            }
 
-                if (list.isInfix()) {
-                    writer.write("infix ")
-                }
+            if (list.isInfix()) {
+                writer.write("infix ")
+            }
 
-                if (list.isOperator()) {
-                    writer.write("operator ")
-                }
+            if (list.isOperator()) {
+                writer.write("operator ")
+            }
 
-                if (list.isTransient()) {
-                    writer.write("transient ")
-                }
+            if (list.isTransient()) {
+                writer.write("transient ")
+            }
 
-                if (list.isVolatile()) {
-                    writer.write("volatile ")
-                }
+            if (list.isVolatile()) {
+                writer.write("volatile ")
+            }
 
-                if (list.isSynchronized() && target.isStubsFile()) {
-                    writer.write("synchronized ")
-                }
+            if (list.isSynchronized() && target.isStubsFile()) {
+                writer.write("synchronized ")
+            }
 
-                if (list.isNative() && target.isStubsFile()) {
-                    writer.write("native ")
-                }
+            if (list.isNative() && target.isStubsFile()) {
+                writer.write("native ")
+            }
 
-                if (list.isFunctional()) {
-                    writer.write("fun ")
-                }
+            if (list.isFunctional()) {
+                writer.write("fun ")
+            }
 
-                if (language == Language.KOTLIN) {
-                    if (list.isData()) {
-                        writer.write("data ")
-                    }
+            if (language == Language.KOTLIN) {
+                if (list.isData()) {
+                    writer.write("data ")
                 }
             }
         }
@@ -486,10 +396,7 @@ interface ModifierList {
             //  if includeDeprecated we want to do it
             //  unless runtimeOnly is false, in which case we'd include it too
             // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
-            if (item.deprecated &&
-                (compatibility.deprecatedAsAnnotation || target.isStubsFile()) &&
-                (runtimeAnnotationsOnly || includeDeprecated)
-            ) {
+            if (item.deprecated && (runtimeAnnotationsOnly || includeDeprecated)) {
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")
             }
