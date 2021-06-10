@@ -30,11 +30,6 @@ class Compatibility(
     /** Whether compatibility is generally on */
     val compat: Boolean = COMPAT_MODE_BY_DEFAULT
 ) {
-    /** Whether to use a nonstandard, compatibility modifier order instead of the Java canonical order.
-     * ("deprecated" isn't a real modifier, so in "standard" mode it's listed first, as if it was the
-     * `@Deprecated` annotation before the modifier list */
-    var nonstandardModifierOrder: Boolean = compat
-
     /** Whether to include instance methods in annotation classes for the annotation properties */
     var skipAnnotationInstanceMethods: Boolean = compat
 
@@ -57,9 +52,6 @@ class Compatibility(
      * Doclava1 omits type parameters in interfaces (in signature files, not in stubs)
      */
     var omitTypeParametersInInterfaces: Boolean = compat
-
-    /** Whether signature files and stubs should contain annotations */
-    var annotationsInSignatures: Boolean = !compat
 
     /**
      * When a public class implementing a public interface inherits the implementation
@@ -89,12 +81,6 @@ class Compatibility(
      * signature files look like the old ones for the specific methods which did this.
      */
     var includeExtendsObjectInWildcard = compat
-
-    /**
-     * Whether deprecation should be shown in signature files as an annotation
-     * instead of a pseudo-modifier
-     */
-    var deprecatedAsAnnotation = !compat
 
     /** Whether we should omit common packages such as java.lang.* and kotlin.* from signature output */
     var omitCommonPackages = !compat

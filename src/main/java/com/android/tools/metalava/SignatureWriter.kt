@@ -166,7 +166,6 @@ class SignatureWriter(
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
-            includeAnnotations = compatibility.annotationsInSignatures,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
             omitCommonPackages = compatibility.omitCommonPackages
         )
@@ -291,7 +290,7 @@ class SignatureWriter(
 
         var typeString = type.toTypeString(
             outerAnnotations = false,
-            innerAnnotations = compatibility.annotationsInSignatures,
+            innerAnnotations = true,
             erased = false,
             kotlinStyleNulls = outputKotlinStyleNulls,
             context = item,
