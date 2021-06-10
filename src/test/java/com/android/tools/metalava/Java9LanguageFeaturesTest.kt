@@ -44,8 +44,8 @@ class Java9LanguageFeaturesTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public abstract interface Person {
-                    method public abstract java.lang.String name();
+                  public interface Person {
+                    method public java.lang.String name();
                   }
                 }
                 """,
@@ -78,7 +78,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public abstract interface Foo {
+                  public interface Foo {
                     method public default static void sayHello();
                     field public static final test.pkg.Foo.Companion Companion;
                     field public static final int answer = 42; // 0x2a
@@ -178,10 +178,10 @@ class Java9LanguageFeaturesTest : DriverTest() {
                     method public <T> java.util.concurrent.atomic.AtomicReference<T> createReference(T);
                     method public static <T> java.lang.String toListString(T...);
                   }
-                  public static abstract interface Java9LanguageFeatures.Person {
+                  public static interface Java9LanguageFeatures.Person {
                     method public default boolean isPalindrome();
                     method public default boolean isPalindromeIgnoreCase();
-                    method public abstract java.lang.String name();
+                    method public java.lang.String name();
                   }
                 }
                 """,
