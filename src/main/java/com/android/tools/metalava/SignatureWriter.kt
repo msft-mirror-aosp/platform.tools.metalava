@@ -141,7 +141,7 @@ class SignatureWriter(
             writer.print("@interface")
         } else if (cls.isInterface()) {
             writer.print("interface")
-        } else if (!compatibility.classForEnums && cls.isEnum()) { // compat mode calls enums "class" instead
+        } else if (cls.isEnum()) {
             writer.print("enum")
         } else {
             writer.print("class")
@@ -173,7 +173,7 @@ class SignatureWriter(
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
-        if (!compatibility.classForEnums && cls.isEnum() || cls.isAnnotationType()) {
+        if (cls.isEnum() || cls.isAnnotationType()) {
             return
         }
 
