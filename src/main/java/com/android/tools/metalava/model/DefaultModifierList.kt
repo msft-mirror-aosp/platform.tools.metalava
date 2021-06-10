@@ -258,7 +258,7 @@ open class DefaultModifierList(
     override fun equivalentTo(other: ModifierList): Boolean {
         if (other is DefaultModifierList) {
             val flags2 = other.flags
-            val mask = if (compatibility.includeSynchronized) COMPAT_EQUIVALENCE_MASK else EQUIVALENCE_MASK
+            val mask = EQUIVALENCE_MASK
 
             val masked1 = flags and mask
             val masked2 = flags2 and mask
@@ -340,7 +340,5 @@ open class DefaultModifierList(
         private const val EQUIVALENCE_MASK = VISIBILITY_MASK or STATIC or ABSTRACT or
             FINAL or TRANSIENT or VOLATILE or DEPRECATED or VARARG or
             SEALED or FUN or INFIX or OPERATOR or SUSPEND or COMPANION
-
-        private const val COMPAT_EQUIVALENCE_MASK = EQUIVALENCE_MASK or SYNCHRONIZED
     }
 }

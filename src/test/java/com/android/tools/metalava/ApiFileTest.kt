@@ -1934,18 +1934,18 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public abstract class Foo {
                         ctor public Foo();
-                        method public static final deprecated synchronized void method1();
-                        method public static final deprecated synchronized void method2();
+                        method public static final deprecated void method1();
+                        method public static final deprecated void method2();
                       }
                       protected static final deprecated class Foo.Inner1 {
-                        ctor protected Foo.Inner1();
+                        ctor protected deprecated Foo.Inner1();
                       }
                       protected static abstract deprecated class Foo.Inner2 {
-                        ctor protected Foo.Inner2();
+                        ctor protected deprecated Foo.Inner2();
                       }
                       protected static deprecated interface Foo.Inner3 {
-                        method public default void method3();
-                        method public static void method4(int);
+                        method public default deprecated void method3();
+                        method public static deprecated void method4(int);
                       }
                     }
                 """

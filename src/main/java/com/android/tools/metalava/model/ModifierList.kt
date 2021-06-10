@@ -73,7 +73,6 @@ interface ModifierList {
         if (isStatic() != other.isStatic()) return false
         if (isAbstract() != other.isAbstract()) return false
         if (isFinal() != other.isFinal()) { return false }
-        if (compatibility.includeSynchronized && isSynchronized() != other.isSynchronized()) return false
         if (isTransient() != other.isTransient()) return false
         if (isVolatile() != other.isVolatile()) return false
 
@@ -369,7 +368,7 @@ interface ModifierList {
                     writer.write("deprecated ")
                 }
 
-                if (list.isSynchronized() && (compatibility.includeSynchronized || target.isStubsFile())) {
+                if (list.isSynchronized() && target.isStubsFile()) {
                     writer.write("synchronized ")
                 }
 
@@ -384,7 +383,6 @@ interface ModifierList {
                 if (item.deprecated && includeDeprecated && !target.isStubsFile() && !compatibility.deprecatedAsAnnotation) {
                     writer.write("deprecated ")
                 }
-
                 val visibilityLevel = list.getVisibilityLevel()
                 val modifier = if (language == Language.JAVA) {
                     visibilityLevel.javaSourceCodeModifier
@@ -454,7 +452,7 @@ interface ModifierList {
                     writer.write("volatile ")
                 }
 
-                if (list.isSynchronized() && (compatibility.includeSynchronized || target.isStubsFile())) {
+                if (list.isSynchronized() && target.isStubsFile()) {
                     writer.write("synchronized ")
                 }
 

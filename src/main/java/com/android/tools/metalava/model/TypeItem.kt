@@ -221,19 +221,9 @@ interface TypeItem {
         }
 
         fun formatType(type: String?): String {
-            if (type == null) {
-                return ""
-            }
-
-            var cleaned = type
-
-            if (compatibility.spaceAfterCommaInTypes && cleaned.indexOf(',') != -1) {
-                // The compat files have spaces after commas where we normally don't
-                cleaned = cleaned.replace(",", ", ").replace(",  ", ", ")
-            }
-
-            cleaned = cleanupGenerics(cleaned)
-            return cleaned
+            return if (type == null) {
+                ""
+            } else cleanupGenerics(type)
         }
 
         fun cleanupGenerics(signature: String): String {
