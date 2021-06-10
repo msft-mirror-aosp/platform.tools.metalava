@@ -263,11 +263,6 @@ class JDiffXmlWriter(
     }
 
     private fun writeSuperClassAttribute(cls: ClassItem) {
-        if (cls.isInterface() && compatibility.extendsForInterfaceSuperClass) {
-            // Written in the interface section instead
-            return
-        }
-
         val superClass = if (preFiltered)
             cls.superClassType()
         else cls.filteredSuperClassType(filterReference)
@@ -301,13 +296,6 @@ class JDiffXmlWriter(
         var interfaces = if (preFiltered)
             cls.interfaceTypes().asSequence()
         else cls.filteredInterfaceTypes(filterReference).asSequence()
-
-        if (cls.isInterface() && compatibility.extendsForInterfaceSuperClass) {
-            val superClassType = cls.superClassType()
-            if (superClassType?.isJavaLangObject() == false) {
-                interfaces += superClassType
-            }
-        }
 
         if (interfaces.any()) {
             interfaces.sortedWith(TypeItem.comparator).forEach { item ->

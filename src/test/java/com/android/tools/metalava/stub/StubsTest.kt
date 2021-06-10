@@ -2749,7 +2749,7 @@ class StubsTest : DriverTest() {
                       }
                       public static abstract interface PickConstructors.AutoCloseable {
                       }
-                      public static abstract interface PickConstructors.Closeable implements test.pkg.PickConstructors.AutoCloseable {
+                      public static abstract interface PickConstructors.Closeable extends test.pkg.PickConstructors.AutoCloseable {
                       }
                       public static class PickConstructors.File {
                         ctor public PickConstructors.File();
