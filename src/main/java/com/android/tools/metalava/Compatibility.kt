@@ -53,9 +53,6 @@ class Compatibility(
      */
     var filterThrowsClasses: Boolean = !compat
 
-    /** Format `Map<K,V>` as `Map<K, V>` */
-    var spaceAfterCommaInTypes: Boolean = compat
-
     /**
      * Doclava1 omits type parameters in interfaces (in signature files, not in stubs)
      */
@@ -99,26 +96,8 @@ class Compatibility(
      */
     var deprecatedAsAnnotation = !compat
 
-    /** Whether synchronized should be part of the output */
-    var includeSynchronized = compat
-
     /** Whether we should omit common packages such as java.lang.* and kotlin.* from signature output */
     var omitCommonPackages = !compat
-
-    /** Whether we should explicitly include retention when class even if not explicitly defined */
-    var explicitlyListClassRetention = !compat
-
-    /**
-     * If true, a @Deprecated class will automatically deprecate all its inner classes
-     * as well.
-     */
-    var propagateDeprecatedInnerClasses = !compat
-
-    /**
-     * If true, a @Deprecated class will automatically deprecate all members (not
-     * including inner classes; for that see [propagateDeprecatedInnerClasses]) as well.
-     */
-    var propagateDeprecatedMembers = !compat
 
     /**
      * If an overriding method differs from its super method only by final or deprecated

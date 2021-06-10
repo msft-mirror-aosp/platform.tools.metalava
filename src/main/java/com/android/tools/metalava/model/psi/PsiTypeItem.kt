@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.getInternalName
 import com.android.tools.metalava.JAVA_LANG_STRING
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
@@ -48,7 +47,6 @@ import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterList
 import com.intellij.psi.PsiTypeVisitor
-import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
@@ -695,11 +693,6 @@ class PsiTypeItem private constructor(
                             return
                         } else if (element is PsiJavaToken && element.tokenType == JavaTokenType.COMMA) {
                             sb.append(",")
-                            if (compatibility.spaceAfterCommaInTypes) {
-                                if (element.nextSibling == null || element.nextSibling !is PsiWhiteSpace) {
-                                    sb.append(" ")
-                                }
-                            }
                             return
                         }
                         if (element.firstChild == null) { // leaf nodes only
