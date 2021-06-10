@@ -85,7 +85,6 @@ class ApiFileTest : DriverTest() {
     fun `Parameter Names in Java`() {
         // Java code which explicitly specifies parameter names
         check(
-            compatibilityMode = false, // parameter names only in v2
             sourceFiles = arrayOf(
                 java(
                     """
@@ -152,7 +151,6 @@ class ApiFileTest : DriverTest() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V3,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -408,7 +406,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -441,7 +438,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Suspend functions`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -514,7 +510,6 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             api = """
                 // Signature format: 3.0
                 package test.pkg {
@@ -533,7 +528,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Nullness in reified signatures`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     "src/test/pkg/test.kt",
@@ -601,7 +595,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Nullness in varargs`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -696,7 +689,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
-            compatibilityMode = false,
             format = FileFormat.V3,
             sourceFiles = arrayOf(
                 kotlin(
@@ -826,7 +818,6 @@ class ApiFileTest : DriverTest() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = true,
             sourceFiles = arrayOf(
                 java(
@@ -980,7 +971,6 @@ class ApiFileTest : DriverTest() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
             format = FileFormat.V3,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -1460,9 +1450,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Enum class, non-compat mode`() {
-        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
-        // in the interface are taken to be public etc)
+    fun `Enum class`() {
         check(
             sourceFiles = arrayOf(
                 java(
@@ -1475,7 +1463,6 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             api = """
                 package test.pkg {
                   public enum Foo {
@@ -1492,7 +1479,6 @@ class ApiFileTest : DriverTest() {
         // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
         // in the interface are taken to be public etc)
         check(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1533,51 +1519,13 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Include inherited public methods from private parents`() {
-        // In non-compat mode, include public methods from hidden parents too.
-        // Real life example: StringBuilder.setLength
-        // This is just like the above test, but with compat mode disabled.
-        check(
-            compatibilityMode = false,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public class MyStringBuilder extends AbstractMyStringBuilder {
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    class AbstractMyStringBuilder {
-                        public void setLength(int length) {
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public class MyStringBuilder {
-                    ctor public MyStringBuilder();
-                    method public void setLength(int);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Skip inherited package private methods from private parents`() {
-        // In non-compat mode, include public methods from hidden parents too.
+        // Include public methods from hidden parents too.
         // Real life example: StringBuilder.setLength
-        // This is just like the above test, but with compat mode disabled.
         check(
             expectedIssues = """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1621,50 +1569,6 @@ class ApiFileTest : DriverTest() {
                   }
                   public class PublicSuper<E, F> {
                     ctor public PublicSuper();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Annotation class extraction, non-compat mode`() {
-        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
-        // in the interface are taken to be public etc)
-        check(
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public @interface Foo {
-                        String value();
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package android.annotation;
-                    import static java.lang.annotation.ElementType.*;
-                    import java.lang.annotation.*;
-                    @Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE})
-                    @Retention(RetentionPolicy.CLASS)
-                    @SuppressWarnings("ALL")
-                    public @interface SuppressLint {
-                        String[] value();
-                    }
-                    """
-                )
-            ),
-            compatibilityMode = false,
-            api = """
-                package android.annotation {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
-                    method public abstract String[] value();
-                  }
-                }
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
-                    method public abstract String value();
                   }
                 }
                 """
@@ -1928,7 +1832,6 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -1954,55 +1857,6 @@ class ApiFileTest : DriverTest() {
                   public abstract class Foo {
                     ctor public Foo();
                     method public String findViewById(int);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Check all modifiers, non-compat mode`() {
-        // Like testModifiers but turns off compat mode, such that we have
-        // a modifier order more in line with standard code conventions
-        check(
-            compatibilityMode = false,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    @SuppressWarnings("ALL")
-                    public abstract class Foo {
-                        @Deprecated private static final long field1 = 5;
-                        @Deprecated private static volatile long field2 = 5;
-                        /** @deprecated */ @Deprecated public static strictfp final synchronized void method1() { }
-                        /** @deprecated */ @Deprecated public static final synchronized native void method2();
-                        /** @deprecated */ @Deprecated protected static final class Inner1 { }
-                        /** @deprecated */ @Deprecated protected static abstract class Inner2 { }
-                        /** @deprecated */ @Deprecated protected interface Inner3 {
-                            protected default void method3() { }
-                            static void method4(final int arg) { }
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public abstract class Foo {
-                    ctor public Foo();
-                    method @Deprecated public static final void method1();
-                    method @Deprecated public static final void method2();
-                  }
-                  @Deprecated protected static final class Foo.Inner1 {
-                    ctor @Deprecated protected Foo.Inner1();
-                  }
-                  @Deprecated protected abstract static class Foo.Inner2 {
-                    ctor @Deprecated protected Foo.Inner2();
-                  }
-                  @Deprecated protected static interface Foo.Inner3 {
-                    method @Deprecated public default void method3();
-                    method @Deprecated public static void method4(int);
                   }
                 }
                 """
@@ -2309,7 +2163,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Inheriting from package private classes, package private class should be included`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2349,7 +2202,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Inheriting generic method from package private class`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2389,7 +2241,6 @@ class ApiFileTest : DriverTest() {
     fun `Type substitution for generic method referencing parent type parameter`() {
         // Type parameters from parent classes need to be replaced with their bounds in the child.
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2428,7 +2279,6 @@ class ApiFileTest : DriverTest() {
         // If you implement a package private interface, we just remove it and inline the members into
         // the subclass
         check(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2474,13 +2324,11 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Implementing package private class, non-compat mode`() {
-        // Like the previous test, but in non compat mode we correctly
-        // include all the non-hidden public interfaces into the signature
+    fun `Implementing package private class`() {
+        // Include all the non-hidden public interfaces into the signature
 
         // BUG: Note that we need to implement the parent
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3166,7 +3014,6 @@ class ApiFileTest : DriverTest() {
     fun `Check skipping implicit final or deprecated override`() {
         // Regression test for 122358225
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3249,7 +3096,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Ignore synchronized differences`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3292,7 +3138,6 @@ class ApiFileTest : DriverTest() {
         check(
             // Simulate test-mock scenario for getIContentProvider
             extraArguments = arrayOf("--stub-packages", "android.test.mock"),
-            compatibilityMode = false,
             expectedIssues = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
@@ -3572,7 +3417,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited hidden methods for descendant classes - Package private`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3632,7 +3476,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited hidden methods for descendant classes - Hidden annotation`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3694,7 +3537,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited methods that use generics`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -4296,7 +4138,6 @@ class ApiFileTest : DriverTest() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V4,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
