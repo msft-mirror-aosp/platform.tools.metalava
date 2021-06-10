@@ -31,7 +31,6 @@ class AnnotationsMergerTest : DriverTest() {
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -62,11 +61,11 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  @androidx.annotation.UiThread public class MyTest {
+                  @UiThread public class MyTest {
                     ctor public MyTest();
-                    method @androidx.annotation.IntRange(from=10, to=20) public int clamp(int);
-                    method @androidx.annotation.Nullable public java.lang.Double convert(@androidx.annotation.NonNull java.lang.Float);
-                    field @androidx.annotation.Nullable public java.lang.Number myNumber;
+                    method @IntRange(from=10, to=20) public int clamp(int);
+                    method @Nullable public Double convert(@NonNull Float);
+                    field @Nullable public Number myNumber;
                   }
                 }
                 """
@@ -91,7 +90,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest">
@@ -122,11 +120,11 @@ class AnnotationsMergerTest : DriverTest() {
                 """,
             api = """
                 package test.pkg {
-                  @androidx.annotation.UiThread public class MyTest {
+                  @UiThread public class MyTest {
                     ctor public MyTest();
-                    method @androidx.annotation.IntRange(from=10, to=20) public int clamp(@androidx.annotation.IntRange(from=-1L, to=java.lang.Integer.MAX_VALUE) int);
-                    method @androidx.annotation.Nullable public java.lang.Double convert(@androidx.annotation.NonNull java.lang.Float);
-                    field @androidx.annotation.Nullable public java.lang.Number myNumber;
+                    method @IntRange(from=10, to=20) public int clamp(@IntRange(from=-1L, to=java.lang.Integer.MAX_VALUE) int);
+                    method @Nullable public Double convert(@NonNull Float);
+                    field @Nullable public Number myNumber;
                   }
                 }
                 """
@@ -150,7 +148,6 @@ class AnnotationsMergerTest : DriverTest() {
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
             inputKotlinStyleNulls = true,
-            omitCommonPackages = false,
             mergeSignatureAnnotations = """
                 package test.pkg {
                   public interface Appendable {
@@ -166,7 +163,7 @@ class AnnotationsMergerTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface Appendable {
-                    method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
+                    method @NonNull public test.pkg.Appendable append(@Nullable CharSequence);
                   }
                 }
                 """,
@@ -196,7 +193,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -210,7 +206,7 @@ class AnnotationsMergerTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface Appendable {
-                    method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
+                    method @NonNull public test.pkg.Appendable append(@Nullable CharSequence);
                   }
                 }
                 """,
@@ -250,7 +246,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -316,7 +311,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -327,7 +321,7 @@ class AnnotationsMergerTest : DriverTest() {
             api = """
                 package test.pkg {
                   public class Test {
-                    method public void foo(@androidx.annotation.NonNull java.lang.Object...);
+                    method public void foo(@NonNull java.lang.Object...);
                   }
                 }
                 """,
@@ -360,7 +354,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -375,7 +368,7 @@ class AnnotationsMergerTest : DriverTest() {
                 package test.pkg {
                   public class PublicClass {
                     ctor public PublicClass();
-                    method @androidx.annotation.NonNull public java.lang.String publicMethod(@androidx.annotation.Nullable java.lang.Object);
+                    method @NonNull public String publicMethod(@Nullable Object);
                   }
                 }
                 """,
@@ -413,7 +406,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             hideAnnotations = arrayOf("test.annotation.Hide"),
             showAnnotations = arrayOf("test.annotation.Show"),
             showUnannotated = true,
@@ -460,7 +452,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             extraArguments = arrayOf(
                 ARG_HIDE_ANNOTATION, "test.annotation.Hide",
                 ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
@@ -504,7 +495,6 @@ class AnnotationsMergerTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             extraArguments = arrayOf(
                 ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
             ),

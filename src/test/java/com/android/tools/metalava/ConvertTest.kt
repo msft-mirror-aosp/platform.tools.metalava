@@ -640,12 +640,12 @@ class ConvertTest : DriverTest() {
                     """
                     package test.pkg {
                       public class MyTest1 {
-                        method public java.lang.Double convert(java.lang.Float);
-                        field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
+                        method public Double convert(Float);
+                        field public static final String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
-                        method public java.lang.Double convert(java.lang.Float);
+                        method public Double convert(Float);
                       }
                     }
                     package test.pkg.new {
@@ -701,13 +701,13 @@ class ConvertTest : DriverTest() {
                       public class MyTest1 {
                         ctor public MyTest1();
                         method @Deprecated public int clamp(int);
-                        method public java.lang.Double convert(java.lang.Float);
-                        field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
-                        field @Deprecated public java.lang.Number myNumber;
+                        method public Double convert(Float);
+                        field public static final String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
+                        field @Deprecated public Number myNumber;
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
-                        method public java.lang.Double convert(java.lang.Float);
+                        method public Double convert(Float);
                       }
                     }
                     package test.pkg.new {

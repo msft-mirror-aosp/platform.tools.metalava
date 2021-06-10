@@ -1589,7 +1589,6 @@ CompatibilityCheckTest : DriverTest() {
         check(
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            omitCommonPackages = true,
             compatibilityMode = false,
             expectedIssues = "",
             checkCompatibilityApi = """
@@ -1638,7 +1637,6 @@ CompatibilityCheckTest : DriverTest() {
         check(
             inputKotlinStyleNulls = false,
             outputKotlinStyleNulls = true,
-            omitCommonPackages = true,
             compatibilityMode = false,
             expectedIssues = "",
             checkCompatibilityApi = """

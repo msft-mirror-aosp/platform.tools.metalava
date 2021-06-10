@@ -687,7 +687,6 @@ class NullnessMigrationTest : DriverTest() {
                 androidxNullableSource
             ),
             compatibilityMode = false,
-            omitCommonPackages = false,
             migrateNullsApi = """
                 package test.pkg {
                   public interface Appendable {
@@ -724,7 +723,7 @@ class NullnessMigrationTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface ForSystemUse {
-                    method @androidx.annotation.NonNull public java.lang.Object foo(@androidx.annotation.Nullable java.lang.String);
+                    method @NonNull public Object foo(@Nullable String);
                   }
                 }
                 """
