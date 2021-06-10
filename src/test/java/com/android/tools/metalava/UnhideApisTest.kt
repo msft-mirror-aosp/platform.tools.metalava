@@ -235,7 +235,7 @@ class UnhideApisTest : DriverTest() {
                     """,
             api = """
                     package test.pkg1 {
-                      public abstract class Usage implements java.util.List {
+                      public abstract class Usage implements java.util.List<test.pkg1.Class1> {
                         ctor public Usage();
                         method public void arrayType(test.pkg1.Class9[]);
                         method public void ellipsisType(test.pkg1.Class8...);
