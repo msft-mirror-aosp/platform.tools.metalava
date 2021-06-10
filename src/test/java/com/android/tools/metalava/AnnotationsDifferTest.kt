@@ -64,6 +64,7 @@ class AnnotationsDifferTest {
         val actual = apiFile.readText(UTF_8)
         assertEquals(
             """
+            // Signature format: 2.0
             package test.pkg {
               public abstract interface Appendable {
                 method public abstract test.pkg.Appendable append2(java.lang.CharSequence);

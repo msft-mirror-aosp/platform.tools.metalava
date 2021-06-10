@@ -24,6 +24,7 @@ class BaselineTest : DriverTest() {
     @Test
     fun `Check baseline`() {
         check(
+            format = FileFormat.V1,
             extraArguments = arrayOf(
                 ARG_HIDE,
                 "HiddenSuperclass",
@@ -158,6 +159,7 @@ class BaselineTest : DriverTest() {
     fun `Check baseline with show annotations`() {
         // When using show annotations we should only reference errors that are present in the delta
         check(
+            format = FileFormat.V1,
             includeSystemApiAnnotations = true,
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",

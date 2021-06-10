@@ -24,6 +24,7 @@ class UnhideApisTest : DriverTest() {
     @Test
     fun `Report hidden API access rather than opening up access`() {
         check(
+            format = FileFormat.V1,
             extraArguments = arrayOf(
                 ARG_HIDE,
                 "HiddenSuperclass",
@@ -105,6 +106,7 @@ class UnhideApisTest : DriverTest() {
     fun `Do not warn about package private access when generating package private stubs`() {
         // Like above test, but with --package and therefore fewer warnings
         check(
+            format = FileFormat.V1,
             extraArguments = arrayOf(
                 ARG_PACKAGE,
                 ARG_HIDE,
@@ -182,6 +184,7 @@ class UnhideApisTest : DriverTest() {
     @Test
     fun `Including private interfaces from types`() {
         check(
+            format = FileFormat.V1,
             extraArguments = arrayOf(ARG_ERROR, "ReferencesHidden"),
             sourceFiles = arrayOf(
                 java("""package test.pkg1; interface Interface1 { }"""),
