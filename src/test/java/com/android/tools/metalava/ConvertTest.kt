@@ -480,7 +480,7 @@ class ConvertTest : DriverTest() {
                      deprecated="not deprecated"
                      visibility="public"
                     >
-                    <parameter name="null" type="java.util.List&lt;String&gt;">
+                    <parameter name="null" type="java.util.List&lt;String>">
                     </parameter>
                     </method>
                     <field name="CRLF"
@@ -498,7 +498,6 @@ class ConvertTest : DriverTest() {
                      type="byte[]"
                      transient="false"
                      volatile="false"
-                     value="null"
                      static="true"
                      final="true"
                      deprecated="not deprecated"
