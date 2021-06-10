@@ -140,16 +140,7 @@ class SignatureWriter(
         writeModifiers(cls)
 
         if (cls.isAnnotationType()) {
-            if (compatibility.classForAnnotations) {
-                // doclava incorrectly treats annotations (such as TargetApi) as an abstract class instead
-                // of an @interface!
-                //
-                // Example:
-                //   public abstract class SuppressLint implements java.lang.annotation.Annotation { }
-                writer.print("class")
-            } else {
-                writer.print("@interface")
-            }
+            writer.print("@interface")
         } else if (cls.isInterface()) {
             writer.print("interface")
         } else if (!compatibility.classForEnums && cls.isEnum()) { // compat mode calls enums "class" instead
@@ -206,9 +197,6 @@ class SignatureWriter(
 
     private fun writeInterfaceList(cls: ClassItem) {
         if (cls.isAnnotationType()) {
-            if (compatibility.classForAnnotations) {
-                writer.print(" implements java.lang.annotation.Annotation")
-            }
             return
         }
         val isInterface = cls.isInterface()

@@ -78,7 +78,7 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
+                  public abstract @interface IntraCoreApi {
                   }
                 }
                 package test.pkg {
@@ -172,7 +172,7 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
+                  public abstract @interface IntraCoreApi {
                   }
                 }
                 package test.pkg {
@@ -259,7 +259,7 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
+                  public abstract @interface IntraCoreApi {
                   }
                 }
                 """,
@@ -333,7 +333,7 @@ class CoreApiTest : DriverTest() {
             api =
                 """
                 package libcore.api {
-                  public abstract class LibCoreMetaHidden implements java.lang.annotation.Annotation {
+                  public abstract @interface LibCoreMetaHidden {
                   }
                 }
                 package test.pkg {
