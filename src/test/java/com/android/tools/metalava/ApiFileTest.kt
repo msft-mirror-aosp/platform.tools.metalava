@@ -368,6 +368,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1268,6 +1269,7 @@ class ApiFileTest : DriverTest() {
         // correctly (in particular, using fully qualified names instead of what appears in
         // the source code.)
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1410,6 +1412,7 @@ class ApiFileTest : DriverTest() {
         // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
         // in the interface are taken to be public etc)
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1436,6 +1439,7 @@ class ApiFileTest : DriverTest() {
         // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
         // in the interface are taken to be public etc)
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1493,6 +1497,7 @@ class ApiFileTest : DriverTest() {
         // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
         // in the interface are taken to be public etc)
         check(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1708,6 +1713,7 @@ class ApiFileTest : DriverTest() {
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
         // it should show up in the stubs file.).
         check(
+            format = FileFormat.V3,
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             sourceFiles = arrayOf(
                 java(
@@ -1744,7 +1750,6 @@ class ApiFileTest : DriverTest() {
                     """.trimIndent()
                 )
             ),
-            format = FileFormat.V3,
             api = """
             // Signature format: 3.0
             package android.annotation {
@@ -1762,7 +1767,6 @@ class ApiFileTest : DriverTest() {
               }
             }
             """.trimIndent(),
-            compatibilityMode = true,
             stubFiles = arrayOf(
                 // For annotations where the java.lang.annotation classes themselves are not
                 // part of the source tree, ensure that we compute the right retention (runtime, meaning
@@ -1836,6 +1840,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Extract fields with types and initial values`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1898,6 +1903,7 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2118,6 +2124,7 @@ class ApiFileTest : DriverTest() {
         // and that they are listed separately.
 
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2194,6 +2201,7 @@ class ApiFileTest : DriverTest() {
     fun `Check various generics signature subtleties`() {
         // Some additional declarations where PSI default type handling diffs from doclava1
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2273,6 +2281,7 @@ class ApiFileTest : DriverTest() {
         // correctly (there's some special casing around enums to insert extra methods
         // that was broken, as exposed by ChronoUnit#toString)
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2358,6 +2367,7 @@ class ApiFileTest : DriverTest() {
             }
                     """
         check(
+            format = FileFormat.V1,
             signatureSource = source,
             api = source
         )
@@ -2366,6 +2376,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Superclass filtering, should skip intermediate hidden classes`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2693,6 +2704,7 @@ class ApiFileTest : DriverTest() {
         // If signatures vary only by the "default" modifier in the interface, don't show it on the implementing
         // class
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2781,6 +2793,7 @@ class ApiFileTest : DriverTest() {
         // class. This is an issue for example for the ZonedDateTime#getLong method
         // implementing the TemporalAccessor#getLong method
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2818,6 +2831,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Implementing interface method 2`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3022,6 +3036,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3082,6 +3097,7 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 kotlin(
                     "src/test/pkg/Foo.kt",
@@ -3216,6 +3232,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
+            format = FileFormat.V1,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -3532,6 +3549,7 @@ class ApiFileTest : DriverTest() {
         // Use the otherwise= visibility in signatures
         // Regression test for issue 118763806
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3946,6 +3964,7 @@ class ApiFileTest : DriverTest() {
             }
                     """
         check(
+            format = FileFormat.V1,
             signatureSources = arrayOf(source1, source2),
             api = expected
         )
@@ -4016,6 +4035,7 @@ class ApiFileTest : DriverTest() {
             }
                     """
         check(
+            format = FileFormat.V1,
             signatureSources = arrayOf(source1, source2),
             api = expected
         )
