@@ -1325,18 +1325,18 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                     package a.b.c {
-                      public abstract interface MyStream<T, S extends a.b.c.MyStream<T, S>> extends test.pkg.AutoCloseable {
+                      public interface MyStream<T, S extends a.b.c.MyStream<T, S>> extends test.pkg.AutoCloseable {
                       }
                     }
                     package test.pkg {
-                      public abstract interface AutoCloseable {
+                      public interface AutoCloseable {
                       }
-                      public abstract interface MyBaseInterface {
-                        method public abstract void fun(int, java.lang.String);
+                      public interface MyBaseInterface {
+                        method public void fun(int, java.lang.String);
                       }
-                      public abstract interface MyInterface<T> extends test.pkg.MyBaseInterface {
+                      public interface MyInterface<T> extends test.pkg.MyBaseInterface {
                       }
-                      public abstract interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
+                      public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
                       }
                       public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                         ctor public MyInterface2.Range();
@@ -1345,7 +1345,7 @@ class ApiFileTest : DriverTest() {
                       public static class MyInterface2.TtsSpan<C extends test.pkg.MyInterface<?>> {
                         ctor public MyInterface2.TtsSpan();
                       }
-                      public abstract interface MyOtherInterface extends test.pkg.MyBaseInterface test.pkg.AutoCloseable {
+                      public interface MyOtherInterface extends test.pkg.MyBaseInterface test.pkg.AutoCloseable {
                       }
                     }
                 """,
@@ -1426,8 +1426,8 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public abstract interface Foo {
-                    method public abstract void foo();
+                  public interface Foo {
+                    method public void foo();
                   }
                 }
                 """
@@ -1451,7 +1451,7 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public final enum Foo {
+                  public enum Foo {
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -1520,11 +1520,11 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.annotation {
-                  public abstract @interface SuppressLint {
+                  public @interface SuppressLint {
                   }
                 }
                 package test.pkg {
-                  public abstract @interface Foo {
+                  public @interface Foo {
                   }
                 }
                 """
@@ -1943,7 +1943,7 @@ class ApiFileTest : DriverTest() {
                       protected static abstract deprecated class Foo.Inner2 {
                         ctor protected Foo.Inner2();
                       }
-                      protected static abstract deprecated interface Foo.Inner3 {
+                      protected static deprecated interface Foo.Inner3 {
                         method public default void method3();
                         method public static void method4(int);
                       }
@@ -2315,15 +2315,15 @@ class ApiFileTest : DriverTest() {
             importedPackages = emptyList(),
             api = """
                 package test.pkg {
-                  public final enum ChronUnit implements test.pkg.TempUnit {
+                  public enum ChronUnit implements test.pkg.TempUnit {
                     method public java.lang.String valueOf(int);
-                    method public final java.lang.String values(java.lang.String);
+                    method public java.lang.String values(java.lang.String);
                     enum_constant public static final test.pkg.ChronUnit A;
                     enum_constant public static final test.pkg.ChronUnit B;
                     enum_constant public static final test.pkg.ChronUnit C;
                   }
-                  public abstract interface TempUnit {
-                    method public abstract java.lang.String toString();
+                  public interface TempUnit {
+                    method public java.lang.String toString();
                   }
                 }
                 """
@@ -2335,7 +2335,7 @@ class ApiFileTest : DriverTest() {
         // Checks sorting order of enum constant values
         val source = """
             package java.nio.file.attribute {
-              public final enum AclEntryPermission {
+              public enum AclEntryPermission {
                 method public static java.nio.file.attribute.AclEntryPermission valueOf(java.lang.String);
                 method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
@@ -2631,8 +2631,8 @@ class ApiFileTest : DriverTest() {
                     method public void other();
                     field public static final java.lang.String CONSTANT = "MyConstant";
                   }
-                  public abstract interface OtherInterface {
-                    method public abstract void other();
+                  public interface OtherInterface {
+                    method public void other();
                   }
                 }
                 """
@@ -2726,8 +2726,8 @@ class ApiFileTest : DriverTest() {
                     ctor public MyClass();
                     method public void method();
                   }
-                  public abstract interface SuperInterface {
-                    method public abstract void method();
+                  public interface SuperInterface {
+                    method public void method();
                     method public default void method2();
                   }
                 }
@@ -2812,7 +2812,7 @@ class ApiFileTest : DriverTest() {
               public class Foo implements test.pkg.SomeInterface2 {
                 ctor public Foo();
               }
-              public abstract interface SomeInterface2 {
+              public interface SomeInterface2 {
                 method public default long getLong();
               }
             }
@@ -2858,10 +2858,10 @@ class ApiFileTest : DriverTest() {
                   public class Foo implements test.pkg.SomeInterface test.pkg.SomeInterface2 {
                     ctor public Foo();
                   }
-                  public abstract interface SomeInterface {
-                    method public abstract long getLong();
+                  public interface SomeInterface {
+                    method public long getLong();
                   }
-                  public abstract interface SomeInterface2 {
+                  public interface SomeInterface2 {
                     method public default long getLong();
                   }
                 }
@@ -3266,20 +3266,20 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.content.res {
-                  public abstract interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
-                    method public abstract void close();
+                  public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
+                    method public void close();
                   }
                 }
                 package android.util {
-                  public abstract interface AttributeSet {
+                  public interface AttributeSet {
                   }
                 }
                 package my {
-                  public abstract interface AutoCloseable {
+                  public interface AutoCloseable {
                   }
                 }
                 package org.xmlpull.v1 {
-                  public abstract interface XmlPullParser {
+                  public interface XmlPullParser {
                   }
                 }
                 """

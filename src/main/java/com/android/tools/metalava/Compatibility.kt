@@ -39,21 +39,6 @@ class Compatibility(
     var skipAnnotationInstanceMethods: Boolean = compat
 
     /**
-     * In signature files, whether interfaces should also be described as "abstract"
-     */
-    var abstractInInterfaces: Boolean = compat
-
-    /**
-     * In signature files, whether annotation types should also be described as "abstract"
-     */
-    var abstractInAnnotations: Boolean = compat
-
-    /**
-     * In signature files, whether interfaces can be listed as final
-     */
-    var finalInInterfaces: Boolean = compat
-
-    /**
      * In this signature
      *        public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
      *  doclava1 would treat this as "throws Throwable" instead of "throws X". This variable turns on
@@ -75,15 +60,6 @@ class Compatibility(
      * Doclava1 omits type parameters in interfaces (in signature files, not in stubs)
      */
     var omitTypeParametersInInterfaces: Boolean = compat
-
-    /** Force methods named "values" in enums to be marked final. This was done by
-     * doclava1 with this comment:
-     *
-     *     Explicitly coerce 'final' state of Java6-compiled enum values() method,
-     *     to match the Java5-emitted base API description.
-     *
-     **/
-    var forceFinalInEnumValueMethods: Boolean = compat
 
     /** Whether signature files and stubs should contain annotations */
     var annotationsInSignatures: Boolean = !compat
@@ -149,9 +125,6 @@ class Compatibility(
      * and the containing class is final or deprecated, skip it in the signature file
      */
     var hideDifferenceImplicit = !compat
-
-    /** Whether inner enums should be listed as static in the signature file. */
-    var staticEnums = compat
 
     /**
      * The -new_api flag in API check (which generates an XML diff of the differences
