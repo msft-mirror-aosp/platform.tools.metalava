@@ -400,8 +400,8 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
-                    method public static final deprecated synchronized void method1();
-                    method public static final deprecated synchronized void method2();
+                    method public static final deprecated void method1();
+                    method public static final deprecated void method2();
                   }
                   protected static final deprecated class Foo.Inner1 {
                     ctor protected Foo.Inner1();
