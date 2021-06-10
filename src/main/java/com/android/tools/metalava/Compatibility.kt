@@ -30,9 +30,6 @@ class Compatibility(
     /** Whether compatibility is generally on */
     val compat: Boolean = COMPAT_MODE_BY_DEFAULT
 ) {
-    /** In signature files, refer to enums as "class" instead of "enum" */
-    var classForEnums: Boolean = compat
-
     /** Whether to use a nonstandard, compatibility modifier order instead of the Java canonical order.
      * ("deprecated" isn't a real modifier, so in "standard" mode it's listed first, as if it was the
      * `@Deprecated` annotation before the modifier list */
