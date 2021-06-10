@@ -295,7 +295,6 @@ class ApiFileTest : DriverTest() {
     fun `Basic Kotlin class`() {
         check(
             format = FileFormat.V1,
-            extraArguments = arrayOf("--parameter-names=true"),
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -3876,7 +3875,7 @@ class ApiFileTest : DriverTest() {
         val expected = """
             package test.pkg {
               public final class Class1 {
-                method public void method1(test.pkg.Class2);
+                method public void method1(test.pkg.Class2 arg);
               }
               public final class Class2 {
               }

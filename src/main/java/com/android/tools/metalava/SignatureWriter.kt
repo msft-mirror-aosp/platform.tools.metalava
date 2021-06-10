@@ -233,7 +233,6 @@ class SignatureWriter(
 
     private fun writeParameterList(method: MethodItem) {
         writer.print("(")
-        val emitParameterNames = compatibility.parameterNames
         method.parameters().asSequence().forEachIndexed { i, parameter ->
             if (i > 0) {
                 writer.print(", ")
@@ -247,12 +246,10 @@ class SignatureWriter(
             }
             writeModifiers(parameter)
             writeType(parameter, parameter.type())
-            if (emitParameterNames) {
-                val name = parameter.publicName()
-                if (name != null) {
-                    writer.print(" ")
-                    writer.print(name)
-                }
+            val name = parameter.publicName()
+            if (name != null) {
+                writer.print(" ")
+                writer.print(name)
             }
             if (parameter.isDefaultValueKnown() &&
                 options.outputDefaultValues &&
