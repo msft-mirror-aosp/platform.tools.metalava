@@ -67,7 +67,7 @@ class AnnotationsDifferTest {
             // Signature format: 2.0
             package test.pkg {
               public interface Appendable {
-                method public test.pkg.Appendable append2(java.lang.CharSequence);
+                method @androidx.annotation.NonNull public test.pkg.Appendable append2(@androidx.annotation.Nullable java.lang.CharSequence);
               }
             }
         """.trimIndent(), actual.trim()

@@ -226,10 +226,10 @@ class BaselineTest : DriverTest() {
             api = """
                 package android.pkg {
                   public class RegistrationMethods {
-                    method public void registerOk2Callback(java.lang.Runnable);
-                    method public void registerUnpaired2Callback(java.lang.Runnable);
-                    method public void unregisterOk2Callback(java.lang.Runnable);
-                    method public void unregisterOk3Callback(java.lang.Runnable);
+                    method public void registerOk2Callback(@androidx.annotation.Nullable java.lang.Runnable);
+                    method public void registerUnpaired2Callback(@androidx.annotation.Nullable java.lang.Runnable);
+                    method public void unregisterOk2Callback(@androidx.annotation.Nullable java.lang.Runnable);
+                    method public void unregisterOk3Callback(@androidx.annotation.Nullable java.lang.Runnable);
                   }
                 }
                 """

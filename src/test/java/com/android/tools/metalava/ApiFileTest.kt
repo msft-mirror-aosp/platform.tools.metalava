@@ -336,29 +336,29 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(java.lang.String property1, int arg2);
-                    method public java.lang.String getProperty1();
-                    method public java.lang.String getProperty2();
+                    ctor public Kotlin(@androidx.annotation.NonNull java.lang.String property1, int arg2);
+                    method @androidx.annotation.NonNull public java.lang.String getProperty1();
+                    method @androidx.annotation.Nullable public java.lang.String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(java.lang.String property2);
-                    property public final java.lang.String property1;
-                    property public final java.lang.String property2;
-                    field public static final test.pkg.Kotlin.Companion Companion;
+                    method public void setProperty2(@androidx.annotation.Nullable java.lang.String property2);
+                    property @androidx.annotation.NonNull public final java.lang.String property1;
+                    property @androidx.annotation.Nullable public final java.lang.String property2;
+                    field @androidx.annotation.NonNull public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
                   public static final class Kotlin.Companion {
                   }
                   public final class KotlinKt {
-                    method public static inline operator java.lang.String component1(java.lang.String);
+                    method @androidx.annotation.NonNull public static inline operator java.lang.String component1(@androidx.annotation.NonNull java.lang.String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
                   }
                   public class Parent {
                     ctor public Parent();
-                    method public java.lang.String method();
-                    method public java.lang.String method2(boolean value, java.lang.Boolean value);
-                    method public int method3(java.lang.Integer value, int value2);
+                    method @androidx.annotation.Nullable public java.lang.String method();
+                    method @androidx.annotation.Nullable public java.lang.String method2(boolean value, @androidx.annotation.Nullable java.lang.Boolean value);
+                    method public int method3(@androidx.annotation.Nullable java.lang.Integer value, int value2);
                   }
                 }
                 """
@@ -398,8 +398,8 @@ class ApiFileTest : DriverTest() {
                     method public final <T> T getSystemService(java.lang.Class<T>);
                   }
                   public final class _java_Kt {
-                    method public static inline <reified T> T systemService1(test.pkg.Context);
-                    method public static inline java.lang.String systemService2(test.pkg.Context);
+                    method public static inline <reified T> T systemService1(@androidx.annotation.NonNull test.pkg.Context);
+                    method public static inline java.lang.String systemService2(@androidx.annotation.NonNull test.pkg.Context);
                   }
                 }
                 """
@@ -1338,7 +1338,7 @@ class ApiFileTest : DriverTest() {
                       }
                       public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
                       }
-                      public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
+                      public abstract static class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                         ctor public MyInterface2.Range();
                         field protected java.lang.String myString;
                       }
@@ -1520,11 +1520,11 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.annotation {
-                  public @interface SuppressLint {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
                   }
                 }
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                   }
                 }
                 """
@@ -1934,18 +1934,18 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public abstract class Foo {
                         ctor public Foo();
-                        method public static final deprecated void method1();
-                        method public static final deprecated void method2();
+                        method @Deprecated public static final void method1();
+                        method @Deprecated public static final void method2();
                       }
-                      protected static final deprecated class Foo.Inner1 {
-                        ctor protected deprecated Foo.Inner1();
+                      @Deprecated protected static final class Foo.Inner1 {
+                        ctor @Deprecated protected Foo.Inner1();
                       }
-                      protected static abstract deprecated class Foo.Inner2 {
-                        ctor protected deprecated Foo.Inner2();
+                      @Deprecated protected abstract static class Foo.Inner2 {
+                        ctor @Deprecated protected Foo.Inner2();
                       }
-                      protected static deprecated interface Foo.Inner3 {
-                        method public default deprecated void method3();
-                        method public static deprecated void method4(int);
+                      @Deprecated protected static interface Foo.Inner3 {
+                        method @Deprecated public default void method3();
+                        method @Deprecated public static void method4(int);
                       }
                     }
                 """
@@ -3067,7 +3067,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
                         ctor public Child();
-                        method public deprecated java.lang.String toString();
+                        method @Deprecated public java.lang.String toString();
                       }
                       public class Parent {
                         ctor public Parent();
@@ -3106,7 +3106,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class -Foo {
-                    method public static inline void printHelloWorld(java.lang.String);
+                    method public static inline void printHelloWorld(@androidx.annotation.NonNull java.lang.String);
                   }
                 }
                 """
@@ -3608,10 +3608,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public class ProductionCodeJava {
-                    method protected void shouldBeProtected();
+                    method @androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected void shouldBeProtected();
                   }
                   public class ProductionCodeKotlin {
-                    method protected final void shouldBeProtected();
+                    method @androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected final void shouldBeProtected();
                   }
                 }
                 """,
