@@ -493,19 +493,23 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static final class Inner1 {
+                @Deprecated
                 protected Inner1() { throw new RuntimeException("Stub!"); }
                 }
                 /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected abstract static class Inner2 {
+                @Deprecated
                 protected Inner2() { throw new RuntimeException("Stub!"); }
                 }
                 /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static interface Inner3 {
+                @Deprecated
                 public default void method3() { throw new RuntimeException("Stub!"); }
+                @Deprecated
                 public static void method4() { throw new RuntimeException("Stub!"); }
                 }
                 }
@@ -2338,11 +2342,11 @@ class StubsTest : DriverTest() {
                   }
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X, java.util.Map<Y, java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
                     method public java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();

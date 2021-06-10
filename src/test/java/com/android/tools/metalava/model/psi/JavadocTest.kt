@@ -164,6 +164,7 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public class SomeClass {
+                    @Deprecated
                     public SomeClass() { throw new RuntimeException("Stub!"); }
                     /**
                      * My method.
@@ -172,8 +173,9 @@ class JavadocTest : DriverTest() {
                      * @throws java.io.IOException when blah blah blah
                      * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
                      */
+                    @Deprecated
                     public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-                    public boolean importance;
+                    @Deprecated public boolean importance;
                     }
                     """
         )
@@ -263,6 +265,7 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 public class SomeClass {
+                @Deprecated
                 public SomeClass() { throw new RuntimeException("Stub!"); }
                 /**
                  * My method.
@@ -271,8 +274,9 @@ class JavadocTest : DriverTest() {
                  * @throws java.io.IOException when blah blah blah
                  * @throws {@link java.lang.RuntimeException} when blah blah blah
                  */
+                @Deprecated
                 public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-                public boolean importance;
+                @Deprecated public boolean importance;
                 }
                 """
         )

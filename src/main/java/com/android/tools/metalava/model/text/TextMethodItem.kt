@@ -149,7 +149,7 @@ open class TextMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-        if (targetContainingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+        if (targetContainingClass.deprecated) {
             duplicated.deprecated = true
         }
 

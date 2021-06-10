@@ -242,7 +242,7 @@ class UnhideApisTest : DriverTest() {
                         method public <T extends test.pkg1.Class6> void mySort(java.util.List<test.pkg1.Class7>, T);
                         field public test.pkg1.Class3 myClass1;
                         field public java.util.List<? extends test.pkg1.Class4> myClass2;
-                        field public java.util.Map<java.lang.String, ? extends test.pkg1.Class5> myClass3;
+                        field public java.util.Map<java.lang.String,? extends test.pkg1.Class5> myClass3;
                       }
                     }
                 """
