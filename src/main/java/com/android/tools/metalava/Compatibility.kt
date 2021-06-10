@@ -54,23 +54,6 @@ class Compatibility(
     var omitTypeParametersInInterfaces: Boolean = compat
 
     /**
-     * When a public class implementing a public interface inherits the implementation
-     * of a method in that interface from a hidden super class, the method must be
-     * included in the stubs etc (since otherwise subclasses would believe they need
-     * to implement that method and can't just inherit it). However, doclava1 does not
-     * list these methods. This flag controls this compatibility behavior.
-     * Not that this refers only to the signature files, not the stub file generation.
-     *
-     * An example is StringBuilder#setLength.
-     */
-    var skipInheritedMethods: Boolean = compat
-
-    /**
-     * Similar to [skipInheritedMethods], but for field constants.
-     */
-    var skipInheritedConstants: Boolean = compat
-
-    /**
      * Whether to include parameter names in the signature file
      */
     var parameterNames: Boolean = !compat

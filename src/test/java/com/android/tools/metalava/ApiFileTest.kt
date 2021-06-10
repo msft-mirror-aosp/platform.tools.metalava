@@ -1532,39 +1532,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Do not include inherited public methods from private parents in compat mode`() {
-        // Real life example: StringBuilder.setLength, in compat mode
-        check(
-            compatibilityMode = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public class MyStringBuilder extends AbstractMyStringBuilder {
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    class AbstractMyStringBuilder {
-                        public void setLength(int length) {
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public class MyStringBuilder {
-                    ctor public MyStringBuilder();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Include inherited public methods from private parents`() {
         // In non-compat mode, include public methods from hidden parents too.
         // Real life example: StringBuilder.setLength
@@ -2366,70 +2333,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Superclass filtering, should skip intermediate hidden classes`() {
-        check(
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    public class MyClass extends HiddenParent {
-                        public void method4() { }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    /** @hide */
-                    @SuppressWarnings("ALL")
-                    public class HiddenParent extends HiddenParent2 {
-                        public static final String CONSTANT = "MyConstant";
-                        protected int mContext;
-                        public void method3() { }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    /** @hide */
-                    @SuppressWarnings("ALL")
-                    public class HiddenParent2 extends PublicParent {
-                        public void method2() { }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    public class PublicParent {
-                        public void method1() { }
-                    }
-                    """
-                )
-            ),
-            // Notice how the intermediate methods (method2, method3) have been removed
-            includeStrippedSuperclassWarnings = true,
-            expectedIssues = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
-            api = """
-                package test.pkg {
-                  public class MyClass extends test.pkg.PublicParent {
-                    ctor public MyClass();
-                    method public void method4();
-                  }
-                  public class PublicParent {
-                    ctor public PublicParent();
-                    method public void method1();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Inheriting from package private classes, package private class should be included`() {
         check(
             compatibilityMode = false,
@@ -2540,49 +2443,6 @@ class ApiFileTest : DriverTest() {
                         ctor public MyClass();
                         method public void method1();
                         method public String method2(String);
-                      }
-                    }
-            """
-        )
-    }
-
-    @Test
-    fun `Using compatibility flag manually`() {
-        // Like previous test, but using compatibility mode and explicitly turning on
-        // the hidden super class compatibility flag. This test is mostly intended
-        // to test the flag handling for individual compatibility flags.
-        check(
-            compatibilityMode = true,
-            extraArguments = arrayOf("--skip-inherited-methods=false"),
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    public class MyClass extends HiddenParent {
-                        public void method1() { }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    class HiddenParent {
-                        public static final String CONSTANT = "MyConstant";
-                        protected int mContext;
-                        public void method2() { }
-                    }
-                    """
-                )
-            ),
-            expectedIssues = "",
-            api = """
-                    package test.pkg {
-                      public class MyClass {
-                        ctor public MyClass();
-                        method public void method1();
-                        method public void method2();
                       }
                     }
             """
