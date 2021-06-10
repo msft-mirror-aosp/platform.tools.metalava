@@ -464,16 +464,8 @@ class ApiFromTextTest : DriverTest() {
     }
 
     @Test
-    fun `Enums and annotations`() {
-        // In non-compat mode we write interfaces out as "@interface" (instead of abstract class)
-        // and similarly for enums we write "enum" instead of "class extends java.lang.Enum".
-        // Make sure we can also read this back in.
+    fun `Enums`() {
         val source = """
-                package android.annotation {
-                  public @interface SuppressLint {
-                    method public abstract String[] value();
-                  }
-                }
                 package test.pkg {
                   public enum Foo {
                     enum_constant public static final test.pkg.Foo A;
@@ -483,7 +475,23 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = false,
+            outputKotlinStyleNulls = false,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Annotations`() {
+        val source = """
+                package android.annotation {
+                  public @interface SuppressLint {
+                    method public abstract String[] value();
+                  }
+                }
+                """
+
+        check(
             outputKotlinStyleNulls = false,
             signatureSource = source,
             api = source
@@ -505,39 +513,6 @@ class ApiFromTextTest : DriverTest() {
             outputKotlinStyleNulls = false,
             signatureSource = source,
             api = source
-        )
-    }
-
-    @Test
-    fun `Enums and annotations exported to compat`() {
-        val source = """
-                package android.annotation {
-                  public @interface SuppressLint {
-                  }
-                }
-                package test.pkg {
-                  public final enum Foo {
-                    enum_constant public static final test.pkg.Foo A;
-                    enum_constant public static final test.pkg.Foo B;
-                  }
-                }
-                """
-
-        check(
-            compatibilityMode = true,
-            signatureSource = source,
-            api = """
-                package android.annotation {
-                  public abstract class SuppressLint implements java.lang.annotation.Annotation {
-                  }
-                }
-                package test.pkg {
-                  public final class Foo extends java.lang.Enum {
-                    enum_constant public static final test.pkg.Foo A;
-                    enum_constant public static final test.pkg.Foo B;
-                  }
-                }
-                """
         )
     }
 

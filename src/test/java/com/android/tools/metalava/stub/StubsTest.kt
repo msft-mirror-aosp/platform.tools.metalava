@@ -2000,7 +2000,7 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package libcore.util {
-                      public abstract class NonNull implements java.lang.annotation.Annotation {
+                      public abstract @interface NonNull {
                       }
                     }
                     package my.pkg {
@@ -2082,7 +2082,7 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package androidx.annotation {
-                      public abstract class RequiresApi implements java.lang.annotation.Annotation {
+                      public abstract @interface RequiresApi {
                       }
                     }
                     package my.pkg {
