@@ -326,7 +326,7 @@ class ApiFromTextTest : DriverTest() {
               }
             }
             package test.pkg {
-              public final class Foo extends java.lang.Enum {
+              public final enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
                 method public static test.pkg.Foo valueOf(java.lang.String);
