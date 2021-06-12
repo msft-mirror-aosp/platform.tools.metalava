@@ -115,7 +115,6 @@ class KotlinStubWriter(
         ModifierList.write(
             writer, modifiers, item,
             target = annotationTarget,
-            includeAnnotations = true,
             skipNullnessAnnotations = true,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,

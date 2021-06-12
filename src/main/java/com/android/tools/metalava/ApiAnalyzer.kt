@@ -811,7 +811,7 @@ class ApiAnalyzer(
                 // Done here rather than in the analyzer which propagates visibility, since we want to do it
                 // after warning
                 val containingClass = cls.containingClass()
-                if (containingClass != null && containingClass.deprecated && compatibility.propagateDeprecatedInnerClasses) {
+                if (containingClass != null && containingClass.deprecated) {
                     cls.deprecated = true
                 }
 
@@ -835,7 +835,7 @@ class ApiAnalyzer(
 
             override fun visitField(field: FieldItem) {
                 val containingClass = field.containingClass()
-                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+                if (containingClass.deprecated) {
                     field.deprecated = true
                 }
 
@@ -851,7 +851,7 @@ class ApiAnalyzer(
                 }
 
                 val containingClass = method.containingClass()
-                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+                if (containingClass.deprecated) {
                     method.deprecated = true
                 }
 

@@ -480,7 +480,7 @@ class ConvertTest : DriverTest() {
                      deprecated="not deprecated"
                      visibility="public"
                     >
-                    <parameter name="null" type="java.util.List&lt;String&gt;">
+                    <parameter name="null" type="java.util.List&lt;String>">
                     </parameter>
                     </method>
                     <field name="CRLF"
@@ -498,7 +498,6 @@ class ConvertTest : DriverTest() {
                      type="byte[]"
                      transient="false"
                      volatile="false"
-                     value="null"
                      static="true"
                      final="true"
                      deprecated="not deprecated"
@@ -639,7 +638,7 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     package test.pkg.new {
-                      public abstract interface MyInterface {
+                      public interface MyInterface {
                       }
                       public abstract class MyTest3 implements java.util.List {
                       }
@@ -690,10 +689,10 @@ class ConvertTest : DriverTest() {
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
-                        method public deprecated int clamp(int);
+                        method @Deprecated public int clamp(int);
                         method public java.lang.Double convert(java.lang.Float);
                         field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
-                        field public deprecated java.lang.Number myNumber;
+                        field @Deprecated public java.lang.Number myNumber;
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
@@ -701,7 +700,7 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     package test.pkg.new {
-                      public abstract interface MyInterface {
+                      public interface MyInterface {
                       }
                       public abstract class MyTest3 implements java.util.List {
                       }

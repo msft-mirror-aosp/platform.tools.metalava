@@ -217,30 +217,6 @@ class JDiffXmlTest : DriverTest() {
              deprecated="not deprecated"
              visibility="public"
             >
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             <constructor name="Foo"
              type="test.pkg.Foo"
              static="false"
@@ -471,113 +447,6 @@ class JDiffXmlTest : DriverTest() {
              metalava:enumConstant="true"
             >
             </field>
-            </class>
-            </package>
-            </api>
-            """
-        )
-    }
-
-    @Test
-    fun `Test enums compat mode`() {
-        val source = """
-            package test.pkg {
-              public final class Foo extends java.lang.Enum {
-                ctor public Foo(int);
-                ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(java.lang.String);
-                method public static final test.pkg.Foo[] values();
-                enum_constant public static final test.pkg.Foo A;
-                enum_constant public static final test.pkg.Foo B;
-              }
-            }
-            """
-        check(
-            compatibilityMode = true,
-            signatureSource = source,
-            apiXml =
-            """
-            <api xmlns:metalava="http://www.android.com/metalava/">
-            <package name="test.pkg"
-            >
-            <class name="Foo"
-             extends="java.lang.Enum"
-             abstract="false"
-             static="false"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
-            <constructor name="Foo"
-             type="test.pkg.Foo"
-             static="false"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="int">
-            </parameter>
-            </constructor>
-            <constructor name="Foo"
-             type="test.pkg.Foo"
-             static="false"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="int">
-            </parameter>
-            <parameter name="null" type="int">
-            </parameter>
-            </constructor>
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             </class>
             </package>
             </api>
@@ -846,42 +715,8 @@ class JDiffXmlTest : DriverTest() {
     }
 
     @Test
-    fun `Interface extends, compat mode`() {
+    fun `Interface extends`() {
         check(
-            compatibilityMode = true,
-            format = FileFormat.V1,
-            signatureSource = """
-            // Signature format: 2.0
-            package android.companion {
-              public interface DeviceFilter<D extends android.os.Parcelable> extends android.os.Parcelable {
-              }
-            }
-            """,
-            apiXml =
-            """
-            <api xmlns:metalava="http://www.android.com/metalava/">
-            <package name="android.companion"
-            >
-            <interface name="DeviceFilter"
-             abstract="true"
-             static="false"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <implements name="android.os.Parcelable">
-            </implements>
-            </interface>
-            </package>
-            </api>
-            """
-        )
-    }
-
-    @Test
-    fun `Interface extends, non-compat mode`() {
-        check(
-            compatibilityMode = false,
             format = FileFormat.V2,
             signatureSource = """
             // Signature format: 2.0
