@@ -75,10 +75,6 @@ class SignatureWriter(
     }
 
     override fun visitField(field: FieldItem) {
-        if (compatibility.skipInheritedConstants && field.inheritedField) {
-            return
-        }
-
         val name = if (field.isEnumConstant()) "enum_constant" else "field"
         writer.print("    ")
         writer.print(name)
@@ -107,10 +103,6 @@ class SignatureWriter(
             return
         }
 
-        if (compatibility.skipInheritedMethods && method.inheritedMethod) {
-            return
-        }
-
         writer.print("    method ")
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList(), addSpace = true)
@@ -121,13 +113,11 @@ class SignatureWriter(
         writeParameterList(method)
         writeThrowsList(method)
 
-        if (compatibility.includeAnnotationDefaults) {
-            if (method.containingClass().isAnnotationType()) {
-                val default = method.defaultValue()
-                if (default.isNotEmpty()) {
-                    writer.print(" default ")
-                    writer.print(default)
-                }
+        if (method.containingClass().isAnnotationType()) {
+            val default = method.defaultValue()
+            if (default.isNotEmpty()) {
+                writer.print(" default ")
+                writer.print(default)
             }
         }
 
@@ -140,19 +130,10 @@ class SignatureWriter(
         writeModifiers(cls)
 
         if (cls.isAnnotationType()) {
-            if (compatibility.classForAnnotations) {
-                // doclava incorrectly treats annotations (such as TargetApi) as an abstract class instead
-                // of an @interface!
-                //
-                // Example:
-                //   public abstract class SuppressLint implements java.lang.annotation.Annotation { }
-                writer.print("class")
-            } else {
-                writer.print("@interface")
-            }
+            writer.print("@interface")
         } else if (cls.isInterface()) {
             writer.print("interface")
-        } else if (!compatibility.classForEnums && cls.isEnum()) { // compat mode calls enums "class" instead
+        } else if (cls.isEnum()) {
             writer.print("enum")
         } else {
             writer.print("class")
@@ -177,19 +158,13 @@ class SignatureWriter(
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
-            includeAnnotations = compatibility.annotationsInSignatures,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
             omitCommonPackages = compatibility.omitCommonPackages
         )
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
-        if (!compatibility.classForEnums && cls.isEnum() || cls.isAnnotationType()) {
-            return
-        }
-
-        if (cls.isInterface() && compatibility.extendsForInterfaceSuperClass) {
-            // Written in the interface section instead
+        if (cls.isEnum() || cls.isAnnotationType()) {
             return
         }
 
@@ -211,9 +186,6 @@ class SignatureWriter(
 
     private fun writeInterfaceList(cls: ClassItem) {
         if (cls.isAnnotationType()) {
-            if (compatibility.classForAnnotations) {
-                writer.print(" implements java.lang.annotation.Annotation")
-            }
             return
         }
         val isInterface = cls.isInterface()
@@ -221,20 +193,10 @@ class SignatureWriter(
         val interfaces = if (preFiltered)
             cls.interfaceTypes().asSequence()
         else cls.filteredInterfaceTypes(filterReference).asSequence()
-        val all: Sequence<TypeItem> = if (isInterface && compatibility.extendsForInterfaceSuperClass) {
-            val superClassType = cls.superClassType()
-            if (superClassType != null && !superClassType.isJavaLangObject()) {
-                interfaces.plus(sequenceOf(superClassType))
-            } else {
-                interfaces
-            }
-        } else {
-            interfaces
-        }
 
-        if (all.any()) {
+        if (interfaces.any()) {
             val label =
-                if (isInterface && !compatibility.extendsForInterfaceSuperClass) {
+                if (isInterface) {
                     val superInterface = cls.filteredSuperclass(filterReference)
                     if (superInterface != null && !superInterface.isJavaLangObject()) {
                         // For interfaces we've already listed "extends <super interface>"; we don't
@@ -247,7 +209,7 @@ class SignatureWriter(
                     " implements"
                 }
             writer.print(label)
-            all.sortedWith(TypeItem.comparator).forEach { item ->
+            interfaces.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print(" ")
                 writer.print(
                     item.toTypeString(
@@ -320,7 +282,7 @@ class SignatureWriter(
 
         var typeString = type.toTypeString(
             outerAnnotations = false,
-            innerAnnotations = compatibility.annotationsInSignatures,
+            innerAnnotations = true,
             erased = false,
             kotlinStyleNulls = outputKotlinStyleNulls,
             context = item,

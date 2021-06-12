@@ -22,11 +22,11 @@ import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
+import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
@@ -54,7 +54,7 @@ class StubsTest : DriverTest() {
 
     private fun checkStubs(
         @Language("JAVA") source: String,
-        compatibilityMode: Boolean = true,
+        compatibilityMode: Boolean = false,
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -454,6 +454,7 @@ class StubsTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         checkStubs(
+            compatibilityMode = true,
             warnings = null,
             sourceFiles = arrayOf(
                 java(
@@ -492,19 +493,23 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static final class Inner1 {
+                @Deprecated
                 protected Inner1() { throw new RuntimeException("Stub!"); }
                 }
                 /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected abstract static class Inner2 {
+                @Deprecated
                 protected Inner2() { throw new RuntimeException("Stub!"); }
                 }
                 /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static interface Inner3 {
+                @Deprecated
                 public default void method3() { throw new RuntimeException("Stub!"); }
+                @Deprecated
                 public static void method4() { throw new RuntimeException("Stub!"); }
                 }
                 }
@@ -564,6 +569,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Skip hidden enum constants in stubs`() {
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -582,9 +588,7 @@ class StubsTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public final class Alignment extends java.lang.Enum {
-                    method public static test.pkg.Alignment valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
-                    method public static final test.pkg.Alignment[] values();
+                  public enum Alignment {
                     enum_constant public static final test.pkg.Alignment ALIGN_CENTER;
                     enum_constant public static final test.pkg.Alignment ALIGN_NORMAL;
                     enum_constant public static final test.pkg.Alignment ALIGN_OPPOSITE;
@@ -1241,6 +1245,7 @@ class StubsTest : DriverTest() {
         // In signature files we don't include generics in the interface list.
         // In stubs, we do.
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1859,6 +1864,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as sdk stubs`() {
         check(
+            compatibilityMode = true,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1872,7 +1878,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(@androidx.annotation.NonNull char[]);
                       }
                     }
                     """,
@@ -1893,6 +1899,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as doc stubs`() {
         check(
+            compatibilityMode = true,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1906,7 +1913,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(@androidx.annotation.NonNull char[]);
                       }
                     }
                     """,
@@ -1976,6 +1983,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Pass through libcore annotations`() {
         check(
+            compatibilityMode = true,
             checkCompilation = true,
             extraArguments = arrayOf(
                 ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
@@ -1994,12 +2002,12 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package libcore.util {
-                      public abstract class NonNull implements java.lang.annotation.Annotation {
+                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
                       }
                     }
                     package my.pkg {
                       public class String {
-                        ctor public String(char[]);
+                        ctor public String(@libcore.util.NonNull char[]);
                       }
                     }
                     """,
@@ -2057,6 +2065,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Skip RequiresApi annotation`() {
         check(
+            compatibilityMode = true,
             extraArguments = arrayOf(
                 ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"
             ),
@@ -2075,7 +2084,7 @@ class StubsTest : DriverTest() {
             expectedIssues = "",
             api = """
                     package androidx.annotation {
-                      public abstract class RequiresApi implements java.lang.annotation.Annotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface RequiresApi {
                       }
                     }
                     package my.pkg {
@@ -2284,7 +2293,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewriting type parameters in interfaces from hidden super classes and in throws lists`() {
         checkStubs(
-            extraArguments = arrayOf("--skip-inherited-methods=false"),
             format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
@@ -2333,11 +2341,11 @@ class StubsTest : DriverTest() {
                   }
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X, java.util.Map<Y, java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
                     method public java.util.List<X> foo();
                   }
-                  public static abstract interface Generics.PublicInterface<A, B> {
-                    method public abstract java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
+                  public static interface Generics.PublicInterface<A, B> {
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
@@ -2490,7 +2498,7 @@ class StubsTest : DriverTest() {
     fun `Rewriting implements class references`() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
-            extraArguments = arrayOf("--skip-inherited-methods=false"),
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2528,7 +2536,7 @@ class StubsTest : DriverTest() {
                       public class ConcurrentHashMap<K, V> {
                         ctor public ConcurrentHashMap();
                       }
-                      public static abstract class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection java.io.Serializable java.util.Set {
+                      public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection java.io.Serializable java.util.Set {
                         ctor public ConcurrentHashMap.KeySetView();
                         method public int size();
                         method public final java.lang.Object[] toArray();
@@ -2652,12 +2660,11 @@ class StubsTest : DriverTest() {
     @Test
     fun `Picking Super Constructors`() {
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
                     package test.pkg;
-
-                    import java.io.IOException;
 
                     @SuppressWarnings({"RedundantThrows", "JavaDoc", "WeakerAccess"})
                     public class PickConstructors {
@@ -2734,15 +2741,15 @@ class StubsTest : DriverTest() {
                       public class PickConstructors {
                         ctor public PickConstructors();
                       }
-                      public static abstract class PickConstructors.AutoCloseInputStream extends test.pkg.PickConstructors.FileInputStream {
+                      public abstract static class PickConstructors.AutoCloseInputStream extends test.pkg.PickConstructors.FileInputStream {
                         ctor public PickConstructors.AutoCloseInputStream(test.pkg.PickConstructors.ParcelFileDescriptor);
                       }
-                      public static abstract class PickConstructors.AutoCloseInputStream2 extends test.pkg.PickConstructors.FileInputStream {
+                      public abstract static class PickConstructors.AutoCloseInputStream2 extends test.pkg.PickConstructors.FileInputStream {
                         ctor public PickConstructors.AutoCloseInputStream2(test.pkg.PickConstructors.ParcelFileDescriptor);
                       }
-                      public static abstract interface PickConstructors.AutoCloseable {
+                      public static interface PickConstructors.AutoCloseable {
                       }
-                      public static abstract interface PickConstructors.Closeable implements test.pkg.PickConstructors.AutoCloseable {
+                      public static interface PickConstructors.Closeable extends test.pkg.PickConstructors.AutoCloseable {
                       }
                       public static class PickConstructors.File {
                         ctor public PickConstructors.File();
@@ -2750,7 +2757,7 @@ class StubsTest : DriverTest() {
                       public static final class PickConstructors.FileDescriptor {
                         ctor public PickConstructors.FileDescriptor();
                       }
-                      public static abstract class PickConstructors.FileInputStream extends test.pkg.PickConstructors.InputStream {
+                      public abstract static class PickConstructors.FileInputStream extends test.pkg.PickConstructors.InputStream {
                         ctor public PickConstructors.FileInputStream(java.lang.String) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.File) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.FileDescriptor);
@@ -2761,7 +2768,7 @@ class StubsTest : DriverTest() {
                       public static class PickConstructors.IOException extends java.lang.Exception {
                         ctor public PickConstructors.IOException();
                       }
-                      public static abstract class PickConstructors.InputStream implements test.pkg.PickConstructors.Closeable {
+                      public abstract static class PickConstructors.InputStream implements test.pkg.PickConstructors.Closeable {
                         ctor public PickConstructors.InputStream();
                       }
                       public abstract class PickConstructors.ParcelFileDescriptor implements test.pkg.PickConstructors.Closeable {
@@ -3020,6 +3027,7 @@ class StubsTest : DriverTest() {
     fun `Overriding protected methods`() {
         // Checks a scenario where the stubs were missing overrides
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3060,7 +3068,7 @@ class StubsTest : DriverTest() {
                         ctor public Layouts.View();
                         method protected void onLayout(boolean, int, int, int, int);
                       }
-                      public static abstract class Layouts.ViewGroup extends test.pkg.Layouts.View {
+                      public abstract static class Layouts.ViewGroup extends test.pkg.Layouts.View {
                         ctor public Layouts.ViewGroup();
                         method protected abstract void onLayout(boolean, int, int, int, int);
                       }
@@ -3408,6 +3416,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check writing package info file`() {
         checkStubs(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3428,7 +3437,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             api = """
-                package test.pkg {
+                package @androidx.annotation.Nullable test.pkg {
                   public class Test {
                     ctor public Test();
                   }
