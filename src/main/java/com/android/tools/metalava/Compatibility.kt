@@ -33,13 +33,6 @@ class Compatibility(
     /** Whether to include instance methods in annotation classes for the annotation properties */
     var skipAnnotationInstanceMethods: Boolean = compat
 
-    /**
-     * *Some* signatures for doclava1 wrote "<?>" as "<? extends java.lang.Object>",
-     * which is equivalent. Metalava does not do that. This flags ensures that the
-     * signature files look like the old ones for the specific methods which did this.
-     */
-    var includeExtendsObjectInWildcard = compat
-
     /** Whether we should omit common packages such as java.lang.* and kotlin.* from signature output */
     var omitCommonPackages = !compat
 
