@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
@@ -278,8 +277,7 @@ interface MethodItem : MemberItem {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated &&
-                (!compatibility.hideDifferenceImplicit || !method.deprecated)) {
+            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
                 return false
             }
 

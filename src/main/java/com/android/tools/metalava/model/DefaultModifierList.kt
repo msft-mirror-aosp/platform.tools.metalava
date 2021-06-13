@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.compatibility
-
 open class DefaultModifierList(
     override val codebase: Codebase,
     protected var flags: Int = PACKAGE_PRIVATE,
@@ -265,7 +263,7 @@ open class DefaultModifierList(
             val same = masked1 xor masked2
             if (same == 0) {
                 return true
-            } else if (compatibility.hideDifferenceImplicit) {
+            } else {
                 if (same == FINAL &&
                     // Only differ in final: not significant if implied by containing class
                     isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true) {
