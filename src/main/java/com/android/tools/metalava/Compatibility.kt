@@ -34,11 +34,6 @@ class Compatibility(
     var skipAnnotationInstanceMethods: Boolean = compat
 
     /**
-     * Doclava1 omits type parameters in interfaces (in signature files, not in stubs)
-     */
-    var omitTypeParametersInInterfaces: Boolean = compat
-
-    /**
      * Whether to include parameter names in the signature file
      */
     var parameterNames: Boolean = !compat
