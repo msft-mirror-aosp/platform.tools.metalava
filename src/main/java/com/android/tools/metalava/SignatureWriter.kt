@@ -174,7 +174,6 @@ class SignatureWriter(
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
                 superClass.toTypeString(
-                    erased = compatibility.omitTypeParametersInInterfaces,
                     kotlinStyleNulls = false,
                     context = superClass.asClass(),
                     filter = filterReference
@@ -213,7 +212,6 @@ class SignatureWriter(
                 writer.print(" ")
                 writer.print(
                     item.toTypeString(
-                        erased = compatibility.omitTypeParametersInInterfaces,
                         kotlinStyleNulls = false,
                         context = item.asClass(),
                         filter = filterReference
