@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -287,23 +286,6 @@ class SignatureWriter(
         // Strip java.lang. prefix?
         if (compatibility.omitCommonPackages) {
             typeString = TypeItem.shortenTypes(typeString)
-        }
-
-        if (compatibility.includeExtendsObjectInWildcard && typeString.endsWith(", ?>") && item is ParameterItem) {
-            // This wasn't done universally; just in a few places, so replicate it for those exact places
-            when (item.containingMethod().name()) {
-                "computeIfAbsent" -> {
-                    if (typeString == "java.util.function.Function<? super java.lang.Object, ?>") {
-                        typeString = "java.util.function.Function<? super java.lang.Object, ? extends java.lang.Object>"
-                    }
-                }
-                "computeIfPresent", "merge", "replaceAll", "compute" -> {
-                    if (typeString == "java.util.function.BiFunction<? super java.lang.Object, ? super java.lang.Object, ?>") {
-                        typeString =
-                            "java.util.function.BiFunction<? super java.lang.Object, ? super java.lang.Object, ? extends java.lang.Object>"
-                    }
-                }
-            }
         }
 
         writer.print(typeString)
