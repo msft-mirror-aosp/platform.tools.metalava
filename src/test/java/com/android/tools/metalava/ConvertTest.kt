@@ -156,6 +156,17 @@ class ConvertTest : DriverTest() {
                     <parameter name="null" type="java.lang.Float">
                     </parameter>
                     </method>
+                    <field name="ANY_CURSOR_ITEM_TYPE"
+                     type="java.lang.String"
+                     transient="false"
+                     volatile="false"
+                     value="&quot;vnd.android.cursor.item/*&quot;"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
                     </class>
                     <class name="MyTest2"
                      extends="java.lang.Object"
@@ -585,7 +596,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert new to v1 signatures with compat mode and no strip`() {
         // Output is similar to the v2 format, but with fully qualified java.lang types
-        // and fields not included
         check(
             compatibilityMode = false,
             convertToJDiff = listOf(
@@ -631,6 +641,7 @@ class ConvertTest : DriverTest() {
                     package test.pkg {
                       public class MyTest1 {
                         method public java.lang.Double convert(java.lang.Float);
+                        field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
