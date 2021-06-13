@@ -198,10 +198,6 @@ Extracting Signature Files:
                                              Controls whether to keep signature files compatible with the historical
                                              format (with its various quirks) or to generate the new format (which will
                                              also include annotations that are part of the API, etc.)
---omit-common-packages[=yes|no]
-                                             Skip common package prefixes like java.lang.* and kotlin.* in signature
-                                             files, along with packages for well known annotations like @Nullable and
-                                             @NonNull.
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.

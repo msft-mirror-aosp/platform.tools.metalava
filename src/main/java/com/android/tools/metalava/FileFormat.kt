@@ -33,7 +33,7 @@ enum class FileFormat(val description: String, val version: String? = null) {
     V4("Metalava signature file", "4.0");
 
     /** Configures the option object such that the output format will be the given format */
-    fun configureOptions(options: Options, compatibility: Compatibility) {
+    fun configureOptions(options: Options) {
         if (this == JDIFF) {
             return
         }
@@ -42,7 +42,6 @@ enum class FileFormat(val description: String, val version: String? = null) {
         options.outputKotlinStyleNulls = this >= V3
         options.outputDefaultValues = this >= V2
         options.outputConciseDefaultValues = this >= V4
-        compatibility.omitCommonPackages = this >= V2
         options.includeSignatureFormatVersion = this >= V2
     }
 

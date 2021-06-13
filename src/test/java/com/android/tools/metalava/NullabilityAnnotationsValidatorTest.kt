@@ -48,7 +48,6 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -91,7 +90,6 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -134,7 +132,6 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -178,7 +175,6 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -223,7 +219,6 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -270,7 +265,6 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
             ),
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            omitCommonPackages = false,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
             validateNullabilityFromList =
             """

@@ -1871,7 +1871,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(@androidx.annotation.NonNull char[]);
+                        ctor public String(@NonNull char[]);
                       }
                     }
                     """,
@@ -1906,7 +1906,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(@androidx.annotation.NonNull char[]);
+                        ctor public String(@NonNull char[]);
                       }
                     }
                     """,
@@ -2532,7 +2532,7 @@ class StubsTest : DriverTest() {
                       public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection<K> java.io.Serializable java.util.Set<K> {
                         ctor public ConcurrentHashMap.KeySetView();
                         method public int size();
-                        method public final java.lang.Object[] toArray();
+                        method public final Object[] toArray();
                         method public final <T> T[] toArray(T[]);
                       }
                     }
@@ -2751,7 +2751,7 @@ class StubsTest : DriverTest() {
                         ctor public PickConstructors.FileDescriptor();
                       }
                       public abstract static class PickConstructors.FileInputStream extends test.pkg.PickConstructors.InputStream {
-                        ctor public PickConstructors.FileInputStream(java.lang.String) throws test.pkg.PickConstructors.FileNotFoundException;
+                        ctor public PickConstructors.FileInputStream(String) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.File) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.FileDescriptor);
                       }
@@ -3430,7 +3430,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             api = """
-                package @androidx.annotation.Nullable test.pkg {
+                package @Nullable test.pkg {
                   public class Test {
                     ctor public Test();
                   }

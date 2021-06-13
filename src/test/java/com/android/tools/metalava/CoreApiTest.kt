@@ -84,7 +84,7 @@ class CoreApiTest : DriverTest() {
                 package test.pkg {
                   @libcore.api.IntraCoreApi public class Exposed {
                     method @libcore.api.IntraCoreApi public void exposed();
-                    field @libcore.api.IntraCoreApi public java.lang.String exposed;
+                    field @libcore.api.IntraCoreApi public String exposed;
                   }
                 }
                 """,
@@ -340,7 +340,7 @@ class CoreApiTest : DriverTest() {
                   public class ExposedClass {
                     ctor public ExposedClass();
                     method public void exposedMethod();
-                    field public java.lang.String exposedField;
+                    field public String exposedField;
                   }
                 }
                 """,
