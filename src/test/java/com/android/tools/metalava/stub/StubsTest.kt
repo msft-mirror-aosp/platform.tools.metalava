@@ -2341,7 +2341,7 @@ class StubsTest : DriverTest() {
                   }
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
                     method public java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {

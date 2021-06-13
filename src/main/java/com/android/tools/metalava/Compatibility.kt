@@ -42,13 +42,6 @@ class Compatibility(
     var useErasureInThrows: Boolean = compat
 
     /**
-     * Whether throws classes in methods should be filtered. This should definitely
-     * be the case, but doclava1 doesn't. Note that this only applies to signature
-     * files, not stub files.
-     */
-    var filterThrowsClasses: Boolean = !compat
-
-    /**
      * Doclava1 omits type parameters in interfaces (in signature files, not in stubs)
      */
     var omitTypeParametersInInterfaces: Boolean = compat
