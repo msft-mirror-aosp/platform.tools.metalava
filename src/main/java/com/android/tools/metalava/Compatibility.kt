@@ -34,11 +34,6 @@ class Compatibility(
     var skipAnnotationInstanceMethods: Boolean = compat
 
     /**
-     * Whether to include parameter names in the signature file
-     */
-    var parameterNames: Boolean = !compat
-
-    /**
      * *Some* signatures for doclava1 wrote "<?>" as "<? extends java.lang.Object>",
      * which is equivalent. Metalava does not do that. This flags ensures that the
      * signature files look like the old ones for the specific methods which did this.
