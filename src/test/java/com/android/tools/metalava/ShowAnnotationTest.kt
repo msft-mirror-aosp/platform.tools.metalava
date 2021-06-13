@@ -406,7 +406,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Foo {
                     ctor public Foo();
                     method public void method1();
-                    method @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public void method2();
+                    method @RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public void method2();
                     method public void method4();
                   }
                 }
@@ -749,7 +749,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Class1 {
                     ctor public Class1();
                     method public void member();
-                    field public static final java.lang.String FIELD = "Class1.FIELD";
+                    field public static final String FIELD = "Class1.FIELD";
                   }
                   public class Class2 extends test.pkg.Class1 {
                     ctor public Class2();

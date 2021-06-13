@@ -533,12 +533,12 @@ fun processNonCodebaseFlags() {
                         FileFormat.V1 -> {
                             compatibility = Compatibility(true)
                             options = Options(emptyArray(), options.stdout, options.stderr)
-                            FileFormat.V1.configureOptions(options, compatibility)
+                            FileFormat.V1.configureOptions(options)
                         }
                         FileFormat.V2 -> {
                             compatibility = Compatibility(false)
                             options = Options(emptyArray(), options.stdout, options.stderr)
-                            FileFormat.V2.configureOptions(options, compatibility)
+                            FileFormat.V2.configureOptions(options)
                         }
                         else -> error("Unsupported format ${convert.outputFormat}")
                     }

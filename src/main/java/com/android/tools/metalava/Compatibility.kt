@@ -32,9 +32,4 @@ class Compatibility(
 ) {
     /** Whether to include instance methods in annotation classes for the annotation properties */
     var skipAnnotationInstanceMethods: Boolean = compat
-
-    /** Whether we should omit common packages such as java.lang.* and kotlin.* from signature output */
-    var omitCommonPackages = !compat
-
-    // Other examples: sometimes we sort by qualified name, sometimes by full name
 }
