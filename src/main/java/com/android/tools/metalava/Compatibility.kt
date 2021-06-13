@@ -42,12 +42,5 @@ class Compatibility(
      */
     var hideDifferenceImplicit = !compat
 
-    /**
-     * The -new_api flag in API check (which generates an XML diff of the differences
-     * between two APIs) in doclava was ignoring fields. This flag controls whether
-     * we do the same.
-     */
-    var includeFieldsInApiDiff = !compat
-
     // Other examples: sometimes we sort by qualified name, sometimes by full name
 }
