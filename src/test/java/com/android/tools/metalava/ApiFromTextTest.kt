@@ -309,7 +309,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   @Deprecated public class MyTest {
                     ctor @Deprecated public MyTest(int, int);
-                    method @Deprecated public static final void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit>);
+                    method @Deprecated public static final void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     field @Deprecated public static java.util.List<java.lang.String> LIST;
                   }
                 }
