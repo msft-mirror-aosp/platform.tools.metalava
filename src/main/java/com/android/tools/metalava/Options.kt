@@ -1342,11 +1342,6 @@ class Options(
                         else -> FileFormat.JDIFF
                     }
                     val strip = arg == "-new_api"
-                    if (arg != ARG_CONVERT_NEW_TO_JDIFF) {
-                        // Using old doclava flags: Compatibility behavior: don't include fields in the output
-                        compatibility.includeFieldsInApiDiff = false
-                    }
-
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))

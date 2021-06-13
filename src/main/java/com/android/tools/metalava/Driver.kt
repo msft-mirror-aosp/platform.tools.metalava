@@ -509,10 +509,7 @@ fun processNonCodebaseFlags() {
                     file = baseFile,
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
-
-                val includeFields =
-                    if (convert.outputFormat == FileFormat.V2) true else compatibility.includeFieldsInApiDiff
-                TextCodebase.computeDelta(baseFile, baseApi, signatureApi, includeFields)
+                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
             } else {
                 signatureApi
             }
