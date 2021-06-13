@@ -299,8 +299,7 @@ class JDiffXmlWriter(
     private fun writeThrowsList(method: MethodItem) {
         val throws = when {
             preFiltered -> method.throwsTypes().asSequence()
-            compatibility.filterThrowsClasses -> method.filteredThrowsTypes(filterReference).asSequence()
-            else -> method.throwsTypes().asSequence()
+            else -> method.filteredThrowsTypes(filterReference).asSequence()
         }
         if (throws.any()) {
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEach { type ->
