@@ -2125,12 +2125,8 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Check erasure in throws-list`() {
-        // Makes sure that when we have a generic signature in the throws list we take
-        // the erasure instead (in compat mode); "Throwable" instead of "X" in the below
-        // test. Real world example: Optional.orElseThrow.
+    fun `Check correct throws list for generics`() {
         check(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2151,7 +2147,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Test<T> {
                     ctor public Test();
-                    method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
+                    method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws X;
                   }
                 }
                 """
