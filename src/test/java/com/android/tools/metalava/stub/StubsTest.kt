@@ -1238,10 +1238,7 @@ class StubsTest : DriverTest() {
 
     @Test
     fun `Check generating type parameters in interface list`() {
-        // In signature files we don't include generics in the interface list.
-        // In stubs, we do.
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1262,7 +1259,7 @@ class StubsTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public class GenericsInInterfaces<T> implements java.lang.Comparable {
+                  public class GenericsInInterfaces<T> implements java.lang.Comparable<test.pkg.GenericsInInterfaces> {
                     ctor public GenericsInInterfaces();
                     method public int compareTo(test.pkg.GenericsInInterfaces);
                   }
@@ -2335,7 +2332,7 @@ class StubsTest : DriverTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
                     method public java.util.List<X> foo();
@@ -2532,7 +2529,7 @@ class StubsTest : DriverTest() {
                       public class ConcurrentHashMap<K, V> {
                         ctor public ConcurrentHashMap();
                       }
-                      public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection java.io.Serializable java.util.Set {
+                      public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection<K> java.io.Serializable java.util.Set<K> {
                         ctor public ConcurrentHashMap.KeySetView();
                         method public int size();
                         method public final java.lang.Object[] toArray();

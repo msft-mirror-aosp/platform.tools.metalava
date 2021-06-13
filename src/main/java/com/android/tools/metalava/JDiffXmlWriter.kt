@@ -246,12 +246,7 @@ class JDiffXmlWriter(
                         return
                     }
                     XmlUtils.toXmlAttributeValue(
-                        formatType(
-                            superClass.toTypeString(
-                                erased = compatibility.omitTypeParametersInInterfaces,
-                                context = superClass.asClass()
-                            )
-                        )
+                        formatType(superClass.toTypeString(context = superClass.asClass()))
                     )
                 }
                 cls.isEnum() -> JAVA_LANG_ENUM
@@ -270,7 +265,7 @@ class JDiffXmlWriter(
         if (interfaces.any()) {
             interfaces.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print("<implements name=\"")
-                val type = item.toTypeString(erased = compatibility.omitTypeParametersInInterfaces, context = cls)
+                val type = item.toTypeString(context = cls)
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
                 writer.println("\">\n</implements>")
             }
