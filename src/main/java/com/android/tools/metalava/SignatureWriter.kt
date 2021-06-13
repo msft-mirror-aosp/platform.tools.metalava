@@ -158,7 +158,7 @@ class SignatureWriter(
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
-            omitCommonPackages = compatibility.omitCommonPackages
+            omitCommonPackages = true
         )
     }
 
@@ -283,10 +283,8 @@ class SignatureWriter(
             filter = filterReference
         )
 
-        // Strip java.lang. prefix?
-        if (compatibility.omitCommonPackages) {
-            typeString = TypeItem.shortenTypes(typeString)
-        }
+        // Strip java.lang. prefix
+        typeString = TypeItem.shortenTypes(typeString)
 
         writer.print(typeString)
     }

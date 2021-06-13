@@ -335,29 +335,29 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@androidx.annotation.NonNull java.lang.String property1, int arg2);
-                    method @androidx.annotation.NonNull public java.lang.String getProperty1();
-                    method @androidx.annotation.Nullable public java.lang.String getProperty2();
+                    ctor public Kotlin(@NonNull String property1, int arg2);
+                    method @NonNull public String getProperty1();
+                    method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@androidx.annotation.Nullable java.lang.String property2);
-                    property @androidx.annotation.NonNull public final java.lang.String property1;
-                    property @androidx.annotation.Nullable public final java.lang.String property2;
-                    field @androidx.annotation.NonNull public static final test.pkg.Kotlin.Companion Companion;
+                    method public void setProperty2(@Nullable String property2);
+                    property @NonNull public final String property1;
+                    property @Nullable public final String property2;
+                    field @NonNull public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
                   public static final class Kotlin.Companion {
                   }
                   public final class KotlinKt {
-                    method @androidx.annotation.NonNull public static inline operator java.lang.String component1(@androidx.annotation.NonNull java.lang.String);
+                    method @NonNull public static inline operator String component1(@NonNull String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
                   }
                   public class Parent {
                     ctor public Parent();
-                    method @androidx.annotation.Nullable public java.lang.String method();
-                    method @androidx.annotation.Nullable public java.lang.String method2(boolean value, @androidx.annotation.Nullable java.lang.Boolean value);
-                    method public int method3(@androidx.annotation.Nullable java.lang.Integer value, int value2);
+                    method @Nullable public String method();
+                    method @Nullable public String method2(boolean value, @Nullable Boolean value);
+                    method public int method3(@Nullable Integer value, int value2);
                   }
                 }
                 """
@@ -394,11 +394,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T getSystemService(java.lang.Class<T>);
+                    method public final <T> T getSystemService(Class<T>);
                   }
                   public final class _java_Kt {
-                    method public static inline <reified T> T systemService1(@androidx.annotation.NonNull test.pkg.Context);
-                    method public static inline java.lang.String systemService2(@androidx.annotation.NonNull test.pkg.Context);
+                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
+                    method public static inline String systemService2(@NonNull test.pkg.Context);
                   }
                 }
                 """
@@ -1331,7 +1331,7 @@ class ApiFileTest : DriverTest() {
                       public interface AutoCloseable {
                       }
                       public interface MyBaseInterface {
-                        method public void fun(int, java.lang.String);
+                        method public void fun(int, String);
                       }
                       public interface MyInterface<T> extends test.pkg.MyBaseInterface {
                       }
@@ -1339,7 +1339,7 @@ class ApiFileTest : DriverTest() {
                       }
                       public abstract static class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                         ctor public MyInterface2.Range();
-                        field protected java.lang.String myString;
+                        field protected String myString;
                       }
                       public static class MyInterface2.TtsSpan<C extends test.pkg.MyInterface<?>> {
                         ctor public MyInterface2.TtsSpan();
@@ -1837,7 +1837,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    field public static final java.lang.String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
+                    field public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
                     field public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
                     field protected int field00;
                     field public static final boolean field01 = true;
@@ -1848,7 +1848,7 @@ class ApiFileTest : DriverTest() {
                     field public static final char field06 = 99; // 0x0063 'c'
                     field public static final float field07 = 98.5f;
                     field public static final double field08 = 98.5;
-                    field public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
+                    field public static final String field09 = "String with \"escapes\" and \u00a9...";
                     field public static final double field10 = (0.0/0.0);
                     field public static final double field11 = (1.0/0.0);
                   }
@@ -2188,29 +2188,6 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-
-            // This is the output from doclava1; I'm not quite matching this yet (sorting order differs,
-            // and my heuristic to remove "extends java.lang.Object" is somehow preserved here. I'm
-            // not clear on when they do it and when they don't.
-            /*
-            api = """
-            package test.pkg {
-              public abstract class Collections {
-                ctor public Collections();
-                method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
-                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
-              }
-              public final class Collections.Range<T extends java.lang.Comparable<? super T>> {
-                ctor public Collections.Range();
-              }
-              public class MoreAsserts {
-                ctor public MoreAsserts();
-                method public static void assertEquals(java.util.Set<? extends java.lang.Object>, java.util.Set<? extends java.lang.Object>);
-                method public static void assertEquals(java.lang.String, java.util.Set<? extends java.lang.Object>, java.util.Set<? extends java.lang.Object>);
-              }
-            }
-            """,
-            */
             api = """
                 package test.pkg {
                   public abstract class Collections {
@@ -2223,7 +2200,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public class MoreAsserts {
                     ctor public MoreAsserts();
-                    method public static void assertEquals(java.lang.String, java.util.Set<?>, java.util.Set<?>);
+                    method public static void assertEquals(String, java.util.Set<?>, java.util.Set<?>);
                     method public static void assertEquals(java.util.Set<?>, java.util.Set<?>);
                   }
                 }
@@ -2278,14 +2255,14 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public enum ChronUnit implements test.pkg.TempUnit {
-                    method public java.lang.String valueOf(int);
-                    method public java.lang.String values(java.lang.String);
+                    method public String valueOf(int);
+                    method public String values(String);
                     enum_constant public static final test.pkg.ChronUnit A;
                     enum_constant public static final test.pkg.ChronUnit B;
                     enum_constant public static final test.pkg.ChronUnit C;
                   }
                   public interface TempUnit {
-                    method public java.lang.String toString();
+                    method public String toString();
                   }
                 }
                 """
@@ -2298,7 +2275,7 @@ class ApiFileTest : DriverTest() {
         val source = """
             package java.nio.file.attribute {
               public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(java.lang.String);
+                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
                 method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
@@ -2484,7 +2461,7 @@ class ApiFileTest : DriverTest() {
                     ctor public MyClass();
                     method public void method();
                     method public void other();
-                    field public static final java.lang.String CONSTANT = "MyConstant";
+                    field public static final String CONSTANT = "MyConstant";
                   }
                   public interface OtherInterface {
                     method public void other();
@@ -2922,7 +2899,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
                         ctor public Child();
-                        method @Deprecated public java.lang.String toString();
+                        method @Deprecated public String toString();
                       }
                       public class Parent {
                         ctor public Parent();
@@ -2961,7 +2938,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class -Foo {
-                    method public static inline void printHelloWorld(@androidx.annotation.NonNull java.lang.String);
+                    method public static inline void printHelloWorld(@NonNull String);
                   }
                 }
                 """
@@ -3463,10 +3440,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public class ProductionCodeJava {
-                    method @androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected void shouldBeProtected();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected void shouldBeProtected();
                   }
                   public class ProductionCodeKotlin {
-                    method @androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected final void shouldBeProtected();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected final void shouldBeProtected();
                   }
                 }
                 """,
@@ -3796,7 +3773,7 @@ class ApiFileTest : DriverTest() {
                 method public void method1();
               }
               public final class Class2 {
-                method public void method1(java.lang.String);
+                method public void method1(String);
               }
             }
             package Test.pkg1 {
@@ -3806,7 +3783,7 @@ class ApiFileTest : DriverTest() {
             }
             package Test.pkg2 {
               public final class Class1 {
-                method public void method1(java.lang.String, java.lang.String);
+                method public void method1(String, String);
               }
             }
                     """
