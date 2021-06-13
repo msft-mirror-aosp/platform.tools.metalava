@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -162,10 +161,7 @@ class PsiTypePrinter(
         if (suffix == null) {
             sb.append('?')
         } else {
-            if (suffix == JAVA_LANG_OBJECT &&
-                !compatibility.includeExtendsObjectInWildcard &&
-                type.isExtends
-            ) {
+            if (suffix == JAVA_LANG_OBJECT && type.isExtends) {
                 sb.append('?')
             } else {
                 sb.append(if (type.isExtends) EXTENDS_PREFIX else SUPER_PREFIX)
