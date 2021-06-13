@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
@@ -28,7 +27,6 @@ import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
-import com.intellij.psi.util.TypeConversionUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -457,12 +455,6 @@ open class PsiMethodItem(
 
             val result = ArrayList<ClassItem>(interfaces.size)
             for (cls in interfaces) {
-                if (compatibility.useErasureInThrows) {
-                    val erased = TypeConversionUtil.erasure(cls)
-                    result.add(codebase.findClass(erased) ?: continue)
-                    continue
-                }
-
                 result.add(codebase.findClass(cls) ?: continue)
             }
 
