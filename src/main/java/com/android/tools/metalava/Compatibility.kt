@@ -36,11 +36,5 @@ class Compatibility(
     /** Whether we should omit common packages such as java.lang.* and kotlin.* from signature output */
     var omitCommonPackages = !compat
 
-    /**
-     * If an overriding method differs from its super method only by final or deprecated
-     * and the containing class is final or deprecated, skip it in the signature file
-     */
-    var hideDifferenceImplicit = !compat
-
     // Other examples: sometimes we sort by qualified name, sometimes by full name
 }
