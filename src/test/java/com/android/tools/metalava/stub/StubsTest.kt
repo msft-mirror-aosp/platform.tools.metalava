@@ -608,12 +608,8 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Check erasure in throws list`() {
-        // Makes sure that when we have a generic signature in the throws list we take
-        // the erasure instead (in compat mode); "Throwable" instead of "X" in the below
-        // test. Real world example: Optional.orElseThrow.
+    fun `Check correct throws list for generics`() {
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -635,7 +631,7 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class Test<T> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X> exceptionSupplier) throws java.lang.Throwable { throw new RuntimeException("Stub!"); }
+                public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X> exceptionSupplier) throws X { throw new RuntimeException("Stub!"); }
                 }
                 """
         )

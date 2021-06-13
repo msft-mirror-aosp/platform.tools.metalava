@@ -34,14 +34,6 @@ class Compatibility(
     var skipAnnotationInstanceMethods: Boolean = compat
 
     /**
-     * In this signature
-     *        public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-     *  doclava1 would treat this as "throws Throwable" instead of "throws X". This variable turns on
-     *  this compat behavior.
-     * */
-    var useErasureInThrows: Boolean = compat
-
-    /**
      * Doclava1 omits type parameters in interfaces (in signature files, not in stubs)
      */
     var omitTypeParametersInInterfaces: Boolean = compat

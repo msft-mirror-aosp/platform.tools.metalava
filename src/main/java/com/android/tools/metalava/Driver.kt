@@ -1027,9 +1027,6 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     val prevCompatibility = compatibility
     if (compatibility.compat) {
         compatibility = Compatibility(false)
-        // But preserve the setting for whether we want to erase throws signatures (to ensure the API
-        // stays compatible)
-        compatibility.useErasureInThrows = prevCompatibility.useErasureInThrows
     }
 
     val stubWriter =
