@@ -146,7 +146,7 @@ class BaselineTest : DriverTest() {
                     method public <S extends test.pkg.Hidden1, T extends test.pkg.Hidden2> S get(T);
                     method public test.pkg.Hidden1 getHidden1();
                     method public test.pkg.Hidden2 getHidden2();
-                    method public void method(test.pkg.Hidden1, test.pkg.Hidden2) throws test.pkg.Hidden3;
+                    method public void method(test.pkg.Hidden1, test.pkg.Hidden2);
                     field public test.pkg.Hidden1 hidden1;
                     field public test.pkg.Hidden2 hidden2;
                   }
@@ -226,10 +226,10 @@ class BaselineTest : DriverTest() {
             api = """
                 package android.pkg {
                   public class RegistrationMethods {
-                    method public void registerOk2Callback(@androidx.annotation.Nullable java.lang.Runnable);
-                    method public void registerUnpaired2Callback(@androidx.annotation.Nullable java.lang.Runnable);
-                    method public void unregisterOk2Callback(@androidx.annotation.Nullable java.lang.Runnable);
-                    method public void unregisterOk3Callback(@androidx.annotation.Nullable java.lang.Runnable);
+                    method public void registerOk2Callback(@Nullable Runnable);
+                    method public void registerUnpaired2Callback(@Nullable Runnable);
+                    method public void unregisterOk2Callback(@Nullable Runnable);
+                    method public void unregisterOk3Callback(@Nullable Runnable);
                   }
                 }
                 """

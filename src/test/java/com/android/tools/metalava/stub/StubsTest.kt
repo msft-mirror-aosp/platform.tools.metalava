@@ -608,12 +608,8 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Check erasure in throws list`() {
-        // Makes sure that when we have a generic signature in the throws list we take
-        // the erasure instead (in compat mode); "Throwable" instead of "X" in the below
-        // test. Real world example: Optional.orElseThrow.
+    fun `Check correct throws list for generics`() {
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -635,7 +631,7 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class Test<T> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X> exceptionSupplier) throws java.lang.Throwable { throw new RuntimeException("Stub!"); }
+                public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X> exceptionSupplier) throws X { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
@@ -1242,10 +1238,7 @@ class StubsTest : DriverTest() {
 
     @Test
     fun `Check generating type parameters in interface list`() {
-        // In signature files we don't include generics in the interface list.
-        // In stubs, we do.
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1266,7 +1259,7 @@ class StubsTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public class GenericsInInterfaces<T> implements java.lang.Comparable {
+                  public class GenericsInInterfaces<T> implements java.lang.Comparable<test.pkg.GenericsInInterfaces> {
                     ctor public GenericsInInterfaces();
                     method public int compareTo(test.pkg.GenericsInInterfaces);
                   }
@@ -1878,7 +1871,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(@androidx.annotation.NonNull char[]);
+                        ctor public String(@NonNull char[]);
                       }
                     }
                     """,
@@ -1913,7 +1906,7 @@ class StubsTest : DriverTest() {
             api = """
                     package my.pkg {
                       public class String {
-                        ctor public String(@androidx.annotation.NonNull char[]);
+                        ctor public String(@NonNull char[]);
                       }
                     }
                     """,
@@ -2339,9 +2332,9 @@ class StubsTest : DriverTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
                     method public java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
@@ -2536,10 +2529,10 @@ class StubsTest : DriverTest() {
                       public class ConcurrentHashMap<K, V> {
                         ctor public ConcurrentHashMap();
                       }
-                      public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection java.io.Serializable java.util.Set {
+                      public abstract static class ConcurrentHashMap.KeySetView<K, V> implements java.util.Collection<K> java.io.Serializable java.util.Set<K> {
                         ctor public ConcurrentHashMap.KeySetView();
                         method public int size();
-                        method public final java.lang.Object[] toArray();
+                        method public final Object[] toArray();
                         method public final <T> T[] toArray(T[]);
                       }
                     }
@@ -2758,7 +2751,7 @@ class StubsTest : DriverTest() {
                         ctor public PickConstructors.FileDescriptor();
                       }
                       public abstract static class PickConstructors.FileInputStream extends test.pkg.PickConstructors.InputStream {
-                        ctor public PickConstructors.FileInputStream(java.lang.String) throws test.pkg.PickConstructors.FileNotFoundException;
+                        ctor public PickConstructors.FileInputStream(String) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.File) throws test.pkg.PickConstructors.FileNotFoundException;
                         ctor public PickConstructors.FileInputStream(test.pkg.PickConstructors.FileDescriptor);
                       }
@@ -3437,7 +3430,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             api = """
-                package @androidx.annotation.Nullable test.pkg {
+                package @Nullable test.pkg {
                   public class Test {
                     ctor public Test();
                   }

@@ -93,7 +93,7 @@ class UnhideApisTest : DriverTest() {
                     method public <S extends test.pkg.Hidden1, T extends test.pkg.Hidden2> S get(T);
                     method public test.pkg.Hidden1 getHidden1();
                     method public test.pkg.Hidden2 getHidden2();
-                    method public void method(test.pkg.Hidden1, test.pkg.Hidden2) throws test.pkg.Hidden3;
+                    method public void method(test.pkg.Hidden1, test.pkg.Hidden2);
                     field public test.pkg.Hidden1 hidden1;
                     field public test.pkg.Hidden2 hidden2;
                   }
@@ -172,7 +172,7 @@ class UnhideApisTest : DriverTest() {
                     method public <S extends test.pkg.Hidden1, T extends test.pkg.Hidden2> S get(T);
                     method public test.pkg.Hidden1 getHidden1();
                     method public test.pkg.Hidden2 getHidden2();
-                    method public void method(test.pkg.Hidden1, test.pkg.Hidden2) throws test.pkg.Hidden3;
+                    method public void method(test.pkg.Hidden1, test.pkg.Hidden2);
                     field public test.pkg.Hidden1 hidden1;
                     field public test.pkg.Hidden2 hidden2;
                   }
@@ -235,7 +235,7 @@ class UnhideApisTest : DriverTest() {
                     """,
             api = """
                     package test.pkg1 {
-                      public abstract class Usage implements java.util.List {
+                      public abstract class Usage implements java.util.List<test.pkg1.Class1> {
                         ctor public Usage();
                         method public void arrayType(test.pkg1.Class9[]);
                         method public void ellipsisType(test.pkg1.Class8...);

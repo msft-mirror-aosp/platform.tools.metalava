@@ -509,10 +509,7 @@ fun processNonCodebaseFlags() {
                     file = baseFile,
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
-
-                val includeFields =
-                    if (convert.outputFormat == FileFormat.V2) true else compatibility.includeFieldsInApiDiff
-                TextCodebase.computeDelta(baseFile, baseApi, signatureApi, includeFields)
+                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
             } else {
                 signatureApi
             }
@@ -536,12 +533,12 @@ fun processNonCodebaseFlags() {
                         FileFormat.V1 -> {
                             compatibility = Compatibility(true)
                             options = Options(emptyArray(), options.stdout, options.stderr)
-                            FileFormat.V1.configureOptions(options, compatibility)
+                            FileFormat.V1.configureOptions(options)
                         }
                         FileFormat.V2 -> {
                             compatibility = Compatibility(false)
                             options = Options(emptyArray(), options.stdout, options.stderr)
-                            FileFormat.V2.configureOptions(options, compatibility)
+                            FileFormat.V2.configureOptions(options)
                         }
                         else -> error("Unsupported format ${convert.outputFormat}")
                     }
@@ -1027,9 +1024,6 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     val prevCompatibility = compatibility
     if (compatibility.compat) {
         compatibility = Compatibility(false)
-        // But preserve the setting for whether we want to erase throws signatures (to ensure the API
-        // stays compatible)
-        compatibility.useErasureInThrows = prevCompatibility.useErasureInThrows
     }
 
     val stubWriter =

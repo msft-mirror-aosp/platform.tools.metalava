@@ -16,11 +16,9 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
-import java.util.LinkedHashSet
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
@@ -114,7 +112,7 @@ interface MethodItem : MemberItem {
     ): LinkedHashSet<ClassItem> {
 
         for (cls in throwsTypes()) {
-            if (predicate.test(cls) || cls.isTypeParameter && !compatibility.useErasureInThrows) {
+            if (predicate.test(cls) || cls.isTypeParameter) {
                 classes.add(cls)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so, include those
@@ -279,8 +277,7 @@ interface MethodItem : MemberItem {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated &&
-                (!compatibility.hideDifferenceImplicit || !method.deprecated)) {
+            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
                 return false
             }
 
