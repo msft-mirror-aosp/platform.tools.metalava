@@ -113,7 +113,6 @@ const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-anno
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
-const val ARG_OMIT_COMMON_PACKAGES = "--omit-common-packages"
 const val ARG_SKIP_JAVA_IN_COVERAGE_REPORT = "--skip-java-in-coverage-report"
 const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
@@ -1217,9 +1216,6 @@ class Options(
                     // Already processed above but don't flag it here as invalid
                 }
 
-                ARG_OMIT_COMMON_PACKAGES, "$ARG_OMIT_COMMON_PACKAGES=yes" -> compatibility.omitCommonPackages = true
-                "$ARG_OMIT_COMMON_PACKAGES=no" -> compatibility.omitCommonPackages = false
-
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
 
                 // Extracting API levels
@@ -1342,11 +1338,6 @@ class Options(
                         else -> FileFormat.JDIFF
                     }
                     val strip = arg == "-new_api"
-                    if (arg != ARG_CONVERT_NEW_TO_JDIFF) {
-                        // Using old doclava flags: Compatibility behavior: don't include fields in the output
-                        compatibility.includeFieldsInApiDiff = false
-                    }
-
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
@@ -1564,12 +1555,6 @@ class Options(
                         } else {
                             yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
                         }
-                    } else if (arg.startsWith(ARG_OMIT_COMMON_PACKAGES)) {
-                        compatibility.omitCommonPackages = if (arg == ARG_OMIT_COMMON_PACKAGES) {
-                            true
-                        } else {
-                            yesNo(arg.substring(ARG_OMIT_COMMON_PACKAGES.length + 1))
-                        }
                     } else if (arg.startsWith(ARG_COMPAT_OUTPUT)) {
                         compatOutput = if (arg == ARG_COMPAT_OUTPUT)
                             true
@@ -1594,7 +1579,7 @@ class Options(
                             }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
-                        outputFormat.configureOptions(this, compatibility)
+                        outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
                         // Compatibility flag; map to mutable properties in the Compatibility
                         // class and assign it
@@ -1671,7 +1656,7 @@ class Options(
             if (outputFormat < FileFormat.V3) {
                 outputFormat = FileFormat.V3
             }
-            outputFormat.configureOptions(this, compatibility)
+            outputFormat.configureOptions(this)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -2360,9 +2345,6 @@ class Options(
             "$ARG_COMPAT_OUTPUT=[yes|no]", "Controls whether to keep signature files compatible with the " +
                 "historical format (with its various quirks) or to generate the new format (which will also include " +
                 "annotations that are part of the API, etc.)",
-            "$ARG_OMIT_COMMON_PACKAGES[=yes|no]", "Skip common package prefixes like java.lang.* and " +
-                "kotlin.* in signature files, along with packages for well known annotations like @Nullable and " +
-                "@NonNull.",
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 

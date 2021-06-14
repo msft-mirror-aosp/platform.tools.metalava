@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -159,7 +158,7 @@ class SignatureWriter(
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
-            omitCommonPackages = compatibility.omitCommonPackages
+            omitCommonPackages = true
         )
     }
 
@@ -174,7 +173,6 @@ class SignatureWriter(
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
                 superClass.toTypeString(
-                    erased = compatibility.omitTypeParametersInInterfaces,
                     kotlinStyleNulls = false,
                     context = superClass.asClass(),
                     filter = filterReference
@@ -213,7 +211,6 @@ class SignatureWriter(
                 writer.print(" ")
                 writer.print(
                     item.toTypeString(
-                        erased = compatibility.omitTypeParametersInInterfaces,
                         kotlinStyleNulls = false,
                         context = item.asClass(),
                         filter = filterReference
@@ -235,7 +232,6 @@ class SignatureWriter(
 
     private fun writeParameterList(method: MethodItem) {
         writer.print("(")
-        val emitParameterNames = compatibility.parameterNames
         method.parameters().asSequence().forEachIndexed { i, parameter ->
             if (i > 0) {
                 writer.print(", ")
@@ -249,12 +245,10 @@ class SignatureWriter(
             }
             writeModifiers(parameter)
             writeType(parameter, parameter.type())
-            if (emitParameterNames) {
-                val name = parameter.publicName()
-                if (name != null) {
-                    writer.print(" ")
-                    writer.print(name)
-                }
+            val name = parameter.publicName()
+            if (name != null) {
+                writer.print(" ")
+                writer.print(name)
             }
             if (parameter.isDefaultValueKnown() &&
                 options.outputDefaultValues &&
@@ -289,27 +283,8 @@ class SignatureWriter(
             filter = filterReference
         )
 
-        // Strip java.lang. prefix?
-        if (compatibility.omitCommonPackages) {
-            typeString = TypeItem.shortenTypes(typeString)
-        }
-
-        if (compatibility.includeExtendsObjectInWildcard && typeString.endsWith(", ?>") && item is ParameterItem) {
-            // This wasn't done universally; just in a few places, so replicate it for those exact places
-            when (item.containingMethod().name()) {
-                "computeIfAbsent" -> {
-                    if (typeString == "java.util.function.Function<? super java.lang.Object, ?>") {
-                        typeString = "java.util.function.Function<? super java.lang.Object, ? extends java.lang.Object>"
-                    }
-                }
-                "computeIfPresent", "merge", "replaceAll", "compute" -> {
-                    if (typeString == "java.util.function.BiFunction<? super java.lang.Object, ? super java.lang.Object, ?>") {
-                        typeString =
-                            "java.util.function.BiFunction<? super java.lang.Object, ? super java.lang.Object, ? extends java.lang.Object>"
-                    }
-                }
-            }
-        }
+        // Strip java.lang. prefix
+        typeString = TypeItem.shortenTypes(typeString)
 
         writer.print(typeString)
     }
@@ -317,8 +292,7 @@ class SignatureWriter(
     private fun writeThrowsList(method: MethodItem) {
         val throws = when {
             preFiltered -> method.throwsTypes().asSequence()
-            compatibility.filterThrowsClasses -> method.filteredThrowsTypes(filterReference).asSequence()
-            else -> method.throwsTypes().asSequence()
+            else -> method.filteredThrowsTypes(filterReference).asSequence()
         }
         if (throws.any()) {
             writer.print(" throws ")

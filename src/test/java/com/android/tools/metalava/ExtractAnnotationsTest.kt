@@ -337,7 +337,6 @@ class ExtractAnnotationsTest : DriverTest() {
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles = arrayOf(
                 java(
@@ -391,7 +390,6 @@ class ExtractAnnotationsTest : DriverTest() {
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             sourceFiles = arrayOf(
                 java(
                     """

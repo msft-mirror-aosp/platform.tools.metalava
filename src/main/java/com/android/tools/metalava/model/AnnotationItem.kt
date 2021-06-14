@@ -30,12 +30,11 @@ import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
 import com.android.tools.metalava.ANDROID_SUPPORT_ANNOTATION_PREFIX
-import com.android.tools.metalava.Compatibility
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiCallExpression
@@ -552,8 +551,7 @@ interface AnnotationItem {
 
         /**
          * Given a "full" annotation name, shortens it by removing redundant package names.
-         * This is intended to be used by the [Compatibility.omitCommonPackages] flag
-         * to reduce clutter in signature files.
+         * This is intended to be used to reduce clutter in signature files.
          *
          * For example, this method will convert `@androidx.annotation.Nullable` to just
          * `@Nullable`, and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.

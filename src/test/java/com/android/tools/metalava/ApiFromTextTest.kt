@@ -28,9 +28,9 @@ class ApiFromTextTest : DriverTest() {
                   public class MyTest {
                     ctor public MyTest();
                     method public int clamp(int);
-                    method public java.lang.Double convert(java.lang.Float);
-                    field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
-                    field public java.lang.Number myNumber;
+                    method public Double convert(Float);
+                    field public static final String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
+                    field public Number myNumber;
                   }
                 }
                 """
@@ -283,7 +283,7 @@ class ApiFromTextTest : DriverTest() {
                   public class MyTest {
                     ctor public MyTest();
                     method public int clamp(int);
-                    method public double convert(@androidx.annotation.Nullable java.lang.Float, byte[], java.lang.Iterable<java.io.File>);
+                    method public double convert(@Nullable Float, byte[], Iterable<java.io.File>);
                   }
                 }
                 """
@@ -309,7 +309,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   @Deprecated public class MyTest {
                     ctor @Deprecated public MyTest(int, int);
-                    method @Deprecated public static final void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit>);
+                    method @Deprecated public static final void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     field @Deprecated public static java.util.List<java.lang.String> LIST;
                   }
                 }
@@ -328,7 +328,7 @@ class ApiFromTextTest : DriverTest() {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(java.lang.String);
+                method public static test.pkg.Foo valueOf(String);
                 method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
@@ -368,7 +368,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class Foo2 {
                     ctor public Foo2();
-                    field public static final java.lang.String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
+                    field public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
                     field public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
                     field protected int field00;
                     field public static final boolean field01 = true;
@@ -379,7 +379,7 @@ class ApiFromTextTest : DriverTest() {
                     field public static final char field06 = 99; // 0x0063 'c'
                     field public static final float field07 = 98.5f;
                     field public static final double field08 = 98.5;
-                    field public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
+                    field public static final String field09 = "String with \"escapes\" and \u00a9...";
                     field public static final double field10 = (0.0/0.0);
                     field public static final double field11 = (1.0/0.0);
                   }
@@ -745,7 +745,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static suspend inline java.lang.Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit>);
+                    method public static suspend inline Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """

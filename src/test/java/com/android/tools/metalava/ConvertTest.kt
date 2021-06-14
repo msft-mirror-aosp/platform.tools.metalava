@@ -156,6 +156,17 @@ class ConvertTest : DriverTest() {
                     <parameter name="null" type="java.lang.Float">
                     </parameter>
                     </method>
+                    <field name="ANY_CURSOR_ITEM_TYPE"
+                     type="java.lang.String"
+                     transient="false"
+                     volatile="false"
+                     value="&quot;vnd.android.cursor.item/*&quot;"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
                     </class>
                     <class name="MyTest2"
                      extends="java.lang.Object"
@@ -585,7 +596,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert new to v1 signatures with compat mode and no strip`() {
         // Output is similar to the v2 format, but with fully qualified java.lang types
-        // and fields not included
         check(
             compatibilityMode = false,
             convertToJDiff = listOf(
@@ -630,11 +640,12 @@ class ConvertTest : DriverTest() {
                     """
                     package test.pkg {
                       public class MyTest1 {
-                        method public java.lang.Double convert(java.lang.Float);
+                        method public Double convert(Float);
+                        field public static final String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
-                        method public java.lang.Double convert(java.lang.Float);
+                        method public Double convert(Float);
                       }
                     }
                     package test.pkg.new {
@@ -690,13 +701,13 @@ class ConvertTest : DriverTest() {
                       public class MyTest1 {
                         ctor public MyTest1();
                         method @Deprecated public int clamp(int);
-                        method public java.lang.Double convert(java.lang.Float);
-                        field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
-                        field @Deprecated public java.lang.Number myNumber;
+                        method public Double convert(Float);
+                        field public static final String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
+                        field @Deprecated public Number myNumber;
                       }
                       public class MyTest2 {
                         ctor public MyTest2();
-                        method public java.lang.Double convert(java.lang.Float);
+                        method public Double convert(Float);
                       }
                     }
                     package test.pkg.new {
