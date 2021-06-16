@@ -2078,6 +2078,8 @@ class StubsTest : DriverTest() {
             api = """
                     package androidx.annotation {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface RequiresApi {
+                        method public abstract int api() default 1;
+                        method public abstract int value() default 1;
                       }
                     }
                     package my.pkg {
