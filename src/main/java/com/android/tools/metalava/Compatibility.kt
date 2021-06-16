@@ -29,7 +29,4 @@ var compatibility: Compatibility = Compatibility()
 class Compatibility(
     /** Whether compatibility is generally on */
     val compat: Boolean = COMPAT_MODE_BY_DEFAULT
-) {
-    /** Whether to include instance methods in annotation classes for the annotation properties */
-    var skipAnnotationInstanceMethods: Boolean = compat
-}
+)

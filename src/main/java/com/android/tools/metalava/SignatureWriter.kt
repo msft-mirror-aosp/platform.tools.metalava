@@ -96,12 +96,6 @@ class SignatureWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
-        if (compatibility.skipAnnotationInstanceMethods && method.containingClass().isAnnotationType() &&
-            !method.modifiers.isStatic()
-        ) {
-            return
-        }
-
         writer.print("    method ")
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList(), addSpace = true)
