@@ -54,7 +54,6 @@ class StubsTest : DriverTest() {
 
     private fun checkStubs(
         @Language("JAVA") source: String,
-        compatibilityMode: Boolean = false,
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -69,7 +68,6 @@ class StubsTest : DriverTest() {
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
             stubFiles = arrayOf(java(source)),
-            compatibilityMode = compatibilityMode,
             expectedIssues = warnings,
             checkCompilation = true,
             api = api,
@@ -454,7 +452,6 @@ class StubsTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         checkStubs(
-            compatibilityMode = true,
             warnings = null,
             sourceFiles = arrayOf(
                 java(
@@ -569,7 +566,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Skip hidden enum constants in stubs`() {
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -830,7 +826,6 @@ class StubsTest : DriverTest() {
             // Note that doclava1 includes fields here that it doesn't include in the
             // signature file.
             // checkDoclava1 = true,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -871,7 +866,6 @@ class StubsTest : DriverTest() {
 
         // BUG: Note that we need to implement the parent
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1412,7 +1406,6 @@ class StubsTest : DriverTest() {
         // When APIs reference annotations that are hidden, make sure the're excluded from the stubs and
         // signature files
         checkStubs(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1753,7 +1746,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check generating required stubs from hidden super classes and interfaces`() {
         checkStubs(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1857,7 +1849,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as sdk stubs`() {
         check(
-            compatibilityMode = true,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1892,7 +1883,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as doc stubs`() {
         check(
-            compatibilityMode = true,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1976,7 +1966,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Pass through libcore annotations`() {
         check(
-            compatibilityMode = true,
             checkCompilation = true,
             extraArguments = arrayOf(
                 ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
@@ -2058,7 +2047,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Skip RequiresApi annotation`() {
         check(
-            compatibilityMode = true,
             extraArguments = arrayOf(
                 ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"
             ),
@@ -2493,7 +2481,6 @@ class StubsTest : DriverTest() {
     fun `Rewriting implements class references`() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2655,7 +2642,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Picking Super Constructors`() {
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3022,7 +3008,6 @@ class StubsTest : DriverTest() {
     fun `Overriding protected methods`() {
         // Checks a scenario where the stubs were missing overrides
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3206,7 +3191,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Annotation default values`() {
         checkStubs(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3350,7 +3334,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Annotation metadata in stubs`() {
         checkStubs(
-            compatibilityMode = false,
             includeSourceRetentionAnnotations = false,
             skipEmitPackages = emptyList(),
             sourceFiles = arrayOf(
@@ -3382,7 +3365,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Functional Interfaces`() {
         checkStubs(
-            compatibilityMode = false,
             skipEmitPackages = emptyList(),
             sourceFiles = arrayOf(
                 java(
@@ -3411,7 +3393,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check writing package info file`() {
         checkStubs(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3494,7 +3475,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Test package-info annotations`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3540,7 +3520,6 @@ class StubsTest : DriverTest() {
     fun `Ensure we emit both deprecated javadoc and annotation with exclude-all-annotations`() {
         check(
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3580,7 +3559,6 @@ class StubsTest : DriverTest() {
     fun `Ensure we emit runtime and deprecated annotations in stubs with exclude-annotations`() {
         check(
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3647,7 +3625,6 @@ class StubsTest : DriverTest() {
     fun `Ensure we include class and runtime and not source annotations in stubs with include-annotations`() {
         check(
             extraArguments = arrayOf("--include-annotations"),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3720,7 +3697,6 @@ class StubsTest : DriverTest() {
     fun `Generate stubs with --exclude-documentation-from-stubs`() {
         checkStubs(
             extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3767,7 +3743,6 @@ class StubsTest : DriverTest() {
     fun `Generate documentation stubs with --exclude-documentation-from-stubs`() {
         checkStubs(
             extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3898,7 +3873,6 @@ class StubsTest : DriverTest() {
                 ARG_UPDATE_API,
                 ARG_EXCLUDE_ALL_ANNOTATIONS
             ),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3939,7 +3913,6 @@ class StubsTest : DriverTest() {
                 ARG_CHECK_API,
                 ARG_EXCLUDE_ALL_ANNOTATIONS
             ),
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3971,7 +3944,6 @@ class StubsTest : DriverTest() {
     fun `Include package private classes referenced from public API`() {
         // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
         check(
-            compatibilityMode = false,
             expectedIssues = """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
                 src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
@@ -4083,7 +4055,6 @@ class StubsTest : DriverTest() {
         // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in android.car-system-stubs
         // referenced from outer class constructor
         check(
-            compatibilityMode = false,
             expectedIssues = """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (as parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
                 src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
@@ -4127,7 +4098,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Use type argument in constructor cast`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -4208,7 +4178,6 @@ class StubsTest : DriverTest() {
         //    type substitution of Orange for T is lost.
         // """
         check(
-            compatibilityMode = false,
             expectedIssues = "src/test/pkg/Alpha.java:2: warning: Public class test.pkg.Alpha stripped of unavailable superclass test.pkg.Beta [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
@@ -4282,7 +4251,6 @@ class StubsTest : DriverTest() {
     fun `Regression test for 124333557`() {
         // Regression test for 124333557: Handle empty java files
         check(
-            compatibilityMode = false,
             expectedIssues = """
             TESTROOT/src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
             TESTROOT/src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]

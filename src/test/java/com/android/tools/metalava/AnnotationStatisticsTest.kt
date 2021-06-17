@@ -50,8 +50,7 @@ class AnnotationStatisticsTest : DriverTest() {
                     }
                     """
                 )
-            ),
-            compatibilityMode = false
+            )
         )
     }
 
@@ -66,7 +65,6 @@ class AnnotationStatisticsTest : DriverTest() {
                     4 out of 5 eligible method returns were annotated (80%)
                     4 out of 5 eligible parameters were annotated (80%)
                 """,
-            compatibilityMode = false,
             signatureSource = """
                 package test.pkg {
                   public class MyTest {
@@ -189,8 +187,7 @@ class AnnotationStatisticsTest : DriverTest() {
                 | ApiSurface.missing3(int)                                     |                1 |
                 | ApiSurface.missing4(Object)                                  |                1 |
                 | ApiSurface.missing5(Object)                                  |                1 |
-                """,
-            compatibilityMode = false
+                """
         )
     }
 }
