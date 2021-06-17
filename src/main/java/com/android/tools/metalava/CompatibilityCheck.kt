@@ -18,9 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.doclava1.Issues.Issue
+import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -28,6 +26,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
+import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -82,25 +81,29 @@ class CompatibilityCheck(
 
     var foundProblems = false
 
-    override fun compare(old: Item, new: Item) {
-        val oldModifiers = old.modifiers
-        val newModifiers = new.modifiers
-        if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
-            report(
-                Issues.OPERATOR_REMOVAL,
-                new,
-                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change"
-            )
+    private fun containingMethod(item: Item): MethodItem? {
+        if (item is MethodItem) {
+            return item
         }
-
-        if (oldModifiers.isInfix() && !newModifiers.isInfix()) {
-            report(
-                Issues.INFIX_REMOVAL,
-                new,
-                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
-            )
+        if (item is ParameterItem) {
+            return item.containingMethod()
         }
+        return null
+    }
 
+    private fun compareNullability(old: Item, new: Item) {
+        val oldMethod = containingMethod(old)
+        val newMethod = containingMethod(new)
+
+        if (oldMethod != null && newMethod != null) {
+            if (oldMethod.containingClass().qualifiedName() != newMethod.containingClass().qualifiedName() || ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))) {
+                // If the old method and new method are defined on different classes, then it's possible
+                // that the old method was previously overridden and we omitted it.
+                // So, if the old method and new methods are defined on different classes, then we skip
+                // nullability checks
+                return
+            }
+        }
         // Should not remove nullness information
         // Can't change information incompatibly
         val oldNullnessAnnotation = findNullnessAnnotation(old)
@@ -148,6 +151,28 @@ class CompatibilityCheck(
                 }
             }
         }
+    }
+
+    override fun compare(old: Item, new: Item) {
+        val oldModifiers = old.modifiers
+        val newModifiers = new.modifiers
+        if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
+            report(
+                Issues.OPERATOR_REMOVAL,
+                new,
+                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change"
+            )
+        }
+
+        if (oldModifiers.isInfix() && !newModifiers.isInfix()) {
+            report(
+                Issues.INFIX_REMOVAL,
+                new,
+                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
+            )
+        }
+
+        compareNullability(old, new)
     }
 
     override fun compare(old: ParameterItem, new: ParameterItem) {
@@ -227,6 +252,14 @@ class CompatibilityCheck(
         } else if (old.isClass() && oldModifiers.isAbstract() != newModifiers.isAbstract()) {
             report(
                 Issues.CHANGED_ABSTRACT, new, "${describe(new, capitalize = true)} changed 'abstract' qualifier"
+            )
+        }
+
+        if (oldModifiers.isFunctional() && !newModifiers.isFunctional()) {
+            report(
+                Issues.FUN_REMOVAL,
+                new,
+                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change"
             )
         }
 
@@ -402,7 +435,14 @@ class CompatibilityCheck(
                     new,
                     capitalize = true
                 )} has changed value from $prevString to $newString"
-                report(Issues.CHANGED_VALUE, new, message)
+
+                // Adding a default value to an annotation method is safe
+                val annotationMethodAddingDefaultValue =
+                    new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+
+                if (!annotationMethodAddingDefaultValue) {
+                    report(Issues.CHANGED_VALUE, new, message)
+                }
             }
         }
 
@@ -657,6 +697,11 @@ class CompatibilityCheck(
             return
         }
 
+        if (!filterReference.test(item)) {
+            // This item is something we weren't asked to verify
+            return
+        }
+
         var message = "Added ${describe(item)}"
 
         // Clarify error message for removed API to make it less ambiguous
@@ -688,23 +733,6 @@ class CompatibilityCheck(
             // such as a signature file for a library referencing types
             // from the upstream library dependencies.
             return
-        }
-
-        if (base != null) {
-            // We're diffing "overlay" APIs, such as system or test API files,
-            // where the signature files only list a delta from the full, "base" API.
-            // In that case, if an API is promoted from @SystemApi or @TestApi to be
-            // a full part of the API, it will look like a removal; it appeared in the
-            // previous file and not in the new file, but it's not removed, it's just
-            // not a delta anymore.
-            //
-            // For that reason, we also pass in the "base" API in these cases, and when
-            // an item is removed, we also check the full API to see if it's present
-            // there, and if so, this item is not actually deleted.
-            val baseItem = findBaseItem(item)
-            if (baseItem != null && ApiPredicate(ignoreShown = true).test(baseItem)) {
-                return
-            }
         }
 
         report(issue, item, "Removed ${if (item.deprecated) "deprecated " else ""}${describe(item)}")
@@ -867,15 +895,23 @@ class CompatibilityCheck(
             previous: Codebase,
             releaseType: ReleaseType,
             apiType: ApiType,
-            base: Codebase? = null
+            oldBase: Codebase? = null,
+            newBase: Codebase? = null
         ) {
-            val filter = apiType.getEmitFilter()
-            val checker = CompatibilityCheck(filter, previous, apiType, base, getReporterForReleaseType(releaseType))
+            val filter = apiType.getReferenceFilter()
+                .or(apiType.getEmitFilter())
+                .or(ApiType.PUBLIC_API.getReferenceFilter())
+                .or(ApiType.PUBLIC_API.getEmitFilter())
+            val checker = CompatibilityCheck(filter, previous, apiType, newBase, getReporterForReleaseType(releaseType))
             val issueConfiguration = releaseType.getIssueConfiguration()
             val previousConfiguration = configuration
+            // newBase is considered part of the current codebase
+            val currentFullCodebase = MergedCodebase(listOf(newBase, codebase).filterNotNull())
+            // oldBase is considered part of the previous codebase
+            val previousFullCodebase = MergedCodebase(listOf(oldBase, previous).filterNotNull())
             try {
                 configuration = issueConfiguration
-                CodebaseComparator().compare(checker, previous, codebase, filter)
+                CodebaseComparator().compare(checker, previousFullCodebase, currentFullCodebase, filter)
             } finally {
                 configuration = previousConfiguration
             }
