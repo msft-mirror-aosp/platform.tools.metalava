@@ -23,7 +23,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Loading a signature file and writing the API back out`() {
         check(
-            compatibilityMode = true,
             signatureSource =
             """
             package test.pkg {
@@ -114,7 +113,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Abstract interfaces`() {
         check(
-            compatibilityMode = true,
             format = FileFormat.V2,
             signatureSource =
             """
@@ -191,7 +189,6 @@ class JDiffXmlTest : DriverTest() {
             }
             """
         check(
-            compatibilityMode = true,
             signatureSource = source,
             apiXml =
             """
@@ -364,7 +361,6 @@ class JDiffXmlTest : DriverTest() {
             }
             """
         check(
-            compatibilityMode = false,
             signatureSource = source,
             apiXml =
             """
@@ -457,7 +453,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Throws Lists`() {
         check(
-            compatibilityMode = true,
             signatureSource = """
                     package android.accounts {
                       public abstract interface AccountManagerFuture<V> {
@@ -526,7 +521,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Generics in interfaces`() {
         check(
-            compatibilityMode = false,
             signatureSource = """
                     package android.accounts {
                       public class ArgbEvaluator implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
@@ -562,7 +556,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Type Parameter Mapping`() {
         check(
-            compatibilityMode = false,
             signatureSource = """
                 package test.pkg {
                   public interface AbstractList<D,E,F> extends test.pkg.List<A,B,C> {
@@ -613,7 +606,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Half float short from signature file`() {
         check(
-            compatibilityMode = false,
             signatureSource = """
                 package test.pkg {
                   public class Test {
@@ -664,7 +656,6 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Half float short from source`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -749,7 +740,6 @@ class JDiffXmlTest : DriverTest() {
     fun `Test default methods from signature files`() {
         // Ensure that we treat not just static but default methods in interfaces as non-abstract
         check(
-            compatibilityMode = true,
             format = FileFormat.V1,
             signatureSource = """
                 package test.pkg {
@@ -796,7 +786,6 @@ class JDiffXmlTest : DriverTest() {
         // *diffs* relative to the base API, are tricky: They may for example list just an
         // inner class. See 122926140 for a scenario where this happens.
         check(
-            compatibilityMode = true,
             format = FileFormat.V1,
             signatureSource = """
             // Signature format: 2.0
@@ -879,7 +868,6 @@ class JDiffXmlTest : DriverTest() {
         // JDiff expects spaces in type argument lists
         // Regression test for 123140708
         check(
-            compatibilityMode = false,
             format = FileFormat.V2,
             signatureSource = """
             // Signature format: 2.0

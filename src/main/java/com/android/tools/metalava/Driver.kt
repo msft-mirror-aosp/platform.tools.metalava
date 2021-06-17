@@ -107,7 +107,6 @@ fun run(
         maybeDumpArgv(stdout, originalArgs, modifiedArgs)
 
         // Actual work begins here.
-        compatibility = Compatibility(compat = Options.useCompatMode(modifiedArgs))
         options = Options(modifiedArgs, stdout, stderr)
 
         maybeActivateSandbox()
@@ -514,44 +513,35 @@ fun processNonCodebaseFlags() {
                 signatureApi
             }
 
-        if (outputApi.isEmpty() && baseFile != null && compatibility.compat) {
-            // doclava compatibility: emits error warning instead of emitting empty <api/> element
-            options.stdout.println("No API change detected, not generating diff")
+        val output = convert.outputFile
+        if (convert.outputFormat == FileFormat.JDIFF) {
+            // See JDiff's XMLToAPI#nameAPI
+            val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
+            createReportFile(outputApi, output, "JDiff File") { printWriter ->
+                JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
+            }
         } else {
-            val output = convert.outputFile
-            if (convert.outputFormat == FileFormat.JDIFF) {
-                // See JDiff's XMLToAPI#nameAPI
-                val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
-                createReportFile(outputApi, output, "JDiff File") { printWriter ->
-                    JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
-                }
-            } else {
-                val prevOptions = options
-                val prevCompatibility = compatibility
-                try {
-                    when (convert.outputFormat) {
-                        FileFormat.V1 -> {
-                            compatibility = Compatibility(true)
-                            options = Options(emptyArray(), options.stdout, options.stderr)
-                            FileFormat.V1.configureOptions(options)
-                        }
-                        FileFormat.V2 -> {
-                            compatibility = Compatibility(false)
-                            options = Options(emptyArray(), options.stdout, options.stderr)
-                            FileFormat.V2.configureOptions(options)
-                        }
-                        else -> error("Unsupported format ${convert.outputFormat}")
+            val prevOptions = options
+            try {
+                when (convert.outputFormat) {
+                    FileFormat.V1 -> {
+                        options = Options(emptyArray(), options.stdout, options.stderr)
+                        FileFormat.V1.configureOptions(options)
                     }
+                    FileFormat.V2 -> {
+                        options = Options(emptyArray(), options.stdout, options.stderr)
+                        FileFormat.V2.configureOptions(options)
+                    }
+                    else -> error("Unsupported format ${convert.outputFormat}")
+                }
 
-                    createReportFile(outputApi, output, "Diff API File") { printWriter ->
-                        SignatureWriter(
-                            printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip
-                        )
-                    }
-                } finally {
-                    options = prevOptions
-                    compatibility = prevCompatibility
+                createReportFile(outputApi, output, "Diff API File") { printWriter ->
+                    SignatureWriter(
+                        printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip
+                    )
                 }
+            } finally {
+                options = prevOptions
             }
         }
     }
@@ -1021,10 +1011,6 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     }
 
     val localTimer = Stopwatch.createStarted()
-    val prevCompatibility = compatibility
-    if (compatibility.compat) {
-        compatibility = Compatibility(false)
-    }
 
     val stubWriter =
         StubWriter(
@@ -1059,8 +1045,6 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
             stubWriter.writeSourceList(it, root)
         }
     }
-
-    compatibility = prevCompatibility
 
     progress(
         "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${

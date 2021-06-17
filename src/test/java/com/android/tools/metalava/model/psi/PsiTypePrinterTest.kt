@@ -17,9 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.Compatibility
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
@@ -812,7 +810,6 @@ class PsiTypePrinterTest : DriverTest() {
         classPath.add(getAndroidJar())
 
         // TestDriver#check normally sets this for all the other tests
-        compatibility = Compatibility(false)
         val codebase = parseSources(
             sourceFiles, "test project",
             sourcePath = sourcePath, classpath = classPath
