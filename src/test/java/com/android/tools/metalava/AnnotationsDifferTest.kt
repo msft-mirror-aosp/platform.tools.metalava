@@ -57,7 +57,6 @@ class AnnotationsDifferTest {
         )
 
         val apiFile = temporaryFolder.newFile("diff.txt")
-        compatibility = Compatibility(true)
         options = Options(emptyArray())
         AnnotationsDiffer(codebase, codebase2).writeDiffSignature(apiFile)
         assertTrue(apiFile.exists())

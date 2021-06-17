@@ -334,7 +334,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Include merged annotations in exported source annotations`() {
         check(
             includeSourceRetentionAnnotations = true,
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
@@ -387,7 +386,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Only including class retention annotations in stubs`() {
         check(
             includeSourceRetentionAnnotations = false,
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             sourceFiles = arrayOf(

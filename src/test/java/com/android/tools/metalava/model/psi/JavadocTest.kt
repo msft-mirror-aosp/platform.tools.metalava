@@ -25,7 +25,6 @@ import org.junit.Test
 class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
-        compatibilityMode: Boolean = true,
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -39,7 +38,6 @@ class JavadocTest : DriverTest() {
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
             stubFiles = arrayOf(java(source)),
-            compatibilityMode = compatibilityMode,
             expectedIssues = warnings,
             checkCompilation = true,
             api = api,
@@ -678,7 +676,6 @@ class JavadocTest : DriverTest() {
     fun `Check references to inherited field constants`() {
         checkStubs(
             docStubs = true,
-            compatibilityMode = false,
             warnings = "",
             sourceFiles = arrayOf(
                 java(
@@ -776,7 +773,6 @@ class JavadocTest : DriverTest() {
     fun `Handle @attr references`() {
         checkStubs(
             docStubs = true,
-            compatibilityMode = false,
             warnings = "",
             sourceFiles = arrayOf(
                 java(
@@ -821,7 +817,6 @@ class JavadocTest : DriverTest() {
     fun `Rewrite parameter list`() {
         checkStubs(
             docStubs = true,
-            compatibilityMode = false,
             warnings = "",
             sourceFiles = arrayOf(
                 java(
@@ -885,7 +880,6 @@ class JavadocTest : DriverTest() {
     fun `Rewrite parameter list 2`() {
         checkStubs(
             docStubs = true,
-            compatibilityMode = false,
             warnings = "",
             sourceFiles = arrayOf(
                 java(
@@ -935,7 +929,6 @@ class JavadocTest : DriverTest() {
         @Suppress("ConstantConditionIf")
         checkStubs(
             docStubs = true,
-            compatibilityMode = false,
             warnings =
             if (REPORT_UNRESOLVED_SYMBOLS) {
                 """
@@ -1069,7 +1062,6 @@ class JavadocTest : DriverTest() {
     @Test
     fun `Ensure references to classes in JavaDoc of hidden members do not affect imports`() {
         check(
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """

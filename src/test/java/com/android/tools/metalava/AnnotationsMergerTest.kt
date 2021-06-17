@@ -28,7 +28,6 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Signature files contain annotations`() {
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             sourceFiles = arrayOf(
@@ -88,7 +87,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
@@ -145,7 +143,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             inputKotlinStyleNulls = true,
             mergeSignatureAnnotations = """
@@ -191,7 +188,6 @@ class AnnotationsMergerTest : DriverTest() {
                 libcoreNonNullSource,
                 libcoreNullableSource
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
@@ -244,7 +240,6 @@ class AnnotationsMergerTest : DriverTest() {
                 libcoreNonNullSource,
                 libcoreNullableSource
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
@@ -309,7 +304,6 @@ class AnnotationsMergerTest : DriverTest() {
                 libcoreNonNullSource,
                 libcoreNullableSource
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
@@ -352,7 +346,6 @@ class AnnotationsMergerTest : DriverTest() {
                 libcoreNonNullSource,
                 libcoreNullableSource
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
@@ -404,7 +397,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             hideAnnotations = arrayOf("test.annotation.Hide"),
             showAnnotations = arrayOf("test.annotation.Show"),
@@ -450,7 +442,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             extraArguments = arrayOf(
                 ARG_HIDE_ANNOTATION, "test.annotation.Hide",
@@ -493,7 +484,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             extraArguments = arrayOf(
                 ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
@@ -555,7 +545,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             extraArguments = arrayOf(
                 ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"
             ),
@@ -593,7 +582,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                 )
             ),
-            compatibilityMode = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
