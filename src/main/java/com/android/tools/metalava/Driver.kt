@@ -32,9 +32,6 @@ import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.FilterPredicate
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -70,6 +67,8 @@ import kotlin.text.Charsets.UTF_8
 const val PROGRAM_NAME = "metalava"
 const val HELP_PROLOGUE = "$PROGRAM_NAME extracts metadata from source code to generate artifacts such as the " +
     "signature files, the SDK stub files, external annotations etc."
+const val PACKAGE_HTML = "package.html"
+const val OVERVIEW_HTML = "overview.html"
 
 @Suppress("PropertyName") // Can't mark const because trimIndent() :-(
 val BANNER: String = """
@@ -355,6 +354,14 @@ private fun processFlags() {
         ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
     }
 
+    options.proguard?.let { proguard ->
+        val apiEmit = FilterPredicate(ApiPredicate())
+        val apiReference = ApiPredicate(ignoreShown = true)
+        createReportFile(
+            codebase, proguard, "Proguard file"
+        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
+    }
+
     options.sdkValueDir?.let { dir ->
         dir.mkdirs()
         SdkFileWriter(codebase, dir).generate()
@@ -578,7 +585,8 @@ fun checkCompatibility(
         throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${current.format} without analyzing current codebase with $ARG_FORMAT=${current.format}")
     }
 
-    var base: Codebase? = null
+    var newBase: Codebase? = null
+    var oldBase: Codebase? = null
     val releaseType = check.releaseType
     val apiType = check.apiType
 
@@ -597,19 +605,17 @@ fun checkCompatibility(
                 kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         } else if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
-            val apiFile = apiType.getSignatureFile(codebase, "compat-check-signatures-$apiType")
-
-            // Fast path: if the signature files are identical, we're already good!
-            if (apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
-                return
+            if (options.baseApiForCompatCheck != null) {
+                // This option does not make sense with showAnnotation, as the "base" in that case
+                // is the non-annotated APIs.
+                throw DriverException(ARG_CHECK_COMPATIBILITY_BASE_API +
+                    " is not compatible with --showAnnotation.")
             }
 
-            base = codebase
+            newBase = codebase
+            oldBase = newBase
 
-            SignatureFileLoader.load(
-                file = apiFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
+            codebase
         } else {
             // Fast path: if we've already generated a signature file and it's identical, we're good!
             val apiFile = options.apiFile
@@ -617,12 +623,21 @@ fun checkCompatibility(
                 return
             }
 
+            val baseApiFile = options.baseApiForCompatCheck
+            if (baseApiFile != null) {
+                oldBase = SignatureFileLoader.load(
+                    file = baseApiFile,
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
+                )
+                newBase = oldBase
+            }
+
             codebase
         }
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, base)
+    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, oldBase, newBase)
 
     // Make sure the text files are identical too? (only applies for *current.txt;
     // last-released is expected to differ)
@@ -891,7 +906,7 @@ internal fun parseSources(
     val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
-    val packageDocs = gatherHiddenPackagesFromJavaDocs(sourcePath)
+    val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
     val codebase = PsiBasedCodebase(rootDir, description)
     codebase.initialize(environment, units, packageDocs)
@@ -1105,9 +1120,12 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
                 addSourceFiles(list, child)
             }
         }
-    } else {
-        if (file.isFile && (file.path.endsWith(DOT_JAVA) || file.path.endsWith(DOT_KT))) {
-            list.add(file)
+    } else if (file.isFile) {
+        when {
+            file.name.endsWith(DOT_JAVA) ||
+            file.name.endsWith(DOT_KT) ||
+            file.name.equals(PACKAGE_HTML) ||
+            file.name.equals(OVERVIEW_HTML) -> list.add(file)
         }
     }
 }
@@ -1124,93 +1142,43 @@ fun gatherSources(sourcePath: List<File>): List<File> {
     return sources.sortedWith(compareBy { it.name })
 }
 
-private fun addHiddenPackages(
-    packageToDoc: MutableMap<String, String>,
-    packageToOverview: MutableMap<String, String>,
-    hiddenPackages: MutableSet<String>,
-    file: File,
-    pkg: String
-) {
-    if (FileReadSandbox.isDirectory(file)) {
-        if (skippableDirectory(file)) {
-            return
-        }
-        // Ignore symbolic links during traversal
-        if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
-            reporter.report(
-                Issues.IGNORING_SYMLINK, file,
-                "Ignoring symlink during package.html discovery directory traversal"
-            )
-            return
-        }
-        val files = file.listFiles()
-        if (files != null) {
-            for (child in files) {
-                var subPkg =
-                    if (FileReadSandbox.isDirectory(child))
-                        if (pkg.isEmpty())
-                            child.name
-                        else pkg + "." + child.name
-                    else pkg
-
-                if (subPkg.endsWith("src.main.java")) {
-                    // It looks like the source path was incorrectly configured; make corrections here
-                    // to ensure that we map the package.html files to the real packages.
-                    subPkg = ""
-                }
-
-                addHiddenPackages(packageToDoc, packageToOverview, hiddenPackages, child, subPkg)
-            }
-        }
-    } else if (FileReadSandbox.isFile(file)) {
+private fun gatherPackageJavadoc(sources: List<File>, sourceRoots: List<File>): PackageDocs {
+    val packageComments = HashMap<String, String>(100)
+    val overviewHtml = HashMap<String, String>(10)
+    val hiddenPackages = HashSet<String>(100)
+    val sortedSourceRoots = sourceRoots.sortedBy { -it.name.length }
+    for (file in sources) {
         var javadoc = false
         val map = when (file.name) {
-            "package.html" -> {
-                javadoc = true; packageToDoc
+            PACKAGE_HTML -> {
+                javadoc = true; packageComments
             }
-            "overview.html" -> {
-                packageToOverview
+            OVERVIEW_HTML -> {
+                overviewHtml
             }
-            else -> return
+            else -> continue
         }
         var contents = Files.asCharSource(file, UTF_8).read()
         if (javadoc) {
             contents = packageHtmlToJavadoc(contents)
         }
 
-        var realPkg = pkg
-        // Sanity check the package; it's computed from the directory name
-        // relative to the source path, but if the real source path isn't
-        // passed in (and is instead some directory containing the source path)
-        // then we compute the wrong package here. Instead, look for an adjacent
-        // java class and pick the package from it
-        for (sibling in file.parentFile?.listFiles() ?: emptyArray()) {
-            if (sibling.path.endsWith(DOT_JAVA)) {
-                val javaPkg = ClassName(sibling.readText()).packageName
-                if (javaPkg != null) {
-                    realPkg = javaPkg
-                    break
-                }
-            }
+        // Figure out the package: if there is a java file in the same directory, get the package
+        // name from the java file. Otherwise, guess from the directory path + source roots.
+        // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
+        var pkg = file.parentFile?.listFiles()
+            ?.filter { it.name.endsWith(DOT_JAVA) }
+            ?.asSequence()?.mapNotNull { findPackage(it) }
+            ?.firstOrNull()
+        if (pkg == null) {
+            // Strip the longest prefix source root.
+            val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
+            pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
         }
-
-        map[realPkg] = contents
+        map[pkg] = contents
         if (contents.contains("@hide")) {
-            hiddenPackages.add(realPkg)
+            hiddenPackages.add(pkg)
         }
-    }
-}
-
-private fun gatherHiddenPackagesFromJavaDocs(sourcePath: List<File>): PackageDocs {
-    val packageComments = HashMap<String, String>(100)
-    val overviewHtml = HashMap<String, String>(10)
-    val hiddenPackages = HashSet<String>(100)
-    for (file in sourcePath) {
-        if (file.path.isBlank()) {
-            // Ignoring empty paths, which means "no source path search". Use "." for current directory.
-            continue
-        }
-        addHiddenPackages(packageComments, overviewHtml, hiddenPackages, file, "")
     }
 
     return PackageDocs(packageComments, overviewHtml, hiddenPackages)

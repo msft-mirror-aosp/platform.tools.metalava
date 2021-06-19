@@ -21,7 +21,6 @@ import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
@@ -82,8 +81,9 @@ const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
+const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
+const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
@@ -93,6 +93,7 @@ const val ARG_CHECK_COMPATIBILITY_API_CURRENT = "--check-compatibility:api:curre
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT = "--check-compatibility:removed:current"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
+const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_ALLOW_COMPATIBLE_DIFFERENCES = "--allow-compatible-differences"
 const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
@@ -146,6 +147,7 @@ const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
 const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
+const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
@@ -217,7 +219,8 @@ class Options(
     private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
-
+    /** Internal list backing [excludeAnnotations] */
+    private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
     /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
     private val alreadyWarned: MutableSet<String> = mutableSetOf()
 
@@ -309,6 +312,12 @@ class Options(
 
     /** Whether default values should be included in signature files */
     var outputDefaultValues = !compatOutput
+
+    /**
+     *  Whether only the presence of default values should be included in signature files, and not
+     *  the full body of the default value.
+     */
+    var outputConciseDefaultValues = false // requires V4
 
     /** The output format version being used */
     var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
@@ -422,6 +431,9 @@ class Options(
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
     var kotlinStubs = false
 
+    /** Proguard Keep list file to write */
+    var proguard: File? = null
+
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
@@ -480,6 +492,9 @@ class Options(
     /** The set of annotation classes that should be passed through unchanged */
     var passThroughAnnotations = mutablePassThroughAnnotations
 
+    /** The set of annotation classes that should be removed from all outputs */
+    var excludeAnnotations = mutableExcludeAnnotations
+
     /**
      * A signature file to migrate nullness data from
      */
@@ -490,6 +505,9 @@ class Options(
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
+
+    /** The API to use a base for the otherwise checked API during compat checks. */
+    var baseApiForCompatCheck: File? = null
 
     /**
      * When checking signature files, whether compatible differences in signature
@@ -571,7 +589,7 @@ class Options(
     var allBaselines: List<Baseline>
 
     /** If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails. */
-    var errorMessageApiLint: String? = null
+    var errorMessageApiLint: String = DefaultLintErrorMessage
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
@@ -903,7 +921,7 @@ class Options(
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST -> docStubsSourceList = stringToNewFile(getValue(args, ++index))
 
-                ARG_EXCLUDE_ANNOTATIONS -> generateAnnotations = false
+                ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
 
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
 
@@ -919,9 +937,18 @@ class Options(
                     }
                 }
 
+                ARG_EXCLUDE_ANNOTATION -> {
+                    val annotations = getValue(args, ++index)
+                    annotations.split(",").forEach { path ->
+                        mutableExcludeAnnotations.add(path)
+                    }
+                }
+
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
+
+                ARG_PROGUARD, "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
 
                 ARG_HIDE_PACKAGE, "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
 
@@ -1087,6 +1114,11 @@ class Options(
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
+                }
+
+                ARG_CHECK_COMPATIBILITY_BASE_API -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    baseApiForCompatCheck = file
                 }
 
                 ARG_ALLOW_COMPATIBLE_DIFFERENCES -> allowCompatibleDifferences = true
@@ -1554,10 +1586,13 @@ class Options(
                             "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
                                 FileFormat.V2
                             }
-                            "$ARG_FORMAT=v3", "$ARG_FORMAT=latest" -> {
+                            "$ARG_FORMAT=v3" -> {
                                 FileFormat.V3
                             }
-                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
+                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
+                                FileFormat.V4
+                            }
+                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
@@ -1631,9 +1666,11 @@ class Options(
             apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
         }
 
-        // outputKotlinStyleNulls implies format=v3
+        // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
-            outputFormat = FileFormat.V3
+            if (outputFormat < FileFormat.V3) {
+                outputFormat = FileFormat.V3
+            }
             outputFormat.configureOptions(this, compatibility)
         }
 
@@ -1666,6 +1703,7 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
+            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             mutableCompatibilityChecks.clear()
@@ -1691,6 +1729,7 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
+            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             mutableAnnotationCoverageOf.clear()
@@ -2326,6 +2365,7 @@ class Options(
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
+            "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
 
             "", "\nGenerating Stubs:",
@@ -2339,9 +2379,11 @@ class Options(
             ARG_KOTLIN_STUBS, "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
                 "be written in Kotlin rather than the Java programming language.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
-            ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
+            ARG_EXCLUDE_ALL_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
             "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
                 "annotation classes that must be passed through unchanged.",
+            "$ARG_EXCLUDE_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
+                "annotation classes that must be stripped from metalava's outputs.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                 "Documentation stubs (--doc-stubs) are not affected.)",
@@ -2365,6 +2407,11 @@ class Options(
                 "released API, respectively. Different compatibility checks apply in the two scenarios. " +
                 "For example, to check the code base against the current public API, use " +
                 "$ARG_CHECK_COMPATIBILITY:api:current.",
+            "$ARG_CHECK_COMPATIBILITY_BASE_API <file>", "When performing a compat check, use the provided signature " +
+                "file as a base api, which is treated as part of the API being checked. This allows us to compute the " +
+                "full API surface from a partial API surface (e.g. the current @SystemApi txt file), which allows us to " +
+                "recognize when an API is moved from the partial API to the base API and avoid incorrectly flagging this " +
+                "as an API removal.",
             "$ARG_API_LINT [api file]", "Check API for Android API best practices. If a signature file is " +
                 "provided, only the APIs that are new since the API will be checked.",
             "$ARG_API_LINT_IGNORE_PREFIX [prefix]", "A list of package prefixes to ignore API issues in " +
@@ -2558,21 +2605,8 @@ class Options(
                 }
                 return
             }
-
-            val numericId = try {
-                id.toInt()
-            } catch (e: NumberFormatException) {
-                -1
-            }
-
             val issue = Issues.findIssueById(id)
-                ?: Issues.findIssueById(numericId)?.also {
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION, null as File?,
-                        "Issue lookup by numeric id is deprecated, use " +
-                            "$arg ${it.name} instead of $arg $id"
-                    )
-                } ?: Issues.findIssueByIdIgnoringCase(id)?.also {
+                ?: Issues.findIssueByIdIgnoringCase(id)?.also {
                     reporter.report(
                         Issues.DEPRECATED_OPTION, null as File?,
                         "Case-insensitive issue matching is deprecated, use " +
