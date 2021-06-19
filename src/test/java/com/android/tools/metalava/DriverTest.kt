@@ -266,8 +266,6 @@ abstract class DriverTest {
         docStubs: Boolean = false,
         /** Signature file format */
         format: FileFormat? = null,
-        /** Whether to run in doclava1 compat mode */
-        compatibilityMode: Boolean = format == FileFormat.V1,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /** Whether to remove blank lines in the output (the signature file usually contains a lot of these) */
@@ -447,29 +445,6 @@ abstract class DriverTest {
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
-        if (compatibilityMode && mergeXmlAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeXmlAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-        if (compatibilityMode && mergeSignatureAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeSignatureAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-        if (compatibilityMode && mergeJavaStubAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeJavaStubAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-        if (compatibilityMode && mergeInclusionAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeInclusionAnnotations"
-            )
-        }
         defaultConfiguration.reset()
 
         @Suppress("NAME_SHADOWING")
@@ -1153,7 +1128,6 @@ abstract class DriverTest {
             *stubsArgs,
             *stubsSourceListArgs,
             *docStubsSourceListArgs,
-            "$ARG_COMPAT_OUTPUT=${if (compatibilityMode) "yes" else "no"}",
             "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INPUT_KOTLIN_NULLS=${if (inputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
@@ -1263,11 +1237,6 @@ abstract class DriverTest {
             for (i in convertToJDiff.indices) {
                 val expected = convertToJDiff[i].outputFile
                 val converted = convertFiles[i].outputFile
-                if (convertToJDiff[i].baseApi != null &&
-                    compatibilityMode &&
-                    actualOutput.contains("No API change detected, not generating diff")) {
-                    continue
-                }
                 assertTrue(
                     "${converted.path} does not exist even though $ARG_CONVERT_TO_JDIFF was used",
                     converted.exists()

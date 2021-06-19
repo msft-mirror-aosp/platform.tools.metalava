@@ -23,7 +23,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test conversion flag`() {
         check(
-            compatibilityMode = true,
             convertToJDiff = listOf(
                 ConvertData(
                     """
@@ -35,7 +34,7 @@ class ConvertTest : DriverTest() {
                     """,
                     outputFile =
                     """
-                    <api xmlns:metalava="http://www.android.com/metalava/">
+                    <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
                     <class name="MyTest1"
@@ -69,7 +68,7 @@ class ConvertTest : DriverTest() {
                     """,
                     outputFile =
                     """
-                    <api xmlns:metalava="http://www.android.com/metalava/">
+                    <api name="convert-output2" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
                     <class name="MyTest2"
@@ -92,7 +91,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert new with compat mode and api strip`() {
         check(
-            compatibilityMode = true,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = true,
@@ -132,7 +130,7 @@ class ConvertTest : DriverTest() {
                     """,
                     outputFile =
                     """
-                    <api xmlns:metalava="http://www.android.com/metalava/">
+                    <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
                     <class name="MyTest1"
@@ -240,7 +238,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert new without compat mode and no strip`() {
         check(
-            compatibilityMode = false,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = false,
@@ -390,8 +387,7 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert nothing new`() {
         check(
-            expectedOutput = "No API change detected, not generating diff",
-            compatibilityMode = true,
+            expectedOutput = "",
             convertToJDiff = listOf(
                 ConvertData(
                     fromApi =
@@ -436,87 +432,7 @@ class ConvertTest : DriverTest() {
                     """,
                     outputFile =
                     """
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `Test doclava compat`() {
-        // A few more differences
-        check(
-            compatibilityMode = true,
-            convertToJDiff = listOf(
-                ConvertData(
-                    fromApi =
-                    """
-                    package test.pkg {
-                      public class MyTest1 {
-                        ctor public MyTest1();
-                        method public void method(java.util.List<String>);
-                        field protected static final java.lang.String CRLF = "\r\n";
-                        field protected static final byte[] CRLF_BYTES;
-                      }
-                    }
-                    """,
-                    outputFile =
-                    """
-                    <api xmlns:metalava="http://www.android.com/metalava/">
-                    <package name="test.pkg"
-                    >
-                    <class name="MyTest1"
-                     extends="java.lang.Object"
-                     abstract="false"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    <constructor name="MyTest1"
-                     type="test.pkg.MyTest1"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    </constructor>
-                    <method name="method"
-                     return="void"
-                     abstract="false"
-                     native="false"
-                     synchronized="false"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    <parameter name="null" type="java.util.List&lt;String>">
-                    </parameter>
-                    </method>
-                    <field name="CRLF"
-                     type="java.lang.String"
-                     transient="false"
-                     volatile="false"
-                     value="&quot;\r\n&quot;"
-                     static="true"
-                     final="true"
-                     deprecated="not deprecated"
-                     visibility="protected"
-                    >
-                    </field>
-                    <field name="CRLF_BYTES"
-                     type="byte[]"
-                     transient="false"
-                     volatile="false"
-                     static="true"
-                     final="true"
-                     deprecated="not deprecated"
-                     visibility="protected"
-                    >
-                    </field>
-                    </class>
-                    </package>
+                    <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     </api>
                     """
                 )
@@ -527,7 +443,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert new to v2 without compat mode and no strip`() {
         check(
-            compatibilityMode = false,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = false,
@@ -597,7 +512,6 @@ class ConvertTest : DriverTest() {
     fun `Test convert new to v1 signatures with compat mode and no strip`() {
         // Output is similar to the v2 format, but with fully qualified java.lang types
         check(
-            compatibilityMode = false,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = false,
@@ -665,7 +579,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert v2 to v1`() {
         check(
-            compatibilityMode = false,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = false,
@@ -727,7 +640,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert v1 to v2`() {
         check(
-            compatibilityMode = false,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = false,
@@ -789,7 +701,6 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test convert v2 to v2`() {
         check(
-            compatibilityMode = false,
             convertToJDiff = listOf(
                 ConvertData(
                     strip = false,

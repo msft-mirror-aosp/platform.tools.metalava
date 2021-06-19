@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
-import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.model.defaultConfiguration
@@ -38,8 +37,6 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.full.memberProperties
 import kotlin.text.Charsets.UTF_8
 
 /** Global options for the metadata extraction tool */
@@ -48,7 +45,6 @@ var options = Options(emptyArray())
 private const val MAX_LINE_WIDTH = 120
 private const val INDENT_WIDTH = 45
 
-const val ARG_COMPAT_OUTPUT = "--compatible-output"
 const val ARG_FORMAT = "--format"
 const val ARG_HELP = "--help"
 const val ARG_VERSION = "--version"
@@ -297,20 +293,11 @@ class Options(
      */
     var onlyCheckApi = false
 
-    /**
-     * Whether signature files should emit in "compat" mode, preserving the various
-     * quirks of the previous signature file format -- this will for example use a non-standard
-     * modifier ordering, it will call enums interfaces, etc. See the [Compatibility] class
-     * for more fine grained control (which is not (currently) exposed as individual command line
-     * flags.
-     */
-    var compatOutput = useCompatMode(args)
-
     /** Whether nullness annotations should be displayed as ?/!/empty instead of with @NonNull/@Nullable. */
     var outputKotlinStyleNulls = false // requires v3
 
     /** Whether default values should be included in signature files */
-    var outputDefaultValues = !compatOutput
+    var outputDefaultValues = true
 
     /**
      *  Whether only the presence of default values should be included in signature files, and not
@@ -319,7 +306,7 @@ class Options(
     var outputConciseDefaultValues = false // requires V4
 
     /** The output format version being used */
-    var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
+    var outputFormat: FileFormat = FileFormat.V2
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
@@ -571,7 +558,7 @@ class Options(
     var docLevel = DocLevel.PROTECTED
 
     /** Whether to include the signature file format version header in signature files */
-    var includeSignatureFormatVersion: Boolean = !compatOutput
+    var includeSignatureFormatVersion: Boolean = true
 
     /** A baseline to check against */
     var baseline: Baseline? = null
@@ -804,8 +791,6 @@ class Options(
                 ARG_VERSION -> {
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
-
-                ARG_COMPAT_OUTPUT -> compatOutput = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -1555,10 +1540,6 @@ class Options(
                         } else {
                             yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
                         }
-                    } else if (arg.startsWith(ARG_COMPAT_OUTPUT)) {
-                        compatOutput = if (arg == ARG_COMPAT_OUTPUT)
-                            true
-                        else yesNo(arg.substring(ARG_COMPAT_OUTPUT.length + 1))
                     } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
                         includeSignatureFormatVersion = if (arg == ARG_INCLUDE_SIG_VERSION)
                             true
@@ -1581,23 +1562,9 @@ class Options(
                         }
                         outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
-                        // Compatibility flag; map to mutable properties in the Compatibility
-                        // class and assign it
-                        val compatibilityArg = findCompatibilityFlag(arg)
-                        if (compatibilityArg != null) {
-                            val dash = arg.indexOf('=')
-                            val value = if (dash == -1) {
-                                true
-                            } else {
-                                arg.substring(dash + 1).toBoolean()
-                            }
-                            compatibilityArg.set(compatibility, value)
-                        } else {
-                            // Some other argument: display usage info and exit
-
-                            val usage = getUsage(includeHeader = false, colorize = color)
-                            throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
-                        }
+                        // Some other argument: display usage info and exit
+                        val usage = getUsage(includeHeader = false, colorize = color)
+                        throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
                         if (delayedCheckApiFiles) {
                             delayedCheckApiFiles = false
@@ -1811,21 +1778,6 @@ class Options(
         }
     }
 
-    private fun findCompatibilityFlag(arg: String): KMutableProperty1<Compatibility, Boolean>? {
-        val index = arg.indexOf('=')
-        val name = arg
-            .substring(0, if (index != -1) index else arg.length)
-            .removePrefix("--")
-            .replace('-', '_')
-        val propertyName = SdkVersionInfo.underlinesToCamelCase(name)
-            .replaceFirstChar { it.lowercase(Locale.getDefault()) }
-        return Compatibility::class.memberProperties
-            .filterIsInstance<KMutableProperty1<Compatibility, Boolean>>()
-            .find {
-                it.name == propertyName
-            }
-    }
-
     /**
      * Produce a default file name for the baseline. It's normally "baseline.txt", but can
      * be prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi -> system-baseline.txt,
@@ -1945,27 +1897,6 @@ class Options(
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
             throw DriverException(stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both")
-        }
-
-        if (compatOutput && outputKotlinStyleNulls) {
-            throw DriverException(
-                stderr = "$ARG_OUTPUT_KOTLIN_NULLS=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
-        }
-
-        if (compatOutput && outputDefaultValues) {
-            throw DriverException(
-                stderr = "$ARG_OUTPUT_DEFAULT_VALUES=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
-        }
-
-        if (compatOutput && includeSignatureFormatVersion) {
-            throw DriverException(
-                stderr = "$ARG_INCLUDE_SIG_VERSION=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
         }
     }
 
@@ -2342,9 +2273,6 @@ class Options(
                 "The default is yes.",
             "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]", "Controls whether default values should be included in " +
                 "signature files. The default is yes.",
-            "$ARG_COMPAT_OUTPUT=[yes|no]", "Controls whether to keep signature files compatible with the " +
-                "historical format (with its various quirks) or to generate the new format (which will also include " +
-                "annotations that are part of the API, etc.)",
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
@@ -2571,11 +2499,6 @@ class Options(
     }
 
     companion object {
-        /** Whether we should use [Compatibility] mode */
-        fun useCompatMode(args: Array<String>): Boolean {
-            return args.contains("$ARG_COMPAT_OUTPUT=yes") || args.contains("--format=v1")
-        }
-
         private fun setIssueSeverity(
             id: String,
             severity: Severity,

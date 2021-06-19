@@ -59,7 +59,7 @@ class JDiffXmlWriter(
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
 
-        if (apiName != null && !options.compatOutput) {
+        if (apiName != null) {
             // See JDiff's XMLToAPI#nameAPI
             writer.print(" name=\"")
             writer.print(apiName)
@@ -299,11 +299,7 @@ class JDiffXmlWriter(
         if (throws.any()) {
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
-                if (options.compatOutput) {
-                    writer.print(type.simpleName())
-                } else {
-                    writer.print(type.fullName())
-                }
+                writer.print(type.fullName())
                 writer.print("\" type=\"")
                 writer.print(type.qualifiedName())
                 writer.println("\">")

@@ -67,7 +67,6 @@ class HideAnnotationTest : DriverTest() {
             hideMetaAnnotations = arrayOf(
                 "test.pkg.MetaHide"
             ),
-            compatibilityMode = false,
             api = """
                 package test.pkg {
                   public class ExtendingMyHiddenClass<Float> {

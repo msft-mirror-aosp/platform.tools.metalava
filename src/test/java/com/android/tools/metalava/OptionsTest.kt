@@ -194,10 +194,6 @@ Extracting Signature Files:
 --output-default-values[=yes|no]
                                              Controls whether default values should be included in signature files. The
                                              default is yes.
---compatible-output=[yes|no]
-                                             Controls whether to keep signature files compatible with the historical
-                                             format (with its various quirks) or to generate the new format (which will
-                                             also include annotations that are part of the API, etc.)
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
