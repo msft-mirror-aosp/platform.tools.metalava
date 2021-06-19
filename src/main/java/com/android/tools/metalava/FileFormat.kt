@@ -38,7 +38,6 @@ enum class FileFormat(val description: String, val version: String? = null) {
             return
         }
         options.outputFormat = this
-        options.compatOutput = this == V1
         options.outputKotlinStyleNulls = this >= V3
         options.outputDefaultValues = this >= V2
         options.outputConciseDefaultValues = this >= V4

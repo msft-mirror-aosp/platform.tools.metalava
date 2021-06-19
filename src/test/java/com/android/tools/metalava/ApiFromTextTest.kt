@@ -36,7 +36,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -56,7 +55,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
@@ -77,7 +75,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
@@ -112,7 +109,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
@@ -146,7 +142,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
@@ -166,7 +161,6 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             signatureSource = source,
             api = source
@@ -185,7 +179,6 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             signatureSource = source,
             api = source
@@ -195,7 +188,6 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Native and strictfp keywords`() {
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             signatureSource = """
                     package test.pkg {
@@ -219,7 +211,6 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Type use annotations`() {
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             signatureSource = """
                 package test.pkg {
@@ -259,7 +250,6 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             signatureSource = source
         )
@@ -268,7 +258,6 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Infer fully qualified names from shorter names`() {
         check(
-            compatibilityMode = true,
             signatureSource = """
                 package test.pkg {
                   public class MyTest {
@@ -303,7 +292,6 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = """
                 package test.pkg {
@@ -356,7 +344,6 @@ class ApiFromTextTest : DriverTest() {
             """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -387,7 +374,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -416,7 +402,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -434,7 +419,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -508,7 +492,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             signatureSource = source,
             api = source
@@ -518,7 +501,6 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Sort throws list by full name`() {
         check(
-            compatibilityMode = true,
             signatureSource = """
                     package android.accounts {
                       public abstract interface AccountManagerFuture<V> {
@@ -617,7 +599,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V2,
-            compatibilityMode = false,
             signatureSource = source,
             api = source
         )
@@ -664,7 +645,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = false,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
@@ -710,7 +690,6 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
-            compatibilityMode = false,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
@@ -733,7 +712,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -751,7 +729,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = true,
             signatureSource = source,
             api = source
         )
@@ -776,7 +753,6 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            compatibilityMode = false,
             signatureSource = source,
             api = expectedApi
         )

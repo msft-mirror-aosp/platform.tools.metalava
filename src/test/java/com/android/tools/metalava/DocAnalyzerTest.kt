@@ -1216,7 +1216,6 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Merge deprecation levels`() {
         check(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1710,7 +1709,6 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Include Kotlin deprecation text`() {
         check(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -1933,7 +1931,6 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Annotation annotating itself indirectly`() {
         check(
-            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
