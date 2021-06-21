@@ -23,6 +23,7 @@ import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.java
 import com.android.utils.XmlUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

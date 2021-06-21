@@ -35,6 +35,8 @@ import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
 import com.android.tools.metalava.intDefAnnotationSource
 import com.android.tools.metalava.intRangeAnnotationSource
+import com.android.tools.metalava.java
+import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.requiresApiSource
