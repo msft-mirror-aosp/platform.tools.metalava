@@ -20,22 +20,97 @@ import org.junit.Test
 
 class ApiAnalyzerTest : DriverTest() {
     @Test
-    fun `private companion object inside an interface`() {
+    fun `Hidden abstract method with show @SystemApi`() {
         check(
-            compatibilityMode = false,
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues = """
-                src/test/pkg/MyInterface.kt:4: error: Do not use private companion objects inside interfaces as these become public if targeting Java 8 or older. [PrivateCompanion]
+                src/test/pkg/SystemApiClass.java:6: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                src/test/pkg/PublicClass.java:4: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
             sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
+                java("""
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+                    public abstract class PublicClass {
+                        /** @hide */
+                        public abstract boolean badAbstractHiddenMethod() { return true; }
+                        abstract void badPackagePrivateMethod() { }
+                        /**
+                         * This method does not fail because it is visible due to showAnnotations,
+                         * instead it will fail when running analysis on public API. See test below.
+                         * @hide
+                         */
+                        @SystemApi
+                        public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
+                    }
+                """
+                ),
+                java("""
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+                    public abstract class PublicClassWithHiddenConstructor {
+                        private PublicClassWithHiddenConstructor() { }
+                        /** @hide */
+                        public abstract boolean goodAbstractHiddenMethod() { return true; }
+                    }
+                """
+                ),
+                java("""
+                   package test.pkg;
+                   import android.annotation.SystemApi;
+                   /** @hide */
+                   @SystemApi
+                   public abstract class SystemApiClass {
+                        /** @hide */
+                        public abstract boolean badAbstractHiddenMethod() { return true; }
+                        /**
+                         * This method is OK, because it matches visibility of the class
+                         * @hide
+                         */
+                        @SystemApi
+                        public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
+                        public abstract boolean goodAbstractPublicMethod() { return true; }
+                   }
+               """
+                ),
+                java("""
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+                    /** This class is OK because it is all hidden @hide */
+                    public abstract class HiddenClass {
+                        public abstract boolean goodAbstractHiddenMethod() { return true; }
+                    }
+                """
+                ),
+                systemApiSource
+            )
+        )
+    }
 
-                        interface MyInterface {
-                            private companion object
-                        }
-                    """
-                )
+    @Test
+    fun `Hidden abstract method for public API`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/PublicClass.java:4: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                src/test/pkg/PublicClass.java:7: error: badAbstractSystemHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+            """,
+            sourceFiles = arrayOf(
+                java("""
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+                    public abstract class PublicClass {
+                        /** @hide */
+                        public abstract boolean badAbstractHiddenMethod() { return true; }
+                        abstract void badPackagePrivateMethod() { }
+                        /** @hide */
+                        @SystemApi
+                        public abstract boolean badAbstractSystemHiddenMethod() { return true; }
+                    }
+                """
+                ),
+                systemApiSource
             )
         )
     }

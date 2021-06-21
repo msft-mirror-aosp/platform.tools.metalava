@@ -14,10 +14,9 @@ mkdir -p "$DIST_DIR"
 export OUT_DIR=out
 export DIST_DIR="$DIST_DIR"
 
-JAVA_HOME="$(pwd)/prebuilts/studio/jdk/linux" tools/gradlew -p tools/ publishLocal --stacktrace
+JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jdk11/linux" tools/gradlew -p tools/ publishLocal --stacktrace
 
 export LINT_VERSION=`grep -oP "(?<=baseVersion = ).*" tools/buildSrc/base/version.properties`
 export LINT_REPO="$(pwd)/out/repo"
 
-# Disable building metalava because lint upgraded to kotlin 1.4 and we are not compatible with it.
-# tools/gradlew -p tools/metalava --no-daemon --stacktrace -PlintRepo=$LINT_REPO -PlintVersion=$LINT_VERSION
+tools/gradlew -p tools/metalava --no-daemon --stacktrace -PlintRepo=$LINT_REPO -PlintVersion=$LINT_VERSION
