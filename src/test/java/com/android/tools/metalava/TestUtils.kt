@@ -18,7 +18,9 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.Codebase
 import org.intellij.lang.annotations.Language
+import kotlin.io.path.createTempDirectory
 
 fun java(to: String, @Language("JAVA") source: String): TestFile {
     return TestFiles.java(to, source.trimIndent())
@@ -34,4 +36,24 @@ fun kotlin(@Language("kotlin") source: String): TestFile {
 
 fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
     return TestFiles.kotlin(to, source.trimIndent())
+}
+
+internal inline fun withCodebase(vararg sources: TestFile, action: (Codebase) -> Unit) {
+    // This is thread-safe as it adds a random suffix to the directory prefix
+    val tempDirectory = createTempDirectory("codebase").toFile()
+    try {
+        val codebase = parseSources(
+            sources.map { it.createFile(tempDirectory) },
+            "Test Codebase"
+        )
+        try {
+            action(codebase)
+        } finally {
+            // This cleans up underlying services in a PSI codebase
+            codebase.dispose()
+        }
+    } finally {
+        // Have to assert here, since [deleteRecursively] returns a success/failure as a boolean
+        assert(tempDirectory.deleteRecursively()) { "Temporary directory not cleaned up" }
+    }
 }
