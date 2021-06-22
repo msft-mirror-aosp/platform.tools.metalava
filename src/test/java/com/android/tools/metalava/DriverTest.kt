@@ -27,7 +27,6 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
@@ -1491,22 +1490,6 @@ abstract class DriverTest {
                 if (androidJar.exists()) return androidJar
                 return getAndroidJarFromEnv(apiLevel)
             }
-        }
-
-        fun java(to: String, @Language("JAVA") source: String): TestFile {
-            return TestFiles.java(to, source.trimIndent())
-        }
-
-        fun java(@Language("JAVA") source: String): TestFile {
-            return TestFiles.java(source.trimIndent())
-        }
-
-        fun kotlin(@Language("kotlin") source: String): TestFile {
-            return TestFiles.kotlin(source.trimIndent())
-        }
-
-        fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
-            return TestFiles.kotlin(to, source.trimIndent())
         }
 
         private fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {
