@@ -16,14 +16,15 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.psi.PsiClassItem
 import kotlin.test.Test
-import kotlin.test.assertNotNull
+import kotlin.test.assertIs
 
 class WithCodebaseTest {
     @Test
-    fun `it works`() {
-        withCodebase(kotlin("data class Foo(val bar: Int)")) { codebase ->
-            assertNotNull(codebase.findClass("Foo"))
+    fun `UAST model works`() {
+        withCodebase(kotlin("data class Foo(val bar: Int)"), useKtModel = false) { codebase ->
+            assertIs<PsiClassItem>(codebase.findClass("Foo"))
         }
     }
 }
