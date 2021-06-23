@@ -78,7 +78,7 @@ interface ParameterItem : Item {
      */
     fun isVarArgs(): Boolean
 
-    /** The property declared by this parameter, if in a primary constructor */
+    /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?
         get() = null
 
