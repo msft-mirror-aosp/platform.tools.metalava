@@ -615,4 +615,38 @@ class ExtractAnnotationsTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Test generics in XML attributes are encoded`() {
+        check(
+            includeSourceRetentionAnnotations = false,
+            outputKotlinStyleNulls = false,
+            includeSystemApiAnnotations = false,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import android.annotation.IntRange;
+
+                    public class MyTest {
+                        public void test(List<Integer> genericArgument, @IntRange(from = 10) int foo) { }
+                    }"""
+                ),
+                intRangeAnnotationSource
+            ),
+            extractAnnotations = mapOf(
+                "test.pkg" to """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="test.pkg.MyTest void test(List&lt;Integer&gt;, int) 1">
+                    <annotation name="androidx.annotation.IntRange">
+                      <val name="from" val="10" />
+                    </annotation>
+                  </item>
+                </root>
+                """
+            )
+        )
+    }
 }

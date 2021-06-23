@@ -450,7 +450,7 @@ class ExtractAnnotations(
                         .replace(" ", "")
                         .replace("?extends", "? extends ")
                         .replace("?super", "? super ")
-                    sb.append(type)
+                    sb.append(escapeXml(type))
                     i++
                 }
                 sb.append(')')
