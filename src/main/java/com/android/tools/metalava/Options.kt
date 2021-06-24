@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
-import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.model.defaultConfiguration
@@ -38,8 +37,6 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.full.memberProperties
 import kotlin.text.Charsets.UTF_8
 
 /** Global options for the metadata extraction tool */
@@ -48,7 +45,6 @@ var options = Options(emptyArray())
 private const val MAX_LINE_WIDTH = 120
 private const val INDENT_WIDTH = 45
 
-const val ARG_COMPAT_OUTPUT = "--compatible-output"
 const val ARG_FORMAT = "--format"
 const val ARG_HELP = "--help"
 const val ARG_VERSION = "--version"
@@ -83,7 +79,7 @@ const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
+const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
@@ -113,7 +109,6 @@ const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-anno
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
-const val ARG_OMIT_COMMON_PACKAGES = "--omit-common-packages"
 const val ARG_SKIP_JAVA_IN_COVERAGE_REPORT = "--skip-java-in-coverage-report"
 const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
@@ -147,6 +142,7 @@ const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
 const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
+const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
@@ -177,6 +173,7 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_KOTLIN_MODEL = "--kotlin-model"
 
 class Options(
     private val args: Array<String>,
@@ -218,7 +215,8 @@ class Options(
     private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
-
+    /** Internal list backing [excludeAnnotations] */
+    private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
     /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
     private val alreadyWarned: MutableSet<String> = mutableSetOf()
 
@@ -296,20 +294,11 @@ class Options(
      */
     var onlyCheckApi = false
 
-    /**
-     * Whether signature files should emit in "compat" mode, preserving the various
-     * quirks of the previous signature file format -- this will for example use a non-standard
-     * modifier ordering, it will call enums interfaces, etc. See the [Compatibility] class
-     * for more fine grained control (which is not (currently) exposed as individual command line
-     * flags.
-     */
-    var compatOutput = useCompatMode(args)
-
     /** Whether nullness annotations should be displayed as ?/!/empty instead of with @NonNull/@Nullable. */
     var outputKotlinStyleNulls = false // requires v3
 
     /** Whether default values should be included in signature files */
-    var outputDefaultValues = !compatOutput
+    var outputDefaultValues = true
 
     /**
      *  Whether only the presence of default values should be included in signature files, and not
@@ -318,7 +307,7 @@ class Options(
     var outputConciseDefaultValues = false // requires V4
 
     /** The output format version being used */
-    var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
+    var outputFormat: FileFormat = FileFormat.V2
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
@@ -490,6 +479,9 @@ class Options(
     /** The set of annotation classes that should be passed through unchanged */
     var passThroughAnnotations = mutablePassThroughAnnotations
 
+    /** The set of annotation classes that should be removed from all outputs */
+    var excludeAnnotations = mutableExcludeAnnotations
+
     /**
      * A signature file to migrate nullness data from
      */
@@ -546,6 +538,11 @@ class Options(
     /** Whether to emit coverage statistics for annotations in the API surface */
     var dumpAnnotationStatistics = false
 
+    /** Whether to use the experimental KtPsi model on .kt source files instead of existing
+     * PSI implementation
+     */
+    var useKtModel = false
+
     /**
      * mapping from API level to android.jar files, if computing API levels
      */
@@ -567,7 +564,7 @@ class Options(
     var docLevel = DocLevel.PROTECTED
 
     /** Whether to include the signature file format version header in signature files */
-    var includeSignatureFormatVersion: Boolean = !compatOutput
+    var includeSignatureFormatVersion: Boolean = true
 
     /** A baseline to check against */
     var baseline: Baseline? = null
@@ -801,7 +798,7 @@ class Options(
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
 
-                ARG_COMPAT_OUTPUT -> compatOutput = true
+                ARG_KOTLIN_MODEL -> useKtModel = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -916,7 +913,7 @@ class Options(
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST -> docStubsSourceList = stringToNewFile(getValue(args, ++index))
 
-                ARG_EXCLUDE_ANNOTATIONS -> generateAnnotations = false
+                ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
 
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
 
@@ -929,6 +926,13 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
                         mutablePassThroughAnnotations.add(path)
+                    }
+                }
+
+                ARG_EXCLUDE_ANNOTATION -> {
+                    val annotations = getValue(args, ++index)
+                    annotations.split(",").forEach { path ->
+                        mutableExcludeAnnotations.add(path)
                     }
                 }
 
@@ -1205,9 +1209,6 @@ class Options(
                     // Already processed above but don't flag it here as invalid
                 }
 
-                ARG_OMIT_COMMON_PACKAGES, "$ARG_OMIT_COMMON_PACKAGES=yes" -> compatibility.omitCommonPackages = true
-                "$ARG_OMIT_COMMON_PACKAGES=no" -> compatibility.omitCommonPackages = false
-
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
 
                 // Extracting API levels
@@ -1330,11 +1331,6 @@ class Options(
                         else -> FileFormat.JDIFF
                     }
                     val strip = arg == "-new_api"
-                    if (arg != ARG_CONVERT_NEW_TO_JDIFF) {
-                        // Using old doclava flags: Compatibility behavior: don't include fields in the output
-                        compatibility.includeFieldsInApiDiff = false
-                    }
-
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
@@ -1351,7 +1347,7 @@ class Options(
 
                 "-encoding" -> {
                     val value = getValue(args, ++index)
-                    if (value.toUpperCase() != "UTF-8") {
+                    if (value.uppercase(Locale.getDefault()) != "UTF-8") {
                         throw DriverException("$value: Only UTF-8 encoding is supported")
                     }
                 }
@@ -1552,16 +1548,6 @@ class Options(
                         } else {
                             yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
                         }
-                    } else if (arg.startsWith(ARG_OMIT_COMMON_PACKAGES)) {
-                        compatibility.omitCommonPackages = if (arg == ARG_OMIT_COMMON_PACKAGES) {
-                            true
-                        } else {
-                            yesNo(arg.substring(ARG_OMIT_COMMON_PACKAGES.length + 1))
-                        }
-                    } else if (arg.startsWith(ARG_COMPAT_OUTPUT)) {
-                        compatOutput = if (arg == ARG_COMPAT_OUTPUT)
-                            true
-                        else yesNo(arg.substring(ARG_COMPAT_OUTPUT.length + 1))
                     } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
                         includeSignatureFormatVersion = if (arg == ARG_INCLUDE_SIG_VERSION)
                             true
@@ -1582,25 +1568,11 @@ class Options(
                             }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
-                        outputFormat.configureOptions(this, compatibility)
+                        outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
-                        // Compatibility flag; map to mutable properties in the Compatibility
-                        // class and assign it
-                        val compatibilityArg = findCompatibilityFlag(arg)
-                        if (compatibilityArg != null) {
-                            val dash = arg.indexOf('=')
-                            val value = if (dash == -1) {
-                                true
-                            } else {
-                                arg.substring(dash + 1).toBoolean()
-                            }
-                            compatibilityArg.set(compatibility, value)
-                        } else {
-                            // Some other argument: display usage info and exit
-
-                            val usage = getUsage(includeHeader = false, colorize = color)
-                            throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
-                        }
+                        // Some other argument: display usage info and exit
+                        val usage = getUsage(includeHeader = false, colorize = color)
+                        throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
                         if (delayedCheckApiFiles) {
                             delayedCheckApiFiles = false
@@ -1659,7 +1631,7 @@ class Options(
             if (outputFormat < FileFormat.V3) {
                 outputFormat = FileFormat.V3
             }
-            outputFormat.configureOptions(this, compatibility)
+            outputFormat.configureOptions(this)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1814,20 +1786,6 @@ class Options(
         }
     }
 
-    private fun findCompatibilityFlag(arg: String): KMutableProperty1<Compatibility, Boolean>? {
-        val index = arg.indexOf('=')
-        val name = arg
-            .substring(0, if (index != -1) index else arg.length)
-            .removePrefix("--")
-            .replace('-', '_')
-        val propertyName = SdkVersionInfo.underlinesToCamelCase(name).decapitalize()
-        return Compatibility::class.memberProperties
-            .filterIsInstance<KMutableProperty1<Compatibility, Boolean>>()
-            .find {
-                it.name == propertyName
-            }
-    }
-
     /**
      * Produce a default file name for the baseline. It's normally "baseline.txt", but can
      * be prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi -> system-baseline.txt,
@@ -1841,7 +1799,7 @@ class Options(
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
             fun annotationToPrefix(qualifiedName: String): String {
                 val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-                return name.toLowerCase(Locale.US).removeSuffix("api") + "-"
+                return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
             showAnnotations.getIncludedAnnotationNames().forEach { sb.append(annotationToPrefix(it)) }
@@ -1947,27 +1905,6 @@ class Options(
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
             throw DriverException(stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both")
-        }
-
-        if (compatOutput && outputKotlinStyleNulls) {
-            throw DriverException(
-                stderr = "$ARG_OUTPUT_KOTLIN_NULLS=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
-        }
-
-        if (compatOutput && outputDefaultValues) {
-            throw DriverException(
-                stderr = "$ARG_OUTPUT_DEFAULT_VALUES=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
-        }
-
-        if (compatOutput && includeSignatureFormatVersion) {
-            throw DriverException(
-                stderr = "$ARG_INCLUDE_SIG_VERSION=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
         }
     }
 
@@ -2344,17 +2281,13 @@ class Options(
                 "The default is yes.",
             "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]", "Controls whether default values should be included in " +
                 "signature files. The default is yes.",
-            "$ARG_COMPAT_OUTPUT=[yes|no]", "Controls whether to keep signature files compatible with the " +
-                "historical format (with its various quirks) or to generate the new format (which will also include " +
-                "annotations that are part of the API, etc.)",
-            "$ARG_OMIT_COMMON_PACKAGES[=yes|no]", "Skip common package prefixes like java.lang.* and " +
-                "kotlin.* in signature files, along with packages for well known annotations like @Nullable and " +
-                "@NonNull.",
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
+            "$ARG_KOTLIN_MODEL", "[CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin " +
+                "instead of UAST",
 
             "", "\nGenerating Stubs:",
             "$ARG_STUBS <dir>", "Generate stub source files for the API",
@@ -2367,9 +2300,11 @@ class Options(
             ARG_KOTLIN_STUBS, "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
                 "be written in Kotlin rather than the Java programming language.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
-            ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
+            ARG_EXCLUDE_ALL_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
             "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
                 "annotation classes that must be passed through unchanged.",
+            "$ARG_EXCLUDE_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
+                "annotation classes that must be stripped from metalava's outputs.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                 "Documentation stubs (--doc-stubs) are not affected.)",
@@ -2574,12 +2509,6 @@ class Options(
     }
 
     companion object {
-        /** Whether we should use [Compatibility] mode */
-        fun useCompatMode(args: Array<String>): Boolean {
-            return COMPAT_MODE_BY_DEFAULT && !args.contains("$ARG_COMPAT_OUTPUT=no") &&
-                (args.none { it.startsWith("$ARG_FORMAT=") } || args.contains("--format=v1"))
-        }
-
         private fun setIssueSeverity(
             id: String,
             severity: Severity,

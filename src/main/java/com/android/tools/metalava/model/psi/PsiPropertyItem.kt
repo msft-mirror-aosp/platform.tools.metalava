@@ -32,7 +32,8 @@ class PsiPropertyItem(
     private val name: String,
     modifiers: PsiModifierItem,
     documentation: String,
-    private val fieldType: PsiTypeItem
+    private val fieldType: PsiTypeItem,
+    override val constructorParameter: PsiParameterItem? = null
 ) :
     PsiItem(
         codebase = codebase,
@@ -76,7 +77,8 @@ class PsiPropertyItem(
             containingClass: PsiClassItem,
             name: String,
             psiType: PsiType,
-            psiMethod: PsiMethod
+            psiMethod: PsiMethod,
+            constructorParameter: PsiParameterItem? = null
         ): PsiPropertyItem {
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
@@ -88,8 +90,10 @@ class PsiPropertyItem(
                 name = name,
                 documentation = commentText,
                 modifiers = modifiers,
-                fieldType = typeItem
+                fieldType = typeItem,
+                constructorParameter = constructorParameter
             )
+            constructorParameter?.property = property
             property.modifiers.setOwner(property)
             return property
         }

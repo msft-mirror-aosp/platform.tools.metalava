@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -149,7 +148,7 @@ open class TextMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-        if (targetContainingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+        if (targetContainingClass.deprecated) {
             duplicated.deprecated = true
         }
 

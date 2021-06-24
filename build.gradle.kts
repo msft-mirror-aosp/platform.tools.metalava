@@ -21,7 +21,6 @@ defaultTasks = mutableListOf(
 repositories {
     google()
     mavenCentral()
-    jcenter() // needed for trove4j
     val lintRepo = project.findProperty("lintRepo") as String?
     if (lintRepo != null) {
         logger.warn("Building using custom $lintRepo maven repository")
@@ -32,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.4.30"
+    kotlin("jvm") version "1.5.0"
     id("application")
     id("java")
     id("maven-publish")
@@ -42,7 +41,7 @@ group = "com.android.tools.metalava"
 version = getMetalavaVersion()
 
 application {
-    mainClassName = "com.android.tools.metalava.Driver"
+    mainClass.set("com.android.tools.metalava.Driver")
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
@@ -57,8 +56,8 @@ tasks.withType(KotlinCompile::class.java) {
 
     kotlinOptions {
         jvmTarget = "1.8"
-        apiVersion = "1.4"
-        languageVersion = "1.4"
+        apiVersion = "1.5"
+        languageVersion = "1.5"
         allWarningsAsErrors = true
     }
 }
@@ -68,9 +67,9 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "27.2.0-alpha11"
+    "30.1.0-alpha01"
 }
-val kotlinVersion: String = "1.4.30"
+val kotlinVersion: String = "1.5.0"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
@@ -93,7 +92,17 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }
 
-tasks.withType(Test::class.java) {
+val zipTask: TaskProvider<Zip> = project.tasks.register(
+    "zipResultsOf${name.capitalize()}",
+    Zip::class.java
+) {
+    destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
+    archiveFileName.set("metalava-tests.zip")
+}
+
+val testTask = tasks.named("test", Test::class.java)
+testTask.configure {
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
         TestLogEvent.PASSED,
@@ -101,17 +110,11 @@ tasks.withType(Test::class.java) {
         TestLogEvent.STANDARD_OUT,
         TestLogEvent.STANDARD_ERROR
     )
-    val zipTask = project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
-        destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
-        archiveFileName.set("metalava-tests.zip")
-    }
     if (isBuildingOnServer()) ignoreFailures = true
     finalizedBy(zipTask)
-    doFirst {
-        zipTask.configure {
-            from(reports.junitXml.destination)
-        }
-    }
+}
+zipTask.configure {
+    from(testTask.map { it.reports.junitXml.outputLocation.get() })
 }
 
 fun getMetalavaVersion(): Any {
@@ -228,22 +231,30 @@ publishing {
 
 // Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    val outDirProvider = project.providers.environmentVariable("DIST_DIR")
+    inputs.property("buildOutputDirectory", outDirProvider).optional(true)
     doLast {
         val metadata = outputFile.asFile.get()
-        var text = metadata.readText()
+        val text = metadata.readText()
+        val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
         metadata.writeText(
             text.replace(
                 "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${getBuildId()}\"")
+                "\"buildId:\": \"${buildId}\"")
         )
     }
 }
 
-configureBuildInfoTask(project, isBuildingOnServer(), getDistributionDirectory())
-configurePublishingArchive(
+val archiveTaskProvider = configurePublishingArchive(
     project,
     publicationName,
     repositoryName,
     getBuildId(),
     getDistributionDirectory()
+)
+configureBuildInfoTask(
+    project,
+    isBuildingOnServer(),
+    getDistributionDirectory(),
+    archiveTaskProvider
 )

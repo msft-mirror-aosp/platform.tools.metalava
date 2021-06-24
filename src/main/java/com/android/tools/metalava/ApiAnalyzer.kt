@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.visitors.ItemVisitor
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.Locale
 import java.util.function.Predicate
 
 /**
@@ -810,7 +811,7 @@ class ApiAnalyzer(
                 // Done here rather than in the analyzer which propagates visibility, since we want to do it
                 // after warning
                 val containingClass = cls.containingClass()
-                if (containingClass != null && containingClass.deprecated && compatibility.propagateDeprecatedInnerClasses) {
+                if (containingClass != null && containingClass.deprecated) {
                     cls.deprecated = true
                 }
 
@@ -834,7 +835,7 @@ class ApiAnalyzer(
 
             override fun visitField(field: FieldItem) {
                 val containingClass = field.containingClass()
-                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+                if (containingClass.deprecated) {
                     field.deprecated = true
                 }
 
@@ -850,7 +851,7 @@ class ApiAnalyzer(
                 }
 
                 val containingClass = method.containingClass()
-                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+                if (containingClass.deprecated) {
                     method.deprecated = true
                 }
 
@@ -1274,5 +1275,15 @@ class ApiAnalyzer(
             }
         }
         return null
+    }
+}
+
+private fun String.capitalize(): String {
+    return this.replaceFirstChar {
+        if (it.isLowerCase()) {
+            it.titlecase(Locale.getDefault())
+        } else {
+            it.toString()
+        }
     }
 }

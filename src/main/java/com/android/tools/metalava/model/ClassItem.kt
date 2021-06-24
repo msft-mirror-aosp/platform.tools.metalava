@@ -235,6 +235,10 @@ interface ClassItem : Item {
 
     var hasPrivateConstructor: Boolean
 
+    /** The primary constructor for this class in Kotlin, if present. */
+    val primaryConstructor: ConstructorItem?
+        get() = constructors().singleOrNull { it.isPrimary }
+
     /**
      * Maven artifact of this class, if any. (Not used for the Android SDK, but used in
      * for example support libraries.
@@ -415,6 +419,21 @@ interface ClassItem : Item {
             }
         }
         return null
+    }
+
+    /**
+     * Finds a method matching the given method that satisfies the given predicate,
+     * considering all methods defined on this class and its super classes
+     */
+    fun findPredicateMethodWithSuper(template: MethodItem, filter: Predicate<Item>?): MethodItem? {
+        val method = findMethod(template, true, true)
+        if (method == null) {
+            return null
+        }
+        if (filter == null || filter.test(method)) {
+            return method
+        }
+        return method.findPredicateSuperMethod(filter)
     }
 
     /** Finds a given method in this class matching the VM name signature */

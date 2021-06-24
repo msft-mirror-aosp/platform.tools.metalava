@@ -334,10 +334,8 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Include merged annotations in exported source annotations`() {
         check(
             includeSourceRetentionAnnotations = true,
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles = arrayOf(
                 java(
@@ -388,10 +386,8 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Only including class retention annotations in stubs`() {
         check(
             includeSourceRetentionAnnotations = false,
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -617,6 +613,40 @@ class ExtractAnnotationsTest : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Test generics in XML attributes are encoded`() {
+        check(
+            includeSourceRetentionAnnotations = false,
+            outputKotlinStyleNulls = false,
+            includeSystemApiAnnotations = false,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import android.annotation.IntRange;
+
+                    public class MyTest {
+                        public void test(List<Integer> genericArgument, @IntRange(from = 10) int foo) { }
+                    }"""
+                ),
+                intRangeAnnotationSource
+            ),
+            extractAnnotations = mapOf(
+                "test.pkg" to """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="test.pkg.MyTest void test(List&lt;Integer&gt;, int) 1">
+                    <annotation name="androidx.annotation.IntRange">
+                      <val name="from" val="10" />
+                    </annotation>
+                  </item>
+                </root>
+                """
+            )
         )
     }
 }

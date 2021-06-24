@@ -45,6 +45,8 @@ class PsiParameterItem(
 ), ParameterItem {
     lateinit var containingMethod: PsiMethodItem
 
+    override var property: PsiPropertyItem? = null
+
     override fun name(): String = name
 
     override fun publicName(): String? {
@@ -52,6 +54,13 @@ class PsiParameterItem(
             // Don't print out names for extension function receiver parameters
             if (isReceiver()) {
                 return null
+            }
+            // Hardcode parameter name for the generated suspend function continuation parameter
+            if (containingMethod.modifiers.isSuspend() &&
+                    "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
+                    containingMethod.parameters().size - 1 == parameterIndex
+            ) {
+                return "p"
             }
             return name
         } else {

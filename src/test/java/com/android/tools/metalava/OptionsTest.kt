@@ -136,7 +136,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.4.
+                                             Sets the source level for Kotlin source files; default is 1.5.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -194,14 +194,6 @@ Extracting Signature Files:
 --output-default-values[=yes|no]
                                              Controls whether default values should be included in signature files. The
                                              default is yes.
---compatible-output=[yes|no]
-                                             Controls whether to keep signature files compatible with the historical
-                                             format (with its various quirks) or to generate the new format (which will
-                                             also include annotations that are part of the API, etc.)
---omit-common-packages[=yes|no]
-                                             Skip common package prefixes like java.lang.* and kotlin.* in signature
-                                             files, along with packages for well known annotations like @Nullable and
-                                             @NonNull.
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
@@ -209,6 +201,8 @@ Extracting Signature Files:
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
+--kotlin-model
+                                             [CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST
 
 
 Generating Stubs:
@@ -227,11 +221,14 @@ Generating Stubs:
                                              code will be written in Kotlin rather than the Java programming language.
 --include-annotations
                                              Include annotations such as @Nullable in the stub files.
---exclude-annotations
+--exclude-all-annotations
                                              Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
+--exclude-annotation <annotation classes>
+                                             A comma separated list of fully qualified names of annotation classes that
+                                             must be stripped from metalava's outputs.
 --exclude-documentation-from-stubs
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.

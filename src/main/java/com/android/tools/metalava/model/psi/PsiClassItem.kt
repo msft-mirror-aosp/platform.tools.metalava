@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.CompilationUnit
@@ -44,6 +43,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.getParentOfType
@@ -166,6 +166,9 @@ open class PsiClassItem(
     override fun methods(): List<PsiMethodItem> = methods
     override fun properties(): List<PropertyItem> = properties
     override fun fields(): List<FieldItem> = fields
+
+    final override var primaryConstructor: PsiConstructorItem? = null
+        private set
 
     override fun toType(): TypeItem {
         return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
@@ -443,17 +446,7 @@ open class PsiClassItem(
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
             val isKotlin = isKotlin(psiClass)
 
-            if (classType == ClassType.ENUM) {
-                // In compatibility mode we want explicit valueOf and values methods.
-                // UAST recently started including these in the AST (as synthetic elements),
-                // so we no longer need to create those here, but we still need to create
-                // the synthetic constructor
-                if (compatibility.defaultEnumMethods) {
-                    // Also add a private constructor; used when emitting the private API
-                    val psiMethod = codebase.createConstructor("private ${psiClass.name}", psiClass)
-                    methods.add(PsiConstructorItem.create(codebase, item, psiMethod))
-                }
-            } else if (classType == ClassType.ANNOTATION_TYPE && compatibility.explicitlyListClassRetention &&
+            if (classType == ClassType.ANNOTATION_TYPE &&
                 !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
@@ -485,10 +478,7 @@ open class PsiClassItem(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classType == ClassType.ENUM &&
-                    !compatibility.defaultEnumMethods &&
-                    psiMethod is SyntheticElement
-                ) {
+                } else if (classType == ClassType.ENUM && psiMethod is SyntheticElement) {
                     // skip
                 } else {
                     val method = PsiMethodItem.create(codebase, item, psiMethod)
@@ -498,6 +488,10 @@ open class PsiClassItem(
             if (noArgConstructor != null && !hasConstructorWithOnlyOptionalArgs) {
                 constructors.add(noArgConstructor)
             }
+
+            // Note that this is dependent on the constructor filtering above. UAST sometimes
+            // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
+            constructors.singleOrNull { it.isPrimary }?.let { item.primaryConstructor = it }
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
@@ -534,6 +528,9 @@ open class PsiClassItem(
 
             item.properties = emptyList()
             if (isKotlin) {
+                val primaryParameters = item.primaryConstructor?.parameters()
+                    ?.associateBy { (it.element as? UElement)?.sourcePsi as? KtParameter }
+                    .orEmpty()
                 // Try to initialize the Kotlin properties
                 val properties = mutableListOf<PsiPropertyItem>()
                 for (method in psiMethods) {
@@ -564,7 +561,14 @@ open class PsiClassItem(
                                     else -> null
                                 } ?: continue
                             val psiType = method.returnType ?: continue
-                            properties.add(PsiPropertyItem.create(codebase, item, name, psiType, method))
+                            PsiPropertyItem.create(
+                                codebase = codebase,
+                                containingClass = item,
+                                name = name,
+                                psiType = psiType,
+                                psiMethod = method,
+                                constructorParameter = primaryParameters[sourcePsi as? KtParameter]
+                            ).also { properties.add(it) }
                         }
                     }
                 }

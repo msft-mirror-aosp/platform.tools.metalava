@@ -2,11 +2,11 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
-import com.google.common.io.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.nio.file.Files
 import kotlin.text.Charsets.UTF_8
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
@@ -1262,6 +1262,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public class Camera {
+                    @Deprecated
                     public Camera() { throw new RuntimeException("Stub!"); }
                     /**
                      * @deprecated Use something else.
@@ -1744,7 +1745,9 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public final class Foo {
+                    @Deprecated
                     public Foo() { throw new RuntimeException("Stub!"); }
+                    @Deprecated
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * {@inheritDoc}
@@ -1965,6 +1968,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Documentation 1 here
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation2
                     public @interface MyAnnotation1 {
                     }
@@ -1977,6 +1981,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Documentation 2 here
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation1
                     public @interface MyAnnotation2 {
                     }
@@ -2005,13 +2010,9 @@ class DocAnalyzerTest : DriverTest() {
             println("Ignoring external doc test: javadoc not found *or* not running on Linux/OSX")
             return
         }
-        val androidJar = getAndroidJar(API_LEVEL)?.path
-        if (androidJar == null) {
-            println("Ignoring external doc test: android.jar not found")
-            return
-        }
+        val androidJar = getAndroidJar().path
 
-        val dir = Files.createTempDir()
+        val dir = Files.createTempDirectory(null).toFile()
         val html = "$dir/javadoc"
         val sourceList = "$dir/sources.txt"
 
@@ -2212,6 +2213,62 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     """
                 )
+            )
+        )
+    }
+
+    @Test
+    fun `memberDoc crash`() {
+        check(
+            sourceFiles = arrayOf(
+                java("""
+                    package test.pkg;
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+                    import java.lang.annotation.Target;
+                    /**
+                     * More text here
+                     * @memberDoc Important {@link another.pkg.Bar#BAR}
+                     * and here
+                     */
+                    @Target({ ElementType.FIELD })
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface Foo { }
+                """),
+                java("""
+                    package another.pkg;
+                    public class Bar {
+                        public String BAR = "BAAAAR";
+                    }
+                """),
+                java("""
+                    package yetonemore.pkg;
+                    public class Fun {
+                        /**
+                         * Separate comment
+                         */
+                        @test.pkg.Foo
+                        public static final String FUN = "FUN";
+                    }
+                """)
+            ),
+            docStubs = true,
+            stubFiles = arrayOf(
+                java("""
+                    package yetonemore.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Fun {
+                    public Fun() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * Separate comment
+                     * <br>
+                     * Important {@link another.pkg.Bar#BAR}
+                     * and here
+                     */
+                    public static final java.lang.String FUN = "FUN";
+                    }
+                """)
             )
         )
     }
