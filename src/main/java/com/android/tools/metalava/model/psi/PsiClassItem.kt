@@ -213,7 +213,8 @@ open class PsiClassItem(
             } else {
                 null
             }
-        return PsiSourceFileItem(codebase, uFile, containingFile)
+
+        return PsiSourceFileItem(codebase, containingFile, uFile)
     }
 
     override fun finishInitialization() {

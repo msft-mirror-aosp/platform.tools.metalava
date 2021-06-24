@@ -16,22 +16,14 @@
 
 package com.android.tools.metalava.model
 
-import com.intellij.lang.Language
-import com.intellij.psi.PsiFile
-import org.jetbrains.uast.UFile
 import java.util.function.Predicate
 
 /** Represents a Kotlin/Java source file */
-open class SourceFileItem(
-    val file: PsiFile,
-    val uFile: UFile?
-) {
+interface SourceFileItem {
+    /** Top level classes contained in this file */
+    fun classes(): Sequence<ClassItem>
 
-    val language: Language? get() = file.language
+    fun getHeaderComments(): String? = null
 
-    open fun getHeaderComments(): String? = null
-
-    override fun toString(): String = "file ${file.virtualFile?.path}"
-
-    open fun getImportStatements(predicate: Predicate<Item>): Collection<Item> = emptyList()
+    fun getImportStatements(predicate: Predicate<Item>): Collection<Item> = emptyList()
 }

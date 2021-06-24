@@ -45,9 +45,9 @@ private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
 class PsiSourceFileItem(
     val codebase: PsiBasedCodebase,
-    uFile: UFile?,
-    containingFile: PsiFile
-) : SourceFileItem(containingFile, uFile) {
+    val file: PsiFile,
+    val uFile: UFile? = null
+) : SourceFileItem {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
@@ -167,7 +167,7 @@ class PsiSourceFileItem(
                 // We keep the wildcard imports since we don't know which ones of those are relevant
                 imports.filterIsInstance<PackageItem>().forEach { result.add(it) }
 
-                for (cls in classes(predicate)) {
+                for (cls in classes().filter { predicate.test(it) }) {
                     cls.accept(object : ItemVisitor() {
                         override fun visitItem(item: Item) {
                             // Do not let documentation on hidden items affect the imports.
@@ -209,19 +209,13 @@ class PsiSourceFileItem(
         return emptyList()
     }
 
-    private fun classes(predicate: Predicate<Item>): List<ClassItem> {
-        val topLevel = mutableListOf<ClassItem>()
-        if (file is PsiClassOwner) {
-            for (psiClass in file.classes) {
-                val classItem = codebase.findClass(psiClass) ?: continue
-                if (predicate.test(classItem)) {
-                    topLevel.add(classItem)
-                }
-            }
-        }
-
-        return topLevel
+    override fun classes(): Sequence<ClassItem> {
+        return (file as? PsiClassOwner)?.classes?.asSequence()
+            ?.mapNotNull { codebase.findClass(it) }
+            .orEmpty()
     }
+
+    override fun toString(): String = "file ${file.virtualFile?.path}"
 
     companion object {
         // Cache pattern compilation across source files
