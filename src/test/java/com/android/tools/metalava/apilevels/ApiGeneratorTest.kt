@@ -16,18 +16,15 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
-import com.android.utils.XmlUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -94,25 +91,12 @@ class ApiGeneratorTest : DriverTest() {
         // Also make sure package private super classes are pruned
         assertFalse(xml.contains("<extends name=\"android/icu/util/CECalendar\""))
 
-        val document = XmlUtils.parseDocumentSilently(xml, false)
-        assertNotNull(document)
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
 
-        // Make sure we can process it via ApiLookup as well
-        @Suppress("DEPRECATION") // still using older lint-api when building with soong
-        val client = object : LintCliClient() {
-            override fun findResource(relativePath: String): File? {
-                if (relativePath == ApiLookup.XML_FILE_PATH) {
-                    return output
-                }
-                return super.findResource(relativePath)
-            }
+        // Make sure we're really using the correct database, not the SDK one. (This placeholder
+        // class is provided as a source file above.)
+        assertEquals(36, apiLookup.getClassVersion("android.pkg.MyTest"))
 
-            override fun getCacheDir(name: String?, create: Boolean): File? {
-                return temporaryFolder.newFolder()
-            }
-        }
-
-        val apiLookup = ApiLookup.get(client)
         apiLookup.getClassVersion("android.v")
         assertEquals(5, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
 
