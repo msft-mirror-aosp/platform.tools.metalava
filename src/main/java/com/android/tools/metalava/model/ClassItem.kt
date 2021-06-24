@@ -533,8 +533,8 @@ interface ClassItem : Item {
         return true
     }
 
-    /** Returns the corresponding compilation unit, if any */
-    fun getCompilationUnit(): CompilationUnit? = null
+    /** Returns the corresponding source file, if any */
+    fun getSourceFile(): SourceFileItem? = null
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention

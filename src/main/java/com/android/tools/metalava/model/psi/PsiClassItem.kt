@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.CompilationUnit
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -197,7 +197,7 @@ open class PsiClassItem(
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter
 
-    override fun getCompilationUnit(): CompilationUnit? {
+    override fun getSourceFile(): SourceFileItem? {
         if (isInnerClass()) {
             return null
         }
@@ -213,7 +213,7 @@ open class PsiClassItem(
             } else {
                 null
             }
-        return PsiCompilationUnit(codebase, uFile, containingFile)
+        return PsiSourceFileItem(codebase, uFile, containingFile)
     }
 
     override fun finishInitialization() {

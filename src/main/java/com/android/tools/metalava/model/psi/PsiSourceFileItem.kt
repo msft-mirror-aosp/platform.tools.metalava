@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.CompilationUnit
+import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
@@ -43,11 +43,11 @@ import java.util.function.Predicate
 /** Whether we should limit import statements to symbols found in class docs  */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-class PsiCompilationUnit(
+class PsiSourceFileItem(
     val codebase: PsiBasedCodebase,
     uFile: UFile?,
     containingFile: PsiFile
-) : CompilationUnit(containingFile, uFile) {
+) : SourceFileItem(containingFile, uFile) {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null

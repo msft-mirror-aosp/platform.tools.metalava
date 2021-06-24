@@ -21,8 +21,8 @@ import com.intellij.psi.PsiFile
 import org.jetbrains.uast.UFile
 import java.util.function.Predicate
 
-/** Represents a compilation unit (e.g. a .java or a .kt file) */
-open class CompilationUnit(
+/** Represents a Kotlin/Java source file */
+open class SourceFileItem(
     val file: PsiFile,
     val uFile: UFile?
 ) {
@@ -31,7 +31,7 @@ open class CompilationUnit(
 
     open fun getHeaderComments(): String? = null
 
-    override fun toString(): String = "compilation unit ${file.virtualFile?.path}"
+    override fun toString(): String = "file ${file.virtualFile?.path}"
 
     open fun getImportStatements(predicate: Predicate<Item>): Collection<Item> = emptyList()
 }
