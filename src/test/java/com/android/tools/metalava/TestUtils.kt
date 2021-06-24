@@ -38,13 +38,18 @@ fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
     return TestFiles.kotlin(to, source.trimIndent())
 }
 
-internal inline fun withCodebase(vararg sources: TestFile, action: (Codebase) -> Unit) {
+internal inline fun withCodebase(
+    vararg sources: TestFile,
+    useKtModel: Boolean = true,
+    action: (Codebase) -> Unit
+) {
     // This is thread-safe as it adds a random suffix to the directory prefix
     val tempDirectory = createTempDirectory("codebase").toFile()
     try {
         val codebase = parseSources(
-            sources.map { it.createFile(tempDirectory) },
-            "Test Codebase"
+            sources = sources.map { it.createFile(tempDirectory) },
+            description = "Test Codebase",
+            useKtModel = useKtModel
         )
         try {
             action(codebase)
