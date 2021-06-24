@@ -44,10 +44,10 @@ import java.util.function.Predicate
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
 class PsiSourceFileItem(
-    val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     val file: PsiFile,
     val uFile: UFile? = null
-) : SourceFileItem {
+) : SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
@@ -214,6 +214,21 @@ class PsiSourceFileItem(
             ?.mapNotNull { codebase.findClass(it) }
             .orEmpty()
     }
+
+    override fun containingPackage(strict: Boolean): PackageItem? {
+        return when {
+            uFile != null -> codebase.findPackage(uFile.packageName)
+            file is PsiJavaFile -> codebase.findPackage(file.packageName)
+            else -> null
+        }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return other is PsiSourceFileItem && file == other.file
+    }
+
+    override fun hashCode(): Int = file.hashCode()
 
     override fun toString(): String = "file ${file.virtualFile?.path}"
 
