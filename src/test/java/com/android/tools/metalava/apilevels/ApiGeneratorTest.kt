@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
@@ -99,6 +100,51 @@ class ApiGeneratorTest : DriverTest() {
 
         apiLookup.getClassVersion("android.v")
         assertEquals(5, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
+
+        val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
+        assertEquals(24, methodVersion)
+    }
+
+    @Test
+    fun `Extract System API`() {
+        // These are the wrong jar paths but this test doesn't actually care what the
+        // content of the jar files, just checking the logic of starting the database
+        // at some higher number than 1
+        var platformJars = File("prebuilts/sdk")
+        if (!platformJars.isDirectory) {
+            platformJars = File("../../prebuilts/sdk")
+            if (!platformJars.isDirectory) {
+                println("Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found: $platformJars")
+                return
+            }
+        }
+
+        val output = File.createTempFile("api-info", "xml")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_LEVELS,
+                outputPath,
+                ARG_ANDROID_JAR_PATTERN,
+                "${platformJars.path}/%/public/android.jar",
+                ARG_FIRST_VERSION,
+                "21"
+            )
+        )
+
+        assertTrue(output.isFile)
+        val xml = output.readText(UTF_8)
+        assertTrue(xml.contains("<api version=\"2\" min=\"21\">"))
+        assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
+        assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
+
+        val apiLookup = getApiLookup(output)
+        apiLookup.getClassVersion("android.v")
+        // This field was added in API level 5, but when we're starting the count higher
+        // (as in the system API), the first introduced API level is the one we use
+        assertEquals(21, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
 
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
