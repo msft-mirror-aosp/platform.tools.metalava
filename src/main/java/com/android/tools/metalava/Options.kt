@@ -1780,8 +1780,9 @@ class Options(
                 throw DriverException(stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
             }
         } else if (jdkHome != null) {
-                val isJre = !isJdkFolder(jdkHome)
-                val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
+            val isJre = !isJdkFolder(jdkHome)
+            @Suppress("DEPRECATION")
+            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
             mutableClassPath.addAll(roots)
         }
     }
