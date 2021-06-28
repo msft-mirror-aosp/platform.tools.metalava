@@ -194,14 +194,6 @@ Extracting Signature Files:
 --output-default-values[=yes|no]
                                              Controls whether default values should be included in signature files. The
                                              default is yes.
---compatible-output=[yes|no]
-                                             Controls whether to keep signature files compatible with the historical
-                                             format (with its various quirks) or to generate the new format (which will
-                                             also include annotations that are part of the API, etc.)
---omit-common-packages[=yes|no]
-                                             Skip common package prefixes like java.lang.* and kotlin.* in signature
-                                             files, along with packages for well known annotations like @Nullable and
-                                             @NonNull.
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
@@ -209,6 +201,8 @@ Extracting Signature Files:
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
+--kotlin-model
+                                             [CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST
 
 
 Generating Stubs:
@@ -413,6 +407,8 @@ Extracting API Levels:
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
+--first-version
+                                             Sets the first API level to generate an API database from; usually 1
 --current-version
                                              Sets the current API level of the current source code
 --current-codename

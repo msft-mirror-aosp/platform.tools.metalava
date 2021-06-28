@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
-import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.model.defaultConfiguration
@@ -38,8 +37,6 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.full.memberProperties
 import kotlin.text.Charsets.UTF_8
 
 /** Global options for the metadata extraction tool */
@@ -48,7 +45,6 @@ var options = Options(emptyArray())
 private const val MAX_LINE_WIDTH = 120
 private const val INDENT_WIDTH = 45
 
-const val ARG_COMPAT_OUTPUT = "--compatible-output"
 const val ARG_FORMAT = "--format"
 const val ARG_HELP = "--help"
 const val ARG_VERSION = "--version"
@@ -113,7 +109,6 @@ const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-anno
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
-const val ARG_OMIT_COMMON_PACKAGES = "--omit-common-packages"
 const val ARG_SKIP_JAVA_IN_COVERAGE_REPORT = "--skip-java-in-coverage-report"
 const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
@@ -124,6 +119,7 @@ const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_VERSION = "--current-version"
+const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_CHECK_KOTLIN_INTEROP = "--check-kotlin-interop"
@@ -178,6 +174,7 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_KOTLIN_MODEL = "--kotlin-model"
 
 class Options(
     private val args: Array<String>,
@@ -298,20 +295,11 @@ class Options(
      */
     var onlyCheckApi = false
 
-    /**
-     * Whether signature files should emit in "compat" mode, preserving the various
-     * quirks of the previous signature file format -- this will for example use a non-standard
-     * modifier ordering, it will call enums interfaces, etc. See the [Compatibility] class
-     * for more fine grained control (which is not (currently) exposed as individual command line
-     * flags.
-     */
-    var compatOutput = useCompatMode(args)
-
     /** Whether nullness annotations should be displayed as ?/!/empty instead of with @NonNull/@Nullable. */
     var outputKotlinStyleNulls = false // requires v3
 
     /** Whether default values should be included in signature files */
-    var outputDefaultValues = !compatOutput
+    var outputDefaultValues = true
 
     /**
      *  Whether only the presence of default values should be included in signature files, and not
@@ -320,7 +308,7 @@ class Options(
     var outputConciseDefaultValues = false // requires V4
 
     /** The output format version being used */
-    var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
+    var outputFormat: FileFormat = FileFormat.V2
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
@@ -551,6 +539,11 @@ class Options(
     /** Whether to emit coverage statistics for annotations in the API surface */
     var dumpAnnotationStatistics = false
 
+    /** Whether to use the experimental KtPsi model on .kt source files instead of existing
+     * PSI implementation
+     */
+    var useKtModel = false
+
     /**
      * mapping from API level to android.jar files, if computing API levels
      */
@@ -558,6 +551,12 @@ class Options(
 
     /** The api level of the codebase, or -1 if not known/specified */
     var currentApiLevel = -1
+
+    /**
+     * The first api level of the codebase; typically 1 but can be
+     * higher for example for the System API.
+     */
+    var firstApiLevel = 1
 
     /** The codename of the codebase, if it's a preview, or null if not specified */
     var currentCodeName: String? = null
@@ -572,7 +571,7 @@ class Options(
     var docLevel = DocLevel.PROTECTED
 
     /** Whether to include the signature file format version header in signature files */
-    var includeSignatureFormatVersion: Boolean = !compatOutput
+    var includeSignatureFormatVersion: Boolean = true
 
     /** A baseline to check against */
     var baseline: Baseline? = null
@@ -806,7 +805,7 @@ class Options(
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
 
-                ARG_COMPAT_OUTPUT -> compatOutput = true
+                ARG_KOTLIN_MODEL -> useKtModel = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -1217,9 +1216,6 @@ class Options(
                     // Already processed above but don't flag it here as invalid
                 }
 
-                ARG_OMIT_COMMON_PACKAGES, "$ARG_OMIT_COMMON_PACKAGES=yes" -> compatibility.omitCommonPackages = true
-                "$ARG_OMIT_COMMON_PACKAGES=no" -> compatibility.omitCommonPackages = false
-
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
 
                 // Extracting API levels
@@ -1236,6 +1232,9 @@ class Options(
                     if (currentApiLevel <= 26) {
                         throw DriverException("Suspicious currentApi=$currentApiLevel, expected at least 27")
                     }
+                }
+                ARG_FIRST_VERSION -> {
+                    firstApiLevel = Integer.parseInt(getValue(args, ++index))
                 }
                 ARG_CURRENT_CODENAME -> {
                     currentCodeName = getValue(args, ++index)
@@ -1342,11 +1341,6 @@ class Options(
                         else -> FileFormat.JDIFF
                     }
                     val strip = arg == "-new_api"
-                    if (arg != ARG_CONVERT_NEW_TO_JDIFF) {
-                        // Using old doclava flags: Compatibility behavior: don't include fields in the output
-                        compatibility.includeFieldsInApiDiff = false
-                    }
-
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
@@ -1564,16 +1558,6 @@ class Options(
                         } else {
                             yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
                         }
-                    } else if (arg.startsWith(ARG_OMIT_COMMON_PACKAGES)) {
-                        compatibility.omitCommonPackages = if (arg == ARG_OMIT_COMMON_PACKAGES) {
-                            true
-                        } else {
-                            yesNo(arg.substring(ARG_OMIT_COMMON_PACKAGES.length + 1))
-                        }
-                    } else if (arg.startsWith(ARG_COMPAT_OUTPUT)) {
-                        compatOutput = if (arg == ARG_COMPAT_OUTPUT)
-                            true
-                        else yesNo(arg.substring(ARG_COMPAT_OUTPUT.length + 1))
                     } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
                         includeSignatureFormatVersion = if (arg == ARG_INCLUDE_SIG_VERSION)
                             true
@@ -1594,25 +1578,11 @@ class Options(
                             }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
-                        outputFormat.configureOptions(this, compatibility)
+                        outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
-                        // Compatibility flag; map to mutable properties in the Compatibility
-                        // class and assign it
-                        val compatibilityArg = findCompatibilityFlag(arg)
-                        if (compatibilityArg != null) {
-                            val dash = arg.indexOf('=')
-                            val value = if (dash == -1) {
-                                true
-                            } else {
-                                arg.substring(dash + 1).toBoolean()
-                            }
-                            compatibilityArg.set(compatibility, value)
-                        } else {
-                            // Some other argument: display usage info and exit
-
-                            val usage = getUsage(includeHeader = false, colorize = color)
-                            throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
-                        }
+                        // Some other argument: display usage info and exit
+                        val usage = getUsage(includeHeader = false, colorize = color)
+                        throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
                         if (delayedCheckApiFiles) {
                             delayedCheckApiFiles = false
@@ -1663,7 +1633,13 @@ class Options(
             // Fallbacks
             patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
             patterns.add("prebuilts/sdk/%/public/android.jar")
-            apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
+            apiLevelJars = findAndroidJars(
+                patterns,
+                firstApiLevel,
+                currentApiLevel,
+                currentCodeName,
+                currentJar
+            )
         }
 
         // outputKotlinStyleNulls implies at least format=v3
@@ -1671,7 +1647,7 @@ class Options(
             if (outputFormat < FileFormat.V3) {
                 outputFormat = FileFormat.V3
             }
-            outputFormat.configureOptions(this, compatibility)
+            outputFormat.configureOptions(this)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1820,25 +1796,11 @@ class Options(
                 throw DriverException(stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
             }
         } else if (jdkHome != null) {
-                val isJre = !isJdkFolder(jdkHome)
-                val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
+            val isJre = !isJdkFolder(jdkHome)
+            @Suppress("DEPRECATION")
+            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
             mutableClassPath.addAll(roots)
         }
-    }
-
-    private fun findCompatibilityFlag(arg: String): KMutableProperty1<Compatibility, Boolean>? {
-        val index = arg.indexOf('=')
-        val name = arg
-            .substring(0, if (index != -1) index else arg.length)
-            .removePrefix("--")
-            .replace('-', '_')
-        val propertyName = SdkVersionInfo.underlinesToCamelCase(name)
-            .replaceFirstChar { it.lowercase(Locale.getDefault()) }
-        return Compatibility::class.memberProperties
-            .filterIsInstance<KMutableProperty1<Compatibility, Boolean>>()
-            .find {
-                it.name == propertyName
-            }
     }
 
     /**
@@ -1881,6 +1843,7 @@ class Options(
      */
     private fun findAndroidJars(
         androidJarPatterns: List<String>,
+        minApi: Int,
         currentApiLevel: Int,
         currentCodeName: String?,
         currentJar: File?
@@ -1894,9 +1857,13 @@ class Options(
         }
 
         val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed
-        apiLevelFiles.add(File("there is no api 0"))
-        val minApi = 1
+        // api level 0: placeholder, should not be processed.
+        // (This is here because we want the array index to match
+        // the API level)
+        val element = File("not an api: the starting API index is $minApi")
+        for (i in 0 until minApi) {
+            apiLevelFiles.add(element)
+        }
 
         // Get all the android.jar. They are in platforms-#
         var apiLevel = minApi - 1
@@ -1960,27 +1927,6 @@ class Options(
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
             throw DriverException(stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both")
-        }
-
-        if (compatOutput && outputKotlinStyleNulls) {
-            throw DriverException(
-                stderr = "$ARG_OUTPUT_KOTLIN_NULLS=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
-        }
-
-        if (compatOutput && outputDefaultValues) {
-            throw DriverException(
-                stderr = "$ARG_OUTPUT_DEFAULT_VALUES=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
-        }
-
-        if (compatOutput && includeSignatureFormatVersion) {
-            throw DriverException(
-                stderr = "$ARG_INCLUDE_SIG_VERSION=yes should not be combined with " +
-                    "$ARG_COMPAT_OUTPUT=yes"
-            )
         }
     }
 
@@ -2357,17 +2303,13 @@ class Options(
                 "The default is yes.",
             "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]", "Controls whether default values should be included in " +
                 "signature files. The default is yes.",
-            "$ARG_COMPAT_OUTPUT=[yes|no]", "Controls whether to keep signature files compatible with the " +
-                "historical format (with its various quirks) or to generate the new format (which will also include " +
-                "annotations that are part of the API, etc.)",
-            "$ARG_OMIT_COMMON_PACKAGES[=yes|no]", "Skip common package prefixes like java.lang.* and " +
-                "kotlin.* in signature files, along with packages for well known annotations like @Nullable and " +
-                "@NonNull.",
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
+            "$ARG_KOTLIN_MODEL", "[CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin " +
+                "instead of UAST",
 
             "", "\nGenerating Stubs:",
             "$ARG_STUBS <dir>", "Generate stub source files for the API",
@@ -2510,6 +2452,7 @@ class Options(
                 "the API level for each class, method and field",
             "$ARG_ANDROID_JAR_PATTERN <pattern>", "Patterns to use to locate Android JAR files. The default " +
                 "is \$ANDROID_HOME/platforms/android-%/android.jar.",
+            ARG_FIRST_VERSION, "Sets the first API level to generate an API database from; usually 1",
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
@@ -2589,12 +2532,6 @@ class Options(
     }
 
     companion object {
-        /** Whether we should use [Compatibility] mode */
-        fun useCompatMode(args: Array<String>): Boolean {
-            return COMPAT_MODE_BY_DEFAULT && !args.contains("$ARG_COMPAT_OUTPUT=no") &&
-                (args.none { it.startsWith("$ARG_FORMAT=") } || args.contains("--format=v1"))
-        }
-
         private fun setIssueSeverity(
             id: String,
             severity: Severity,

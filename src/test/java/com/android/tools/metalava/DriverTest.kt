@@ -27,7 +27,6 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
@@ -266,8 +265,6 @@ abstract class DriverTest {
         docStubs: Boolean = false,
         /** Signature file format */
         format: FileFormat? = null,
-        /** Whether to run in doclava1 compat mode */
-        compatibilityMode: Boolean = format == null || format == FileFormat.V1,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /** Whether to remove blank lines in the output (the signature file usually contains a lot of these) */
@@ -338,8 +335,6 @@ abstract class DriverTest {
         outputKotlinStyleNulls: Boolean = format != null && format.useKotlinStyleNulls(),
         /** Whether we should interpret API files being read as having Kotlin-style nullness types */
         inputKotlinStyleNulls: Boolean = false,
-        /** Whether we should omit java.lang. etc from signature files */
-        omitCommonPackages: Boolean = !compatibilityMode,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -449,29 +444,6 @@ abstract class DriverTest {
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
-        if (compatibilityMode && mergeXmlAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeXmlAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-        if (compatibilityMode && mergeSignatureAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeSignatureAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-        if (compatibilityMode && mergeJavaStubAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeJavaStubAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-        if (compatibilityMode && mergeInclusionAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeInclusionAnnotations"
-            )
-        }
         defaultConfiguration.reset()
 
         @Suppress("NAME_SHADOWING")
@@ -1155,10 +1127,8 @@ abstract class DriverTest {
             *stubsArgs,
             *stubsSourceListArgs,
             *docStubsSourceListArgs,
-            "$ARG_COMPAT_OUTPUT=${if (compatibilityMode) "yes" else "no"}",
             "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INPUT_KOTLIN_NULLS=${if (inputKotlinStyleNulls) "yes" else "no"}",
-            "$ARG_OMIT_COMMON_PACKAGES=${if (omitCommonPackages) "yes" else "no"}",
             "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
             *coverageStats,
             *quiet,
@@ -1266,11 +1236,6 @@ abstract class DriverTest {
             for (i in convertToJDiff.indices) {
                 val expected = convertToJDiff[i].outputFile
                 val converted = convertFiles[i].outputFile
-                if (convertToJDiff[i].baseApi != null &&
-                    compatibilityMode &&
-                    actualOutput.contains("No API change detected, not generating diff")) {
-                    continue
-                }
                 assertTrue(
                     "${converted.path} does not exist even though $ARG_CONVERT_TO_JDIFF was used",
                     converted.exists()
@@ -1379,8 +1344,9 @@ abstract class DriverTest {
                     val actualContents = readFile(actual, stripBlankLines, trim)
                     assertEquals(expected.contents, actualContents)
                 } else {
+                    val existing = stubsDir.walkTopDown().filter { it.isFile }.map { it.path }.joinToString("\n  ")
                     throw FileNotFoundException(
-                        "Could not find a generated stub for ${expected.targetRelativePath}"
+                        "Could not find a generated stub for ${expected.targetRelativePath}. Found these files: \n  $existing"
                     )
                 }
             }
@@ -1507,6 +1473,7 @@ abstract class DriverTest {
 
         private fun getAndroidJarFromEnv(apiLevel: Int): File {
             val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
+                ?: System.getenv("ANDROID_HOME")
                 ?: error("Expected ANDROID_SDK_ROOT to be set")
             val jar = File(sdkRoot, "platforms/android-$apiLevel/android.jar")
             if (!jar.exists()) {
@@ -1524,22 +1491,6 @@ abstract class DriverTest {
                 if (androidJar.exists()) return androidJar
                 return getAndroidJarFromEnv(apiLevel)
             }
-        }
-
-        fun java(to: String, @Language("JAVA") source: String): TestFile {
-            return TestFiles.java(to, source.trimIndent())
-        }
-
-        fun java(@Language("JAVA") source: String): TestFile {
-            return TestFiles.java(source.trimIndent())
-        }
-
-        fun kotlin(@Language("kotlin") source: String): TestFile {
-            return TestFiles.kotlin(source.trimIndent())
-        }
-
-        fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
-            return TestFiles.kotlin(to, source.trimIndent())
         }
 
         private fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {

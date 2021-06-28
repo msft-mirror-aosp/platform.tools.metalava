@@ -1262,6 +1262,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public class Camera {
+                    @Deprecated
                     public Camera() { throw new RuntimeException("Stub!"); }
                     /**
                      * @deprecated Use something else.
@@ -1746,6 +1747,7 @@ class DocAnalyzerTest : DriverTest() {
                     public final class Foo {
                     @Deprecated
                     public Foo() { throw new RuntimeException("Stub!"); }
+                    @Deprecated
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * {@inheritDoc}
@@ -1966,6 +1968,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Documentation 1 here
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation2
                     public @interface MyAnnotation1 {
                     }
@@ -1978,6 +1981,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Documentation 2 here
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation1
                     public @interface MyAnnotation2 {
                     }

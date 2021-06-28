@@ -364,6 +364,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with parameters`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -405,7 +406,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Foo {
                     ctor public Foo();
                     method public void method1();
-                    method public void method2();
+                    method @RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public void method2();
                     method public void method4();
                   }
                 }
@@ -692,6 +693,7 @@ class ShowAnnotationTest : DriverTest() {
         // and if a client refers to Class2.FIELD, that resolves to Class*1*.FIELD.
         // - Class3 is (very naturally) hidden even though the super class is visible.
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -747,7 +749,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Class1 {
                     ctor public Class1();
                     method public void member();
-                    field public static final java.lang.String FIELD = "Class1.FIELD";
+                    field public static final String FIELD = "Class1.FIELD";
                   }
                   public class Class2 extends test.pkg.Class1 {
                     ctor public Class2();

@@ -24,7 +24,6 @@ import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -332,8 +331,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         fun computeDelta(
             baseFile: File,
             baseApi: Codebase,
-            signatureApi: Codebase,
-            includeFieldsInApiDiff: Boolean = compatibility.includeFieldsInApiDiff
+            signatureApi: Codebase
         ): TextCodebase {
             // Compute just the delta
             val delta =
@@ -361,9 +359,6 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                 }
 
                 override fun added(new: FieldItem) {
-                    if (!includeFieldsInApiDiff) {
-                        return
-                    }
                     val cls = getOrAddClass(new.containingClass())
                     cls.addField(new as TextFieldItem)
                 }

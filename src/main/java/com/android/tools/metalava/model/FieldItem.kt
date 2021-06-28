@@ -22,6 +22,10 @@ import com.intellij.psi.PsiField
 import java.io.PrintWriter
 
 interface FieldItem : MemberItem {
+    /** The property this field backs; inverse of [PropertyItem.backingField] */
+    val property: PropertyItem?
+        get() = null
+
     /** The type of this field */
     override fun type(): TypeItem
 

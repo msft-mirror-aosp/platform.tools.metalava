@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.compatibility
-
 open class DefaultModifierList(
     override val codebase: Codebase,
     protected var flags: Int = PACKAGE_PRIVATE,
@@ -258,14 +256,14 @@ open class DefaultModifierList(
     override fun equivalentTo(other: ModifierList): Boolean {
         if (other is DefaultModifierList) {
             val flags2 = other.flags
-            val mask = if (compatibility.includeSynchronized) COMPAT_EQUIVALENCE_MASK else EQUIVALENCE_MASK
+            val mask = EQUIVALENCE_MASK
 
             val masked1 = flags and mask
             val masked2 = flags2 and mask
             val same = masked1 xor masked2
             if (same == 0) {
                 return true
-            } else if (compatibility.hideDifferenceImplicit) {
+            } else {
                 if (same == FINAL &&
                     // Only differ in final: not significant if implied by containing class
                     isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true) {
@@ -340,7 +338,5 @@ open class DefaultModifierList(
         private const val EQUIVALENCE_MASK = VISIBILITY_MASK or STATIC or ABSTRACT or
             FINAL or TRANSIENT or VOLATILE or DEPRECATED or VARARG or
             SEALED or FUN or INFIX or OPERATOR or SUSPEND or COMPANION
-
-        private const val COMPAT_EQUIVALENCE_MASK = EQUIVALENCE_MASK or SYNCHRONIZED
     }
 }

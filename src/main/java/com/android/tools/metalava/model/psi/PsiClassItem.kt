@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.CompilationUnit
@@ -447,17 +446,7 @@ open class PsiClassItem(
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
             val isKotlin = isKotlin(psiClass)
 
-            if (classType == ClassType.ENUM) {
-                // In compatibility mode we want explicit valueOf and values methods.
-                // UAST recently started including these in the AST (as synthetic elements),
-                // so we no longer need to create those here, but we still need to create
-                // the synthetic constructor
-                if (compatibility.defaultEnumMethods) {
-                    // Also add a private constructor; used when emitting the private API
-                    val psiMethod = codebase.createConstructor("private ${psiClass.name}", psiClass)
-                    methods.add(PsiConstructorItem.create(codebase, item, psiMethod))
-                }
-            } else if (classType == ClassType.ANNOTATION_TYPE && compatibility.explicitlyListClassRetention &&
+            if (classType == ClassType.ANNOTATION_TYPE &&
                 !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
@@ -489,10 +478,7 @@ open class PsiClassItem(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classType == ClassType.ENUM &&
-                    !compatibility.defaultEnumMethods &&
-                    psiMethod is SyntheticElement
-                ) {
+                } else if (classType == ClassType.ENUM && psiMethod is SyntheticElement) {
                     // skip
                 } else {
                     val method = PsiMethodItem.create(codebase, item, psiMethod)
