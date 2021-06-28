@@ -22,6 +22,13 @@ import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
+    /**
+     * The property this method is an accessor for; inverse of [PropertyItem.getter] and
+     * [PropertyItem.setter]
+     */
+    val property: PropertyItem?
+        get() = null
+
     /** Whether this method is a constructor */
     fun isConstructor(): Boolean
 
