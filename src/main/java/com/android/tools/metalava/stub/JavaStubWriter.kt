@@ -53,8 +53,7 @@ class JavaStubWriter(
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
                 // fails and thus we need to include imports for the stubs to compile.
-                val compilationUnit = cls.getCompilationUnit()
-                compilationUnit?.getImportStatements(filterReference)?.let {
+                cls.getSourceFile()?.getImportStatements(filterReference)?.let {
                     for (item in it) {
                         when (item) {
                             is PackageItem ->
