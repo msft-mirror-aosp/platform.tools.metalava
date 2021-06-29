@@ -221,8 +221,8 @@ class DocAnalyzer(
                 annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                     if (depth == 20) { // Temp debugging
                         throw StackOverflowError(
-                            "Unbounded recursion, processing annotation " +
-                                "${annotation.toSource()} in $item in ${item.compilationUnit()} "
+                            "Unbounded recursion, processing annotation ${annotation.toSource()} " +
+                                "in $item in ${item.sourceFile()} "
                         )
                     } else if (nested.qualifiedName() !in visitedClasses) {
                         handleAnnotation(nested, item, depth + 1, visitedClasses)
