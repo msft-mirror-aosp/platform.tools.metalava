@@ -48,8 +48,7 @@ class KotlinStubWriter(
                 writer.println("package $qualifiedName")
                 writer.println()
             }
-            val compilationUnit = cls.getCompilationUnit()
-            compilationUnit?.getImportStatements(filterReference)?.let {
+            cls.getSourceFile()?.getImportStatements(filterReference)?.let {
                 for (item in it) {
                     when (item) {
                         is PackageItem ->

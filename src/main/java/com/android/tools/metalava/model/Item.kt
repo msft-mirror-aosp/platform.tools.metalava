@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
+import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.intellij.psi.PsiElement
 
 /**
@@ -189,11 +189,11 @@ interface Item {
         return modifiers.checkLevel()
     }
 
-    fun compilationUnit(): CompilationUnit? {
+    fun sourceFile(): SourceFileItem? {
         var curr: Item? = this
         while (curr != null) {
             if (curr is ClassItem && curr.isTopLevelClass()) {
-                return curr.getCompilationUnit()
+                return curr.getSourceFile()
             }
             curr = curr.parent()
         }
@@ -238,7 +238,7 @@ interface Item {
     /**
      * Returns the associated type if any. For example, for a field, property or parameter,
      * this is the type of the variable; for a method, it's the return type.
-     * For packages, classes and compilation units, it's null.
+     * For packages, classes and files, it's null.
      */
     fun type(): TypeItem?
 
