@@ -3992,9 +3992,9 @@ class ApiFileTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java("""
-                    package test.pkg
+                    package test.pkg;
 
-                    import androidx.annotation.IntRange
+                    import androidx.annotation.IntRange;
 
                     public final class ApiClass {
                         private int hiddenConstant = 1;
