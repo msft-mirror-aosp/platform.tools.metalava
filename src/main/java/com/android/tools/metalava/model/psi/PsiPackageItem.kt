@@ -36,7 +36,7 @@ class PsiPackageItem(
     ),
     PackageItem {
     // Note - top level classes only
-    private val classes: MutableList<PsiClassItem> = mutableListOf()
+    private val classes: MutableList<ClassItem> = mutableListOf()
 
     override fun topLevelClasses(): Sequence<ClassItem> = classes.toList().asSequence().filter { it.isTopLevelClass() }
 
@@ -73,7 +73,7 @@ class PsiPackageItem(
         }
     }
 
-    fun addClass(cls: PsiClassItem) {
+    fun addClass(cls: ClassItem) {
         if (!cls.isTopLevelClass()) {
             // TODO: Stash in a list somewhere to make allClasses() faster?
             return
@@ -91,10 +91,10 @@ class PsiPackageItem(
         */
 
         classes.add(cls)
-        cls.containingPackage = this
+        if (cls is PsiClassItem) cls.containingPackage = this
     }
 
-    fun addClasses(classList: List<PsiClassItem>) {
+    fun addClasses(classList: List<ClassItem>) {
         for (cls in classList) {
             addClass(cls)
         }
@@ -118,7 +118,7 @@ class PsiPackageItem(
         val initialClasses = ArrayList(classes)
         var original = initialClasses.size // classes added after this point will have indices >= original
         for (cls in initialClasses) {
-            cls.finishInitialization()
+            if (cls is PsiClassItem) cls.finishInitialization()
         }
 
         // Finish initialization of any additional classes that were registered during
@@ -127,7 +127,7 @@ class PsiPackageItem(
             val added = ArrayList(classes.subList(original, classes.size))
             original = classes.size
             for (cls in added) {
-                cls.finishInitialization()
+                if (cls is PsiClassItem) cls.finishInitialization()
             }
         }
     }
