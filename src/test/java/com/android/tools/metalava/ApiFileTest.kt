@@ -587,7 +587,8 @@ class ApiFileTest : DriverTest() {
                 ARG_HIDE_PACKAGE, "test.pkg2",
                 ARG_HIDE, "ReferencesHidden",
                 ARG_HIDE, "UnavailableSymbol",
-                ARG_HIDE, "HiddenTypeParameter"
+                ARG_HIDE, "HiddenTypeParameter",
+                ARG_HIDE, "HiddenSuperclass"
             )
         )
     }
@@ -2892,6 +2893,9 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
+            expectedIssues = """
+                src/android/net/http/HttpResponseCache.java:6: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
+            """,
             api = """
                 package android.net.http {
                   public final class HttpResponseCache implements java.io.Closeable {
