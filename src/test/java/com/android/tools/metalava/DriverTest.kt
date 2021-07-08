@@ -1473,6 +1473,7 @@ abstract class DriverTest {
 
         private fun getAndroidJarFromEnv(apiLevel: Int): File {
             val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
+                ?: System.getenv("ANDROID_HOME")
                 ?: error("Expected ANDROID_SDK_ROOT to be set")
             val jar = File(sdkRoot, "platforms/android-$apiLevel/android.jar")
             if (!jar.exists()) {

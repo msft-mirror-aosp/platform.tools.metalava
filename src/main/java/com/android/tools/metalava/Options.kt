@@ -119,6 +119,7 @@ const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_VERSION = "--current-version"
+const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_CHECK_KOTLIN_INTEROP = "--check-kotlin-interop"
@@ -550,6 +551,12 @@ class Options(
 
     /** The api level of the codebase, or -1 if not known/specified */
     var currentApiLevel = -1
+
+    /**
+     * The first api level of the codebase; typically 1 but can be
+     * higher for example for the System API.
+     */
+    var firstApiLevel = 1
 
     /** The codename of the codebase, if it's a preview, or null if not specified */
     var currentCodeName: String? = null
@@ -1226,6 +1233,9 @@ class Options(
                         throw DriverException("Suspicious currentApi=$currentApiLevel, expected at least 27")
                     }
                 }
+                ARG_FIRST_VERSION -> {
+                    firstApiLevel = Integer.parseInt(getValue(args, ++index))
+                }
                 ARG_CURRENT_CODENAME -> {
                     currentCodeName = getValue(args, ++index)
                 }
@@ -1623,7 +1633,13 @@ class Options(
             // Fallbacks
             patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
             patterns.add("prebuilts/sdk/%/public/android.jar")
-            apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
+            apiLevelJars = findAndroidJars(
+                patterns,
+                firstApiLevel,
+                currentApiLevel,
+                currentCodeName,
+                currentJar
+            )
         }
 
         // outputKotlinStyleNulls implies at least format=v3
@@ -1827,6 +1843,7 @@ class Options(
      */
     private fun findAndroidJars(
         androidJarPatterns: List<String>,
+        minApi: Int,
         currentApiLevel: Int,
         currentCodeName: String?,
         currentJar: File?
@@ -1840,9 +1857,13 @@ class Options(
         }
 
         val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed
-        apiLevelFiles.add(File("there is no api 0"))
-        val minApi = 1
+        // api level 0: placeholder, should not be processed.
+        // (This is here because we want the array index to match
+        // the API level)
+        val element = File("not an api: the starting API index is $minApi")
+        for (i in 0 until minApi) {
+            apiLevelFiles.add(element)
+        }
 
         // Get all the android.jar. They are in platforms-#
         var apiLevel = minApi - 1
@@ -2431,6 +2452,7 @@ class Options(
                 "the API level for each class, method and field",
             "$ARG_ANDROID_JAR_PATTERN <pattern>", "Patterns to use to locate Android JAR files. The default " +
                 "is \$ANDROID_HOME/platforms/android-%/android.jar.",
+            ARG_FIRST_VERSION, "Sets the first API level to generate an API database from; usually 1",
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
