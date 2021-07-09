@@ -59,6 +59,7 @@ import java.io.IOException
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
+import java.io.StringWriter
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
@@ -324,8 +325,8 @@ private fun processFlags() {
         val removedEmit = apiType.getEmitFilter()
         val removedReference = apiType.getReferenceFilter()
 
-        createReportFile(unfiltered, apiFile, "removed API") { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null)
+        createReportFile(unfiltered, apiFile, "removed API", options.deleteEmptyRemovedSignatures) { printWriter ->
+            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null, options.includeSignatureFormatVersionRemoved)
         }
     }
 
@@ -1057,6 +1058,7 @@ fun createReportFile(
     codebase: Codebase,
     apiFile: File,
     description: String?,
+    deleteEmptyFiles: Boolean = false,
     createVisitor: (PrintWriter) -> ApiVisitor
 ) {
     if (description != null) {
@@ -1064,10 +1066,15 @@ fun createReportFile(
     }
     val localTimer = Stopwatch.createStarted()
     try {
-        val writer = PrintWriter(Files.asCharSink(apiFile, UTF_8).openBufferedStream())
+        val stringWriter = StringWriter()
+        val writer = PrintWriter(stringWriter)
         writer.use { printWriter ->
             val apiWriter = createVisitor(printWriter)
             codebase.accept(apiWriter)
+        }
+        val text = stringWriter.toString()
+        if (text.length > 0 || !deleteEmptyFiles) {
+            apiFile.writeText(text)
         }
     } catch (e: IOException) {
         reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")

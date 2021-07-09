@@ -161,6 +161,7 @@ const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
+const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS = "--force-convert-to-warning-nullability-annotations"
@@ -570,8 +571,28 @@ class Options(
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
 
-    /** Whether to include the signature file format version header in signature files */
+    /** Whether to include the signature file format version header in most signature files */
     var includeSignatureFormatVersion: Boolean = true
+
+    /** Whether to include the signature file format version header in removed signature files */
+    val includeSignatureFormatVersionNonRemoved: EmitFileHeader get() =
+            if (includeSignatureFormatVersion) {
+                EmitFileHeader.ALWAYS
+            } else {
+                EmitFileHeader.NEVER
+            }
+
+    /** Whether to include the signature file format version header in removed signature files */
+    val includeSignatureFormatVersionRemoved: EmitFileHeader get() =
+            if (includeSignatureFormatVersion) {
+                if (deleteEmptyRemovedSignatures) {
+                    EmitFileHeader.IF_NONEMPTY_FILE
+                } else {
+                    EmitFileHeader.ALWAYS
+                }
+            } else {
+                EmitFileHeader.NEVER
+            }
 
     /** A baseline to check against */
     var baseline: Baseline? = null
@@ -624,6 +645,9 @@ class Options(
 
     /** If updating baselines and the baseline is empty, delete the file */
     var deleteEmptyBaselines = false
+
+    /** If generating a removed signature file and it is empty, delete it */
+    var deleteEmptyRemovedSignatures = false
 
     /** Whether the baseline should only contain errors */
     var baselineErrorsOnly = false
@@ -1023,6 +1047,7 @@ class Options(
 
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
+                ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
 
                 ARG_PUBLIC, "-public" -> docLevel = DocLevel.PUBLIC
                 ARG_PROTECTED, "-protected" -> docLevel = DocLevel.PROTECTED
