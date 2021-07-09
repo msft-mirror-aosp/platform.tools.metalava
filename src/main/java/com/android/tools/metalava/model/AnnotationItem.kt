@@ -294,6 +294,7 @@ interface AnnotationItem {
                 "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
                 "android.support.annotation.CheckResult",
                 "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
+                "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
                 "android.support.annotation.RequiresPermission",
                 "android.annotation.RequiresPermission" -> return "androidx.annotation.RequiresPermission"
                 "android.annotation.RequiresPermission.Read" -> return "androidx.annotation.RequiresPermission.Read"
