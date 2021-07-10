@@ -1132,17 +1132,19 @@ class ApiAnalyzer(
         }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val superClass = cl.superClass()
-        if (superClass != null) {
-            if (superClass.isHiddenOrRemoved()) {
+        val superItems = cl.allInterfaces().toMutableSet()
+        cl.superClass()?.let { superClass -> superItems.add(superClass) }
+
+        for (superItem in superItems) {
+            if (superItem.isHiddenOrRemoved()) {
                 // cl is a public class declared as extending a hidden superclass.
                 // this is not a desired practice but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (!superClass.isFromClassPath()) {
+                if (!superItem.isFromClassPath()) {
                     reporter.report(
                         Issues.HIDDEN_SUPERCLASS, cl, "Public class " + cl.qualifiedName() +
-                            " stripped of unavailable superclass " + superClass.qualifiedName()
+                            " stripped of unavailable superclass " + superItem.qualifiedName()
                     )
                 }
             } else {
@@ -1150,10 +1152,10 @@ class ApiAnalyzer(
                 // right (this was just done for its stub handling)
                 //   cantStripThis(superClass, filter, notStrippable, stubImportPackages, cl, "as super class")
 
-                if (superClass.isPrivate && !superClass.isFromClassPath()) {
+                if (superItem.isPrivate && !superItem.isFromClassPath()) {
                     reporter.report(
                         Issues.PRIVATE_SUPERCLASS, cl, "Public class " +
-                            cl.qualifiedName() + " extends private class " + superClass.qualifiedName()
+                            cl.qualifiedName() + " extends private class " + superItem.qualifiedName()
                     )
                 }
             }
