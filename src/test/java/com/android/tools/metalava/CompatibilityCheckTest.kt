@@ -2585,7 +2585,8 @@ CompatibilityCheckTest : DriverTest() {
                     /**
                      * @hide
                      */
-                    @android.annotation.SystemApi
+                    @SystemApi
+                    @SuppressWarnings("HiddenSuperclass")
                     public class MediaPlayer implements SubtitleController.Listener {
                     }
                     """
