@@ -33,7 +33,8 @@ class PsiPackageItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiPackage
-    ), PackageItem {
+    ),
+    PackageItem {
     // Note - top level classes only
     private val classes: MutableList<PsiClassItem> = mutableListOf()
 

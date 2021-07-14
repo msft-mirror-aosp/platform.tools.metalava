@@ -149,8 +149,10 @@ class DocAnalyzer(
                 for (annotation in annotations) {
                     val name = annotation.qualifiedName()
                     if (name != null && name.endsWith("Thread") &&
-                        (name.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX) ||
-                            name.startsWith(ANDROIDX_ANNOTATION_PREFIX))
+                        (
+                            name.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX) ||
+                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            )
                     ) {
                         if (result == null) {
                             result = mutableListOf()
@@ -738,7 +740,8 @@ class DocAnalyzer(
                 item.appendDocumentation(code, "@apiSince")
             } else {
                 reporter.report(
-                    Issues.FORBIDDEN_TAG, item, "Documentation should not specify @apiSince " +
+                    Issues.FORBIDDEN_TAG, item,
+                    "Documentation should not specify @apiSince " +
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }
@@ -770,7 +773,8 @@ class DocAnalyzer(
                 item.appendDocumentation(code, "@deprecatedSince")
             } else {
                 reporter.report(
-                    Issues.FORBIDDEN_TAG, item, "Documentation should not specify @deprecatedSince " +
+                    Issues.FORBIDDEN_TAG, item,
+                    "Documentation should not specify @deprecatedSince " +
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }

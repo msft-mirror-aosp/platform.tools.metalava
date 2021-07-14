@@ -194,7 +194,8 @@ class PsiModifierItem(
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -238,7 +239,8 @@ class PsiModifierItem(
 
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""

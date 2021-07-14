@@ -179,8 +179,10 @@ class ApiAnalyzer(
                 for (constructor in constructors) {
                     val superConstructor = constructor.superConstructor
                     if (superConstructor == null ||
-                        (superConstructor.containingClass() != superClass &&
-                            superConstructor.containingClass() != cls)
+                        (
+                            superConstructor.containingClass() != superClass &&
+                                superConstructor.containingClass() != cls
+                            )
                     ) {
                         constructor.superConstructor = superDefaultConstructor
                     }
@@ -676,7 +678,8 @@ class ApiAnalyzer(
                     reporter.report(
                         Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS, item,
                         "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                            "hidden and should also be annotated with $violatingAnnotation")
+                            "hidden and should also be annotated with $violatingAnnotation"
+                    )
                 }
             }
         })
@@ -745,7 +748,8 @@ class ApiAnalyzer(
                     hasAnnotation = false
                 } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
-                        Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
+                        Issues.REQUIRES_PERMISSION, method,
+                        "Method '" + method.name() +
                             "' must be protected with a system permission; it currently" +
                             " allows non-system callers holding " + nonSystem.toString()
                     )
@@ -755,7 +759,8 @@ class ApiAnalyzer(
 
         if (!hasAnnotation) {
             reporter.report(
-                Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
+                Issues.REQUIRES_PERMISSION, method,
+                "Method '" + method.name() +
                     "' must be protected with a system permission."
             )
         }
@@ -796,9 +801,11 @@ class ApiAnalyzer(
                     !item.originallyHidden &&
                     !item.modifiers.hasShowSingleAnnotation()
                 ) {
-                    val annotationName = (item.modifiers.annotations().firstOrNull { annotation ->
-                        options.showAnnotations.matches(annotation)
-                    }?.qualifiedName() ?: options.showAnnotations.firstQualifiedName()).removePrefix(ANDROID_ANNOTATION_PREFIX)
+                    val annotationName = (
+                        item.modifiers.annotations().firstOrNull { annotation ->
+                            options.showAnnotations.matches(annotation)
+                        }?.qualifiedName() ?: options.showAnnotations.firstQualifiedName()
+                        ).removePrefix(ANDROID_ANNOTATION_PREFIX)
                     reporter.report(
                         Issues.UNHIDDEN_SYSTEM_API, item,
                         "@$annotationName APIs must also be marked @hide: ${item.describe()}"
@@ -970,7 +977,8 @@ class ApiAnalyzer(
                         // don't bother reporting deprecated methods
                         // unless they are public
                         reporter.report(
-                            Issues.DEPRECATED, m, "Method " + cl.qualifiedName() + "." +
+                            Issues.DEPRECATED, m,
+                            "Method " + cl.qualifiedName() + "." +
                                 m.name() + " is deprecated"
                         )
                     }
@@ -1143,7 +1151,8 @@ class ApiAnalyzer(
                 // generating the doc & stub information, and proceeding normally.
                 if (!superItem.isFromClassPath()) {
                     reporter.report(
-                        Issues.HIDDEN_SUPERCLASS, cl, "Public class " + cl.qualifiedName() +
+                        Issues.HIDDEN_SUPERCLASS, cl,
+                        "Public class " + cl.qualifiedName() +
                             " stripped of unavailable superclass " + superItem.qualifiedName()
                     )
                 }
@@ -1154,7 +1163,8 @@ class ApiAnalyzer(
 
                 if (superItem.isPrivate && !superItem.isFromClassPath()) {
                     reporter.report(
-                        Issues.PRIVATE_SUPERCLASS, cl, "Public class " +
+                        Issues.PRIVATE_SUPERCLASS, cl,
+                        "Public class " +
                             cl.qualifiedName() + " extends private class " + superItem.qualifiedName()
                     )
                 }

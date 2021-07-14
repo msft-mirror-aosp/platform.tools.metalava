@@ -20,10 +20,10 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -65,7 +65,8 @@ open class PsiClassItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiClass
-    ), ClassItem {
+    ),
+    ClassItem {
 
     lateinit var containingPackage: PsiPackageItem
 
@@ -179,7 +180,8 @@ open class PsiClassItem(
     override fun typeParameterList(): TypeParameterList {
         if (psiClass.hasTypeParameters()) {
             return PsiTypeParameterList(
-                codebase, psiClass.typeParameterList
+                codebase,
+                psiClass.typeParameterList
                     ?: return TypeParameterList.NONE
             )
         } else {
@@ -260,19 +262,21 @@ open class PsiClassItem(
         // Add interfaces. If this class is an interface, it can implement both
         // classes from the extends clause and from the implements clause.
         val interfaces = psiClass.implementsListTypes
-        setInterfaces(if (interfaces.isEmpty() && extendsListTypes.size <= 1) {
-            emptyList()
-        } else {
-            val result = ArrayList<PsiTypeItem>(interfaces.size + extendsListTypes.size - 1)
-            val create: (PsiClassType) -> PsiTypeItem = {
-                val type = PsiTypeItem.create(codebase, it)
-                type.asClass() // ensure that we initialize classes eagerly too such that they're registered etc
-                type
+        setInterfaces(
+            if (interfaces.isEmpty() && extendsListTypes.size <= 1) {
+                emptyList()
+            } else {
+                val result = ArrayList<PsiTypeItem>(interfaces.size + extendsListTypes.size - 1)
+                val create: (PsiClassType) -> PsiTypeItem = {
+                    val type = PsiTypeItem.create(codebase, it)
+                    type.asClass() // ensure that we initialize classes eagerly too such that they're registered etc
+                    type
+                }
+                (1 until extendsListTypes.size).mapTo(result) { create(extendsListTypes[it]) }
+                interfaces.mapTo(result) { create(it) }
+                result
             }
-            (1 until extendsListTypes.size).mapTo(result) { create(extendsListTypes[it]) }
-            interfaces.mapTo(result) { create(it) }
-            result
-        })
+        )
 
         for (inner in innerClasses) {
             inner.initializeSuperClasses()
@@ -406,10 +410,11 @@ open class PsiClassItem(
                 // in the java facade, not in the source list of annotations
                 val modifierList = psiClass.modifierList
                 if (modifierList != null && modifierList.annotations.any {
-                        val qualifiedName = it.qualifiedName
-                        qualifiedName == "kotlin.annotation.Retention" ||
-                            qualifiedName == "java.lang.annotation.Retention"
-                    }) {
+                    val qualifiedName = it.qualifiedName
+                    qualifiedName == "kotlin.annotation.Retention" ||
+                        qualifiedName == "java.lang.annotation.Retention"
+                }
+                ) {
                     return true
                 }
             }
@@ -755,6 +760,8 @@ open class PsiClassItem(
 fun PsiModifierListOwner.isPrivate(): Boolean = modifierList?.hasExplicitModifier(PsiModifier.PRIVATE) == true
 fun PsiModifierListOwner.isPackagePrivate(): Boolean {
     val modifiers = modifierList ?: return false
-    return !(modifiers.hasModifierProperty(PsiModifier.PUBLIC) ||
-        modifiers.hasModifierProperty(PsiModifier.PROTECTED))
+    return !(
+        modifiers.hasModifierProperty(PsiModifier.PUBLIC) ||
+            modifiers.hasModifierProperty(PsiModifier.PROTECTED)
+        )
 }

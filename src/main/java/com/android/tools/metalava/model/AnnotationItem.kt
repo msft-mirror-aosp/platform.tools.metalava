@@ -97,12 +97,14 @@ interface AnnotationItem {
         if (!(name.endsWith("Def"))) {
             return false
         }
-        return (INT_DEF_ANNOTATION.isEquals(name) ||
-            STRING_DEF_ANNOTATION.isEquals(name) ||
-            LONG_DEF_ANNOTATION.isEquals(name) ||
-            ANDROID_INT_DEF == name ||
-            ANDROID_STRING_DEF == name ||
-            ANDROID_LONG_DEF == name)
+        return (
+            INT_DEF_ANNOTATION.isEquals(name) ||
+                STRING_DEF_ANNOTATION.isEquals(name) ||
+                LONG_DEF_ANNOTATION.isEquals(name) ||
+                ANDROID_INT_DEF == name ||
+                ANDROID_STRING_DEF == name ||
+                ANDROID_LONG_DEF == name
+            )
     }
 
     /**
@@ -404,7 +406,8 @@ interface AnnotationItem {
 
         private val TYPEDEF_ANNOTATION_TARGETS =
             if (options.typedefMode == Options.TypedefMode.INLINE ||
-                options.typedefMode == Options.TypedefMode.NONE) // just here for compatibility purposes
+                options.typedefMode == Options.TypedefMode.NONE
+            ) // just here for compatibility purposes
                 ANNOTATION_EXTERNAL
             else
                 ANNOTATION_EXTERNAL_ONLY
@@ -642,8 +645,10 @@ interface AnnotationItem {
                         nullable = false
                     }
                 }
-            } else if (item.synthetic && (item is MethodItem && item.isEnumSyntheticMethod() ||
-                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
+            } else if (item.synthetic && (
+                item is MethodItem && item.isEnumSyntheticMethod() ||
+                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod()
+                )
             ) {
                 // Workaround the fact that the Kotlin synthetic enum methods
                 // do not have nullness information
@@ -842,7 +847,8 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
     override fun toString(): String = toSource()
 }
 
-class DefaultAnnotationSingleAttributeValue(override val valueSource: String) : DefaultAnnotationValue(),
+class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
+    DefaultAnnotationValue(),
     AnnotationSingleAttributeValue {
     @Suppress("IMPLICIT_CAST_TO_ANY")
     override val value = when {
@@ -866,7 +872,8 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) : 
     override fun toSource() = valueSource
 }
 
-class DefaultAnnotationArrayAttributeValue(val value: String) : DefaultAnnotationValue(),
+class DefaultAnnotationArrayAttributeValue(val value: String) :
+    DefaultAnnotationValue(),
     AnnotationArrayAttributeValue {
     init {
         assert(value.startsWith("{") && value.endsWith("}")) { value }

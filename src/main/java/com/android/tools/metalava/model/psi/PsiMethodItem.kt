@@ -59,7 +59,8 @@ open class PsiMethodItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod
-    ), MethodItem {
+    ),
+    MethodItem {
 
     init {
         for (parameter in parameters) {
@@ -122,7 +123,8 @@ open class PsiMethodItem(
     override fun typeParameterList(): TypeParameterList {
         if (psiMethod.hasTypeParameters()) {
             return PsiTypeParameterList(
-                codebase, psiMethod.typeParameterList
+                codebase,
+                psiMethod.typeParameterList
                     ?: return TypeParameterList.NONE
             )
         } else {
@@ -169,8 +171,9 @@ open class PsiMethodItem(
     override fun isKotlinProperty(): Boolean {
         return psiMethod is KotlinUMethod && (
             psiMethod.sourcePsi is KtProperty ||
-            psiMethod.sourcePsi is KtPropertyAccessor ||
-            psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+                psiMethod.sourcePsi is KtPropertyAccessor ||
+                psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar()
+            )
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
