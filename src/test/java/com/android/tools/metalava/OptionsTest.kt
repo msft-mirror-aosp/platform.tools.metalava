@@ -30,7 +30,7 @@ class OptionsTest : DriverTest() {
     private val DESCRIPTION = """
 $PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
 external annotations etc.
-""".trimIndent()
+    """.trimIndent()
 
     private val FLAGS = """
 Usage: metalava <flags>
@@ -450,7 +450,7 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-""".trimIndent()
+    """.trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -471,7 +471,8 @@ Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
-""".trimIndent(), stderr.toString()
+            """.trimIndent(),
+            stderr.toString()
         )
     }
 
@@ -496,7 +497,8 @@ $DESCRIPTION
 
 $FLAGS
 
-""".trimIndent(), stdout.toString()
+            """.trimIndent(),
+            stdout.toString()
         )
     }
 
@@ -568,8 +570,10 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf("--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path)
+                extraArguments = arrayOf(
+                    "--strict-input-files-exempt",
+                    file1.path + File.pathSeparatorChar + dir.path
+                )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))

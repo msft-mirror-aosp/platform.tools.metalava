@@ -36,7 +36,9 @@ open class TextMethodItem(
 ) : TextMemberItem(
     codebase, name, containingClass, position,
     modifiers = modifiers
-), MethodItem, TypeParameterListOwner {
+),
+    MethodItem,
+    TypeParameterListOwner {
     init {
         @Suppress("LeakingThis")
         modifiers.setOwner(this)

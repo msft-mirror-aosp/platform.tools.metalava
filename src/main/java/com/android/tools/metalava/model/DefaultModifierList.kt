@@ -52,7 +52,8 @@ open class DefaultModifierList(
         val levels = VISIBILITY_LEVEL_ENUMS
         if (visibilityFlags >= levels.size) {
             throw IllegalStateException(
-                "Visibility flags are invalid, expected value in range [0, " + levels.size + ") got " + visibilityFlags)
+                "Visibility flags are invalid, expected value in range [0, " + levels.size + ") got " + visibilityFlags
+            )
         }
         return levels[visibilityFlags]
     }
@@ -266,11 +267,13 @@ open class DefaultModifierList(
             } else {
                 if (same == FINAL &&
                     // Only differ in final: not significant if implied by containing class
-                    isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true) {
+                    isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
+                ) {
                     return true
                 } else if (same == DEPRECATED &&
                     // Only differ in deprecated: not significant if implied by containing class
-                    isDeprecated() && (owner as? MethodItem)?.containingClass()?.deprecated == true) {
+                    isDeprecated() && (owner as? MethodItem)?.containingClass()?.deprecated == true
+                ) {
                     return true
                 }
             }
