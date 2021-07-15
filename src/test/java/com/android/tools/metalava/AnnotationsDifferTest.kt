@@ -31,7 +31,8 @@ class AnnotationsDifferTest {
     @Test
     fun `Write diff`() {
         val codebase = ApiFile.parseApi(
-            "old.txt", """
+            "old.txt",
+            """
                 package test.pkg {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);
@@ -42,18 +43,21 @@ class AnnotationsDifferTest {
                     method public test.pkg.Appendable append(java.lang.CharSequence);
                   }
                 }
-        """.trimIndent(), true
+            """.trimIndent(),
+            true
         )
 
         val codebase2 = ApiFile.parseApi(
-            "new.txt", """
+            "new.txt",
+            """
         package test.pkg {
           public interface Appendable {
             method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
             method public test.pkg.Appendable append2(java.lang.CharSequence);
           }
         }
-        """.trimIndent(), false
+            """.trimIndent(),
+            false
         )
 
         val apiFile = temporaryFolder.newFile("diff.txt")
@@ -69,7 +73,8 @@ class AnnotationsDifferTest {
                 method @NonNull public test.pkg.Appendable append2(@Nullable CharSequence);
               }
             }
-        """.trimIndent(), actual.trim()
+            """.trimIndent(),
+            actual.trim()
         )
     }
 }

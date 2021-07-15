@@ -367,7 +367,8 @@ class StubsTest : DriverTest() {
                         public void child() { }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     public class Super {
@@ -731,7 +732,8 @@ class StubsTest : DriverTest() {
                         }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
 
@@ -768,7 +770,8 @@ class StubsTest : DriverTest() {
                         public void method4() { }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     /** @hide */
@@ -785,7 +788,8 @@ class StubsTest : DriverTest() {
                         public void method3d(java.util.List<HiddenParent> p) { }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     /** @hide */
@@ -794,7 +798,8 @@ class StubsTest : DriverTest() {
                         public void method2() { }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     public class PublicParent {
@@ -836,7 +841,8 @@ class StubsTest : DriverTest() {
                         public void method1() { }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     class HiddenParent {
@@ -877,14 +883,16 @@ class StubsTest : DriverTest() {
                         @Override public void other() { }
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     public interface OtherInterface {
                         void other();
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     interface HiddenInterface extends OtherInterface {
@@ -3430,7 +3438,8 @@ class StubsTest : DriverTest() {
                 // By default metalava rewrites androidx.annotation.Nullable to
                 // android.annotation.Nullable, but the latter does not have target PACKAGE thus
                 // fails to compile. This forces stubs keep the androidx annotation.
-                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.Nullable")
+                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.Nullable"
+            )
         )
     }
 
@@ -4346,7 +4355,8 @@ class StubsTest : DriverTest() {
                     }
                     """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
                     open class ExtendableClass<T>
                 """
@@ -4388,14 +4398,16 @@ class StubsTest : DriverTest() {
                 ARG_KOTLIN_STUBS
             ),
             sourceFiles = arrayOf(
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
                     class MainClass: MyParentClass(), MyInterface1, MyInterface2
                     
                     open class MyParentClass
                     interface MyInterface1
                     interface MyInterface2
-                """)
+                """
+                )
             ),
             stubFiles = arrayOf(
                 kotlin(

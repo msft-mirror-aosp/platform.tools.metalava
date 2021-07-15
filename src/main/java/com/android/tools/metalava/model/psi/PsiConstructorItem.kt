@@ -50,7 +50,8 @@ class PsiConstructorItem(
         name = name,
         returnType = returnType,
         parameters = parameters
-    ), ConstructorItem {
+    ),
+    ConstructorItem {
 
     init {
         if (implicitConstructor) {
