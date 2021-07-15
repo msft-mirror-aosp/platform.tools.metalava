@@ -76,7 +76,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                 )
             ),
             api =
-                """
+            """
                 package test.pkg {
                   public interface Foo {
                     method public default static void sayHello();
@@ -207,7 +207,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                 )
             ),
             api =
-                """
+            """
                 package test.pkg {
                   public class SwingTest extends javax.swing.JButton {
                     ctor public SwingTest();

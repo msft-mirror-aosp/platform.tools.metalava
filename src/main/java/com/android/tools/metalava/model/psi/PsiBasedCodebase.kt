@@ -162,9 +162,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             }
             when {
                 useKtModel && psiFile is KtFile -> {
-                    psiFile.acceptChildren(classOrObjectVisitor { ktClassOrObject ->
-                        topLevelClassesFromSource += createClass(ktClassOrObject)
-                    })
+                    psiFile.acceptChildren(
+                        classOrObjectVisitor { ktClassOrObject ->
+                            topLevelClassesFromSource += createClass(ktClassOrObject)
+                        }
+                    )
                 }
                 classes.isEmpty() && psiFile is PsiJavaFile -> {
                     // package-info.java ?

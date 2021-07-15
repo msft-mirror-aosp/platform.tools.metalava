@@ -447,10 +447,12 @@ abstract class DriverTest {
         defaultConfiguration.reset()
 
         @Suppress("NAME_SHADOWING")
-        val expectedFail = expectedFail ?: if ((checkCompatibilityApi != null ||
-            checkCompatibilityApiReleased != null ||
-            checkCompatibilityRemovedApiCurrent != null ||
-            checkCompatibilityRemovedApiReleased != null) &&
+        val expectedFail = expectedFail ?: if ((
+            checkCompatibilityApi != null ||
+                checkCompatibilityApiReleased != null ||
+                checkCompatibilityRemovedApiCurrent != null ||
+                checkCompatibilityRemovedApiReleased != null
+            ) &&
             (expectedIssues != null && expectedIssues.trim().isNotEmpty())
         ) {
             "Aborting: Found compatibility problems with --check-compatibility"
@@ -878,8 +880,10 @@ abstract class DriverTest {
                 } else {
                     null
                 }
-                convertFiles += Options.ConvertFile(convertSig, output, baseFile,
-                    strip = true, outputFormat = convert.format)
+                convertFiles += Options.ConvertFile(
+                    convertSig, output, baseFile,
+                    strip = true, outputFormat = convert.format
+                )
                 index++
 
                 if (baseFile != null) {
@@ -961,10 +965,15 @@ abstract class DriverTest {
                 if (!(updateContent != null || merge)) {
                     return Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
                 } else {
-                    return Pair(arrayOf(argBaseline,
-                        baselineFile.path,
-                        if (mergeBaseline != null) argMergeBaseline else argUpdateBaseline,
-                        baselineFile.path), baselineFile)
+                    return Pair(
+                        arrayOf(
+                            argBaseline,
+                            baselineFile.path,
+                            if (mergeBaseline != null) argMergeBaseline else argUpdateBaseline,
+                            baselineFile.path
+                        ),
+                        baselineFile
+                    )
                 }
             } else {
                 return Pair(emptyArray(), null)
@@ -1228,7 +1237,8 @@ abstract class DriverTest {
         }
         checkBaseline(ARG_BASELINE, baseline, updateBaseline, mergeBaseline, baselineFile)
         checkBaseline(ARG_BASELINE_API_LINT, baselineApiLint, updateBaselineApiLint, null, baselineApiLintFile)
-        checkBaseline(ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED, baselineCheckCompatibilityReleased,
+        checkBaseline(
+            ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED, baselineCheckCompatibilityReleased,
             updateBaselineCheckCompatibilityReleased, null, baselineCheckCompatibilityReleasedFile
         )
 
@@ -1389,9 +1399,10 @@ abstract class DriverTest {
                 gatherSources(listOf(extraAnnotationsDir)).asSequence().map { it.path }.toList().toTypedArray()
 
             if (!runCommand(
-                    "${getJdkPath()}/bin/javac", arrayOf(
-                        "-d", project.path, *generated, *extraAnnotations
-                    )
+                    "${getJdkPath()}/bin/javac",
+                    arrayOf(
+                            "-d", project.path, *generated, *extraAnnotations
+                        )
                 )
             ) {
                 fail("Couldn't compile stub file -- compilation problems")

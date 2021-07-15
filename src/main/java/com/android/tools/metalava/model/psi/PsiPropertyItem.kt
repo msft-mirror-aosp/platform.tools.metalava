@@ -40,7 +40,8 @@ class PsiPropertyItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod
-    ), PropertyItem {
+    ),
+    PropertyItem {
 
     override fun type(): TypeItem = fieldType
     override fun name(): String = name

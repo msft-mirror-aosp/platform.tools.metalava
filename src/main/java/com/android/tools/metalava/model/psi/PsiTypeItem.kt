@@ -465,8 +465,10 @@ class PsiTypeItem private constructor(
 
                         if (implicitNullness == false &&
                             owner is MethodItem &&
-                            (owner.containingClass().isAnnotationType() ||
-                                owner.containingClass().isEnum() && owner.name() == "values") &&
+                            (
+                                owner.containingClass().isAnnotationType() ||
+                                    owner.containingClass().isEnum() && owner.name() == "values"
+                                ) &&
                             type is PsiArrayType
                         ) {
                             // For arrays in annotations not only is the method itself non null but so
