@@ -51,6 +51,7 @@ interface ModifierList {
 
     // Kotlin
     fun isSealed(): Boolean = false
+    fun isFunctional(): Boolean = false
     fun isCompanion(): Boolean = false
     fun isInfix(): Boolean = false
     fun isConst(): Boolean = false
@@ -462,6 +463,10 @@ interface ModifierList {
 
                 if (list.isNative() && target.isStubsFile()) {
                     writer.write("native ")
+                }
+
+                if (list.isFunctional()) {
+                    writer.write("fun ")
                 }
             }
         }
