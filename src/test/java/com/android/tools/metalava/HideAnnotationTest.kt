@@ -78,4 +78,69 @@ class HideAnnotationTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Using hide annotation interface order`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/InterfaceWithHiddenInterfaceFirst.java:2: warning: Public class test.pkg.InterfaceWithHiddenInterfaceFirst stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]
+                src/test/pkg/InterfaceWithVisibleInterfaceFirst.java:2: warning: Public class test.pkg.InterfaceWithVisibleInterfaceFirst stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @Hide
+                    public @interface Hide {}
+                """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @Hide
+                    public interface HiddenInterface {
+                      void hiddenInterfaceMethod();
+                    }
+                """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface VisibleInterface {
+                      void visibleInterfaceMethod();
+                    }
+                """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface InterfaceWithVisibleInterfaceFirst
+                        extends VisibleInterface, HiddenInterface {}
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface InterfaceWithHiddenInterfaceFirst
+                        extends HiddenInterface, VisibleInterface {}
+                    """
+                )
+            ),
+            hideAnnotations = arrayOf(
+                "test.pkg.Hide"
+            ),
+            includeStrippedSuperclassWarnings = true,
+            api = """
+                package test.pkg {
+                  public interface InterfaceWithHiddenInterfaceFirst extends test.pkg.VisibleInterface {
+                  }
+                  public interface InterfaceWithVisibleInterfaceFirst extends test.pkg.VisibleInterface {
+                  }
+                  public interface VisibleInterface {
+                    method public void visibleInterfaceMethod();
+                  }
+                }
+                """
+        )
+    }
 }
