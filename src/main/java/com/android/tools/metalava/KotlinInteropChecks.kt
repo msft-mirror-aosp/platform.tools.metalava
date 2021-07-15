@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -279,13 +278,10 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
 
         var haveDefault = false
-        if (parameters.isNotEmpty() && method.isJava()) {
-            // Public java parameter names should also not use Kotlin keywords as names
-            for (parameter in parameters) {
-                if (parameter.hasDefaultValue()) {
-                    haveDefault = true
-                    break
-                }
+        for (parameter in parameters) {
+            if (parameter.hasDefaultValue()) {
+                haveDefault = true
+                break
             }
         }
 

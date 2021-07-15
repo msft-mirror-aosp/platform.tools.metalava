@@ -8,10 +8,6 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.util.Properties
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-    throw GradleException("You are using Java ${JavaVersion.current()}, but this build only supports Java 8. Please set your JAVA_HOME to JDK 8")
-}
-
 buildDir = getBuildDirectory()
 
 defaultTasks = mutableListOf(
@@ -24,7 +20,7 @@ defaultTasks = mutableListOf(
 
 repositories {
     google()
-    jcenter()
+    mavenCentral()
     val lintRepo = project.findProperty("lintRepo") as String?
     if (lintRepo != null) {
         logger.warn("Building using custom $lintRepo maven repository")
@@ -35,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.5.0"
     id("application")
     id("java")
     id("maven-publish")
@@ -45,7 +41,7 @@ group = "com.android.tools.metalava"
 version = getMetalavaVersion()
 
 application {
-    mainClassName = "com.android.tools.metalava.Driver"
+    mainClass.set("com.android.tools.metalava.Driver")
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
@@ -60,8 +56,8 @@ tasks.withType(KotlinCompile::class.java) {
 
     kotlinOptions {
         jvmTarget = "1.8"
-        apiVersion = "1.3"
-        languageVersion = "1.3"
+        apiVersion = "1.4"
+        languageVersion = "1.4"
         allWarningsAsErrors = true
     }
 }
@@ -71,24 +67,41 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "27.2.0-alpha07"
+    "30.0.0-alpha14"
 }
-val kotlinVersion: String = "1.3.72"
+val kotlinVersion: String = "1.5.0"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
+    implementation("com.android.tools.external.com-intellij:kotlin-compiler:$studioVersion")
     implementation("com.android.tools.external.com-intellij:intellij-core:$studioVersion")
     implementation("com.android.tools.lint:lint-api:$studioVersion")
     implementation("com.android.tools.lint:lint-checks:$studioVersion")
     implementation("com.android.tools.lint:lint-gradle:$studioVersion")
     implementation("com.android.tools.lint:lint:$studioVersion")
+    implementation("com.android.tools:common:$studioVersion")
+    implementation("com.android.tools:sdk-common:$studioVersion")
+    implementation("com.android.tools:sdklib:$studioVersion")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+    implementation("org.ow2.asm:asm:8.0")
+    implementation("org.ow2.asm:asm-tree:8.0")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.11")
+    testImplementation("com.google.truth:truth:1.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }
 
-tasks.withType(Test::class.java) {
+val zipTask: TaskProvider<Zip> = project.tasks.register(
+    "zipResultsOf${name.capitalize()}",
+    Zip::class.java
+) {
+    destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
+    archiveFileName.set("metalava-tests.zip")
+}
+
+val testTask = tasks.named("test", Test::class.java)
+testTask.configure {
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
         TestLogEvent.PASSED,
@@ -96,17 +109,11 @@ tasks.withType(Test::class.java) {
         TestLogEvent.STANDARD_OUT,
         TestLogEvent.STANDARD_ERROR
     )
-    val zipTask = project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
-        destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
-        archiveFileName.set("metalava-tests.zip")
-    }
     if (isBuildingOnServer()) ignoreFailures = true
     finalizedBy(zipTask)
-    doFirst {
-        zipTask.configure {
-            from(reports.junitXml.destination)
-        }
-    }
+}
+zipTask.configure {
+    from(testTask.map { it.reports.junitXml.outputLocation.get() })
 }
 
 fun getMetalavaVersion(): Any {
@@ -223,13 +230,16 @@ publishing {
 
 // Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    val outDirProvider = project.providers.environmentVariable("DIST_DIR")
+    inputs.property("buildOutputDirectory", outDirProvider).optional(true)
     doLast {
         val metadata = outputFile.asFile.get()
-        var text = metadata.readText()
+        val text = metadata.readText()
+        val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
         metadata.writeText(
             text.replace(
                 "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${getBuildId()}\"")
+                "\"buildId:\": \"${buildId}\"")
         )
     }
 }
