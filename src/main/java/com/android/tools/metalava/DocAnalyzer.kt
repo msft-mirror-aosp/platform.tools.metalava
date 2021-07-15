@@ -2,12 +2,10 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.ATTR_VALUE
 import com.android.sdklib.SdkVersionInfo
-import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -182,7 +180,8 @@ class DocAnalyzer(
             private fun handleAnnotation(
                 annotation: AnnotationItem,
                 item: Item,
-                depth: Int
+                depth: Int,
+                visitedClasses: MutableSet<String> = mutableSetOf()
             ) {
                 val name = annotation.qualifiedName()
                 if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
@@ -214,6 +213,7 @@ class DocAnalyzer(
                     "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
                 }
 
+                visitedClasses.add(name)
                 // Thread annotations are ignored here because they're handled as a group afterwards
 
                 // TODO: Resource type annotations
@@ -225,8 +225,8 @@ class DocAnalyzer(
                             "Unbounded recursion, processing annotation " +
                                 "${annotation.toSource()} in $item in ${item.compilationUnit()} "
                         )
-                    } else if (nested.qualifiedName() != annotation.qualifiedName()) {
-                        handleAnnotation(nested, item, depth + 1)
+                    } else if (nested.qualifiedName() !in visitedClasses) {
+                        handleAnnotation(nested, item, depth + 1, visitedClasses)
                     }
                 }
             }
@@ -580,7 +580,7 @@ class DocAnalyzer(
                 if (original != qualified) {
                     qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
                 } else {
-                    original
+                    insert
                 }
             } else {
                 insert
@@ -681,10 +681,6 @@ class DocAnalyzer(
                     return applyApiLevelsXml
                 }
                 return super.findResource(relativePath)
-            }
-
-            override fun getSdk(): AndroidSdkHandler? {
-                return null
             }
 
             override fun getCacheDir(name: String?, create: Boolean): File? {
