@@ -17,10 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.google.common.collect.ArrayListMultimap
 import com.google.common.collect.Multimap

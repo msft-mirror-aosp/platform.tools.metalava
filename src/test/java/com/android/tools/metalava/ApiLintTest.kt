@@ -145,11 +145,13 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     inline class Dp(val value: Float)
                     fun greatCall(width: Dp)
                     fun badCALL(width: Dp)
-                """),
+                """
+                ),
                 androidxNullableSource
             )
             /*
@@ -1276,7 +1278,7 @@ class ApiLintTest : DriverTest() {
                 """,
             sourceFiles = arrayOf(
                 java(
-                """
+                    """
                 package android.pkg;
 
                 import androidx.annotation.NonNull;
@@ -1791,7 +1793,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
                     class KotlinClass {
                         fun getIntegerOk(): Double { TODO() }
@@ -1799,7 +1802,8 @@ class ApiLintTest : DriverTest() {
                         fun getBooleanOk(): Boolean { TODO() }
                         fun getBooleanBad(): Boolean? { TODO() }
                     }
-                """),
+                """
+                ),
                 androidxNullableSource
             )
         )
@@ -2591,10 +2595,12 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
                     fun okMethod(vararg values: Integer, foo: Float, bar: Float)
-                    """),
+                    """
+                ),
                 androidxNonNullSource
             )
         )

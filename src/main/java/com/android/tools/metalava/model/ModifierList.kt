@@ -305,8 +305,10 @@ interface ModifierList {
             }
 
             val isInterface = classItem?.isInterface() == true ||
-                (methodItem?.containingClass()?.isInterface() == true &&
-                    !list.isDefault() && !list.isStatic())
+                (
+                    methodItem?.containingClass()?.isInterface() == true &&
+                        !list.isDefault() && !list.isStatic()
+                    )
 
             if (list.isAbstract() &&
                 classItem?.isEnum() != true &&
@@ -455,7 +457,8 @@ interface ModifierList {
                         }
                     } else if (options.typedefMode == Options.TypedefMode.REFERENCE &&
                         annotation.targets() === ANNOTATION_SIGNATURE_ONLY &&
-                        annotation.findTypedefAnnotation() != null) {
+                        annotation.findTypedefAnnotation() != null
+                    ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
                         writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName()!!)

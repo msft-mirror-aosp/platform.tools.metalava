@@ -331,7 +331,7 @@ class CoreApiTest : DriverTest() {
                 libcoreCoreMetaHidden
             ),
             api =
-                """
+            """
                 package libcore.api {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE}) public @interface LibCoreMetaHidden {
                   }
