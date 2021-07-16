@@ -136,12 +136,16 @@ class PsiTypePrinter(
                 return getCanonicalText(type.wildcard, elementAnnotations)
             is PsiDisjunctionType ->
                 // Based on PsiDisjunctionType.getCanonicalText(true)
-                return StringUtil.join(type.disjunctions, { psiType ->
-                    getCanonicalText(
-                        psiType,
-                        elementAnnotations
-                    )
-                }, " | ")
+                return StringUtil.join(
+                    type.disjunctions,
+                    { psiType ->
+                        getCanonicalText(
+                            psiType,
+                            elementAnnotations
+                        )
+                    },
+                    " | "
+                )
             is PsiIntersectionType -> return getCanonicalText(type.conjuncts[0], elementAnnotations)
             else -> return type.getCanonicalText(true)
         }

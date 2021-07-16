@@ -176,14 +176,16 @@ class AnnotationStatistics(val api: Codebase) {
         val annotatedCount = used.size - filtered.size
 
         // Sort by descending usage
-        val sorted = filtered.sortedWith(Comparator { o1, o2 ->
-            // Sort first by descending count, then increasing alphabetical
-            val delta = used[o2]!! - used[o1]!!
-            if (delta != 0) {
-                return@Comparator delta
+        val sorted = filtered.sortedWith(
+            Comparator { o1, o2 ->
+                // Sort first by descending count, then increasing alphabetical
+                val delta = used[o2]!! - used[o1]!!
+                if (delta != 0) {
+                    return@Comparator delta
+                }
+                o1.toString().compareTo(o2.toString())
             }
-            o1.toString().compareTo(o2.toString())
-        })
+        )
 
         // High level summary
         options.stdout.println()
@@ -213,14 +215,16 @@ class AnnotationStatistics(val api: Codebase) {
         }
 
         // Print out top entries
-        val classes = classCount.keys.sortedWith(Comparator { o1, o2 ->
-            // Sort first by descending count, then increasing alphabetical
-            val delta = classCount[o2]!! - classCount[o1]!!
-            if (delta != 0) {
-                return@Comparator delta
+        val classes = classCount.keys.sortedWith(
+            Comparator { o1, o2 ->
+                // Sort first by descending count, then increasing alphabetical
+                val delta = classCount[o2]!! - classCount[o1]!!
+                if (delta != 0) {
+                    return@Comparator delta
+                }
+                o1.toString().compareTo(o2.toString())
             }
-            o1.toString().compareTo(o2.toString())
-        })
+        )
 
         printClassTable(classes, classCount)
     }

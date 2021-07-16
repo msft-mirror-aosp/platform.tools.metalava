@@ -1856,7 +1856,7 @@ CompatibilityCheckTest : DriverTest() {
             ),
 
             checkCompatibilityApi =
-                """
+            """
                 package android.rolecontrollerservice {
                   public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
                     ctor public RoleControllerService();
@@ -3239,7 +3239,7 @@ CompatibilityCheckTest : DriverTest() {
                     ARG_HIDE,
                     suppressLevels[apiLevel]
                         ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass" +
-                        (if ((apiLevel == 19 || apiLevel == 20) && loadPrevAsSignature) ",ChangedType" else "")
+                            (if ((apiLevel == 19 || apiLevel == 20) && loadPrevAsSignature) ",ChangedType" else "")
 
                 ),
                 expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
@@ -3741,12 +3741,14 @@ CompatibilityCheckTest : DriverTest() {
                 }
                 """,
             sourceFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package androidx.annotation.experimental;
                     public @interface UseExperimental {
                         Class<?> markerClass() default void.class;
                     }
-                """)
+                """
+                )
             )
         )
     }
