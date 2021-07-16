@@ -923,9 +923,12 @@ class PsiTypePrinterTest : DriverTest() {
             }
             val elementAnnotations = entry.elementAnnotations
             if (elementAnnotations != null && elementAnnotations.isNotEmpty()) {
-                printWriter.printf("Merged: %s\n", elementAnnotations.toString()
-                    .replace("androidx.annotation.", "")
-                    .replace("libcore.util.", ""))
+                printWriter.printf(
+                    "Merged: %s\n",
+                    elementAnnotations.toString()
+                        .replace("androidx.annotation.", "")
+                        .replace("libcore.util.", "")
+                )
             }
             printWriter.printf("Printed: %s\n\n", string)
         }

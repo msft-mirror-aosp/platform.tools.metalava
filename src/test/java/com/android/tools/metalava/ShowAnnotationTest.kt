@@ -245,7 +245,7 @@ class ShowAnnotationTest : DriverTest() {
             ),
             // Empty API: showUnannotated=false
             api = """
-                """.trimIndent(),
+            """.trimIndent(),
             includeSystemApiAnnotations = true,
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
@@ -619,7 +619,8 @@ class ShowAnnotationTest : DriverTest() {
                     }
                  */
                 base64gzip(
-                    "test.jar", "" +
+                    "test.jar",
+                    "" +
                         "H4sICDVE/F0AA3Rlc3QuamFyAAvwZmYRYeDg4GB4kDrFnwEJcDKwMPi6hjjq" +
                         "evq56f87xcDAzBDgzc4BkmKCKgnAqVkEiOGafR39PN1cg0P0fN0++5457eOt" +
                         "q3eR11tX69yZ85uDDK4YP3hapOflq+Ppe7F0FQtnxAvJI9JREq+WPX++/PmS" +

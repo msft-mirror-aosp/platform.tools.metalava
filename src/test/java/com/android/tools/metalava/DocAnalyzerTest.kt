@@ -1150,7 +1150,7 @@ class DocAnalyzerTest : DriverTest() {
          * This is a comment
          * This is a second comment
          */
-        """.trimIndent()
+                """.trimIndent()
             )
         )
     }
@@ -2221,7 +2221,8 @@ class DocAnalyzerTest : DriverTest() {
     fun `memberDoc crash`() {
         check(
             sourceFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package test.pkg;
                     import java.lang.annotation.ElementType;
                     import java.lang.annotation.Retention;
@@ -2235,14 +2236,18 @@ class DocAnalyzerTest : DriverTest() {
                     @Target({ ElementType.FIELD })
                     @Retention(RetentionPolicy.SOURCE)
                     public @interface Foo { }
-                """),
-                java("""
+                """
+                ),
+                java(
+                    """
                     package another.pkg;
                     public class Bar {
                         public String BAR = "BAAAAR";
                     }
-                """),
-                java("""
+                """
+                ),
+                java(
+                    """
                     package yetonemore.pkg;
                     public class Fun {
                         /**
@@ -2251,11 +2256,13 @@ class DocAnalyzerTest : DriverTest() {
                         @test.pkg.Foo
                         public static final String FUN = "FUN";
                     }
-                """)
+                """
+                )
             ),
             docStubs = true,
             stubFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package yetonemore.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Fun {
@@ -2268,7 +2275,8 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     public static final java.lang.String FUN = "FUN";
                     }
-                """)
+                """
+                )
             )
         )
     }
