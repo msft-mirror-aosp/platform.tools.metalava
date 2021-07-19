@@ -431,7 +431,7 @@ class JavadocTest : DriverTest() {
         )
     }
 
-        @Test
+    @Test
     fun `Rewrite relative documentation links in doc-stubs but preserve custom link text`() {
         checkStubs(
             docStubs = true,

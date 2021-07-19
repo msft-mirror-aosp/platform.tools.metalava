@@ -109,7 +109,8 @@ class AnnotationStatisticsTest : DriverTest() {
                 jar(
                     "libs/api-usage.jar",
                     base64gzip(
-                        "test/pkg/ApiUsage.class", "" +
+                        "test/pkg/ApiUsage.class",
+                        "" +
                             "H4sIAAAAAAAAAH1Ta28SQRQ9Q4Fd1qW0VPD9KNZKWe0WaH3VmBiTRpKNfqiW" +
                             "+HGgIw4uu4RdTPzqPzJRSDTxB/ijjHcGWqqlZjNn5945c86du7O/fn//CaCO" +
                             "xxZyuG7ghoUEbmYIVjNYREmFt0ysqfdtBesK7igoK9hQUDHgGLjLYPQ+7Unh" +

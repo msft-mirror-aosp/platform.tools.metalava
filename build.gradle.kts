@@ -169,11 +169,11 @@ fun getBuildId(): String {
     return if (System.getenv("DIST_DIR") != null) File(System.getenv("DIST_DIR")).name else "0"
 }
 
-// KtLint: https://github.com/shyiko/ktlint
+// KtLint: https://github.com/pinterest/ktlint
 
 fun Project.getKtlintConfiguration(): Configuration {
     return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.33.0")
+        val dependency = project.dependencies.create("com.pinterest:ktlint:0.41.0")
         dependencies.add(dependency)
     }
 }
@@ -182,7 +182,7 @@ tasks.register("ktlint", JavaExec::class.java) {
     description = "Check Kotlin code style."
     group = "Verification"
     classpath = getKtlintConfiguration()
-    main = "com.pinterest.ktlint.Main"
+    mainClass.set("com.pinterest.ktlint.Main")
     args = listOf("src/**/*.kt", "build.gradle.kts")
 }
 
@@ -190,7 +190,7 @@ tasks.register("ktlintFormat", JavaExec::class.java) {
     description = "Fix Kotlin code style deviations."
     group = "formatting"
     classpath = getKtlintConfiguration()
-    main = "com.pinterest.ktlint.Main"
+    mainClass.set("com.pinterest.ktlint.Main")
     args = listOf("-F", "src/**/*.kt", "build.gradle.kts")
 }
 
@@ -240,7 +240,8 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
         metadata.writeText(
             text.replace(
                 "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${buildId}\"")
+                "\"buildId:\": \"${buildId}\""
+            )
         )
     }
 }

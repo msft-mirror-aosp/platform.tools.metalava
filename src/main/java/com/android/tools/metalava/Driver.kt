@@ -53,6 +53,7 @@ import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
@@ -460,11 +461,14 @@ fun subtractApi(codebase: Codebase, subtractApiFile: File) {
             else -> throw DriverException("Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}")
         }
 
-    CodebaseComparator().compare(object : ComparisonVisitor() {
-        override fun compare(old: ClassItem, new: ClassItem) {
-            new.emit = false
-        }
-    }, oldCodebase, codebase, ApiType.ALL.getReferenceFilter())
+    CodebaseComparator().compare(
+        object : ComparisonVisitor() {
+            override fun compare(old: ClassItem, new: ClassItem) {
+                new.emit = false
+            }
+        },
+        oldCodebase, codebase, ApiType.ALL.getReferenceFilter()
+    )
 }
 
 fun processNonCodebaseFlags() {
@@ -596,8 +600,10 @@ fun checkCompatibility(
             if (options.baseApiForCompatCheck != null) {
                 // This option does not make sense with showAnnotation, as the "base" in that case
                 // is the non-annotated APIs.
-                throw DriverException(ARG_CHECK_COMPATIBILITY_BASE_API +
-                    " is not compatible with --showAnnotation.")
+                throw DriverException(
+                    ARG_CHECK_COMPATIBILITY_BASE_API +
+                        " is not compatible with --showAnnotation."
+                )
             }
 
             newBase = codebase
@@ -884,6 +890,12 @@ internal fun parseSources(
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
     config.addClasspathRoots(classpath.map { it.absoluteFile })
+    options.jdkHome?.let {
+        if (options.isJdkModular(it)) {
+            config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
+            config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
+        }
+    }
 
     val environment = createProjectEnvironment(config)
 
@@ -1107,9 +1119,9 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
     } else if (file.isFile) {
         when {
             file.name.endsWith(DOT_JAVA) ||
-            file.name.endsWith(DOT_KT) ||
-            file.name.equals(PACKAGE_HTML) ||
-            file.name.equals(OVERVIEW_HTML) -> list.add(file)
+                file.name.endsWith(DOT_KT) ||
+                file.name.equals(PACKAGE_HTML) ||
+                file.name.equals(OVERVIEW_HTML) -> list.add(file)
         }
     }
 }
@@ -1205,7 +1217,8 @@ private fun findRoot(file: File): File? {
             return File(path.substring(0, endIndex))
         } else {
             reporter.report(
-                Issues.IO_ERROR, file, "$PROGRAM_NAME was unable to determine the package name. " +
+                Issues.IO_ERROR, file,
+                "$PROGRAM_NAME was unable to determine the package name. " +
                     "This usually means that a source file was where the directory does not seem to match the package " +
                     "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
             )
