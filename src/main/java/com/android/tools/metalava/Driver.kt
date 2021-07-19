@@ -53,6 +53,7 @@ import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
@@ -889,6 +890,12 @@ internal fun parseSources(
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
     config.addClasspathRoots(classpath.map { it.absoluteFile })
+    options.jdkHome?.let {
+        if (options.isJdkModular(it)) {
+            config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
+            config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
+        }
+    }
 
     val environment = createProjectEnvironment(config)
 
