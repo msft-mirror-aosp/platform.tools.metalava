@@ -1831,6 +1831,10 @@ class Options(
         }
     }
 
+    fun isJdkModular(homePath: File): Boolean {
+        return File(homePath, "jmods").isDirectory
+    }
+
     /**
      * Produce a default file name for the baseline. It's normally "baseline.txt", but can
      * be prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi -> system-baseline.txt,
