@@ -278,8 +278,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
             val packageHtml = null
-            val pkg = registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
-            pkg.emit = false // don't expose these packages in the API signature files, stubs, etc
+            registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
         }
 
         // Connect up all the package items
@@ -509,8 +508,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                 val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
-                    // Don't include packages from API that isn't directly included in the API
-                    packageItem.emit = false
                     packageItem.addClass(classItem)
                 }
             } else {
