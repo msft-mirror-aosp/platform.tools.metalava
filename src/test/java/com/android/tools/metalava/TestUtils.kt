@@ -18,8 +18,11 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.visitors.ItemVisitor
 import org.intellij.lang.annotations.Language
+import org.junit.Assume.assumeTrue
 import kotlin.io.path.createTempDirectory
 
 fun java(to: String, @Language("JAVA") source: String): TestFile {
@@ -61,4 +64,32 @@ internal inline fun withCodebase(
         // Have to assert here, since [deleteRecursively] returns a success/failure as a boolean
         assert(tempDirectory.deleteRecursively()) { "Temporary directory not cleaned up" }
     }
+}
+
+internal inline fun withClass(
+    @Language("kotlin") source: String,
+    useKtModel: Boolean = true,
+    action: (ClassItem) -> Unit
+) {
+    withCodebase(kotlin(source), useKtModel = useKtModel) { codebase ->
+        action(codebase.assumeSingleTopLevelClass())
+    }
+}
+
+fun Codebase.assumeSingleTopLevelClass(): ClassItem {
+    var count = 0
+    var result: ClassItem? = null
+
+    this.accept(object : ItemVisitor() {
+        override fun visitClass(cls: ClassItem) {
+            if (cls.isTopLevelClass()) {
+                count++
+                result = cls
+            }
+        }
+    })
+
+    assumeTrue("Expected one top level class, got $count", count == 1)
+
+    return result!!
 }
