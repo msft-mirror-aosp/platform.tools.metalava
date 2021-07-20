@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
@@ -77,10 +77,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         get() = uastEnvironment.ideaProject
 
     /** Map from class name to class item */
-    private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
-
-    /** Map from psi type to type item */
-    private val typeMap: MutableMap<PsiType, TypeItem> = HashMap(400)
+    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
      * Map from classes to the set of methods for each (but only for classes where we've
@@ -92,7 +89,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
     /** Map from package name to list of classes in that package */
-    private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
+    private lateinit var packageClasses: MutableMap<String, MutableList<ClassItem>>
 
     /** A set of packages to hide */
     private lateinit var hiddenPackages: MutableMap<String, Boolean?>
@@ -307,7 +304,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        sortedClasses: List<PsiClassItem>?,
+        sortedClasses: List<ClassItem>?,
         packageHtml: String?,
         pkgName: String
     ): PsiPackageItem {
@@ -424,11 +421,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         options.stdout.println(
             "INTERNAL STATS: Size of classMap=${classMap.size} and size of " +
                 "methodMap=${methodMap.size} and size of packageMap=${packageMap.size}, and the " +
-                "typemap size is ${typeMap.size}, and the packageClasses size is ${packageClasses.size} "
+                "size of packageClasses=${packageClasses.size} "
         )
     }
 
-    private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
+    private fun registerPackageClass(packageName: String, cls: ClassItem) {
         var list = packageClasses[packageName]
         if (list == null) {
             list = ArrayList()
@@ -525,7 +522,18 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     }
 
     private fun createClass(ktClassOrObject: KtClassOrObject): ClassItem {
-        TODO("Make a ClassItem for ${ktClassOrObject.fqName}")
+        val classItem = KotlinClassItem(this, ktClassOrObject)
+
+        if (!initializing) {
+            classItem.emit = false
+        }
+
+        classMap[classItem.qualifiedName()] = classItem
+
+        val packageName = ktClassOrObject.containingKtFile.packageFqName.asString()
+        registerPackageClass(packageName, classItem)
+
+        return classItem
     }
 
     override fun getPackages(): PackageList {
@@ -545,13 +553,13 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return packageMap[pkgName]
     }
 
-    override fun findClass(className: String): PsiClassItem? {
+    override fun findClass(className: String): ClassItem? {
         return classMap[className]
     }
 
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
-        return classMap[qualifiedName]
+        return classMap[qualifiedName] as? PsiClassItem
     }
 
     open fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
