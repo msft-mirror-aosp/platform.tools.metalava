@@ -249,8 +249,6 @@ abstract class DriverTest {
         dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The removed dex API (corresponds to --removed-dex-api) */
-        removedDexApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
@@ -821,14 +819,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var removedDexApiFile: File? = null
-        val removedDexArgs = if (removedDexApi != null) {
-            removedDexApiFile = temporaryFolder.newFile("removed-dex.txt")
-            arrayOf(ARG_REMOVED_DEX_API, removedDexApiFile.path)
-        } else {
-            emptyArray()
-        }
-
         var apiFile: File? = null
         val apiArgs = if (api != null) {
             apiFile = temporaryFolder.newFile("public-api.txt")
@@ -1128,7 +1118,6 @@ abstract class DriverTest {
             *classpathArgs,
             *kotlinPathArgs,
             *removedArgs,
-            *removedDexArgs,
             *apiArgs,
             *apiXmlArgs,
             *dexApiArgs,
@@ -1277,15 +1266,6 @@ abstract class DriverTest {
             assertEquals(stripComments(removedApi, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls)
-        }
-
-        if (removedDexApi != null && removedDexApiFile != null) {
-            assertTrue(
-                "${removedDexApiFile.path} does not exist even though --removed-dex-api was used",
-                removedDexApiFile.exists()
-            )
-            val actualText = readFile(removedDexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(removedDexApi, stripLineComments = false).trimIndent(), actualText)
         }
 
         if (proguard != null && proguardFile != null) {
