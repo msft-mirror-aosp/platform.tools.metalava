@@ -35,6 +35,11 @@ class PsiPackageItem(
         element = psiPackage
     ),
     PackageItem {
+
+    init {
+        emit = false // [emit] defaults to false until a class with emit == true is added
+    }
+
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
 
@@ -91,6 +96,7 @@ class PsiPackageItem(
         */
 
         classes.add(cls)
+        if (cls.emit) emit = true
         if (cls is PsiClassItem) cls.containingPackage = this
     }
 
