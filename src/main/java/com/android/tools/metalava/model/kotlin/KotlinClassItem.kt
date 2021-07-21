@@ -37,6 +37,8 @@ class KotlinClassItem(
     override val modifiers: KotlinModifierList = KotlinModifierList(codebase),
     override var documentation: String = element.docComment?.toString().orEmpty()
 ) : KotlinItem, ClassItem, DefaultItem() {
+    lateinit var containingPackage: PackageItem
+
     override fun simpleName(): String = element.name!!.toString()
 
     override fun fullName(): String {
@@ -101,9 +103,7 @@ class KotlinClassItem(
         TODO("Not yet implemented")
     }
 
-    override fun containingPackage(): PackageItem {
-        TODO("Not yet implemented")
-    }
+    override fun containingPackage(): PackageItem = containingPackage
 
     override fun toType(): TypeItem {
         TODO("Not yet implemented")
