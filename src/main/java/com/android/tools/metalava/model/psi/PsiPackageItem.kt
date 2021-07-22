@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.intellij.psi.PsiPackage
 
 class PsiPackageItem(
@@ -35,6 +36,11 @@ class PsiPackageItem(
         element = psiPackage
     ),
     PackageItem {
+
+    init {
+        emit = false // [emit] defaults to false until a class with emit == true is added
+    }
+
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
 
@@ -91,7 +97,9 @@ class PsiPackageItem(
         */
 
         classes.add(cls)
+        if (cls.emit) emit = true
         if (cls is PsiClassItem) cls.containingPackage = this
+        if (cls is KotlinClassItem) cls.containingPackage = this
     }
 
     fun addClasses(classList: List<ClassItem>) {

@@ -51,4 +51,15 @@ class KotlinClassItemTest {
             assertFalse(codebase.findClass("NonEnum")!!.isEnum())
         }
     }
+
+    @Test
+    fun containingPackage() {
+        withClass(
+            """
+                package androidx.pkg
+
+                class Foo
+            """
+        ) { assertEquals("androidx.pkg", it.containingPackage().qualifiedName()) }
+    }
 }
