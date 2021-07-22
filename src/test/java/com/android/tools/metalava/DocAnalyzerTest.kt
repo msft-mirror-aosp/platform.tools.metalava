@@ -3,11 +3,7 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.nio.file.Files
-import kotlin.text.Charsets.UTF_8
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
 class DocAnalyzerTest : DriverTest() {
@@ -1989,110 +1985,6 @@ class DocAnalyzerTest : DriverTest() {
                 )
             )
         )
-    }
-
-    @Test
-    fun `Invoke external documentation tool`() {
-        val jdkPath = getJdkPath()
-        if (jdkPath == null) {
-            println("Ignoring external doc test: JDK not found")
-            return
-        }
-
-        val version = System.getProperty("java.version")
-        if (!version.startsWith("1.8.")) {
-            println("Javadoc invocation test does not work on Java 1.9 and later; bootclasspath not supported")
-            return
-        }
-
-        val javadoc = File(jdkPath, "bin/javadoc")
-        if (!javadoc.isFile) {
-            println("Ignoring external doc test: javadoc not found *or* not running on Linux/OSX")
-            return
-        }
-        val androidJar = getAndroidJar().path
-
-        val dir = Files.createTempDirectory(null).toFile()
-        val html = "$dir/javadoc"
-        val sourceList = "$dir/sources.txt"
-
-        check(
-            extraArguments = arrayOf(
-                ARG_DOC_STUBS_SOURCE_LIST,
-                sourceList,
-                ARG_GENERATE_DOCUMENTATION,
-                javadoc.path,
-                "-sourcepath",
-                "STUBS_DIR",
-                "-d",
-                html,
-                "-bootclasspath",
-                androidJar,
-                "STUBS_SOURCE_LIST"
-            ),
-            docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    import android.annotation.RequiresFeature;
-                    import android.content.pm.PackageManager;
-                    @SuppressWarnings("WeakerAccess")
-                    @RequiresFeature(PackageManager.FEATURE_LOCATION)
-                    public class LocationManager {
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package android.content.pm;
-                    public abstract class PackageManager {
-                        public static final String FEATURE_LOCATION = "android.hardware.location";
-                        public boolean hasSystemFeature(String name) {
-                            return false;
-                        }
-                    }
-                    """
-                ),
-
-                requiresFeatureSource
-            ),
-            checkCompilation = true,
-
-            stubFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    import android.content.pm.PackageManager;
-                    /**
-                     * Requires the {@link android.content.pm.PackageManager#FEATURE_LOCATION PackageManager#FEATURE_LOCATION} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class LocationManager {
-                    public LocationManager() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                )
-            )
-        )
-
-        val doc = File(html, "test/pkg/LocationManager.html").readText(UTF_8)
-        assertTrue(
-            "Did not find matching javadoc fragment in LocationManager.html: actual content is\n$doc",
-            doc.contains(
-                """
-                <hr>
-                <br>
-                <pre>public class <span class="typeNameLabel">LocationManager</span>
-                extends java.lang.Object</pre>
-                <div class="block">Requires the <a href="../../android/content/pm/PackageManager.html#FEATURE_LOCATION"><code>PackageManager#FEATURE_LOCATION</code></a> feature which can be detected using <a href="../../android/content/pm/PackageManager.html#hasSystemFeature-java.lang.String-"><code>PackageManager.hasSystemFeature(String)</code></a>.</div>
-                </li>
-                </ul>
-                """.trimIndent()
-            )
-        )
-
-        dir.deleteRecursively()
     }
 
     @Test
