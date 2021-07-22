@@ -434,16 +434,6 @@ private fun processFlags() {
     }
     options.externalAnnotations?.let { extractAnnotations(codebase, it) }
 
-    // Coverage stats?
-    if (options.dumpAnnotationStatistics) {
-        progress("Measuring annotation statistics: ")
-        AnnotationStatistics(codebase).count()
-    }
-    if (options.annotationCoverageOf.isNotEmpty()) {
-        progress("Measuring annotation coverage: ")
-        AnnotationStatistics(codebase).measureCoverageOf(options.annotationCoverageOf)
-    }
-
     if (options.verbose) {
         val packageCount = codebase.size()
         progress("$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n")
