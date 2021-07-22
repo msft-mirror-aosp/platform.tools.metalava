@@ -27,32 +27,33 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.psi.ClassType
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtClassOrObject
 
-open class KotlinClassItem(
+class KotlinClassItem(
     override val codebase: PsiBasedCodebase,
-    override val element: KtClass,
-    private val name: String,
-    private val fullName: String,
-    private val qualifiedName: String,
-    private val hasImplicitDefaultConstructor: Boolean,
-    val classType: ClassType,
-    override val modifiers: KotlinModifierList,
-    override var documentation: String
+    override val element: KtClassOrObject,
+    override val modifiers: KotlinModifierList = KotlinModifierList(codebase),
+    override var documentation: String = element.docComment?.toString().orEmpty()
 ) : KotlinItem, ClassItem, DefaultItem() {
-    override fun simpleName(): String {
-        TODO("Not yet implemented")
-    }
+    lateinit var containingPackage: PackageItem
+
+    override fun simpleName(): String = element.name!!.toString()
 
     override fun fullName(): String {
-        TODO("Not yet implemented")
+        if (isTopLevelClass()) {
+            return simpleName()
+        }
+
+        TODO("Implement fullName() for inner classes")
     }
 
-    override fun qualifiedName(): String {
-        TODO("Not yet implemented")
-    }
+    override fun qualifiedName(): String = element.fqName!!.asString()
+
+    override fun isTopLevelClass(): Boolean = element.isTopLevel()
+
+    override fun isInnerClass(): Boolean = !element.isTopLevel()
 
     override fun isDefined(): Boolean {
         TODO("Not yet implemented")
@@ -74,29 +75,19 @@ open class KotlinClassItem(
         TODO("Not yet implemented")
     }
 
-    override fun innerClasses(): List<ClassItem> {
-        TODO("Not yet implemented")
-    }
+    override fun innerClasses(): List<ClassItem> = emptyList()
 
-    override fun constructors(): List<ConstructorItem> {
-        TODO("Not yet implemented")
-    }
+    override fun constructors(): List<ConstructorItem> = emptyList()
 
     override fun hasImplicitDefaultConstructor(): Boolean {
         TODO("Not yet implemented")
     }
 
-    override fun methods(): List<MethodItem> {
-        TODO("Not yet implemented")
-    }
+    override fun methods(): List<MethodItem> = emptyList()
 
-    override fun properties(): List<PropertyItem> {
-        TODO("Not yet implemented")
-    }
+    override fun properties(): List<PropertyItem> = emptyList()
 
-    override fun fields(): List<FieldItem> {
-        TODO("Not yet implemented")
-    }
+    override fun fields(): List<FieldItem> = emptyList()
 
     override fun isInterface(): Boolean {
         TODO("Not yet implemented")
@@ -106,17 +97,13 @@ open class KotlinClassItem(
         TODO("Not yet implemented")
     }
 
-    override fun isEnum(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun isEnum(): Boolean = (element as? KtClass)?.isEnum() ?: false
 
     override fun containingClass(): ClassItem? {
         TODO("Not yet implemented")
     }
 
-    override fun containingPackage(): PackageItem {
-        TODO("Not yet implemented")
-    }
+    override fun containingPackage(): PackageItem = containingPackage
 
     override fun toType(): TypeItem {
         TODO("Not yet implemented")
