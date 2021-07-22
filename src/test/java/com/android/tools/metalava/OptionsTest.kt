@@ -351,25 +351,6 @@ JDiff:
                                              writes out only the new parts of the API in the v2 format.
 
 
-Statistics:
---annotation-coverage-stats
-                                             Whether metalava should emit coverage statistics for annotations, listing
-                                             the percentage of the API that has been annotated with nullness
-                                             information.
---annotation-coverage-of <paths>
-                                             One or more jars (separated by `:`) containing existing apps that we want
-                                             to measure annotation coverage statistics for. The set of API usages in
-                                             those apps are counted up and the most frequently used APIs that are
-                                             missing annotation metadata are listed in descending order.
---skip-java-in-coverage-report
-                                             In the coverage annotation report, skip java.** and kotlin.** to narrow the
-                                             focus down to the Android framework APIs.
---write-class-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for classes to.
---write-member-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for members to.
-
-
 Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
