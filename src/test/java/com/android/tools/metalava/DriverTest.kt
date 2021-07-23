@@ -339,8 +339,6 @@ abstract class DriverTest {
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
         expectedFail: String? = null,
-        /** List of extra jar files to record annotation coverage from */
-        coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
         @Language("XML")
         manifest: String? = null,
@@ -719,22 +717,6 @@ abstract class DriverTest {
         val quiet = if (expectedOutput != null && !extraArguments.contains(ARG_VERBOSE)) {
             // If comparing output, avoid noisy output such as the banner etc
             arrayOf(ARG_QUIET)
-        } else {
-            emptyArray()
-        }
-
-        val coverageStats = if (coverageJars != null && coverageJars.isNotEmpty()) {
-            val sb = StringBuilder()
-            val root = File(project, "coverageJars")
-            root.mkdirs()
-            for (jar in coverageJars) {
-                if (sb.isNotEmpty()) {
-                    sb.append(File.pathSeparator)
-                }
-                val file = jar.createFile(root)
-                sb.append(file.path)
-            }
-            arrayOf(ARG_ANNOTATION_COVERAGE_OF, sb.toString())
         } else {
             emptyArray()
         }
@@ -1139,7 +1121,6 @@ abstract class DriverTest {
             "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INPUT_KOTLIN_NULLS=${if (inputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
-            *coverageStats,
             *quiet,
             *mergeAnnotationsArgs,
             *signatureAnnotationsArgs,

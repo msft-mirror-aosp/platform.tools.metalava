@@ -95,10 +95,6 @@ const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
-const val ARG_ANNOTATION_COVERAGE_STATS = "--annotation-coverage-stats"
-const val ARG_ANNOTATION_COVERAGE_OF = "--annotation-coverage-of"
-const val ARG_WRITE_CLASS_COVERAGE_TO = "--write-class-coverage-to"
-const val ARG_WRITE_MEMBER_COVERAGE_TO = "--write-member-coverage-to"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -521,24 +517,12 @@ class Options(
      */
     var forceConvertToWarningNullabilityAnnotations: PackageFilter? = null
 
-    /** Set of jars and class files for existing apps that we want to measure coverage of */
-    var annotationCoverageOf: List<File> = mutableAnnotationCoverageOf
-
-    /** File to write the annotation class coverage report to, if any */
-    var annotationCoverageClassReport: File? = null
-
-    /** File to write the annotation member coverage report to, if any */
-    var annotationCoverageMemberReport: File? = null
-
     /** An optional <b>jar</b> file to load classes from instead of from source.
      * This is similar to the [classpath] attribute except we're explicitly saying
      * that this is the complete set of classes and that we <b>should</b> generate
      * signatures/stubs from them or use them to diff APIs with (whereas [classpath]
      * is only used to resolve types.) */
     var apiJar: File? = null
-
-    /** Whether to emit coverage statistics for annotations in the API surface */
-    var dumpAnnotationStatistics = false
 
     /** Whether to use the experimental KtPsi model on .kt source files instead of existing
      * PSI implementation
@@ -1179,19 +1163,6 @@ class Options(
                     }
                 }
 
-                ARG_ANNOTATION_COVERAGE_STATS -> dumpAnnotationStatistics = true
-                ARG_ANNOTATION_COVERAGE_OF -> mutableAnnotationCoverageOf.addAll(
-                    stringToExistingDirsOrJars(
-                        getValue(args, ++index)
-                    )
-                )
-                ARG_WRITE_CLASS_COVERAGE_TO -> {
-                    annotationCoverageClassReport = stringToNewFile(getValue(args, ++index))
-                }
-                ARG_WRITE_MEMBER_COVERAGE_TO -> {
-                    annotationCoverageMemberReport = stringToNewFile(getValue(args, ++index))
-                }
-
                 ARG_ERROR, "-error" -> setIssueSeverity(
                     getValue(args, ++index),
                     Severity.ERROR,
@@ -1691,9 +1662,6 @@ class Options(
             }
             // We're running in update API mode: cancel other "action" flags; only signature file generation
             // flags count
-            annotationCoverageClassReport = null
-            annotationCoverageMemberReport = null
-            dumpAnnotationStatistics = false
             apiLevelJars = null
             generateApiLevelXml = null
             applyApiLevelsXml = null
@@ -1717,9 +1685,6 @@ class Options(
             validateNullabilityFromMergedStubs = false
             validateNullabilityFromList = null
         } else if (onlyCheckApi) {
-            annotationCoverageClassReport = null
-            annotationCoverageMemberReport = null
-            dumpAnnotationStatistics = false
             apiLevelJars = null
             generateApiLevelXml = null
             applyApiLevelsXml = null
@@ -2496,28 +2461,6 @@ class Options(
             "$ARG_CONVERT_NEW_TO_V2 <old> <new> <sig>",
             "Reads in the given old and new api files, " +
                 "computes the difference, and writes out only the new parts of the API in the v2 format.",
-
-            "", "\nStatistics:",
-            ARG_ANNOTATION_COVERAGE_STATS,
-            "Whether $PROGRAM_NAME should emit coverage statistics for " +
-                "annotations, listing the percentage of the API that has been annotated with nullness information.",
-
-            "$ARG_ANNOTATION_COVERAGE_OF <paths>",
-            "One or more jars (separated by `${File.pathSeparator}`) " +
-                "containing existing apps that we want to measure annotation coverage statistics for. The set of " +
-                "API usages in those apps are counted up and the most frequently used APIs that are missing " +
-                "annotation metadata are listed in descending order.",
-
-            ARG_SKIP_JAVA_IN_COVERAGE_REPORT,
-            "In the coverage annotation report, skip java.** and kotlin.** to " +
-                "narrow the focus down to the Android framework APIs.",
-
-            "$ARG_WRITE_CLASS_COVERAGE_TO <path>",
-            "Specifies a file to write the annotation " +
-                "coverage report for classes to.",
-            "$ARG_WRITE_MEMBER_COVERAGE_TO <path>",
-            "Specifies a file to write the annotation " +
-                "coverage report for members to.",
 
             "", "\nExtracting Annotations:",
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
