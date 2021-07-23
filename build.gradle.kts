@@ -31,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.5.0"
+    kotlin("jvm") version "1.5.21"
     id("application")
     id("java")
     id("maven-publish")
@@ -69,7 +69,7 @@ val studioVersion: String = if (customLintVersion != null) {
 } else {
     "30.1.0-alpha01"
 }
-val kotlinVersion: String = "1.5.0"
+val kotlinVersion: String = "1.5.21"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
