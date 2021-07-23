@@ -104,7 +104,6 @@ const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-anno
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
-const val ARG_SKIP_JAVA_IN_COVERAGE_REPORT = "--skip-java-in-coverage-report"
 const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
@@ -463,9 +462,6 @@ class Options(
 
     /** Whether output should be colorized */
     var color = System.getenv("TERM")?.startsWith("xterm") ?: System.getenv("COLORTERM") != null ?: false
-
-    /** Whether to omit Java and Kotlin runtime library packages from annotation coverage stats */
-    var omitRuntimePackageStats = false
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -1206,8 +1202,6 @@ class Options(
                 ARG_NO_BANNER -> {
                     // Already processed above but don't flag it here as invalid
                 }
-
-                ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
