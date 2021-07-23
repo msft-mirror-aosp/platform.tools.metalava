@@ -37,10 +37,6 @@ import java.io.IOException
 import javax.annotation.Nonnull
 import kotlin.text.Charsets.UTF_8
 
-//
-// Copied from doclava1, but adapted to metalava's code model (plus tweaks to handle
-// metalava's richer files, e.g. annotations)
-//
 object ApiFile {
     /**
      * Same as [.parseApi]}, but take a single file for convenience.
@@ -69,7 +65,7 @@ object ApiFile {
      */
     @Throws(ApiParseException::class)
     fun parseApi(@Nonnull files: List<File>, kotlinStyleNulls: Boolean): TextCodebase {
-        require(files.size != 0) { "files must not be empty" }
+        require(files.isNotEmpty()) { "files must not be empty" }
         val api = TextCodebase(files[0])
         val description = StringBuilder("Codebase loaded from ")
         var first = true
@@ -95,8 +91,8 @@ object ApiFile {
     @JvmStatic
     @Throws(ApiParseException::class)
     fun parseApi(
-        @Nonnull filename: String,
-        @Nonnull apiText: String,
+        filename: String,
+        apiText: String,
         kotlinStyleNulls: Boolean?
     ): TextCodebase {
         return parseApi(filename, apiText, kotlinStyleNulls != null && kotlinStyleNulls)
@@ -172,7 +168,7 @@ object ApiFile {
         }
         val tokenizer = Tokenizer(filename, strippedApiText.toCharArray())
         while (true) {
-            val token = tokenizer.token ?: break
+            val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
             if ("package" == token) {
                 parsePackage(api, tokenizer)
@@ -184,9 +180,8 @@ object ApiFile {
 
     @Throws(ApiParseException::class)
     private fun parsePackage(api: TextCodebase, tokenizer: Tokenizer) {
-        var token: String?
         var pkg: TextPackageItem
-        token = tokenizer.requireToken()
+        var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -194,7 +189,7 @@ object ApiFile {
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val name: String? = token
+        val name: String = token
 
         // If the same package showed up multiple times, make sure they have the same modifiers.
         // (Packages can't have public/private/etc, but they can have annotations, which are part of ModifierList.)
@@ -206,7 +201,7 @@ object ApiFile {
 
         // TODO: However, currently this parser can't handle annotations on packages, so we will never hit this case.
         // Once the parser supports that, we should add a test case for this too.
-        pkg = TextPackageItem(api, name!!, modifiers, tokenizer.pos())
+        pkg = TextPackageItem(api, name, modifiers, tokenizer.pos())
         val existing = api.findPackage(name)
         if (existing != null) {
             if (pkg.modifiers.toString() != existing.modifiers.toString()) {
@@ -240,7 +235,7 @@ object ApiFile {
         api: TextCodebase,
         pkg: TextPackageItem,
         tokenizer: Tokenizer,
-        startingToken: String?
+        startingToken: String
     ) {
         var token = startingToken
         var isInterface = false
@@ -255,25 +250,31 @@ object ApiFile {
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, annotations)
         token = tokenizer.current
-        if ("class" == token) {
-            token = tokenizer.requireToken()
-        } else if ("interface" == token) {
-            isInterface = true
-            modifiers.setAbstract(true)
-            token = tokenizer.requireToken()
-        } else if ("@interface" == token) {
-            // Annotation
-            modifiers.setAbstract(true)
-            isAnnotation = true
-            token = tokenizer.requireToken()
-        } else if ("enum" == token) {
-            isEnum = true
-            modifiers.setFinal(true)
-            modifiers.setStatic(true)
-            ext = JAVA_LANG_ENUM
-            token = tokenizer.requireToken()
-        } else {
-            throw ApiParseException("missing class or interface. got: $token", tokenizer)
+        when (token) {
+            "class" -> {
+                token = tokenizer.requireToken()
+            }
+            "interface" -> {
+                isInterface = true
+                modifiers.setAbstract(true)
+                token = tokenizer.requireToken()
+            }
+            "@interface" -> {
+                // Annotation
+                modifiers.setAbstract(true)
+                isAnnotation = true
+                token = tokenizer.requireToken()
+            }
+            "enum" -> {
+                isEnum = true
+                modifiers.setFinal(true)
+                modifiers.setStatic(true)
+                ext = JAVA_LANG_ENUM
+                token = tokenizer.requireToken()
+            }
+            else -> {
+                throw ApiParseException("missing class or interface. got: $token", tokenizer)
+            }
         }
         assertIdent(tokenizer, token)
         val name: String = token
@@ -365,12 +366,12 @@ object ApiFile {
     @Throws(ApiParseException::class)
     private fun processKotlinTypeSuffix(
         api: TextCodebase,
-        startingType: String?,
+        startingType: String,
         annotations: MutableList<String>
-    ): Pair<String?, MutableList<String>> {
+    ): Pair<String, MutableList<String>> {
         var type = startingType
         var varArgs = false
-        if (type!!.endsWith("...")) {
+        if (type.endsWith("...")) {
             type = type.substring(0, type.length - 3)
             varArgs = true
         }
@@ -394,15 +395,15 @@ object ApiFile {
         if (varArgs) {
             type = "$type..."
         }
-        return Pair<String?, MutableList<String>>(type, annotations)
+        return Pair(type, annotations)
     }
 
     @Throws(ApiParseException::class)
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String?): MutableList<String> {
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
         var token = startingToken
         val annotations: MutableList<String> = mutableListOf()
         while (true) {
-            if (token!!.startsWith("@")) {
+            if (token.startsWith("@")) {
                 // Annotation
                 var annotation = token
 
@@ -440,7 +441,7 @@ object ApiFile {
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        startingToken: String?
+        startingToken: String
     ) {
         var token = startingToken
         val method: TextConstructorItem
@@ -451,7 +452,7 @@ object ApiFile {
         val modifiers = parseModifiers(api, tokenizer, token, annotations)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val name: String = token!!.substring(token.lastIndexOf('.') + 1) // For inner classes, strip outer classes from name
+        val name: String = token.substring(token.lastIndexOf('.') + 1) // For inner classes, strip outer classes from name
         token = tokenizer.requireToken()
         if ("(" != token) {
             throw ApiParseException("expected (", tokenizer)
@@ -474,7 +475,7 @@ object ApiFile {
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        startingToken: String?
+        startingToken: String
     ) {
         var token = startingToken
         val returnType: TextTypeItem
@@ -497,7 +498,7 @@ object ApiFile {
         modifiers.addAnnotations(annotations)
         var returnTypeString = token
         token = tokenizer.requireToken()
-        if (returnTypeString!!.contains("@") && (
+        if (returnTypeString.contains("@") && (
             returnTypeString.indexOf('<') == -1 ||
                 returnTypeString.indexOf('@') < returnTypeString.indexOf('<')
             )
@@ -506,7 +507,7 @@ object ApiFile {
             token = tokenizer.requireToken()
         }
         while (true) {
-            if (token!!.contains("@") && (
+            if (token.contains("@") && (
                 token.indexOf('<') == -1 ||
                     token.indexOf('@') < token.indexOf('<')
                 )
@@ -524,8 +525,8 @@ object ApiFile {
         }
         returnType = api.obtainTypeFromString(returnTypeString, cl, typeParameterList)
         assertIdent(tokenizer, token)
-        val name: String? = token
-        method = TextMethodItem(api, name!!, cl, modifiers, returnType, tokenizer.pos())
+        val name: String = token
+        method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
@@ -568,7 +569,7 @@ object ApiFile {
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        startingToken: String?,
+        startingToken: String,
         isEnum: Boolean
     ) {
         var token = startingToken
@@ -582,7 +583,7 @@ object ApiFile {
         annotations = second
         modifiers.addAnnotations(annotations)
         val type = token
-        val typeInfo = api.obtainTypeFromString(type!!)
+        val typeInfo = api.obtainTypeFromString(type)
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name = token
@@ -750,7 +751,7 @@ object ApiFile {
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
-        startingToken: String?
+        startingToken: String
     ) {
         var token = startingToken
 
@@ -764,8 +765,8 @@ object ApiFile {
         token = first
         annotations = second
         modifiers.addAnnotations(annotations)
-        val type: String? = token
-        val typeInfo = api.obtainTypeFromString(type!!)
+        val type: String = token
+        val typeInfo = api.obtainTypeFromString(type)
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name: String = token
@@ -808,7 +809,7 @@ object ApiFile {
         tokenizer: Tokenizer,
         method: TextMethodItem
     ) {
-        var token: String? = tokenizer.requireToken()
+        var token: String = tokenizer.requireToken()
         var index = 0
         while (true) {
             if (")" == token) {
@@ -847,7 +848,7 @@ object ApiFile {
             val (typeString, second) = processKotlinTypeSuffix(api, type, annotations)
             annotations = second
             modifiers.addAnnotations(annotations)
-            if (typeString!!.endsWith("...")) {
+            if (typeString.endsWith("...")) {
                 modifiers.setVarArg(true)
             }
             val typeInfo = api.obtainTypeFromString(
@@ -855,7 +856,7 @@ object ApiFile {
                 (method.containingClass() as TextClassItem),
                 method.typeParameterList()
             )
-            var name: String?
+            var name: String
             var publicName: String?
             if (isIdent(token) && token != "=") {
                 name = token
@@ -872,7 +873,7 @@ object ApiFile {
                 if (defaultValue == "{") {
                     var balance = 1
                     while (balance > 0) {
-                        token = tokenizer.requireToken(false, false)
+                        token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
                         sb.append(token)
                         if (token == "{") {
                             balance++
@@ -887,11 +888,11 @@ object ApiFile {
                 } else {
                     var balance = if (defaultValue == "(") 1 else 0
                     while (true) {
-                        token = tokenizer.requireToken(true, false)
+                        token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
                         if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
                             if (token.length > 1) {
                                 sb.append(token, 0, token.length - 1)
-                                token = Character.toString(token[token.length - 1])
+                                token = token[token.length - 1].toString()
                             }
                             break
                         }
@@ -908,12 +909,16 @@ object ApiFile {
             if (defaultValue != UNKNOWN_DEFAULT_VALUE) {
                 hasDefaultValue = true
             }
-            if ("," == token) {
-                token = tokenizer.requireToken()
-            } else if (")" == token) {
-                // closing parenthesis
-            } else {
-                throw ApiParseException("expected , or ), found $token", tokenizer)
+            when (token) {
+                "," -> {
+                    token = tokenizer.requireToken()
+                }
+                ")" -> {
+                    // closing parenthesis
+                }
+                else -> {
+                    throw ApiParseException("expected , or ), found $token", tokenizer)
+                }
             }
             method.addParameter(
                 TextParameterItem(
@@ -947,35 +952,39 @@ object ApiFile {
         var token = tokenizer.requireToken()
         var comma = true
         while (true) {
-            if (";" == token) {
-                return token
-            } else if ("," == token) {
-                if (comma) {
-                    throw ApiParseException("Expected exception, got ','", tokenizer)
+            when (token) {
+                ";" -> {
+                    return token
                 }
-                comma = true
-            } else {
-                if (!comma) {
-                    throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                "," -> {
+                    if (comma) {
+                        throw ApiParseException("Expected exception, got ','", tokenizer)
+                    }
+                    comma = true
                 }
-                comma = false
-                method.addException(token)
+                else -> {
+                    if (!comma) {
+                        throw ApiParseException("Expected ',' or ';' got $token", tokenizer)
+                    }
+                    comma = false
+                    method.addException(token)
+                }
             }
             token = tokenizer.requireToken()
         }
     }
 
-    private fun qualifiedName(pkg: String, className: String?): String {
+    private fun qualifiedName(pkg: String, className: String): String {
         return "$pkg.$className"
     }
 
-    private fun isIdent(token: String?): Boolean {
-        return isIdent(token!![0])
+    private fun isIdent(token: String): Boolean {
+        return isIdent(token[0])
     }
 
     @Throws(ApiParseException::class)
-    private fun assertIdent(tokenizer: Tokenizer, token: String?) {
-        if (!isIdent(token!![0])) {
+    private fun assertIdent(tokenizer: Tokenizer, token: String) {
+        if (!isIdent(token[0])) {
             throw ApiParseException("Expected identifier: $token", tokenizer)
         }
     }
@@ -1001,31 +1010,31 @@ object ApiFile {
         return c != '"' && !isSeparator(c, true)
     }
 
-    internal class Tokenizer(val mFilename: String, val mBuf: CharArray) {
-        var mPos = 0
+    internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
+        var position = 0
         var line = 1
         fun pos(): SourcePositionInfo {
-            return SourcePositionInfo(mFilename, line)
+            return SourcePositionInfo(fileName, line)
         }
 
-        fun eatWhitespace(): Boolean {
+        private fun eatWhitespace(): Boolean {
             var ate = false
-            while (mPos < mBuf.size && isSpace(mBuf[mPos])) {
-                if (mBuf[mPos] == '\n') {
+            while (position < buffer.size && isSpace(buffer[position])) {
+                if (buffer[position] == '\n') {
                     line++
                 }
-                mPos++
+                position++
                 ate = true
             }
             return ate
         }
 
-        fun eatComment(): Boolean {
-            if (mPos + 1 < mBuf.size) {
-                if (mBuf[mPos] == '/' && mBuf[mPos + 1] == '/') {
-                    mPos += 2
-                    while (mPos < mBuf.size && !isNewline(mBuf[mPos])) {
-                        mPos++
+        private fun eatComment(): Boolean {
+            if (position + 1 < buffer.size) {
+                if (buffer[position] == '/' && buffer[position + 1] == '/') {
+                    position += 2
+                    while (position < buffer.size && !isNewline(buffer[position])) {
+                        position++
                     }
                     return true
                 }
@@ -1033,75 +1042,64 @@ object ApiFile {
             return false
         }
 
-        fun eatWhitespaceAndComments() {
+        private fun eatWhitespaceAndComments() {
             while (eatWhitespace() || eatComment()) {
                 // intentionally consume whitespace and comments
             }
         }
 
-        @JvmOverloads
         @Throws(ApiParseException::class)
         fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
             val token = getToken(parenIsSep, eatWhitespace)
             return token ?: throw ApiParseException("Unexpected end of file", this)
         }
 
-        @get:Throws(ApiParseException::class)
-        val token: String?
-            get() = getToken(true)
-
         fun offset(): Int {
-            return mPos
+            return position
         }
 
         fun getStringFromOffset(offset: Int): String {
-            return String(mBuf, offset, mPos - offset)
+            return String(buffer, offset, position - offset)
         }
 
-        @Throws(ApiParseException::class)
-        fun getToken(parenIsSep: Boolean): String? {
-            return getToken(parenIsSep, true)
-        }
-
-        var current: String? = null
-            private set
+        lateinit var current: String
 
         @Throws(ApiParseException::class)
-        fun getToken(parenIsSep: Boolean, eatWhitespace: Boolean): String? {
+        fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
             if (eatWhitespace) {
                 eatWhitespaceAndComments()
             }
-            if (mPos >= mBuf.size) {
+            if (position >= buffer.size) {
                 return null
             }
             val line = line
-            val c = mBuf[mPos]
-            val start = mPos
-            mPos++
+            val c = buffer[position]
+            val start = position
+            position++
             if (c == '"') {
                 val STATE_BEGIN = 0
                 val STATE_ESCAPE = 1
                 var state = STATE_BEGIN
                 while (true) {
-                    if (mPos >= mBuf.size) {
+                    if (position >= buffer.size) {
                         throw ApiParseException(
                             "Unexpected end of file for \" starting at $line",
                             this
                         )
                     }
-                    val k = mBuf[mPos]
+                    val k = buffer[position]
                     if (k == '\n' || k == '\r') {
                         throw ApiParseException(
-                            "Unexpected newline for \" starting at $line in $mFilename",
+                            "Unexpected newline for \" starting at $line in $fileName",
                             this
                         )
                     }
-                    mPos++
+                    position++
                     when (state) {
                         STATE_BEGIN -> when (k) {
                             '\\' -> state = STATE_ESCAPE
                             '"' -> {
-                                current = String(mBuf, start, mPos - start)
+                                current = String(buffer, start, position - start)
                                 return current
                             }
                         }
@@ -1109,59 +1107,56 @@ object ApiFile {
                     }
                 }
             } else if (isSeparator(c, parenIsSep)) {
-                current = Character.toString(c)
+                current = c.toString()
                 return current
             } else {
                 var genericDepth = 0
                 do {
-                    while (mPos < mBuf.size) {
-                        val d = mBuf[mPos]
+                    while (position < buffer.size) {
+                        val d = buffer[position]
                         if (isSpace(d) || isSeparator(d, parenIsSep)) {
                             break
                         } else if (d == '"') {
                             // String literal in token: skip the full thing
-                            mPos++
-                            while (mPos < mBuf.size) {
-                                if (mBuf[mPos] == '"') {
-                                    mPos++
+                            position++
+                            while (position < buffer.size) {
+                                if (buffer[position] == '"') {
+                                    position++
                                     break
-                                } else if (mBuf[mPos] == '\\') {
-                                    mPos++
+                                } else if (buffer[position] == '\\') {
+                                    position++
                                 }
-                                mPos++
+                                position++
                             }
                             continue
                         }
-                        mPos++
+                        position++
                     }
-                    if (mPos < mBuf.size) {
-                        if (mBuf[mPos] == '<') {
+                    if (position < buffer.size) {
+                        if (buffer[position] == '<') {
                             genericDepth++
-                            mPos++
+                            position++
                         } else if (genericDepth != 0) {
-                            if (mBuf[mPos] == '>') {
+                            if (buffer[position] == '>') {
                                 genericDepth--
                             }
-                            mPos++
+                            position++
                         }
                     }
-                } while (mPos < mBuf.size &&
+                } while (position < buffer.size &&
                     (
-                        !isSpace(mBuf[mPos]) && !isSeparator(
-                                mBuf[mPos],
+                        !isSpace(buffer[position]) && !isSeparator(
+                                buffer[position],
                                 parenIsSep
                             ) || genericDepth != 0
                         )
                 )
-                if (mPos >= mBuf.size) {
+                if (position >= buffer.size) {
                     throw ApiParseException("Unexpected end of file for \" starting at $line", this)
                 }
-                current = String(mBuf, start, mPos - start)
+                current = String(buffer, start, position - start)
                 return current
             }
         }
-
-        val fileName: String
-            get() = mFilename
     }
 }
