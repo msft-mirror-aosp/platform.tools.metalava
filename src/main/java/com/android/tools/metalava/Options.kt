@@ -64,7 +64,6 @@ const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
-const val ARG_REMOVED_DEX_API = "--removed-dex-api"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
@@ -461,9 +460,6 @@ class Options(
 
     /** If set, a file to write a dex API file to. Corresponds to the --removed-dex-api/-removedDexApi flag. */
     var removedApiFile: File? = null
-
-    /** If set, a file to write an API file to. Corresponds to the --removed-api/-removedApi flag. */
-    var removedDexApiFile: File? = null
 
     /** Whether output should be colorized */
     var color = System.getenv("TERM")?.startsWith("xterm") ?: System.getenv("COLORTERM") != null ?: false
@@ -890,7 +886,6 @@ class Options(
                 ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -1710,7 +1705,6 @@ class Options(
             apiXmlFile = null
             dexApiFile = null
             removedApiFile = null
-            removedDexApiFile = null
         }
 
         // Fix up [Baseline] files and [Reporter]s.
