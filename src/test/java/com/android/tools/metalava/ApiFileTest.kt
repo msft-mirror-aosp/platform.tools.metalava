@@ -2616,16 +2616,7 @@ class ApiFileTest : DriverTest() {
                     field public int removed;
                   }
                 }
-                """,
-            removedDexApi = "" +
-                "Ltest/pkg/Bar;-><init>()V\n" +
-                "Ltest/pkg/Bar;->removedMethod()V\n" +
-                "Ltest/pkg/Bar;->removedField:I\n" +
-                "Ltest/pkg/Bar\$Inner;\n" +
-                "Ltest/pkg/Bar\$Inner;-><init>()V\n" +
-                "Ltest/pkg/Bar\$Inner2\$Inner3\$Inner4;\n" +
-                "Ltest/pkg/Bar\$Inner2\$Inner3\$Inner4;-><init>()V\n" +
-                "Ltest/pkg/Bar\$Inner5\$Inner6\$Inner7;->removed:I"
+                """
         )
     }
 

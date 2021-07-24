@@ -41,15 +41,7 @@ internal fun preprocessArgv(args: Array<String>): Array<String> {
             if (prepend.isEmpty() && append.isEmpty()) {
                 args
             } else {
-                val index = args.indexOf(ARG_GENERATE_DOCUMENTATION)
-                val newArgs =
-                    if (index != -1) {
-                        args.sliceArray(0 until index) + prepend +
-                            args.sliceArray(index until args.size) + append
-                    } else {
-                        prepend + args + append
-                    }
-                newArgs
+                prepend + args + append
             }
         } else {
             args
