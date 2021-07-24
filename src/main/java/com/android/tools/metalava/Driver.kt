@@ -21,11 +21,6 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
-import com.android.ide.common.process.CachedProcessOutputHandler
-import com.android.ide.common.process.DefaultProcessExecutor
-import com.android.ide.common.process.ProcessInfoBuilder
-import com.android.ide.common.process.ProcessOutput
-import com.android.ide.common.process.ProcessOutputHandler
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -41,8 +36,6 @@ import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
-import com.android.utils.StdLogger
-import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
@@ -57,7 +50,6 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
-import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -342,19 +334,6 @@ private fun processFlags() {
         ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
     }
 
-    options.removedDexApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
-        val removedFilter = FilterPredicate(ApiPredicate(matchRemoved = true))
-        val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val removedDexEmit = memberIsNotCloned.and(removedFilter)
-
-        createReportFile(
-            unfiltered, apiFile, "removed DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
-    }
-
     options.proguard?.let { proguard ->
         val apiEmit = FilterPredicate(ApiPredicate())
         val apiReference = ApiPredicate(ignoreShown = true)
@@ -438,8 +417,6 @@ private fun processFlags() {
         val packageCount = codebase.size()
         progress("$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n")
     }
-
-    invokeDocumentationTool()
 }
 
 fun subtractApi(codebase: Codebase, subtractApiFile: File) {
@@ -669,102 +646,6 @@ fun createTempFile(namePrefix: String, nameSuffix: String): File {
         File.createTempFile(namePrefix, nameSuffix, tempFolder)
     } else {
         File.createTempFile(namePrefix, nameSuffix)
-    }
-}
-
-fun invokeDocumentationTool() {
-    if (options.noDocs) {
-        return
-    }
-
-    val args = options.invokeDocumentationToolArguments
-    if (args.isNotEmpty()) {
-        if (!options.quiet) {
-            options.stdout.println(
-                "Invoking external documentation tool ${args[0]} with arguments\n\"${
-                args.slice(1 until args.size).joinToString(separator = "\",\n\"") { it }}\""
-            )
-            options.stdout.flush()
-        }
-
-        val builder = ProcessInfoBuilder()
-
-        builder.setExecutable(File(args[0]))
-        builder.addArgs(args.slice(1 until args.size))
-
-        val processOutputHandler =
-            if (options.quiet) {
-                CachedProcessOutputHandler()
-            } else {
-                object : ProcessOutputHandler {
-                    override fun handleOutput(processOutput: ProcessOutput?) {
-                    }
-
-                    override fun createOutput(): ProcessOutput {
-                        val out = PrintWriterOutputStream(options.stdout)
-                        val err = PrintWriterOutputStream(options.stderr)
-                        return object : ProcessOutput {
-                            override fun getStandardOutput(): OutputStream {
-                                return out
-                            }
-
-                            override fun getErrorOutput(): OutputStream {
-                                return err
-                            }
-
-                            override fun close() {
-                                out.flush()
-                                err.flush()
-                            }
-                        }
-                    }
-                }
-            }
-
-        val result = DefaultProcessExecutor(StdLogger(ERROR))
-            .execute(builder.createProcess(), processOutputHandler)
-
-        val exitCode = result.exitValue
-        if (!options.quiet) {
-            options.stdout.println("${args[0]} finished with exitCode $exitCode")
-            options.stdout.flush()
-        }
-        if (exitCode != 0) {
-            val stdout = if (processOutputHandler is CachedProcessOutputHandler)
-                processOutputHandler.processOutput.standardOutputAsString
-            else ""
-            val stderr = if (processOutputHandler is CachedProcessOutputHandler)
-                processOutputHandler.processOutput.errorOutputAsString
-            else ""
-            throw DriverException(
-                stdout = "Invoking documentation tool ${args[0]} failed with exit code $exitCode\n$stdout",
-                stderr = stderr,
-                exitCode = exitCode
-            )
-        }
-    }
-}
-
-class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() {
-
-    override fun write(b: ByteArray) {
-        writer.write(String(b, UTF_8))
-    }
-
-    override fun write(b: Int) {
-        write(byteArrayOf(b.toByte()), 0, 1)
-    }
-
-    override fun write(b: ByteArray, off: Int, len: Int) {
-        writer.write(String(b, off, len, UTF_8))
-    }
-
-    override fun flush() {
-        writer.flush()
-    }
-
-    override fun close() {
-        writer.close()
     }
 }
 
@@ -1075,7 +956,7 @@ fun createReportFile(
             codebase.accept(apiWriter)
         }
         val text = stringWriter.toString()
-        if (text.length > 0 || !deleteEmptyFiles) {
+        if (text.isNotEmpty() || !deleteEmptyFiles) {
             apiFile.writeText(text)
         }
     } catch (e: IOException) {
