@@ -680,26 +680,31 @@ class AnnotationsMerger(
                 name == INT_DEF_ANNOTATION.oldName() ||
                 name == INT_DEF_ANNOTATION.newName() ||
                 name == ANDROID_INT_DEF -> {
+
+                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
+                val parseChild: (Element) -> Unit = { child: Element ->
+                    val elementName = child.getAttribute(ATTR_NAME)
+                    val value = child.getAttribute(ATTR_VAL)
+                    when (elementName) {
+                        TYPE_DEF_VALUE_ATTRIBUTE -> {
+                            attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
+                        }
+                        TYPE_DEF_FLAG_ATTRIBUTE -> {
+                            if (VALUE_TRUE == value) {
+                                attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE))
+                            }
+                        }
+                        else -> { error("Unrecognized element: " + elementName) }
+                    }
+                }
                 val children = getChildren(annotationElement)
-                var valueElement = children[0]
-                val valName = valueElement.getAttribute(ATTR_NAME)
-                assert(TYPE_DEF_VALUE_ATTRIBUTE == valName)
-                val value = valueElement.getAttribute(ATTR_VAL)
-                var flag = false
+                parseChild(children[0])
                 if (children.size == 2) {
-                    valueElement = children[1]
-                    assert(TYPE_DEF_FLAG_ATTRIBUTE == valueElement.getAttribute(ATTR_NAME))
-                    flag = VALUE_TRUE == valueElement.getAttribute(ATTR_VAL)
+                    parseChild(children[1])
                 }
                 val intDef = INT_DEF_ANNOTATION.oldName() == name ||
                     INT_DEF_ANNOTATION.newName() == name ||
                     ANDROID_INT_DEF == name
-
-                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
-                attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
-                if (flag) {
-                    attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE))
-                }
                 return PsiAnnotationItem.create(
                     codebase,
                     XmlBackedAnnotationItem(
