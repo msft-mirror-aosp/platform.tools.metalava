@@ -57,6 +57,7 @@ interface ModifierList {
     fun isSuspend(): Boolean = false
     fun isOperator(): Boolean = false
     fun isInline(): Boolean = false
+    fun isValue(): Boolean = false
     fun isData(): Boolean = false
     fun isEmpty(): Boolean
 
@@ -347,6 +348,10 @@ interface ModifierList {
 
             if (list.isInline()) {
                 writer.write("inline ")
+            }
+
+            if (list.isValue()) {
+                writer.write("value ")
             }
 
             if (list.isInfix()) {
