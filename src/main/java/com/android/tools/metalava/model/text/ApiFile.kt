@@ -689,6 +689,10 @@ object ApiFile {
                     modifiers.setInline(true)
                     tokenizer.requireToken()
                 }
+                "value" -> {
+                    modifiers.setValue(true)
+                    tokenizer.requireToken()
+                }
                 "suspend" -> {
                     modifiers.setSuspend(true)
                     tokenizer.requireToken()
