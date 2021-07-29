@@ -64,7 +64,6 @@ const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
-const val ARG_REMOVED_DEX_API = "--removed-dex-api"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
@@ -95,10 +94,6 @@ const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
-const val ARG_ANNOTATION_COVERAGE_STATS = "--annotation-coverage-stats"
-const val ARG_ANNOTATION_COVERAGE_OF = "--annotation-coverage-of"
-const val ARG_WRITE_CLASS_COVERAGE_TO = "--write-class-coverage-to"
-const val ARG_WRITE_MEMBER_COVERAGE_TO = "--write-member-coverage-to"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -109,7 +104,6 @@ const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-anno
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
-const val ARG_SKIP_JAVA_IN_COVERAGE_REPORT = "--skip-java-in-coverage-report"
 const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
@@ -122,7 +116,6 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
-const val ARG_CHECK_KOTLIN_INTEROP = "--check-kotlin-interop"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_PUBLIC = "--public"
@@ -130,7 +123,6 @@ const val ARG_PROTECTED = "--protected"
 const val ARG_PACKAGE = "--package"
 const val ARG_PRIVATE = "--private"
 const val ARG_HIDDEN = "--hidden"
-const val ARG_NO_DOCS = "--no-docs"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -148,7 +140,6 @@ const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
-const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
@@ -221,18 +212,6 @@ class Options(
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
     /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
     private val alreadyWarned: MutableSet<String> = mutableSetOf()
-
-    /**
-     * Set of arguments to invoke documentation generation tool (arg 0) with, unless --no-docs is also
-     * supplied
-     */
-    var invokeDocumentationToolArguments: Array<String> = emptyArray()
-
-    /**
-     * Whether to suppress documentation generation, even if a documentation generator has
-     * been configured via ${#ARG_GENERATE_DOCUMENTATION}
-     */
-    var noDocs = false
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
@@ -466,14 +445,8 @@ class Options(
     /** If set, a file to write a dex API file to. Corresponds to the --removed-dex-api/-removedDexApi flag. */
     var removedApiFile: File? = null
 
-    /** If set, a file to write an API file to. Corresponds to the --removed-api/-removedApi flag. */
-    var removedDexApiFile: File? = null
-
     /** Whether output should be colorized */
     var color = System.getenv("TERM")?.startsWith("xterm") ?: System.getenv("COLORTERM") != null ?: false
-
-    /** Whether to omit Java and Kotlin runtime library packages from annotation coverage stats */
-    var omitRuntimePackageStats = false
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -521,24 +494,12 @@ class Options(
      */
     var forceConvertToWarningNullabilityAnnotations: PackageFilter? = null
 
-    /** Set of jars and class files for existing apps that we want to measure coverage of */
-    var annotationCoverageOf: List<File> = mutableAnnotationCoverageOf
-
-    /** File to write the annotation class coverage report to, if any */
-    var annotationCoverageClassReport: File? = null
-
-    /** File to write the annotation member coverage report to, if any */
-    var annotationCoverageMemberReport: File? = null
-
     /** An optional <b>jar</b> file to load classes from instead of from source.
      * This is similar to the [classpath] attribute except we're explicitly saying
      * that this is the complete set of classes and that we <b>should</b> generate
      * signatures/stubs from them or use them to diff APIs with (whereas [classpath]
      * is only used to resolve types.) */
     var apiJar: File? = null
-
-    /** Whether to emit coverage statistics for annotations in the API surface */
-    var dumpAnnotationStatistics = false
 
     /** Whether to use the experimental KtPsi model on .kt source files instead of existing
      * PSI implementation
@@ -906,7 +867,6 @@ class Options(
                 ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -1179,19 +1139,6 @@ class Options(
                     }
                 }
 
-                ARG_ANNOTATION_COVERAGE_STATS -> dumpAnnotationStatistics = true
-                ARG_ANNOTATION_COVERAGE_OF -> mutableAnnotationCoverageOf.addAll(
-                    stringToExistingDirsOrJars(
-                        getValue(args, ++index)
-                    )
-                )
-                ARG_WRITE_CLASS_COVERAGE_TO -> {
-                    annotationCoverageClassReport = stringToNewFile(getValue(args, ++index))
-                }
-                ARG_WRITE_MEMBER_COVERAGE_TO -> {
-                    annotationCoverageMemberReport = stringToNewFile(getValue(args, ++index))
-                }
-
                 ARG_ERROR, "-error" -> setIssueSeverity(
                     getValue(args, ++index),
                     Severity.ERROR,
@@ -1241,8 +1188,6 @@ class Options(
                     // Already processed above but don't flag it here as invalid
                 }
 
-                ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
-
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
                     val list = androidJarPatterns ?: run {
@@ -1280,47 +1225,8 @@ class Options(
                     }
                 }
 
-                ARG_NO_DOCS, "-nodocs" -> noDocs = true
-
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
-
-                ARG_GENERATE_DOCUMENTATION -> {
-                    // Digest all the remaining arguments.
-                    // Allow "STUBS_DIR" to reference the stubs directory.
-                    var prev = ""
-                    invokeDocumentationToolArguments = args.slice(++index until args.size).mapNotNull {
-                        var argument = it
-                        // When generating documentation, use the doc stubs directory rather than the
-                        // original source path
-                        val docStubsDir = docStubsDir
-                        if (docStubsDir != null && (prev == ARG_SOURCE_PATH || prev == "-sourcepath") &&
-                            !argument.contains(docStubsDir.path)
-                        ) {
-                            // Insert the doc stubs as the default place to look for sources
-                            argument = docStubsDir.path
-                        }
-                        prev = it
-
-                        if (argument == "STUBS_DIR" && docStubsDir != null) {
-                            docStubsDir.path
-                        } else if (argument == "STUBS_DIR" && stubsDir != null) {
-                            stubsDir?.path
-                        } else if (argument == "DOCS_STUBS_DIR" && docStubsDir != null) {
-                            docStubsDir.path
-                        } else if (argument == "DOC_STUBS_SOURCE_LIST" && docStubsSourceList != null) {
-                            "@${docStubsSourceList?.path}"
-                        } else if (argument == "STUBS_SOURCE_LIST" && stubsSourceList != null) {
-                            "@${stubsSourceList?.path}"
-                        } else if (argument == "STUBS_SOURCE_LIST" && docStubsSourceList != null) {
-                            "@${docStubsSourceList?.path}"
-                        } else {
-                            argument
-                        }
-                    }.toTypedArray()
-
-                    index = args.size // jump to end of argument loop
-                }
 
                 ARG_REPLACE_DOCUMENTATION -> {
                     val packageNames = args[++index].split(":")
@@ -1691,9 +1597,6 @@ class Options(
             }
             // We're running in update API mode: cancel other "action" flags; only signature file generation
             // flags count
-            annotationCoverageClassReport = null
-            annotationCoverageMemberReport = null
-            dumpAnnotationStatistics = false
             apiLevelJars = null
             generateApiLevelXml = null
             applyApiLevelsXml = null
@@ -1705,8 +1608,6 @@ class Options(
             sdkValueDir = null
             externalAnnotations = null
             proguard = null
-            noDocs = true
-            invokeDocumentationToolArguments = emptyArray()
             mutableCompatibilityChecks.clear()
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
@@ -1717,9 +1618,6 @@ class Options(
             validateNullabilityFromMergedStubs = false
             validateNullabilityFromList = null
         } else if (onlyCheckApi) {
-            annotationCoverageClassReport = null
-            annotationCoverageMemberReport = null
-            dumpAnnotationStatistics = false
             apiLevelJars = null
             generateApiLevelXml = null
             applyApiLevelsXml = null
@@ -1731,8 +1629,6 @@ class Options(
             sdkValueDir = null
             externalAnnotations = null
             proguard = null
-            noDocs = true
-            invokeDocumentationToolArguments = emptyArray()
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
             mutableConvertToXmlFiles.clear()
@@ -1745,7 +1641,6 @@ class Options(
             apiXmlFile = null
             dexApiFile = null
             removedApiFile = null
-            removedDexApiFile = null
         }
 
         // Fix up [Baseline] files and [Reporter]s.
@@ -2226,9 +2121,6 @@ class Options(
             ARG_VERBOSE, "Include extra diagnostic output",
             ARG_COLOR, "Attempt to colorize the output (defaults to true if \$TERM is xterm)",
             ARG_NO_COLOR, "Do not attempt to colorize the output",
-            ARG_NO_DOCS,
-            "Cancel any other documentation flags supplied to $PROGRAM_NAME. This is here " +
-                "to make it easier customize build system tasks.",
             ARG_UPDATE_API,
             "Cancel any other \"action\" flags other than generating signature files. This is here " +
                 "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
@@ -2368,7 +2260,7 @@ class Options(
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
-            "$ARG_KOTLIN_MODEL",
+            ARG_KOTLIN_MODEL,
             "[CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin " +
                 "instead of UAST",
 
@@ -2496,28 +2388,6 @@ class Options(
             "$ARG_CONVERT_NEW_TO_V2 <old> <new> <sig>",
             "Reads in the given old and new api files, " +
                 "computes the difference, and writes out only the new parts of the API in the v2 format.",
-
-            "", "\nStatistics:",
-            ARG_ANNOTATION_COVERAGE_STATS,
-            "Whether $PROGRAM_NAME should emit coverage statistics for " +
-                "annotations, listing the percentage of the API that has been annotated with nullness information.",
-
-            "$ARG_ANNOTATION_COVERAGE_OF <paths>",
-            "One or more jars (separated by `${File.pathSeparator}`) " +
-                "containing existing apps that we want to measure annotation coverage statistics for. The set of " +
-                "API usages in those apps are counted up and the most frequently used APIs that are missing " +
-                "annotation metadata are listed in descending order.",
-
-            ARG_SKIP_JAVA_IN_COVERAGE_REPORT,
-            "In the coverage annotation report, skip java.** and kotlin.** to " +
-                "narrow the focus down to the Android framework APIs.",
-
-            "$ARG_WRITE_CLASS_COVERAGE_TO <path>",
-            "Specifies a file to write the annotation " +
-                "coverage report for classes to.",
-            "$ARG_WRITE_MEMBER_COVERAGE_TO <path>",
-            "Specifies a file to write the annotation " +
-                "coverage report for members to.",
 
             "", "\nExtracting Annotations:",
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

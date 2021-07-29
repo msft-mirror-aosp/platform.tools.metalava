@@ -49,9 +49,6 @@ General:
                                              Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
 --no-color
                                              Do not attempt to colorize the output
---no-docs
-                                             Cancel any other documentation flags supplied to metalava. This is here to
-                                             make it easier customize build system tasks.
 --only-update-api
                                              Cancel any other "action" flags other than generating signature files. This
                                              is here to make it easier customize build system tasks, particularly for
@@ -349,25 +346,6 @@ JDiff:
 --convert-new-to-v2 <old> <new> <sig>
                                              Reads in the given old and new api files, computes the difference, and
                                              writes out only the new parts of the API in the v2 format.
-
-
-Statistics:
---annotation-coverage-stats
-                                             Whether metalava should emit coverage statistics for annotations, listing
-                                             the percentage of the API that has been annotated with nullness
-                                             information.
---annotation-coverage-of <paths>
-                                             One or more jars (separated by `:`) containing existing apps that we want
-                                             to measure annotation coverage statistics for. The set of API usages in
-                                             those apps are counted up and the most frequently used APIs that are
-                                             missing annotation metadata are listed in descending order.
---skip-java-in-coverage-report
-                                             In the coverage annotation report, skip java.** and kotlin.** to narrow the
-                                             focus down to the Android framework APIs.
---write-class-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for classes to.
---write-member-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for members to.
 
 
 Extracting Annotations:
