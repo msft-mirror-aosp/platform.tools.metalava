@@ -4337,4 +4337,75 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Inline class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    inline class Dp(val value: Float) : Comparable<Dp> {
+                        inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
+                        inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
+                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                        val someBits
+                            get() = value && 0x00ff
+                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                        fun doSomething() {}
+                    }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
+                    ctor public Dp();
+                    method public float getValue();
+                    property public final float value;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Value class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline
+                    value class Dp(val value: Float) : Comparable<Dp> {
+                        inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
+                        inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
+                        val someBits
+                            get() = value && 0x00ff
+                        fun doSomething() {}
+                    }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
+                    ctor public Dp(float value);
+                    method public void doSomething();
+                    method public boolean getSomeBits();
+                    method public float getValue();
+                    method public inline operator float minus(float other);
+                    method public inline operator float plus(float other);
+                    property public final boolean someBits;
+                    property public final float value;
+                  }
+                }
+            """
+        )
+    }
 }

@@ -146,6 +146,10 @@ open class DefaultModifierList(
         return isSet(INLINE)
     }
 
+    override fun isValue(): Boolean {
+        return isSet(VALUE)
+    }
+
     override fun isData(): Boolean {
         return isSet(DATA)
     }
@@ -208,6 +212,10 @@ open class DefaultModifierList(
 
     override fun setInline(inline: Boolean) {
         set(INLINE, inline)
+    }
+
+    override fun setValue(value: Boolean) {
+        set(VALUE, value)
     }
 
     override fun setData(data: Boolean) {
@@ -333,6 +341,7 @@ open class DefaultModifierList(
         const val COMPANION = 1 shl 20
         const val CONST = 1 shl 21
         const val DATA = 1 shl 22
+        const val VALUE = 1 shl 23
 
         /**
          * Modifiers considered significant to include signature files (and similarly
