@@ -147,6 +147,9 @@ class PsiModifierItem(
                         visibilityFlags = PUBLIC
                     }
                 }
+                if (ktModifierList.hasModifier(KtTokens.VALUE_KEYWORD)) {
+                    flags = flags or VALUE
+                }
                 if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
                     flags = flags or SUSPEND
                 }
