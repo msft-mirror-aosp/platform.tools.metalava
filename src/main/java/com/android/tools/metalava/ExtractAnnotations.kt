@@ -505,7 +505,7 @@ class ExtractAnnotations(
             attributes = ArrayList(attributes)
 
             // Ensure that the value attribute is written first
-            attributes.sortedWith(object : Comparator<UNamedExpression> {
+            attributes.sortWith(object : Comparator<UNamedExpression> {
                 private fun getName(pair: UNamedExpression): String {
                     val name = pair.name
                     return name ?: SdkConstants.ATTR_VALUE
