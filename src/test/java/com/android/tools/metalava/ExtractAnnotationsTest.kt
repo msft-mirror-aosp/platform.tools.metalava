@@ -379,8 +379,8 @@ class ExtractAnnotationsTest : DriverTest() {
                 <root>
                   <item name="test.pkg.MyTest int test(int)">
                     <annotation name="androidx.annotation.IntDef">
-                      <val name="flag" val="true" />
                       <val name="value" val="{java.util.Calendar.ERA, java.util.Calendar.YEAR}" />
+                      <val name="flag" val="true" />
                     </annotation>
                   </item>
                   <item name="test.pkg.MyTest int test(int) 0">
