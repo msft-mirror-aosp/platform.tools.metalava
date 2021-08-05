@@ -343,7 +343,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     package test.pkg;
 
                     public class MyTest {
-                        public void test(int arg) { }
+                        public int test(int arg) { }
                     }"""
                 ),
                 java(
@@ -360,9 +360,15 @@ class ExtractAnnotationsTest : DriverTest() {
             ),
             mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
-                  <item name="test.pkg.MyTest void test(int) 0">
+                  <item name="test.pkg.MyTest int test(int) 0">
                     <annotation name="org.intellij.lang.annotations.MagicConstant">
                       <val name="intValues" val="{java.util.Calendar.ERA, java.util.Calendar.YEAR, java.util.Calendar.MONTH, java.util.Calendar.WEEK_OF_YEAR, Nonexistent.Field}" />
+                    </annotation>
+                  </item>
+                  <item name="test.pkg.MyTest int test(int)">
+                    <annotation name="androidx.annotation.IntDef">
+                      <val name="flag" val="true" />
+                      <val name="value" val="{java.util.Calendar.ERA, java.util.Calendar.YEAR}" />
                     </annotation>
                   </item>
                 </root>
@@ -371,7 +377,13 @@ class ExtractAnnotationsTest : DriverTest() {
                 "test.pkg" to """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
-                  <item name="test.pkg.MyTest void test(int) 0">
+                  <item name="test.pkg.MyTest int test(int)">
+                    <annotation name="androidx.annotation.IntDef">
+                      <val name="value" val="{java.util.Calendar.ERA, java.util.Calendar.YEAR}" />
+                      <val name="flag" val="true" />
+                    </annotation>
+                  </item>
+                  <item name="test.pkg.MyTest int test(int) 0">
                     <annotation name="androidx.annotation.IntDef">
                       <val name="value" val="{java.util.Calendar.ERA, java.util.Calendar.YEAR, java.util.Calendar.MONTH, java.util.Calendar.WEEK_OF_YEAR}" />
                     </annotation>
