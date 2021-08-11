@@ -250,9 +250,14 @@ class DocAnalyzer(
                     // Some docs already specifically talk about null policy; in that case,
                     // don't include the docs (since it may conflict with more specific conditions
                     // outlined in the docs).
-                    if (item.documentation.contains("null") &&
-                        mentionsNull.matcher(item.documentation).find()
-                    ) {
+                    val doc =
+                        if (item is ParameterItem) {
+                            item.containingMethod().findTagDocumentation("param", item.name())
+                                ?: ""
+                        } else {
+                            item.documentation
+                        }
+                    if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
                         return
                     }
                 }
