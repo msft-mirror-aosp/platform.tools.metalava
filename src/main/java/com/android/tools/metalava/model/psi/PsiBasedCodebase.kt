@@ -96,7 +96,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     val project: Project
         get() = uastEnvironment.ideaProject
 
-    /** Map from class name to class item */
+    /** Map from class name to class item. Classes are added via [registerClass] */
     private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
@@ -519,8 +519,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             classItem.finishInitialization()
             return classItem
         }
-        val qualifiedName: String = clz.qualifiedName ?: clz.name!!
-        classMap[qualifiedName] = classItem
 
         // TODO: Cache for adjacent files!
         val packageName = getPackageName(clz)
@@ -554,7 +552,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         // Set emit to true for source classes but false for classpath classes
         classItem.emit = initializing
 
-        classMap[classItem.qualifiedName()] = classItem
+        registerClass(classItem)
 
         val packageName = ktClassOrObject.containingKtFile.packageFqName.asString()
         registerPackageClass(packageName, classItem)
@@ -787,9 +785,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     override fun toString(): String = description
 
-    fun registerClass(cls: PsiClassItem) {
-        assert(classMap[cls.qualifiedName()] == null || classMap[cls.qualifiedName()] == cls)
-
+    /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
+    internal fun registerClass(cls: ClassItem) {
         classMap[cls.qualifiedName()] = cls
     }
 }

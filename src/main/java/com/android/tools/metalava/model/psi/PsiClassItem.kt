@@ -452,8 +452,11 @@ open class PsiClassItem(
                 modifiers = modifiers,
                 fromClassPath = fromClassPath
             )
-            codebase.registerClass(item)
             item.modifiers.setOwner(item)
+
+            // Register this class now so it's present when calling Codebase.findOrCreateClass for
+            // inner classes below
+            codebase.registerClass(item)
 
             // Construct the children
             val psiMethods = psiClass.methods
