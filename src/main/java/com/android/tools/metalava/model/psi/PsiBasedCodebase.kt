@@ -549,16 +549,33 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return classItem
     }
 
-    private fun createClass(ktClassOrObject: KtClassOrObject): ClassItem {
-        // If initializing is true, this class is from source
-        val classItem = KotlinClassItem(this, ktClassOrObject, fromClassPath = !initializing)
+    /** Create a [KotlinClassItem] with inner classes (recursively), but not super types */
+    private fun createClass(
+        classElement: KtClassOrObject,
+        containingClass: KotlinClassItem? = null
+    ): KotlinClassItem {
+        require((containingClass != null) xor classElement.isTopLevel()) {
+            "containingClass is required for nested classes"
+        }
+
+        val classItem = KotlinClassItem(
+            codebase = this,
+            element = classElement,
+            containingClass = containingClass,
+            fromClassPath = !initializing // If initializing is true, this class is from source
+        )
+
         // Set emit to true for source classes but false for classpath classes
         classItem.emit = initializing
 
         registerClass(classItem)
 
-        val packageName = ktClassOrObject.containingKtFile.packageFqName.asString()
+        val packageName = classElement.containingKtFile.packageFqName.asString()
         registerPackageClass(packageName, classItem)
+
+        val nestedClasses = mutableListOf<KtClassOrObject>()
+        classElement.body?.acceptChildren(classOrObjectVisitor { nestedClasses += it })
+        classItem.nestedClasses = nestedClasses.map { createClass(it, classItem) }.toList()
 
         return classItem
     }

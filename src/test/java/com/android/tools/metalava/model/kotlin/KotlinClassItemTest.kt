@@ -22,12 +22,20 @@ import com.android.tools.metalava.withCodebase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class KotlinClassItemTest {
     @Test
     fun simpleName() {
-        withClass("class Foo") { assertEquals("Foo", it.simpleName()) }
+        withClass(
+            """
+                package androidx.pkg
+
+                class Foo
+            """
+        ) { assertEquals("Foo", it.simpleName()) }
     }
 
     @Test
@@ -39,6 +47,23 @@ class KotlinClassItemTest {
                 class Foo
             """
         ) { assertEquals("androidx.pkg.Foo", it.qualifiedName()) }
+    }
+
+    @Test
+    fun fullName() {
+        withClass(
+            """
+                package androidx.foo
+
+                class Foo {
+                    class Bar
+                }
+            """
+        ) { foo ->
+            val bar = foo.innerClasses().single()
+            assertEquals("Foo", foo.fullName())
+            assertEquals("Foo.Bar", bar.fullName())
+        }
     }
 
     @Test
@@ -73,5 +98,15 @@ class KotlinClassItemTest {
     fun emit() {
         // TODO: Test a superclass from the class path once supertypes are working
         withClass("class Foo") { assertTrue(it.emit) }
+    }
+
+    @Test
+    fun innerClasses() {
+        withClass("class Foo { class Bar }") { foo ->
+            val bar = foo.innerClasses().single()
+            assertEquals("Foo.Bar", bar.qualifiedName())
+            assertSame(foo, bar.containingClass())
+            assertNull(foo.containingClass())
+        }
     }
 }
