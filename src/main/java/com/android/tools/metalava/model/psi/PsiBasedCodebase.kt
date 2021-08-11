@@ -71,6 +71,26 @@ const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
+/**
+ * A codebase containing Java, Kotlin, or UAST PSI classes
+ *
+ * After creation, a list of PSI file or a JAR file is passed to [initialize]. This creates package
+ * and class items along with their members. This process is broken into two phases:
+ *
+ * First, [initializing] is set to true, and class items are created from the supplied sources.
+ * These are main classes of the codebase and have [ClassItem.emit] set to true and
+ * [ClassItem.isFromClassPath] set to false. While creating these, package names are reserved and
+ * associated with their classes in [packageClasses].
+ *
+ * Next, package items are created for source classes based on the contents of [packageClasses]
+ * with [PackageItem.emit] set to true.
+ *
+ * Then [initializing] is set to false and the second pass begins. This path iteratively resolves
+ * supertypes of class items until all are fully resolved, creating new class and package items as
+ * needed. Since all the source class and package items have been created, new items are assumed to
+ * originate from the classpath and have [Item.emit] set to false and [Item.isFromClassPath] set to
+ * true.
+ */
 open class PsiBasedCodebase(location: File, override var description: String = "Unknown") : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
@@ -100,6 +120,16 @@ open class PsiBasedCodebase(location: File, override var description: String = "
      */
     private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
 
+    /**
+     * Set to true in [initialize] for the first pass of creating class items for all classes in
+     * the codebase sources and false for the second pass of creating class items for the
+     * supertypes of the codebase classes. New class items created in the supertypes pass must come
+     * from the classpath (dependencies) since all source classes have been created.
+     *
+     * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
+     * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
+     * [registerPackage] to set [PackageItem.emit] to true for source packages.
+     */
     private var initializing = false
 
     override fun trustedApi(): Boolean = false
@@ -307,7 +337,10 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         packageHtml: String?,
         pkgName: String
     ): PsiPackageItem {
-        val packageItem = PsiPackageItem.create(this, psiPackage, packageHtml)
+        val packageItem = PsiPackageItem
+            .create(this, psiPackage, packageHtml, fromClassPath = !initializing)
+        packageItem.emit = initializing
+
         packageMap[pkgName] = packageItem
         if (isPackageHidden(pkgName)) {
             packageItem.hidden = true
@@ -462,14 +495,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     }
 
     private fun createClass(clz: PsiClass): PsiClassItem {
-        val classItem = PsiClassItem.create(this, clz)
+        // If initializing is true, this class is from source
+        val classItem = PsiClassItem.create(this, clz, fromClassPath = !initializing)
+        // Set emit to true for source classes but false for classpath classes
+        classItem.emit = initializing
 
         if (!initializing) {
-            // This class is found while we're no longer initializing all the source units:
-            // that means it must be found on the classpath instead. These should be treated
-            // as hidden; we don't want to generate code for them.
-            classItem.emit = false
-
             // Workaround: we're pulling in .aidl files from .jar files. These are
             // marked @hide, but since we only see the .class files we don't know that.
             if (classItem.simpleName().startsWith("I") &&
@@ -496,7 +527,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         registerPackageClass(packageName, classItem)
 
         if (!initializing) {
-            classItem.emit = false
             classItem.finishInitialization()
             val pkgName = getPackageName(clz)
             val pkg = findPackage(pkgName)
@@ -519,11 +549,10 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     }
 
     private fun createClass(ktClassOrObject: KtClassOrObject): ClassItem {
-        val classItem = KotlinClassItem(this, ktClassOrObject)
-
-        if (!initializing) {
-            classItem.emit = false
-        }
+        // If initializing is true, this class is from source
+        val classItem = KotlinClassItem(this, ktClassOrObject, fromClassPath = !initializing)
+        // Set emit to true for source classes but false for classpath classes
+        classItem.emit = initializing
 
         classMap[classItem.qualifiedName()] = classItem
 

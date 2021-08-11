@@ -62,4 +62,16 @@ class KotlinClassItemTest {
             """
         ) { assertEquals("androidx.pkg", it.containingPackage().qualifiedName()) }
     }
+
+    @Test
+    fun isFromClassPath() {
+        // TODO: Test a superclass from the class path once supertypes are working
+        withClass("class Foo") { assertFalse(it.isFromClassPath()) }
+    }
+
+    @Test
+    fun emit() {
+        // TODO: Test a superclass from the class path once supertypes are working
+        withClass("class Foo") { assertTrue(it.emit) }
+    }
 }

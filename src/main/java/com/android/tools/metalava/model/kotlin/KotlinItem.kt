@@ -25,4 +25,9 @@ interface KotlinItem : Item {
     val element: KtElement
     override val modifiers: KotlinModifierList
     override var documentation: String
+
+    // KotlinClassItem tracks if it came from source or class path, members
+    override fun isFromClassPath(): Boolean {
+        return containingClass()?.isFromClassPath() ?: false
+    }
 }

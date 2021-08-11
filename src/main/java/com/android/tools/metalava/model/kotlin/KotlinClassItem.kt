@@ -34,10 +34,13 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 class KotlinClassItem(
     override val codebase: PsiBasedCodebase,
     override val element: KtClassOrObject,
-    override val modifiers: KotlinModifierList = KotlinModifierList(codebase),
-    override var documentation: String = element.docComment?.toString().orEmpty()
+    /** True if this class is from the classpath (dependencies). Exposed in [isFromClassPath]. */
+    private val fromClassPath: Boolean = false
 ) : KotlinItem, ClassItem, DefaultItem() {
     lateinit var containingPackage: PackageItem
+
+    override val modifiers = KotlinModifierList(codebase).also { it.setOwner(this) }
+    override var documentation: String = element.docComment?.toString().orEmpty()
 
     override fun simpleName(): String = element.name!!.toString()
 
@@ -88,6 +91,8 @@ class KotlinClassItem(
     override fun properties(): List<PropertyItem> = emptyList()
 
     override fun fields(): List<FieldItem> = emptyList()
+
+    override fun isFromClassPath(): Boolean = fromClassPath
 
     override fun isInterface(): Boolean {
         TODO("Not yet implemented")
