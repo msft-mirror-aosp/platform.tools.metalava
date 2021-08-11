@@ -108,7 +108,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
-    /** Map from package name to list of classes in that package */
+    /** Map from package name to list of classes in that package. Only used during [initialize]. */
     private lateinit var packageClasses: MutableMap<String, MutableList<ClassItem>>
 
     /** A set of packages to hide */
@@ -254,7 +254,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             registerPackage(psiPackage, sortedClasses, packageDocs[pkgName], pkgName)
         }
-
         initializing = false
 
         emptyPackage = findPackage("")!!
@@ -279,6 +278,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
         addParentPackages(packageMap.values)
+
+        packageClasses.clear() // Not used after this point
     }
 
     override fun dispose() {
@@ -447,6 +448,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         for (pkg in packageMap.values) {
             pkg.finishInitialization()
         }
+
+        packageClasses.clear() // Not used after this point
     }
 
     fun dumpStats() {
