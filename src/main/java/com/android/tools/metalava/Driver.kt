@@ -269,11 +269,13 @@ private fun processFlags() {
         ApiGenerator.generate(apiLevelJars, options.firstApiLevel, androidApiLevelXml, codebase)
     }
 
-    if (options.docStubsDir != null && codebase.supportsDocumentation()) {
+    if (options.docStubsDir != null || options.enhanceDocumentation) {
+        if (!codebase.supportsDocumentation()) {
+            error("Codebase does not support documentation, so it cannot be enhanced.")
+        }
         progress("Enhancing docs: ")
         val docAnalyzer = DocAnalyzer(codebase)
         docAnalyzer.enhance()
-
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
             progress("Applying API levels")
