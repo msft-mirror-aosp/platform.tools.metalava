@@ -43,7 +43,6 @@ import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinNullabilityUAnnotation
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -108,8 +107,11 @@ class PsiModifierItem(
             var ktModifierList: KtModifierList? = null
             if (modifierList is KtLightModifierList<*>) {
                 ktModifierList = modifierList.kotlinOrigin
-            } else if (modifierList is LightModifierList && element is KotlinUMethod) {
-                ktModifierList = element.sourcePsi?.modifierList
+            } else if (modifierList is LightModifierList && element is UMethod) {
+                val source = element.sourcePsi
+                if (source is KtModifierListOwner) {
+                    ktModifierList = source.modifierList
+                }
             }
             if (ktModifierList != null) {
                 if (ktModifierList.hasModifier(KtTokens.VARARG_KEYWORD)) {
