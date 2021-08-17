@@ -52,7 +52,8 @@ open class DefaultModifierList(
         val levels = VISIBILITY_LEVEL_ENUMS
         if (visibilityFlags >= levels.size) {
             throw IllegalStateException(
-                "Visibility flags are invalid, expected value in range [0, " + levels.size + ") got " + visibilityFlags)
+                "Visibility flags are invalid, expected value in range [0, " + levels.size + ") got " + visibilityFlags
+            )
         }
         return levels[visibilityFlags]
     }
@@ -145,6 +146,10 @@ open class DefaultModifierList(
         return isSet(INLINE)
     }
 
+    override fun isValue(): Boolean {
+        return isSet(VALUE)
+    }
+
     override fun isData(): Boolean {
         return isSet(DATA)
     }
@@ -209,6 +214,10 @@ open class DefaultModifierList(
         set(INLINE, inline)
     }
 
+    override fun setValue(value: Boolean) {
+        set(VALUE, value)
+    }
+
     override fun setData(data: Boolean) {
         set(DATA, data)
     }
@@ -266,11 +275,13 @@ open class DefaultModifierList(
             } else {
                 if (same == FINAL &&
                     // Only differ in final: not significant if implied by containing class
-                    isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true) {
+                    isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
+                ) {
                     return true
                 } else if (same == DEPRECATED &&
                     // Only differ in deprecated: not significant if implied by containing class
-                    isDeprecated() && (owner as? MethodItem)?.containingClass()?.deprecated == true) {
+                    isDeprecated() && (owner as? MethodItem)?.containingClass()?.deprecated == true
+                ) {
                     return true
                 }
             }
@@ -330,6 +341,7 @@ open class DefaultModifierList(
         const val COMPANION = 1 shl 20
         const val CONST = 1 shl 21
         const val DATA = 1 shl 22
+        const val VALUE = 1 shl 23
 
         /**
          * Modifiers considered significant to include signature files (and similarly

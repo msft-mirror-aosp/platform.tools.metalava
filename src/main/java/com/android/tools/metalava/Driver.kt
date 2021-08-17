@@ -21,11 +21,6 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
-import com.android.ide.common.process.CachedProcessOutputHandler
-import com.android.ide.common.process.DefaultProcessExecutor
-import com.android.ide.common.process.ProcessInfoBuilder
-import com.android.ide.common.process.ProcessOutput
-import com.android.ide.common.process.ProcessOutputHandler
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -41,8 +36,6 @@ import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
-import com.android.utils.StdLogger
-import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
@@ -53,10 +46,10 @@ import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
-import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -341,19 +334,6 @@ private fun processFlags() {
         ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
     }
 
-    options.removedDexApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
-        val removedFilter = FilterPredicate(ApiPredicate(matchRemoved = true))
-        val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val removedDexEmit = memberIsNotCloned.and(removedFilter)
-
-        createReportFile(
-            unfiltered, apiFile, "removed DEX API"
-        ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
-    }
-
     options.proguard?.let { proguard ->
         val apiEmit = FilterPredicate(ApiPredicate())
         val apiReference = ApiPredicate(ignoreShown = true)
@@ -433,22 +413,10 @@ private fun processFlags() {
     }
     options.externalAnnotations?.let { extractAnnotations(codebase, it) }
 
-    // Coverage stats?
-    if (options.dumpAnnotationStatistics) {
-        progress("Measuring annotation statistics: ")
-        AnnotationStatistics(codebase).count()
-    }
-    if (options.annotationCoverageOf.isNotEmpty()) {
-        progress("Measuring annotation coverage: ")
-        AnnotationStatistics(codebase).measureCoverageOf(options.annotationCoverageOf)
-    }
-
     if (options.verbose) {
         val packageCount = codebase.size()
         progress("$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n")
     }
-
-    invokeDocumentationTool()
 }
 
 fun subtractApi(codebase: Codebase, subtractApiFile: File) {
@@ -460,11 +428,14 @@ fun subtractApi(codebase: Codebase, subtractApiFile: File) {
             else -> throw DriverException("Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}")
         }
 
-    CodebaseComparator().compare(object : ComparisonVisitor() {
-        override fun compare(old: ClassItem, new: ClassItem) {
-            new.emit = false
-        }
-    }, oldCodebase, codebase, ApiType.ALL.getReferenceFilter())
+    CodebaseComparator().compare(
+        object : ComparisonVisitor() {
+            override fun compare(old: ClassItem, new: ClassItem) {
+                new.emit = false
+            }
+        },
+        oldCodebase, codebase, ApiType.ALL.getReferenceFilter()
+    )
 }
 
 fun processNonCodebaseFlags() {
@@ -596,8 +567,10 @@ fun checkCompatibility(
             if (options.baseApiForCompatCheck != null) {
                 // This option does not make sense with showAnnotation, as the "base" in that case
                 // is the non-annotated APIs.
-                throw DriverException(ARG_CHECK_COMPATIBILITY_BASE_API +
-                    " is not compatible with --showAnnotation.")
+                throw DriverException(
+                    ARG_CHECK_COMPATIBILITY_BASE_API +
+                        " is not compatible with --showAnnotation."
+                )
             }
 
             newBase = codebase
@@ -673,102 +646,6 @@ fun createTempFile(namePrefix: String, nameSuffix: String): File {
         File.createTempFile(namePrefix, nameSuffix, tempFolder)
     } else {
         File.createTempFile(namePrefix, nameSuffix)
-    }
-}
-
-fun invokeDocumentationTool() {
-    if (options.noDocs) {
-        return
-    }
-
-    val args = options.invokeDocumentationToolArguments
-    if (args.isNotEmpty()) {
-        if (!options.quiet) {
-            options.stdout.println(
-                "Invoking external documentation tool ${args[0]} with arguments\n\"${
-                args.slice(1 until args.size).joinToString(separator = "\",\n\"") { it }}\""
-            )
-            options.stdout.flush()
-        }
-
-        val builder = ProcessInfoBuilder()
-
-        builder.setExecutable(File(args[0]))
-        builder.addArgs(args.slice(1 until args.size))
-
-        val processOutputHandler =
-            if (options.quiet) {
-                CachedProcessOutputHandler()
-            } else {
-                object : ProcessOutputHandler {
-                    override fun handleOutput(processOutput: ProcessOutput?) {
-                    }
-
-                    override fun createOutput(): ProcessOutput {
-                        val out = PrintWriterOutputStream(options.stdout)
-                        val err = PrintWriterOutputStream(options.stderr)
-                        return object : ProcessOutput {
-                            override fun getStandardOutput(): OutputStream {
-                                return out
-                            }
-
-                            override fun getErrorOutput(): OutputStream {
-                                return err
-                            }
-
-                            override fun close() {
-                                out.flush()
-                                err.flush()
-                            }
-                        }
-                    }
-                }
-            }
-
-        val result = DefaultProcessExecutor(StdLogger(ERROR))
-            .execute(builder.createProcess(), processOutputHandler)
-
-        val exitCode = result.exitValue
-        if (!options.quiet) {
-            options.stdout.println("${args[0]} finished with exitCode $exitCode")
-            options.stdout.flush()
-        }
-        if (exitCode != 0) {
-            val stdout = if (processOutputHandler is CachedProcessOutputHandler)
-                processOutputHandler.processOutput.standardOutputAsString
-            else ""
-            val stderr = if (processOutputHandler is CachedProcessOutputHandler)
-                processOutputHandler.processOutput.errorOutputAsString
-            else ""
-            throw DriverException(
-                stdout = "Invoking documentation tool ${args[0]} failed with exit code $exitCode\n$stdout",
-                stderr = stderr,
-                exitCode = exitCode
-            )
-        }
-    }
-}
-
-class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() {
-
-    override fun write(b: ByteArray) {
-        writer.write(String(b, UTF_8))
-    }
-
-    override fun write(b: Int) {
-        write(byteArrayOf(b.toByte()), 0, 1)
-    }
-
-    override fun write(b: ByteArray, off: Int, len: Int) {
-        writer.write(String(b, off, len, UTF_8))
-    }
-
-    override fun flush() {
-        writer.flush()
-    }
-
-    override fun close() {
-        writer.close()
     }
 }
 
@@ -884,6 +761,12 @@ internal fun parseSources(
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
     config.addClasspathRoots(classpath.map { it.absoluteFile })
+    options.jdkHome?.let {
+        if (options.isJdkModular(it)) {
+            config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
+            config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
+        }
+    }
 
     val environment = createProjectEnvironment(config)
 
@@ -1073,7 +956,7 @@ fun createReportFile(
             codebase.accept(apiWriter)
         }
         val text = stringWriter.toString()
-        if (text.length > 0 || !deleteEmptyFiles) {
+        if (text.isNotEmpty() || !deleteEmptyFiles) {
             apiFile.writeText(text)
         }
     } catch (e: IOException) {
@@ -1107,9 +990,9 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
     } else if (file.isFile) {
         when {
             file.name.endsWith(DOT_JAVA) ||
-            file.name.endsWith(DOT_KT) ||
-            file.name.equals(PACKAGE_HTML) ||
-            file.name.equals(OVERVIEW_HTML) -> list.add(file)
+                file.name.endsWith(DOT_KT) ||
+                file.name.equals(PACKAGE_HTML) ||
+                file.name.equals(OVERVIEW_HTML) -> list.add(file)
         }
     }
 }
@@ -1205,7 +1088,8 @@ private fun findRoot(file: File): File? {
             return File(path.substring(0, endIndex))
         } else {
             reporter.report(
-                Issues.IO_ERROR, file, "$PROGRAM_NAME was unable to determine the package name. " +
+                Issues.IO_ERROR, file,
+                "$PROGRAM_NAME was unable to determine the package name. " +
                     "This usually means that a source file was where the directory does not seem to match the package " +
                     "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
             )

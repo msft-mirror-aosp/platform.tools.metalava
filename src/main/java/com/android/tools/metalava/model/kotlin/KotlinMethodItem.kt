@@ -16,70 +16,76 @@
 
 package com.android.tools.metalava.model.kotlin
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtNamedFunction
 
-class KotlinParameterItem(
+class KotlinMethodItem(
     override val codebase: PsiBasedCodebase,
-    override val element: KtParameter,
-    private val name: String,
-    override val parameterIndex: Int,
-    override val modifiers: KotlinModifierList,
-    override var documentation: String,
-    private val type: KotlinTypeItem
-) : KotlinItem, ParameterItem, DefaultItem() {
+    override val element: KtNamedFunction,
+    override val modifiers: KotlinModifierList = KotlinModifierList(codebase),
+    override var documentation: String = element.docComment?.toString().orEmpty()
+) : KotlinItem, MethodItem, DefaultItem() {
     override fun name(): String {
         TODO("Not yet implemented")
     }
 
-    override fun type(): TypeItem {
+    override fun containingClass(): ClassItem {
         TODO("Not yet implemented")
     }
 
-    override fun containingMethod(): MethodItem {
+    override fun isConstructor(): Boolean {
         TODO("Not yet implemented")
     }
 
-    override fun publicName(): String? {
+    override fun returnType(): TypeItem? {
         TODO("Not yet implemented")
     }
 
-    override fun hasDefaultValue(): Boolean {
+    override fun parameters(): List<ParameterItem> {
         TODO("Not yet implemented")
     }
 
-    override fun isDefaultValueKnown(): Boolean {
+    override fun isExtensionMethod(): Boolean {
         TODO("Not yet implemented")
     }
 
-    override fun defaultValue(): String? {
+    override fun superMethods(): List<MethodItem> {
         TODO("Not yet implemented")
     }
 
-    override fun isVarArgs(): Boolean {
+    override fun typeParameterList(): TypeParameterList {
         TODO("Not yet implemented")
     }
 
+    override fun throwsTypes(): List<ClassItem> {
+        TODO("Not yet implemented")
+    }
+
+    override var inheritedMethod: Boolean
+        get() = TODO("Not yet implemented")
+        set(_) { TODO("Not yet implemented") }
     override var originallyHidden: Boolean
         get() = TODO("Not yet implemented")
-        set(value) { TODO(value.toString()) }
+        set(_) { TODO("Not yet implemented") }
     override var hidden: Boolean
         get() = TODO("Not yet implemented")
-        set(value) { TODO(value.toString()) }
+        set(_) { TODO("Not yet implemented") }
     override var removed: Boolean
         get() = TODO("Not yet implemented")
-        set(value) { TODO(value.toString()) }
+        set(_) { TODO("Not yet implemented") }
     override var deprecated: Boolean
         get() = TODO("Not yet implemented")
-        set(value) { TODO(value.toString()) }
+        set(_) { TODO("Not yet implemented") }
     override var docOnly: Boolean
         get() = TODO("Not yet implemented")
-        set(value) { TODO(value.toString()) }
+        set(_) { TODO("Not yet implemented") }
     override val synthetic: Boolean
         get() = TODO("Not yet implemented")
 
@@ -91,17 +97,9 @@ class KotlinParameterItem(
         TODO("Not yet implemented")
     }
 
-    override val sortingRank: Int
-        get() = TODO("Not yet implemented")
-
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("Not yet implemented")
     }
-
-    override val isPackagePrivate: Boolean
-        get() = TODO("Not yet implemented")
-    override val isPrivate: Boolean
-        get() = TODO("Not yet implemented")
 
     override fun equals(other: Any?): Boolean {
         TODO("Not yet implemented")
@@ -112,6 +110,14 @@ class KotlinParameterItem(
     }
 
     override fun isCloned(): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override var inheritedFrom: ClassItem?
+        get() = TODO("Not yet implemented")
+        set(_) { TODO("Not yet implemented") }
+
+    override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         TODO("Not yet implemented")
     }
 }

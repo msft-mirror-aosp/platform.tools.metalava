@@ -27,32 +27,47 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.psi.ClassType
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiPackageItem
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtClassOrObject
 
-open class KotlinClassItem(
+class KotlinClassItem(
     override val codebase: PsiBasedCodebase,
-    override val element: KtClass,
-    private val name: String,
-    private val fullName: String,
-    private val qualifiedName: String,
-    private val hasImplicitDefaultConstructor: Boolean,
-    val classType: ClassType,
-    override val modifiers: KotlinModifierList,
-    override var documentation: String
+    override val element: KtClassOrObject,
+    /** Containing class for nested classes, exposed in [containingClass] */
+    private val containingClass: KotlinClassItem? = null,
+    /** True if this class is from the classpath (dependencies). Exposed in [isFromClassPath]. */
+    private val fromClassPath: Boolean = false
 ) : KotlinItem, ClassItem, DefaultItem() {
-    override fun simpleName(): String {
-        TODO("Not yet implemented")
-    }
+    /** Cache the qualified name as a string, exposed in [qualifiedName] */
+    private val qualifiedName: String = element.fqName!!.asString()
 
-    override fun fullName(): String {
-        TODO("Not yet implemented")
-    }
+    /** Cache the simple name as a string, exposed in [simpleName] */
+    private val simpleName: String = element.name!!.toString()
 
-    override fun qualifiedName(): String {
-        TODO("Not yet implemented")
-    }
+    /** Compute the full name in advance, exposed in [fullName] */
+    private val fullName: String =
+        containingClass?.let { "${it.fullName}.$simpleName" } ?: simpleName
+
+    /** Set in [PsiPackageItem.addClass], exposed in [containingPackage] */
+    internal lateinit var containingPackage: PackageItem
+
+    /** Set in [PsiBasedCodebase.createClass], exposed in [innerClasses] */
+    internal lateinit var nestedClasses: List<ClassItem>
+
+    override val modifiers = KotlinModifierList(codebase).also { it.setOwner(this) }
+    override var documentation: String = element.docComment?.toString().orEmpty()
+
+    override fun simpleName(): String = simpleName
+
+    override fun fullName(): String = fullName
+
+    override fun qualifiedName(): String = qualifiedName
+
+    override fun isTopLevelClass(): Boolean = containingClass == null
+
+    override fun isInnerClass(): Boolean = containingClass != null
 
     override fun isDefined(): Boolean {
         TODO("Not yet implemented")
@@ -74,29 +89,21 @@ open class KotlinClassItem(
         TODO("Not yet implemented")
     }
 
-    override fun innerClasses(): List<ClassItem> {
-        TODO("Not yet implemented")
-    }
+    override fun innerClasses(): List<ClassItem> = nestedClasses
 
-    override fun constructors(): List<ConstructorItem> {
-        TODO("Not yet implemented")
-    }
+    override fun constructors(): List<ConstructorItem> = emptyList()
 
     override fun hasImplicitDefaultConstructor(): Boolean {
         TODO("Not yet implemented")
     }
 
-    override fun methods(): List<MethodItem> {
-        TODO("Not yet implemented")
-    }
+    override fun methods(): List<MethodItem> = emptyList()
 
-    override fun properties(): List<PropertyItem> {
-        TODO("Not yet implemented")
-    }
+    override fun properties(): List<PropertyItem> = emptyList()
 
-    override fun fields(): List<FieldItem> {
-        TODO("Not yet implemented")
-    }
+    override fun fields(): List<FieldItem> = emptyList()
+
+    override fun isFromClassPath(): Boolean = fromClassPath
 
     override fun isInterface(): Boolean {
         TODO("Not yet implemented")
@@ -106,17 +113,11 @@ open class KotlinClassItem(
         TODO("Not yet implemented")
     }
 
-    override fun isEnum(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun isEnum(): Boolean = (element as? KtClass)?.isEnum() ?: false
 
-    override fun containingClass(): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun containingClass(): ClassItem? = containingClass
 
-    override fun containingPackage(): PackageItem {
-        TODO("Not yet implemented")
-    }
+    override fun containingPackage(): PackageItem = containingPackage
 
     override fun toType(): TypeItem {
         TODO("Not yet implemented")

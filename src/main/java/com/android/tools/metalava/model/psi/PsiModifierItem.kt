@@ -43,7 +43,6 @@ import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinNullabilityUAnnotation
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -108,8 +107,11 @@ class PsiModifierItem(
             var ktModifierList: KtModifierList? = null
             if (modifierList is KtLightModifierList<*>) {
                 ktModifierList = modifierList.kotlinOrigin
-            } else if (modifierList is LightModifierList && element is KotlinUMethod) {
-                ktModifierList = element.sourcePsi?.modifierList
+            } else if (modifierList is LightModifierList && element is UMethod) {
+                val source = element.sourcePsi
+                if (source is KtModifierListOwner) {
+                    ktModifierList = source.modifierList
+                }
             }
             if (ktModifierList != null) {
                 if (ktModifierList.hasModifier(KtTokens.VARARG_KEYWORD)) {
@@ -146,6 +148,9 @@ class PsiModifierItem(
                         // Switch back from private to public
                         visibilityFlags = PUBLIC
                     }
+                }
+                if (ktModifierList.hasModifier(KtTokens.VALUE_KEYWORD)) {
+                    flags = flags or VALUE
                 }
                 if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
                     flags = flags or SUSPEND
@@ -194,7 +199,8 @@ class PsiModifierItem(
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -238,7 +244,8 @@ class PsiModifierItem(
 
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""

@@ -57,6 +57,7 @@ interface ModifierList {
     fun isSuspend(): Boolean = false
     fun isOperator(): Boolean = false
     fun isInline(): Boolean = false
+    fun isValue(): Boolean = false
     fun isData(): Boolean = false
     fun isEmpty(): Boolean
 
@@ -305,8 +306,10 @@ interface ModifierList {
             }
 
             val isInterface = classItem?.isInterface() == true ||
-                (methodItem?.containingClass()?.isInterface() == true &&
-                    !list.isDefault() && !list.isStatic())
+                (
+                    methodItem?.containingClass()?.isInterface() == true &&
+                        !list.isDefault() && !list.isStatic()
+                    )
 
             if (list.isAbstract() &&
                 classItem?.isEnum() != true &&
@@ -345,6 +348,10 @@ interface ModifierList {
 
             if (list.isInline()) {
                 writer.write("inline ")
+            }
+
+            if (list.isValue()) {
+                writer.write("value ")
             }
 
             if (list.isInfix()) {
@@ -455,7 +462,8 @@ interface ModifierList {
                         }
                     } else if (options.typedefMode == Options.TypedefMode.REFERENCE &&
                         annotation.targets() === ANNOTATION_SIGNATURE_ONLY &&
-                        annotation.findTypedefAnnotation() != null) {
+                        annotation.findTypedefAnnotation() != null
+                    ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
                         writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName()!!)

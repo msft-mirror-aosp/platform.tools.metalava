@@ -18,7 +18,6 @@
 
 package com.android.tools.metalava
 
-import org.junit.Ignore
 import org.junit.Test
 
 class Java9LanguageFeaturesTest : DriverTest() {
@@ -76,7 +75,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                 )
             ),
             api =
-                """
+            """
                 package test.pkg {
                   public interface Foo {
                     method public default static void sayHello();
@@ -189,7 +188,6 @@ class Java9LanguageFeaturesTest : DriverTest() {
         )
     }
 
-    @Ignore("TODO: unable to load JDK11 libraries from java.home")
     @Test
     fun `Using JDK APIs`() {
         // Non-Android example
@@ -207,7 +205,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
                 )
             ),
             api =
-                """
+            """
                 package test.pkg {
                   public class SwingTest extends javax.swing.JButton {
                     ctor public SwingTest();

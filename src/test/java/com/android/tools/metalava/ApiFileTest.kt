@@ -1196,7 +1196,8 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     package androidx.annotation.experimental
 
                     import kotlin.annotation.Retention
@@ -1222,7 +1223,8 @@ class ApiFileTest : DriverTest() {
                          */
                         vararg val markerClass: KClass<out Annotation>
                     )
-                """)
+                """
+                )
             ),
             format = FileFormat.V3,
             api = """
@@ -1269,14 +1271,16 @@ class ApiFileTest : DriverTest() {
                             extends MyBaseInterface {
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package a.b.c;
                     @SuppressWarnings("ALL")
                     public interface MyStream<T, S extends MyStream<T, S>> extends test.pkg.AutoCloseable {
                     }
                     """
-                ), java(
+                ),
+                java(
                     """
                     package test.pkg;
                     @SuppressWarnings("ALL")
@@ -2612,16 +2616,7 @@ class ApiFileTest : DriverTest() {
                     field public int removed;
                   }
                 }
-                """,
-            removedDexApi = "" +
-                "Ltest/pkg/Bar;-><init>()V\n" +
-                "Ltest/pkg/Bar;->removedMethod()V\n" +
-                "Ltest/pkg/Bar;->removedField:I\n" +
-                "Ltest/pkg/Bar\$Inner;\n" +
-                "Ltest/pkg/Bar\$Inner;-><init>()V\n" +
-                "Ltest/pkg/Bar\$Inner2\$Inner3\$Inner4;\n" +
-                "Ltest/pkg/Bar\$Inner2\$Inner3\$Inner4;-><init>()V\n" +
-                "Ltest/pkg/Bar\$Inner5\$Inner6\$Inner7;->removed:I"
+                """
         )
     }
 
@@ -3396,7 +3391,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin("src/main/java/test/pkg/Foo.kt",
+                kotlin(
+                    "src/main/java/test/pkg/Foo.kt",
                     """
                     package test.pkg
                     fun myCall() : Boolean = false
@@ -3573,7 +3569,7 @@ class ApiFileTest : DriverTest() {
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             expectedIssues = "",
             api =
-                """
+            """
                 package test.pkg {
                   public class Class2 {
                     ctor public Class2();
@@ -3829,7 +3825,8 @@ class ApiFileTest : DriverTest() {
                     annotation class Composable
                  */
                 base64gzip(
-                    "test.jar", "" +
+                    "test.jar",
+                    "" +
                         "UEsDBAoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAZ3qzULJ/" +
                         "Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM+zUjDUM+Dl" +
                         "4uUCAFBLAwQKAAAICABnerNQDArdZgwAAAAQAAAAGwAAAE1FVEEtSU5GL3RlbXAua290bGluX21v" +
@@ -3896,7 +3893,8 @@ class ApiFileTest : DriverTest() {
                     annotation class ExternalExperimentalAnnotation
                  */
                 base64gzip(
-                    "test.jar", "" +
+                    "test.jar",
+                    "" +
                         "UEsDBAoAAAgIADt2U1IAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAFXZ" +
                         "TUrJ/Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM" +
                         "+zUjDUM+Dl4uUCAFBLAwQKAAAICAA7dlNSDWpm1BUAAAAYAAAAGwAAAE1FVEEtSU5GL3Rlc" +
@@ -3961,7 +3959,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
 
                     import androidx.annotation.IntRange
@@ -3995,7 +3994,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V2,
             sourceFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package test.pkg;
 
                     import androidx.annotation.IntRange;
@@ -4027,7 +4027,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
 
                     import androidx.annotation.IntRange
@@ -4061,7 +4062,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
                     sealed class MyClass(
                         val firstConstructorProperty: Int,
@@ -4071,13 +4073,15 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                 ),
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
                     data class MyDataClass(
                         val constructorProperty: String,
                         internal val internalConstructorProperty: String
                     )
-                """)
+                """
+                )
             ),
             api = """
                 // Signature format: 3.0
@@ -4283,7 +4287,8 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test type erasure and dexApi from signature`() {
         check(
-            signatureSources = arrayOf("""
+            signatureSources = arrayOf(
+                """
                 package android.widget {
 
                   @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
@@ -4292,7 +4297,8 @@ class ApiFileTest : DriverTest() {
                   }
 
                 }
-"""),
+"""
+            ),
             dexApi = """
             Landroid/widget/ListView;
             Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
@@ -4306,7 +4312,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V4,
             sourceFiles = arrayOf(
-                kotlin("""
+                kotlin(
+                    """
                     package test.pkg
 
                     fun interface FunctionalInterface {
@@ -4325,6 +4332,77 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class FunctionalInterfaceKt {
                     method public static void userOfFunctionalInterface(test.pkg.FunctionalInterface parameter);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Inline class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    inline class Dp(val value: Float) : Comparable<Dp> {
+                        inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
+                        inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
+                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                        val someBits
+                            get() = value && 0x00ff
+                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                        fun doSomething() {}
+                    }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
+                    ctor public Dp();
+                    method public float getValue();
+                    property public final float value;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Value class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline
+                    value class Dp(val value: Float) : Comparable<Dp> {
+                        inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
+                        inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
+                        val someBits
+                            get() = value && 0x00ff
+                        fun doSomething() {}
+                    }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
+                    ctor public Dp(float value);
+                    method public void doSomething();
+                    method public boolean getSomeBits();
+                    method public float getValue();
+                    method public inline operator float minus(float other);
+                    method public inline operator float plus(float other);
+                    property public final boolean someBits;
+                    property public final float value;
                   }
                 }
             """

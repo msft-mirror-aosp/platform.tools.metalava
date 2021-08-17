@@ -249,8 +249,6 @@ abstract class DriverTest {
         dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The removed dex API (corresponds to --removed-dex-api) */
-        removedDexApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
@@ -339,8 +337,6 @@ abstract class DriverTest {
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
         expectedFail: String? = null,
-        /** List of extra jar files to record annotation coverage from */
-        coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
         @Language("XML")
         manifest: String? = null,
@@ -447,10 +443,12 @@ abstract class DriverTest {
         defaultConfiguration.reset()
 
         @Suppress("NAME_SHADOWING")
-        val expectedFail = expectedFail ?: if ((checkCompatibilityApi != null ||
-            checkCompatibilityApiReleased != null ||
-            checkCompatibilityRemovedApiCurrent != null ||
-            checkCompatibilityRemovedApiReleased != null) &&
+        val expectedFail = expectedFail ?: if ((
+            checkCompatibilityApi != null ||
+                checkCompatibilityApiReleased != null ||
+                checkCompatibilityRemovedApiCurrent != null ||
+                checkCompatibilityRemovedApiReleased != null
+            ) &&
             (expectedIssues != null && expectedIssues.trim().isNotEmpty())
         ) {
             "Aborting: Found compatibility problems with --check-compatibility"
@@ -721,22 +719,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val coverageStats = if (coverageJars != null && coverageJars.isNotEmpty()) {
-            val sb = StringBuilder()
-            val root = File(project, "coverageJars")
-            root.mkdirs()
-            for (jar in coverageJars) {
-                if (sb.isNotEmpty()) {
-                    sb.append(File.pathSeparator)
-                }
-                val file = jar.createFile(root)
-                sb.append(file.path)
-            }
-            arrayOf(ARG_ANNOTATION_COVERAGE_OF, sb.toString())
-        } else {
-            emptyArray()
-        }
-
         var proguardFile: File? = null
         val proguardKeepArguments = if (proguard != null) {
             proguardFile = File(project, "proguard.cfg")
@@ -819,14 +801,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var removedDexApiFile: File? = null
-        val removedDexArgs = if (removedDexApi != null) {
-            removedDexApiFile = temporaryFolder.newFile("removed-dex.txt")
-            arrayOf(ARG_REMOVED_DEX_API, removedDexApiFile.path)
-        } else {
-            emptyArray()
-        }
-
         var apiFile: File? = null
         val apiArgs = if (api != null) {
             apiFile = temporaryFolder.newFile("public-api.txt")
@@ -878,8 +852,10 @@ abstract class DriverTest {
                 } else {
                     null
                 }
-                convertFiles += Options.ConvertFile(convertSig, output, baseFile,
-                    strip = true, outputFormat = convert.format)
+                convertFiles += Options.ConvertFile(
+                    convertSig, output, baseFile,
+                    strip = true, outputFormat = convert.format
+                )
                 index++
 
                 if (baseFile != null) {
@@ -961,10 +937,15 @@ abstract class DriverTest {
                 if (!(updateContent != null || merge)) {
                     return Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
                 } else {
-                    return Pair(arrayOf(argBaseline,
-                        baselineFile.path,
-                        if (mergeBaseline != null) argMergeBaseline else argUpdateBaseline,
-                        baselineFile.path), baselineFile)
+                    return Pair(
+                        arrayOf(
+                            argBaseline,
+                            baselineFile.path,
+                            if (mergeBaseline != null) argMergeBaseline else argUpdateBaseline,
+                            baselineFile.path
+                        ),
+                        baselineFile
+                    )
                 }
             } else {
                 return Pair(emptyArray(), null)
@@ -1119,7 +1100,6 @@ abstract class DriverTest {
             *classpathArgs,
             *kotlinPathArgs,
             *removedArgs,
-            *removedDexArgs,
             *apiArgs,
             *apiXmlArgs,
             *dexApiArgs,
@@ -1130,7 +1110,6 @@ abstract class DriverTest {
             "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INPUT_KOTLIN_NULLS=${if (inputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
-            *coverageStats,
             *quiet,
             *mergeAnnotationsArgs,
             *signatureAnnotationsArgs,
@@ -1228,7 +1207,8 @@ abstract class DriverTest {
         }
         checkBaseline(ARG_BASELINE, baseline, updateBaseline, mergeBaseline, baselineFile)
         checkBaseline(ARG_BASELINE_API_LINT, baselineApiLint, updateBaselineApiLint, null, baselineApiLintFile)
-        checkBaseline(ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED, baselineCheckCompatibilityReleased,
+        checkBaseline(
+            ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED, baselineCheckCompatibilityReleased,
             updateBaselineCheckCompatibilityReleased, null, baselineCheckCompatibilityReleasedFile
         )
 
@@ -1267,15 +1247,6 @@ abstract class DriverTest {
             assertEquals(stripComments(removedApi, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls)
-        }
-
-        if (removedDexApi != null && removedDexApiFile != null) {
-            assertTrue(
-                "${removedDexApiFile.path} does not exist even though --removed-dex-api was used",
-                removedDexApiFile.exists()
-            )
-            val actualText = readFile(removedDexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(removedDexApi, stripLineComments = false).trimIndent(), actualText)
         }
 
         if (proguard != null && proguardFile != null) {
@@ -1389,9 +1360,10 @@ abstract class DriverTest {
                 gatherSources(listOf(extraAnnotationsDir)).asSequence().map { it.path }.toList().toTypedArray()
 
             if (!runCommand(
-                    "${getJdkPath()}/bin/javac", arrayOf(
-                        "-d", project.path, *generated, *extraAnnotations
-                    )
+                    "${getJdkPath()}/bin/javac",
+                    arrayOf(
+                            "-d", project.path, *generated, *extraAnnotations
+                        )
                 )
             ) {
                 fail("Couldn't compile stub file -- compilation problems")

@@ -30,7 +30,7 @@ class OptionsTest : DriverTest() {
     private val DESCRIPTION = """
 $PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
 external annotations etc.
-""".trimIndent()
+    """.trimIndent()
 
     private val FLAGS = """
 Usage: metalava <flags>
@@ -49,9 +49,6 @@ General:
                                              Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
 --no-color
                                              Do not attempt to colorize the output
---no-docs
-                                             Cancel any other documentation flags supplied to metalava. This is here to
-                                             make it easier customize build system tasks.
 --only-update-api
                                              Cancel any other "action" flags other than generating signature files. This
                                              is here to make it easier customize build system tasks, particularly for
@@ -351,25 +348,6 @@ JDiff:
                                              writes out only the new parts of the API in the v2 format.
 
 
-Statistics:
---annotation-coverage-stats
-                                             Whether metalava should emit coverage statistics for annotations, listing
-                                             the percentage of the API that has been annotated with nullness
-                                             information.
---annotation-coverage-of <paths>
-                                             One or more jars (separated by `:`) containing existing apps that we want
-                                             to measure annotation coverage statistics for. The set of API usages in
-                                             those apps are counted up and the most frequently used APIs that are
-                                             missing annotation metadata are listed in descending order.
---skip-java-in-coverage-report
-                                             In the coverage annotation report, skip java.** and kotlin.** to narrow the
-                                             focus down to the Android framework APIs.
---write-class-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for classes to.
---write-member-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for members to.
-
-
 Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
@@ -450,7 +428,7 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-""".trimIndent()
+    """.trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -471,7 +449,8 @@ Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
-""".trimIndent(), stderr.toString()
+            """.trimIndent(),
+            stderr.toString()
         )
     }
 
@@ -496,7 +475,8 @@ $DESCRIPTION
 
 $FLAGS
 
-""".trimIndent(), stdout.toString()
+            """.trimIndent(),
+            stdout.toString()
         )
     }
 
@@ -568,8 +548,10 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf("--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path)
+                extraArguments = arrayOf(
+                    "--strict-input-files-exempt",
+                    file1.path + File.pathSeparatorChar + dir.path
+                )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))

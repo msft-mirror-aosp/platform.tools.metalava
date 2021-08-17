@@ -542,8 +542,10 @@ interface MethodItem : MemberItem {
     /** Returns true if this is a synthetic enum method */
     fun isEnumSyntheticMethod(): Boolean {
         return containingClass().isEnum() &&
-            (name() == "values" && parameters().isEmpty() ||
-                name() == "valueOf" && parameters().size == 1 &&
-                parameters()[0].type().isString())
+            (
+                name() == "values" && parameters().isEmpty() ||
+                    name() == "valueOf" && parameters().size == 1 &&
+                    parameters()[0].type().isString()
+                )
     }
 }

@@ -40,7 +40,6 @@ import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import java.io.StringWriter
 
@@ -59,7 +58,8 @@ open class PsiMethodItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod
-    ), MethodItem {
+    ),
+    MethodItem {
 
     init {
         for (parameter in parameters) {
@@ -122,7 +122,8 @@ open class PsiMethodItem(
     override fun typeParameterList(): TypeParameterList {
         if (psiMethod.hasTypeParameters()) {
             return PsiTypeParameterList(
-                codebase, psiMethod.typeParameterList
+                codebase,
+                psiMethod.typeParameterList
                     ?: return TypeParameterList.NONE
             )
         } else {
@@ -158,7 +159,7 @@ open class PsiMethodItem(
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
             val ktParameters =
-                ((psiMethod as? KotlinUMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
+                ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
                     ?: return false
             return ktParameters.size < parameters.size
         }
@@ -167,10 +168,11 @@ open class PsiMethodItem(
     }
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is KotlinUMethod && (
+        return psiMethod is UMethod && (
             psiMethod.sourcePsi is KtProperty ||
-            psiMethod.sourcePsi is KtPropertyAccessor ||
-            psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+                psiMethod.sourcePsi is KtPropertyAccessor ||
+                psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar()
+            )
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
