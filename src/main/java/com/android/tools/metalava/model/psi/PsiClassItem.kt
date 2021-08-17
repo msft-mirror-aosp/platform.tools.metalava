@@ -58,7 +58,9 @@ open class PsiClassItem(
     private val hasImplicitDefaultConstructor: Boolean,
     val classType: ClassType,
     modifiers: PsiModifierItem,
-    documentation: String
+    documentation: String,
+    /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
+    private val fromClassPath: Boolean
 ) :
     PsiItem(
         codebase = codebase,
@@ -78,6 +80,7 @@ open class PsiClassItem(
     override fun isInterface(): Boolean = classType == ClassType.INTERFACE
     override fun isAnnotationType(): Boolean = classType == ClassType.ANNOTATION_TYPE
     override fun isEnum(): Boolean = classType == ClassType.ENUM
+    override fun isFromClassPath(): Boolean = fromClassPath
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     private var superClass: ClassItem? = null
@@ -421,7 +424,11 @@ open class PsiClassItem(
             return false
         }
 
-        fun create(codebase: PsiBasedCodebase, psiClass: PsiClass): PsiClassItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiClass: PsiClass,
+            fromClassPath: Boolean
+        ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
                 return PsiTypeParameterItem.create(codebase, psiClass)
             }
@@ -442,10 +449,14 @@ open class PsiClassItem(
                 classType = classType,
                 hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                 documentation = commentText,
-                modifiers = modifiers
+                modifiers = modifiers,
+                fromClassPath = fromClassPath
             )
-            codebase.registerClass(item)
             item.modifiers.setOwner(item)
+
+            // Register this class now so it's present when calling Codebase.findOrCreateClass for
+            // inner classes below
+            codebase.registerClass(item)
 
             // Construct the children
             val psiMethods = psiClass.methods
