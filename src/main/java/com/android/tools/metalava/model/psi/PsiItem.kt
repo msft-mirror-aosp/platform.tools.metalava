@@ -81,13 +81,8 @@ abstract class PsiItem(
 
     override fun psi(): PsiElement? = element
 
-    // TODO: Consider only doing this in tests!
     override fun isFromClassPath(): Boolean {
-        return if (element is UElement) {
-            (element.sourcePsi ?: element.javaPsi) is PsiCompiledElement
-        } else {
-            element is PsiCompiledElement
-        }
+        return containingClass()?.isFromClassPath() ?: false
     }
 
     override fun isCloned(): Boolean = false
