@@ -57,14 +57,15 @@ import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.classOrObjectVisitor
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
+import org.jetbrains.uast.kotlin.KotlinUastResolveProviderService
 import java.io.File
 import java.io.IOException
-import java.util.ArrayList
-import java.util.HashMap
 import java.util.zip.ZipFile
 
 const val PACKAGE_ESTIMATE = 500
@@ -808,5 +809,14 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
     internal fun registerClass(cls: ClassItem) {
         classMap[cls.qualifiedName()] = cls
+    }
+
+    /** Get a Kotlin [BindingContext] at [element]
+     *
+     * Do not cache returned binding context for longer than the lifetime of this codebase
+     */
+    fun bindingContext(element: KtElement): BindingContext {
+        return checkNotNull(project.getService(KotlinUastResolveProviderService::class.java))
+            .getBindingContext(element)
     }
 }
