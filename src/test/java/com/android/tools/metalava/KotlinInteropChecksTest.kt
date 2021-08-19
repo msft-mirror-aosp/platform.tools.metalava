@@ -26,7 +26,7 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/Test.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/test/pkg/Test.java:8: error: Avoid parameter names that are Kotlin hard keywords ("typealias"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:9: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                src/test/pkg/Test.java:10: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -57,7 +57,7 @@ class KotlinInteropChecksTest : DriverTest() {
             apiLint = "",
             expectedIssues = """
                 src/test/pkg/Test.java:20: warning: SAM-compatible parameters (such as parameter 1, "run", in test.pkg.Test.error1) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
-                src/test/pkg/Test.java:21: warning: SAM-compatible parameters (such as parameter 2, "callback", in test.pkg.Test.error2) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
+                src/test/pkg/Test.java:23: warning: SAM-compatible parameters (such as parameter 2, "callback", in test.pkg.Test.error2) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 src/test/pkg/test.kt:7: warning: lambda parameters (such as parameter 1, "bar", in test.pkg.TestKt.error) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 """,
             sourceFiles = arrayOf(
@@ -192,9 +192,9 @@ class KotlinInteropChecksTest : DriverTest() {
             extraArguments = arrayOf(ARG_HIDE, "BannedThrow", ARG_HIDE, "GenericException"),
             expectedIssues = """
                 src/test/pkg/Foo.kt:6: error: Method Foo.error_throws_multiple_times appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
-                src/test/pkg/Foo.kt:16: error: Method Foo.error_throwsCheckedExceptionWithWrongExceptionClassInThrows appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
+                src/test/pkg/Foo.kt:17: error: Method Foo.error_throwsCheckedExceptionWithWrongExceptionClassInThrows appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 src/test/pkg/Foo.kt:37: error: Method Foo.error_throwsRuntimeExceptionDocsMissing appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
-                src/test/pkg/Foo.kt:43: error: Method Foo.error_missingSpecificAnnotation appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
+                src/test/pkg/Foo.kt:44: error: Method Foo.error_missingSpecificAnnotation appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
