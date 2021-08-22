@@ -26,8 +26,8 @@ import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.uast.UExpression
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiParameterItem(
     override val codebase: PsiBasedCodebase,
@@ -42,8 +42,11 @@ class PsiParameterItem(
     modifiers = modifiers,
     documentation = documentation,
     element = psiParameter
-), ParameterItem {
+),
+    ParameterItem {
     lateinit var containingMethod: PsiMethodItem
+
+    override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
 
@@ -55,8 +58,8 @@ class PsiParameterItem(
             }
             // Hardcode parameter name for the generated suspend function continuation parameter
             if (containingMethod.modifiers.isSuspend() &&
-                    "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
-                    containingMethod.parameters().size - 1 == parameterIndex
+                "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
+                containingMethod.parameters().size - 1 == parameterIndex
             ) {
                 return "p"
             }
@@ -88,7 +91,7 @@ class PsiParameterItem(
 
     private fun getKtParameter(): KtParameter? {
         val ktParameters =
-            ((containingMethod.psiMethod as? KotlinUMethod)?.sourcePsi as? KtFunction)?.valueParameters
+            ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)?.valueParameters
                 ?: return null
 
         // Perform matching based on parameter names, because indices won't work in the

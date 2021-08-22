@@ -33,17 +33,23 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
+import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
+import org.jetbrains.kotlin.descriptors.EffectiveVisibility
+import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
+import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UAnnotated
+import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinNullabilityUAnnotation
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -68,7 +74,11 @@ class PsiModifierItem(
             return modifiers
         }
 
-        private fun computeFlag(element: PsiModifierListOwner, modifierList: PsiModifierList): Int {
+        private fun computeFlag(
+            codebase: PsiBasedCodebase,
+            element: PsiModifierListOwner,
+            modifierList: PsiModifierList
+        ): Int {
             var visibilityFlags = when {
                 modifierList.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
                 modifierList.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
@@ -106,23 +116,44 @@ class PsiModifierItem(
 
             // Look for special Kotlin keywords
             var ktModifierList: KtModifierList? = null
+            val sourcePsi = (element as? UElement)?.sourcePsi
             if (modifierList is KtLightModifierList<*>) {
                 ktModifierList = modifierList.kotlinOrigin
-            } else if (modifierList is LightModifierList && element is KotlinUMethod) {
-                ktModifierList = element.sourcePsi?.modifierList
+            } else if (modifierList is LightModifierList && element is UMethod) {
+                if (sourcePsi is KtModifierListOwner) {
+                    ktModifierList = sourcePsi.modifierList
+                }
             }
             if (ktModifierList != null) {
+                if (ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)) {
+                    // Reset visibilityFlags to INTERNAL if the internal modifier is explicitly
+                    // present on the element
+                    visibilityFlags = INTERNAL
+                } else if (
+                    ktModifierList.hasModifier(KtTokens.OVERRIDE_KEYWORD) &&
+                    ktModifierList.visibilityModifier() == null &&
+                    sourcePsi is KtElement
+                ) {
+                    // Reset visibilityFlags to INTERNAL if the element has no explicit visibility
+                    // modifier, but overrides an internal declaration. Adapted from
+                    // org.jetbrains.kotlin.asJava.classes.UltraLightMembersCreator.isInternal
+                    val descriptor = codebase.bindingContext(sourcePsi)
+                        .get(BindingContext.DECLARATION_TO_DESCRIPTOR, sourcePsi)
+
+                    if (descriptor is DeclarationDescriptorWithVisibility) {
+                        val effectiveVisibility =
+                            descriptor.visibility.effectiveVisibility(descriptor, false)
+
+                        if (effectiveVisibility == EffectiveVisibility.Internal) {
+                            visibilityFlags = INTERNAL
+                        }
+                    }
+                }
                 if (ktModifierList.hasModifier(KtTokens.VARARG_KEYWORD)) {
                     flags = flags or VARARG
                 }
                 if (ktModifierList.hasModifier(KtTokens.SEALED_KEYWORD)) {
                     flags = flags or SEALED
-                }
-                if (ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)) {
-                    // Also remove public flag which at the UAST levels it promotes these
-                    // methods to, e.g. "internal myVar" gets turned into
-                    //    public final boolean getMyHiddenVar$lintWithKotlin()
-                    visibilityFlags = INTERNAL
                 }
                 if (ktModifierList.hasModifier(KtTokens.INFIX_KEYWORD)) {
                     flags = flags or INFIX
@@ -137,7 +168,7 @@ class PsiModifierItem(
                     flags = flags or INLINE
 
                     // Workaround for b/117565118:
-                    val func = (element as? UMethod)?.sourcePsi as? KtNamedFunction
+                    val func = sourcePsi as? KtNamedFunction
                     if (func != null &&
                         (func.typeParameterList?.text ?: "").contains("reified") &&
                         !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
@@ -147,6 +178,9 @@ class PsiModifierItem(
                         visibilityFlags = PUBLIC
                     }
                 }
+                if (ktModifierList.hasModifier(KtTokens.VALUE_KEYWORD)) {
+                    flags = flags or VALUE
+                }
                 if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
                     flags = flags or SUSPEND
                 }
@@ -155,6 +189,9 @@ class PsiModifierItem(
                 }
                 if (ktModifierList.hasFunModifier()) {
                     flags = flags or FUN
+                }
+                if (ktModifierList.hasModifier(KtTokens.DATA_KEYWORD)) {
+                    flags = flags or DATA
                 }
             }
             // Methods that are property accessors inherit visibility from the source element
@@ -178,8 +215,7 @@ class PsiModifierItem(
 
         private fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
-
-            var flags = computeFlag(element, modifierList)
+            var flags = computeFlag(codebase, element, modifierList)
 
             val psiAnnotations = modifierList.annotations
             return if (psiAnnotations.isEmpty()) {
@@ -191,7 +227,8 @@ class PsiModifierItem(
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -213,7 +250,7 @@ class PsiModifierItem(
             annotated: UAnnotated
         ): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
-            var flags = computeFlag(element, modifierList)
+            var flags = computeFlag(codebase, element, modifierList)
             val uAnnotations = annotated.uAnnotations
 
             return if (uAnnotations.isEmpty()) {
@@ -235,7 +272,8 @@ class PsiModifierItem(
 
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
