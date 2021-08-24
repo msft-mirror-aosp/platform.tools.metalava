@@ -2889,7 +2889,7 @@ class ApiFileTest : DriverTest() {
                 )
             ),
             expectedIssues = """
-                src/android/net/http/HttpResponseCache.java:6: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
+                src/android/net/http/HttpResponseCache.java:7: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
             """,
             api = """
                 package android.net.http {
