@@ -613,7 +613,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Added constructor`() {
         // Regression test for issue 116619591
         check(
-            expectedIssues = "src/test/pkg/AbstractMap.java:2: error: Added constructor test.pkg.AbstractMap() [AddedMethod]",
+            expectedIssues = "src/test/pkg/AbstractMap.java:3: error: Added constructor test.pkg.AbstractMap() [AddedMethod]",
             checkCompatibilityApi = """
                 package test.pkg {
                   public abstract class AbstractMap<K, V> implements java.util.Map {
@@ -823,7 +823,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Parent.java:10: error: Field test.pkg.Parent.field7 has changed 'volatile' qualifier [ChangedVolatile]
                 src/test/pkg/Parent.java:11: error: Field test.pkg.Parent.field8 has changed deprecation state true --> false [ChangedDeprecated]
                 src/test/pkg/Parent.java:12: error: Field test.pkg.Parent.field9 has changed deprecation state false --> true [ChangedDeprecated]
-                src/test/pkg/Parent.java:19: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
+                src/test/pkg/Parent.java:20: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
                 """,
             checkCompatibilityApi = """
                 package test.pkg {
@@ -1096,7 +1096,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible class change -- deprecation`() {
         check(
             expectedIssues = """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 has changed deprecation state false --> true [ChangedDeprecated]
+                src/test/pkg/Class1.java:4: error: Class test.pkg.Class1 has changed deprecation state false --> true [ChangedDeprecated]
                 """,
             checkCompatibilityApi = """
                 package test.pkg {
