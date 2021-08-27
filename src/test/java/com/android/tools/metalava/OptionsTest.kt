@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -137,7 +136,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.3.
+                                             Sets the source level for Kotlin source files; default is 1.4.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -206,6 +205,8 @@ Extracting Signature Files:
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
+--proguard <file>
+                                             Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
 
@@ -226,11 +227,14 @@ Generating Stubs:
                                              code will be written in Kotlin rather than the Java programming language.
 --include-annotations
                                              Include annotations such as @Nullable in the stub files.
---exclude-annotations
+--exclude-all-annotations
                                              Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
+--exclude-annotation <annotation classes>
+                                             A comma separated list of fully qualified names of annotation classes that
+                                             must be stripped from metalava's outputs.
 --exclude-documentation-from-stubs
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
@@ -261,6 +265,13 @@ Diffs and Checks:
                                              publicly released API, respectively. Different compatibility checks apply
                                              in the two scenarios. For example, to check the code base against the
                                              current public API, use --check-compatibility:api:current.
+--check-compatibility:base <file>
+                                             When performing a compat check, use the provided signature file as a base
+                                             api, which is treated as part of the API being checked. This allows us to
+                                             compute the full API surface from a partial API surface (e.g. the current
+                                             @SystemApi txt file), which allows us to recognize when an API is moved
+                                             from the partial API to the base API and avoid incorrectly flagging this as
+                                             an API removal.
 --api-lint [api file]
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.
@@ -530,15 +541,6 @@ $FLAGS
         )
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
-    }
-
-    @Test
-    fun `Test issue severity options by numeric id`() {
-        check(
-            extraArguments = arrayOf("--hide", "366"),
-            expectedIssues = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
-        )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test
