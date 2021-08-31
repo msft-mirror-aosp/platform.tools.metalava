@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.intellij.psi.PsiPackage
 
 class PsiPackageItem(
@@ -77,7 +76,7 @@ class PsiPackageItem(
         }
     }
 
-    fun addClass(cls: ClassItem) {
+    fun addClass(cls: PsiClassItem) {
         if (!cls.isTopLevelClass()) {
             // TODO: Stash in a list somewhere to make allClasses() faster?
             return
@@ -95,11 +94,10 @@ class PsiPackageItem(
         */
 
         classes.add(cls)
-        if (cls is PsiClassItem) cls.containingPackage = this
-        if (cls is KotlinClassItem) cls.containingPackage = this
+        cls.containingPackage = this
     }
 
-    fun addClasses(classList: List<ClassItem>) {
+    fun addClasses(classList: List<PsiClassItem>) {
         for (cls in classList) {
             addClass(cls)
         }
