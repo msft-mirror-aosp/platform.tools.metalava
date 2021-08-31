@@ -23,7 +23,7 @@ import kotlin.test.assertIs
 class WithCodebaseTest {
     @Test
     fun `UAST model works`() {
-        withCodebase(kotlin("data class Foo(val bar: Int)"), useKtModel = false) { codebase ->
+        withCodebase(kotlin("data class Foo(val bar: Int)"), enableKotlinPsi = false) { codebase ->
             assertIs<PsiClassItem>(codebase.findClass("Foo"))
         }
     }
