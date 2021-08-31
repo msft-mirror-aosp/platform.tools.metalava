@@ -43,7 +43,7 @@ fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
 
 internal inline fun withCodebase(
     vararg sources: TestFile,
-    useKtModel: Boolean = true,
+    enableKotlinPsi: Boolean = true,
     action: (Codebase) -> Unit
 ) {
     // This is thread-safe as it adds a random suffix to the directory prefix
@@ -52,7 +52,7 @@ internal inline fun withCodebase(
         val codebase = parseSources(
             sources = sources.map { it.createFile(tempDirectory) },
             description = "Test Codebase",
-            useKtModel = useKtModel
+            enableKotlinPsi = enableKotlinPsi
         )
         try {
             action(codebase)
@@ -71,7 +71,7 @@ internal inline fun withClass(
     useKtModel: Boolean = true,
     action: (ClassItem) -> Unit
 ) {
-    withCodebase(kotlin(source), useKtModel = useKtModel) { codebase ->
+    withCodebase(kotlin(source), enableKotlinPsi = useKtModel) { codebase ->
         action(codebase.assumeSingleTopLevelClass())
     }
 }

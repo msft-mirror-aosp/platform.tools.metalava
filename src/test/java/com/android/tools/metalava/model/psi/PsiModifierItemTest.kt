@@ -39,7 +39,7 @@ class PsiModifierItemTest {
                     }
                 """
             ),
-            useKtModel = false
+            enableKotlinPsi = false
         ) { codebase ->
             val method = codebase.findClass("Inherited")!!.methods()
                 .first { it.name().startsWith("method") }
