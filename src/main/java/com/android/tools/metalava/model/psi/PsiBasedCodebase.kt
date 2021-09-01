@@ -23,12 +23,12 @@ import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
@@ -56,10 +56,7 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.classOrObjectVisitor
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
@@ -102,7 +99,7 @@ open class PsiBasedCodebase(
         get() = uastEnvironment.ideaProject
 
     /** Map from class name to class item. Classes are added via [registerClass] */
-    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
+    private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
      * Map from classes to the set of methods for each (but only for classes where we've
@@ -114,7 +111,7 @@ open class PsiBasedCodebase(
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
     /** Map from package name to list of classes in that package. Only used during [initialize]. */
-    private lateinit var packageClasses: MutableMap<String, MutableList<ClassItem>>
+    private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
 
     /** A set of packages to hide */
     private lateinit var hiddenPackages: MutableMap<String, Boolean?>
@@ -123,7 +120,7 @@ open class PsiBasedCodebase(
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
-    private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
+    private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
 
     /**
      * Set to true in [initialize] for the first pass of creating class items for all classes in
@@ -187,18 +184,11 @@ open class PsiBasedCodebase(
             })
 
             var classes = (psiFile as? PsiClassOwner)?.classes?.toList() ?: emptyList()
-            if (classes.isEmpty() && !enableKotlinPsi) {
+            if (classes.isEmpty()) {
                 val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
             when {
-                enableKotlinPsi && psiFile is KtFile -> {
-                    psiFile.acceptChildren(
-                        classOrObjectVisitor { ktClassOrObject ->
-                            topLevelClassesFromSource += createClass(ktClassOrObject)
-                        }
-                    )
-                }
                 classes.isEmpty() && psiFile is PsiJavaFile -> {
                     // package-info.java ?
                     val packageStatement = psiFile.packageStatement
@@ -338,7 +328,7 @@ open class PsiBasedCodebase(
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        sortedClasses: List<ClassItem>?,
+        sortedClasses: List<PsiClassItem>?,
         packageHtml: String?,
         pkgName: String
     ): PsiPackageItem {
@@ -464,7 +454,7 @@ open class PsiBasedCodebase(
         )
     }
 
-    private fun registerPackageClass(packageName: String, cls: ClassItem) {
+    private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
         var list = packageClasses[packageName]
         if (list == null) {
             list = ArrayList()
@@ -553,37 +543,6 @@ open class PsiBasedCodebase(
         return classItem
     }
 
-    /** Create a [KotlinClassItem] with inner classes (recursively), but not super types */
-    private fun createClass(
-        classElement: KtClassOrObject,
-        containingClass: KotlinClassItem? = null
-    ): KotlinClassItem {
-        require((containingClass != null) xor classElement.isTopLevel()) {
-            "containingClass is required for nested classes"
-        }
-
-        val classItem = KotlinClassItem(
-            codebase = this,
-            element = classElement,
-            containingClass = containingClass,
-            fromClassPath = !initializing // If initializing is true, this class is from source
-        )
-
-        // Set emit to true for source classes but false for classpath classes
-        classItem.emit = initializing
-
-        registerClass(classItem)
-
-        val packageName = classElement.containingKtFile.packageFqName.asString()
-        registerPackageClass(packageName, classItem)
-
-        val nestedClasses = mutableListOf<KtClassOrObject>()
-        classElement.body?.acceptChildren(classOrObjectVisitor { nestedClasses += it })
-        classItem.nestedClasses = nestedClasses.map { createClass(it, classItem) }.toList()
-
-        return classItem
-    }
-
     override fun getPackages(): PackageList {
         // TODO: Sorting is probably not necessary here!
         return PackageList(this, packageMap.values.toMutableList().sortedWith(PackageItem.comparator))
@@ -601,13 +560,13 @@ open class PsiBasedCodebase(
         return packageMap[pkgName]
     }
 
-    override fun findClass(className: String): ClassItem? {
+    override fun findClass(className: String): PsiClassItem? {
         return classMap[className]
     }
 
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
-        return classMap[qualifiedName] as? PsiClassItem
+        return classMap[qualifiedName]
     }
 
     open fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
@@ -735,7 +694,7 @@ open class PsiBasedCodebase(
         return methodItem
     }
 
-    fun findField(field: PsiField): Item? {
+    fun findField(field: PsiField): FieldItem? {
         val containingClass = field.containingClass ?: return null
         val cls = findOrCreateClass(containingClass)
         return cls.findField(field.name)
@@ -810,7 +769,7 @@ open class PsiBasedCodebase(
     override fun toString(): String = description
 
     /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
-    internal fun registerClass(cls: ClassItem) {
+    internal fun registerClass(cls: PsiClassItem) {
         classMap[cls.qualifiedName()] = cls
     }
 
