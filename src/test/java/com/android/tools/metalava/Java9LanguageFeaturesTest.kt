@@ -19,8 +19,17 @@
 package com.android.tools.metalava
 
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class Java9LanguageFeaturesTest : DriverTest() {
+@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
+class Java9LanguageFeaturesTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
+    companion object {
+        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
+        @JvmStatic
+        fun parameters() = arrayOf(false, true)
+    }
+
     @Test
     fun `Private Interface Method`() {
         // Basic class; also checks that default constructor is made explicit
