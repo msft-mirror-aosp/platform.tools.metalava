@@ -92,7 +92,11 @@ const val METHOD_ESTIMATE = 1000
  * originate from the classpath and have [Item.emit] set to false and [Item.isFromClassPath] set to
  * true.
  */
-open class PsiBasedCodebase(location: File, override var description: String = "Unknown") : DefaultCodebase(location) {
+open class PsiBasedCodebase(
+    location: File,
+    override var description: String = "Unknown",
+    internal val enableKotlinPsi: Boolean = false
+) : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
@@ -145,7 +149,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         uastEnvironment: UastEnvironment,
         psiFiles: List<PsiFile>,
         packages: PackageDocs,
-        useKtModel: Boolean
     ) {
         initializing = true
         this.units = psiFiles
@@ -184,12 +187,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             })
 
             var classes = (psiFile as? PsiClassOwner)?.classes?.toList() ?: emptyList()
-            if (classes.isEmpty() && !useKtModel) {
+            if (classes.isEmpty() && !enableKotlinPsi) {
                 val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
             when {
-                useKtModel && psiFile is KtFile -> {
+                enableKotlinPsi && psiFile is KtFile -> {
                     psiFile.acceptChildren(
                         classOrObjectVisitor { ktClassOrObject ->
                             topLevelClassesFromSource += createClass(ktClassOrObject)

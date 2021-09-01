@@ -166,7 +166,7 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
-const val ARG_KOTLIN_MODEL = "--kotlin-model"
+const val ARG_ENABLE_KOTLIN_PSI = "--enable-kotlin-psi"
 
 class Options(
     private val args: Array<String>,
@@ -504,7 +504,7 @@ class Options(
     /** Whether to use the experimental KtPsi model on .kt source files instead of existing
      * PSI implementation
      */
-    var useKtModel = false
+    var enableKotlinPsi = false
 
     /**
      * mapping from API level to android.jar files, if computing API levels
@@ -790,7 +790,7 @@ class Options(
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
 
-                ARG_KOTLIN_MODEL -> useKtModel = true
+                ARG_ENABLE_KOTLIN_PSI -> enableKotlinPsi = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -2260,9 +2260,8 @@ class Options(
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
-            ARG_KOTLIN_MODEL,
-            "[CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin " +
-                "instead of UAST",
+            ARG_ENABLE_KOTLIN_PSI,
+            "[EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST",
 
             "", "\nGenerating Stubs:",
             "$ARG_STUBS <dir>", "Generate stub source files for the API",
