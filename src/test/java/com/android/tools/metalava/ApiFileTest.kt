@@ -20,8 +20,17 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class ApiFileTest : DriverTest() {
+@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
+class ApiFileTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
+    companion object {
+        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
+        @JvmStatic
+        fun parameters() = arrayOf(false, true)
+    }
+
 /*
    Conditions to test:
    - test all the error scenarios found in the notStrippable case!
