@@ -17,8 +17,16 @@
 package com.android.tools.metalava
 
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class ApiLintTest : DriverTest() {
+@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
+class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
+    companion object {
+        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
+        @JvmStatic
+        fun parameters() = arrayOf(false, true)
+    }
 
     @Test
     fun `Test names`() {
