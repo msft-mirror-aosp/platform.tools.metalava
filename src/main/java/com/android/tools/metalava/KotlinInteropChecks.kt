@@ -102,7 +102,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 val annotation = method.modifiers.findAnnotation("kotlin.jvm.Throws")
                 if (annotation != null) {
                     // There can be multiple values
-                    for (attribute in annotation.attributes()) {
+                    for (attribute in annotation.attributes) {
                         for (v in attribute.leafValues()) {
                             val source = v.toSource()
                             if (source.endsWith(exception.simpleName() + "::class")) {
