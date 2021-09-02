@@ -274,7 +274,7 @@ class AnnotationsMerger(
                     }
                 } else {
                     // TODO: Check for other incompatibilities than nullness?
-                    val qualifiedName = annotation.qualifiedName() ?: return
+                    val qualifiedName = annotation.qualifiedName ?: return
                     if (newModifiers.findAnnotation(qualifiedName) == null) {
                         addAnnotation = true
                     }
@@ -322,7 +322,7 @@ class AnnotationsMerger(
                 override fun compare(old: Item, new: Item) {
                     // Transfer any show/hide annotations from the external to the main codebase.
                     for (annotation in old.modifiers.annotations()) {
-                        val qualifiedName = annotation.qualifiedName() ?: continue
+                        val qualifiedName = annotation.qualifiedName ?: continue
                         if ((showAnnotations.matches(annotation) || hideAnnotations.matches(annotation) || hideMetaAnnotations.contains(qualifiedName)) &&
                             new.modifiers.findAnnotation(qualifiedName) == null
                         ) {
@@ -542,7 +542,7 @@ class AnnotationsMerger(
         var haveNullable = false
         var haveNotNull = false
         for (existing in item.modifiers.annotations()) {
-            val name = existing.qualifiedName() ?: continue
+            val name = existing.qualifiedName ?: continue
             if (isNonNull(name)) {
                 haveNotNull = true
             }
@@ -804,14 +804,10 @@ data class XmlBackedAnnotationAttribute(
 // TODO: Replace with usage of DefaultAnnotationAttribute?
 class XmlBackedAnnotationItem(
     codebase: Codebase,
-    private val qualifiedName: String,
-    private val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
+    override val originalName: String,
+    override val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
-
-    override fun originalName(): String? = qualifiedName
-    override fun qualifiedName(): String? = AnnotationItem.mapName(codebase, qualifiedName)
-
-    override fun attributes() = attributes
+    override val qualifiedName: String? = AnnotationItem.mapName(codebase, originalName)
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val qualifiedName = AnnotationItem.mapName(codebase, qualifiedName, null, target) ?: return ""

@@ -68,7 +68,7 @@ class PsiParameterItem(
             // Java: Look for @ParameterName annotation
             val annotation = modifiers.annotations().firstOrNull { it.isParameterName() }
             if (annotation != null) {
-                return annotation.attributes().firstOrNull()?.value?.value()?.toString()
+                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
         }
 
@@ -166,7 +166,7 @@ class PsiParameterItem(
             // Java: Look for @ParameterName annotation
             val annotation = modifiers.annotations().firstOrNull { it.isDefaultValue() }
             if (annotation != null) {
-                return annotation.attributes().firstOrNull()?.value?.value()?.toString()
+                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
         }
 
