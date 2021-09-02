@@ -18,14 +18,13 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.withCodebase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PsiModifierItemTest {
     @Test
     fun `Kotlin implicit internal visibility inheritance`() {
-        withCodebase(
+        testCodebase(
             kotlin(
                 """
                     open class Base {
@@ -38,12 +37,11 @@ class PsiModifierItemTest {
                         override val property = 4
                     }
                 """
-            ),
-            enableKotlinPsi = false
+            )
         ) { codebase ->
-            val method = codebase.findClass("Inherited")!!.methods()
+            val method = codebase.assumeClass("Inherited").methods()
                 .first { it.name().startsWith("method") }
-            val property = codebase.findClass("Inherited")!!.properties().single()
+            val property = codebase.assumeClass("Inherited").properties().single()
 
             assertEquals(VisibilityLevel.INTERNAL, method.modifiers.getVisibilityLevel())
             assertEquals(VisibilityLevel.INTERNAL, property.modifiers.getVisibilityLevel())
