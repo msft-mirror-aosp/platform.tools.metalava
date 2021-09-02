@@ -188,9 +188,9 @@ class Reporter(
         item ?: return false
 
         for (annotation in item.modifiers.annotations()) {
-            val annotationName = annotation.qualifiedName()
+            val annotationName = annotation.qualifiedName
             if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
-                for (attribute in annotation.attributes()) {
+                for (attribute in annotation.attributes) {
                     // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
                     // one attribute such as value/names that is varargs of String
                     val value = attribute.value
