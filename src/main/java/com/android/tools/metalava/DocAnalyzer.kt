@@ -147,7 +147,7 @@ class DocAnalyzer(
             private fun findThreadAnnotations(annotations: List<AnnotationItem>): List<String> {
                 var result: MutableList<String>? = null
                 for (annotation in annotations) {
-                    val name = annotation.qualifiedName()
+                    val name = annotation.qualifiedName
                     if (name != null && name.endsWith("Thread") &&
                         (
                             name.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX) ||
@@ -184,7 +184,7 @@ class DocAnalyzer(
                 depth: Int,
                 visitedClasses: MutableSet<String> = mutableSetOf()
             ) {
-                val name = annotation.qualifiedName()
+                val name = annotation.qualifiedName
                 if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
                     // Ignore java.lang.Retention etc.
                     return
@@ -226,7 +226,7 @@ class DocAnalyzer(
                             "Unbounded recursion, processing annotation ${annotation.toSource()} " +
                                 "in $item in ${item.sourceFile()} "
                         )
-                    } else if (nested.qualifiedName() !in visitedClasses) {
+                    } else if (nested.qualifiedName !in visitedClasses) {
                         handleAnnotation(nested, item, depth + 1, visitedClasses)
                     }
                 }
@@ -284,7 +284,7 @@ class DocAnalyzer(
                 var values: List<AnnotationAttributeValue>? = null
                 var any = false
                 var conditional = false
-                for (attribute in annotation.attributes()) {
+                for (attribute in annotation.attributes) {
                     when (attribute.name) {
                         "value", "allOf" -> {
                             values = attribute.leafValues()
