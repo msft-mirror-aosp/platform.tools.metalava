@@ -18,11 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.visitors.ItemVisitor
 import org.intellij.lang.annotations.Language
-import org.junit.Assume.assumeTrue
+import java.io.File
 import kotlin.io.path.createTempDirectory
 
 fun java(to: String, @Language("JAVA") source: String): TestFile {
@@ -41,55 +38,11 @@ fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
     return TestFiles.kotlin(to, source.trimIndent())
 }
 
-internal inline fun withCodebase(
-    vararg sources: TestFile,
-    useKtModel: Boolean = true,
-    action: (Codebase) -> Unit
-) {
-    // This is thread-safe as it adds a random suffix to the directory prefix
-    val tempDirectory = createTempDirectory("codebase").toFile()
+inline fun tempDirectory(action: (File) -> Unit) {
+    val tempDirectory = createTempDirectory().toFile()
     try {
-        val codebase = parseSources(
-            sources = sources.map { it.createFile(tempDirectory) },
-            description = "Test Codebase",
-            useKtModel = useKtModel
-        )
-        try {
-            action(codebase)
-        } finally {
-            // This cleans up underlying services in a PSI codebase
-            codebase.dispose()
-        }
+        action(tempDirectory)
     } finally {
-        // Have to assert here, since [deleteRecursively] returns a success/failure as a boolean
-        assert(tempDirectory.deleteRecursively()) { "Temporary directory not cleaned up" }
+        tempDirectory.deleteRecursively()
     }
-}
-
-internal inline fun withClass(
-    @Language("kotlin") source: String,
-    useKtModel: Boolean = true,
-    action: (ClassItem) -> Unit
-) {
-    withCodebase(kotlin(source), useKtModel = useKtModel) { codebase ->
-        action(codebase.assumeSingleTopLevelClass())
-    }
-}
-
-fun Codebase.assumeSingleTopLevelClass(): ClassItem {
-    var count = 0
-    var result: ClassItem? = null
-
-    this.accept(object : ItemVisitor() {
-        override fun visitClass(cls: ClassItem) {
-            if (cls.isTopLevelClass()) {
-                count++
-                result = cls
-            }
-        }
-    })
-
-    assumeTrue("Expected one top level class, got $count", count == 1)
-
-    return result!!
 }
