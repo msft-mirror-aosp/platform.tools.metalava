@@ -52,6 +52,7 @@ import com.android.tools.metalava.Issues.ACTION_VALUE
 import com.android.tools.metalava.Issues.ALL_UPPER
 import com.android.tools.metalava.Issues.ANDROID_URI
 import com.android.tools.metalava.Issues.ARRAY_RETURN
+import com.android.tools.metalava.Issues.ASYNC_SUFFIX_FUTURE
 import com.android.tools.metalava.Issues.AUTO_BOXING
 import com.android.tools.metalava.Issues.BAD_FUTURE
 import com.android.tools.metalava.Issues.BANNED_THROW
@@ -244,6 +245,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         if (returnType != null) {
             checkType(returnType, method)
             checkNullableCollections(returnType, method)
+            checkMethodSuffixListenableFutureReturn(returnType, method)
         }
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
@@ -3622,6 +3624,20 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
+    private fun checkMethodSuffixListenableFutureReturn(type: TypeItem, method: MethodItem) {
+        if (type.toTypeString().contains(listenableFuture) &&
+            !method.isConstructor() &&
+            !method.name().endsWith("Async")
+        ) {
+            report(
+                ASYNC_SUFFIX_FUTURE,
+                method,
+                "Methods returning $listenableFuture should have a suffix *Async to " +
+                    "reserve unmodified name for a suspend function"
+            )
+        }
+    }
+
     private fun isInteresting(cls: ClassItem): Boolean {
         val name = cls.qualifiedName()
         for (prefix in options.checkApiIgnorePrefix) {
@@ -3661,6 +3677,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             "java.util.concurrent.CompletableFuture",
             "java.util.concurrent.Future"
         )
+
+        private val listenableFuture = "com.google.common.util.concurrent.ListenableFuture"
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor
