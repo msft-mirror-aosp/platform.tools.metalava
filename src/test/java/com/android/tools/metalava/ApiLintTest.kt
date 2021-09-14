@@ -768,7 +768,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
                         public @Nullable Future<String> bad3() { return null; }
                         public void bad4(@Nullable Future<String> param) { }
 
-                        public @Nullable ListenableFuture<String> ok1() { return null; }
+                        public @Nullable ListenableFuture<String> okAsync() { return null; }
                         public void ok2(@Nullable ListenableFuture<String> param) { }
 
                         public interface BadFuture<T> extends Future<T> {
@@ -3417,6 +3417,40 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
                         )
                     """
                 )
+            )
+        )
+    }
+
+    @Test
+    fun `Methods returning ListenableFuture end with async`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues = """
+                src/android/pkg/MyClass.java:7: error: Methods returning com.google.common.util.concurrent.ListenableFuture should have a suffix *Async to reserve unmodified name for a suspend function [AsyncSuffixFuture]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+                    import com.google.common.util.concurrent.ListenableFuture;
+
+                    public final class MyClass {
+                        public @Nullable ListenableFuture<String> bad() { return null; }
+                        public @Nullable ListenableFuture<String> goodAsync() { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package com.google.common.util.concurrent;
+                    public class ListenableFuture<T> {
+                    }
+                    """
+                ),
+                androidxNullableSource
             )
         )
     }
