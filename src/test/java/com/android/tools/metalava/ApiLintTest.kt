@@ -21,6 +21,7 @@ import org.junit.Test
 class ApiLintTest : DriverTest() {
 
     @Test
+    @TestKotlinPsi
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
@@ -639,6 +640,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Fields must be final and properly named`() {
         check(
             apiLint = "", // enabled
@@ -885,6 +887,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Api methods should not be synchronized in their signature`() {
         check(
             apiLint = "", // enabled
@@ -1760,6 +1763,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check boxed types`() {
         check(
             apiLint = "", // enabled
@@ -2568,6 +2572,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Return collections instead of arrays`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
@@ -2957,6 +2962,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `KotlinOperator check only applies when not using operator modifier`() {
         check(
             apiLint = "", // enabled
@@ -3020,6 +3026,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
@@ -3273,6 +3280,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `vararg use in annotations`() {
         check(
             apiLint = "", // enabled
@@ -3396,6 +3404,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `No warnings about nullability on private constructor getters`() {
         check(
             expectedIssues = "",
