@@ -254,6 +254,9 @@ class DocAnalyzer(
                         if (item is ParameterItem) {
                             item.containingMethod().findTagDocumentation("param", item.name())
                                 ?: ""
+                        } else if (item is MethodItem) {
+                            // Don't inspect param docs (and other tags) for this purpose.
+                            item.findMainDocumentation() + (item.findTagDocumentation("return") ?: "")
                         } else {
                             item.documentation
                         }
