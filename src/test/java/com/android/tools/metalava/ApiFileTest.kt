@@ -4417,4 +4417,30 @@ class ApiFileTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
             """
         )
     }
+
+    @Test
+    fun `Kotlin doesn't expand java named constants`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles =
+            arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Foo(val bar: Long = java.lang.Long.MIN_VALUE)
+                    """
+                )
+            ),
+            api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    method public abstract long bar() default java.lang.Long.MIN_VALUE;
+                    property public abstract long bar;
+                  }
+                }
+            """
+        )
+    }
 }
