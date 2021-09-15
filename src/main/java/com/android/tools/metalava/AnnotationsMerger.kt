@@ -43,7 +43,6 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NOTNULL
 import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
-import com.android.tools.lint.checks.AnnotationDetector
 import com.android.tools.lint.detector.api.getChildren
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -583,7 +582,8 @@ class AnnotationsMerger(
                 return PsiAnnotationItem.create(
                     codebase,
                     XmlBackedAnnotationItem(
-                        codebase, AnnotationDetector.INT_RANGE_ANNOTATION.newName(),
+                        codebase,
+                        "androidx.annotation.IntRange",
                         listOf(
                             // Add "L" suffix to ensure that we don't for example interpret "-1" as
                             // an integer -1 and then end up recording it as "ffffffff" instead of -1L
