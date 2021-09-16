@@ -17,18 +17,11 @@
 package com.android.tools.metalava
 
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
+class ApiLintTest : DriverTest() {
 
     @Test
+    @TestKotlinPsi
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
@@ -647,6 +640,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Fields must be final and properly named`() {
         check(
             apiLint = "", // enabled
@@ -893,6 +887,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Api methods should not be synchronized in their signature`() {
         check(
             apiLint = "", // enabled
@@ -1768,6 +1763,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check boxed types`() {
         check(
             apiLint = "", // enabled
@@ -2576,6 +2572,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Return collections instead of arrays`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
@@ -2965,6 +2962,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `KotlinOperator check only applies when not using operator modifier`() {
         check(
             apiLint = "", // enabled
@@ -3028,6 +3026,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
@@ -3281,6 +3280,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `vararg use in annotations`() {
         check(
             apiLint = "", // enabled
@@ -3404,6 +3404,7 @@ class ApiLintTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `No warnings about nullability on private constructor getters`() {
         check(
             expectedIssues = "",

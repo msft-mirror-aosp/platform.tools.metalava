@@ -17,17 +17,8 @@
 package com.android.tools.metalava
 
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class ReporterTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class ReporterTest : DriverTest() {
     @Test
     fun `Errors are sent to stderr`() {
         check(
@@ -55,6 +46,7 @@ class ReporterTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test suppression annotations`() {
         check(
             apiLint = "",

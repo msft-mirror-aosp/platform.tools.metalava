@@ -4,18 +4,9 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class DocAnalyzerTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class DocAnalyzerTest : DriverTest() {
     // TODO: Test @StringDef
 
     @Test
@@ -1716,6 +1707,7 @@ class DocAnalyzerTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Include Kotlin deprecation text`() {
         check(
             sourceFiles = arrayOf(
