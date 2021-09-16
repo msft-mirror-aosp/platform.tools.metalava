@@ -21,6 +21,7 @@ import org.junit.Test
 class HideAnnotationTest : DriverTest() {
     // Regression test for b/133364476 crash
     @Test
+    @TestKotlinPsi
     fun `Using hide annotation with Kotlin source`() {
         check(
             expectedIssues = """
