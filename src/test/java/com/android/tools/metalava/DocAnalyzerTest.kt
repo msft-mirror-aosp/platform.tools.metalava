@@ -69,6 +69,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * @param factor2 Don't pass null here please.
                      * @param factor1 This value must never be {@code null}.
+                     * @return This value may be {@code null}.
                      */
                     @androidx.annotation.Nullable
                     public java.lang.Double method4(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
