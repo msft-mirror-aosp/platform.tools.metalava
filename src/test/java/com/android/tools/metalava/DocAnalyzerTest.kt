@@ -24,6 +24,10 @@ class DocAnalyzerTest : DriverTest() {
                         /** These are the docs for method2. It can sometimes return null. */
                         @Nullable public Double method2(@NonNull Double factor1, @NonNull Double factor2) { }
                         @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
+                        /**
+                         * @param factor2 Don't pass null here please.
+                         */
+                        @Nullable public Double method4(@NonNull Double factor1, @NonNull Double factor2) { }
                     }
                     """
                 ),
@@ -62,6 +66,12 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     @androidx.annotation.Nullable
                     public java.lang.Double method3(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @param factor2 Don't pass null here please.
+                     * @param factor1 This value must never be {@code null}.
+                     */
+                    @androidx.annotation.Nullable
+                    public java.lang.Double method4(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
