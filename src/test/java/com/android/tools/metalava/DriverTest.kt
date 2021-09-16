@@ -61,9 +61,7 @@ import kotlin.text.Charsets.UTF_8
 
 const val CHECK_JDIFF = false
 
-abstract class DriverTest(
-    private val enableKotlinPsi: Boolean = false // TODO(b/198440244): Remove parameterization
-) {
+abstract class DriverTest {
     @get:Rule
     var temporaryFolder = TemporaryFolder()
 
@@ -1078,9 +1076,6 @@ abstract class DriverTest(
             emptyArray()
         }
 
-        // TODO(b/198440244): Remove parameterization
-        val kotlinPsiArgs = if (enableKotlinPsi) arrayOf(ARG_ENABLE_KOTLIN_PSI) else emptyArray()
-
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1154,7 +1149,6 @@ abstract class DriverTest(
             *errorMessageCheckCompatibilityReleasedArgs,
             *errorMessageCheckCompatibilityCurrentArgs,
             *repeatErrorsMaxArgs,
-            *kotlinPsiArgs,
             expectedFail = expectedFail
         )
 
