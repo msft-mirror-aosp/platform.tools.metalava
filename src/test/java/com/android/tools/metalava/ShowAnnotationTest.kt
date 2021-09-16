@@ -2,17 +2,9 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Tests for the --show-annotation functionality */
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class ShowAnnotationTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
+class ShowAnnotationTest : DriverTest() {
 
     @Test
     fun `Basic showAnnotation test`() {

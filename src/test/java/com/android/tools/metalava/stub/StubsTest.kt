@@ -45,21 +45,12 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
 import org.intellij.lang.annotations.Language
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.test.assertEquals
 
 @SuppressWarnings("ALL")
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class StubsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class StubsTest : DriverTest() {
     // TODO: test fields that need initialization
     // TODO: test @DocOnly handling
 
