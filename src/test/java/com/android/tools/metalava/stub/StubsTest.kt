@@ -30,6 +30,7 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
+import com.android.tools.metalava.TestKotlinPsi
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
@@ -45,21 +46,12 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
 import org.intellij.lang.annotations.Language
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 import java.io.File
 import java.io.FileNotFoundException
 import kotlin.test.assertEquals
 
 @SuppressWarnings("ALL")
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class StubsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class StubsTest : DriverTest() {
     // TODO: test fields that need initialization
     // TODO: test @DocOnly handling
 
@@ -1330,6 +1322,7 @@ class StubsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Basic Kotlin class`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -4323,6 +4316,7 @@ class StubsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Basic Kotlin stubs`() {
         check(
             extraArguments = arrayOf(
@@ -4401,6 +4395,7 @@ class StubsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
         check(
             extraArguments = arrayOf(
