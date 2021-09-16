@@ -18,19 +18,11 @@ package com.android.tools.metalava
 
 import org.junit.Ignore
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class
+CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Change between class and interface`() {
         check(
