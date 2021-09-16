@@ -97,6 +97,13 @@ open class PsiMethodItem(
         return psiMethod.hashCode()
     }
 
+    override fun findMainDocumentation(): String {
+        if (documentation == "") return documentation
+        val comment = codebase.getComment(documentation)
+        val end = findFirstTag(comment)?.textRange?.startOffset ?: documentation.length
+        return comment.text.substring(0, end)
+    }
+
     override fun isConstructor(): Boolean = false
 
     override fun isImplicitConstructor(): Boolean = false
