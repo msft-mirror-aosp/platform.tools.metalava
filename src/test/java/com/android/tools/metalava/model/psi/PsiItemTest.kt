@@ -60,6 +60,8 @@ class PsiItemTest {
 
             assertEquals(barJavadoc, method.findTagDocumentation("param", "bar"))
             assertEquals(bazJavadoc, method.findTagDocumentation("param", "baz"))
+
+            assertEquals("/**\n     * This method does foo.\n     *\n     * ", method.findMainDocumentation())
         }
     }
 }
