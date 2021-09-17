@@ -20,6 +20,7 @@ import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.VisibilityLevel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class PsiModifierItemTest {
     @Test
@@ -39,9 +40,10 @@ class PsiModifierItemTest {
                 """
             )
         ) { codebase ->
-            val method = codebase.assumeClass("Inherited").methods()
-                .first { it.name().startsWith("method") }
-            val property = codebase.assumeClass("Inherited").properties().single()
+            val inherited = codebase.findClass("Inherited")
+            assertNotNull(inherited)
+            val method = inherited.methods().first { it.name().startsWith("method") }
+            val property = inherited.properties().single()
 
             assertEquals(VisibilityLevel.INTERNAL, method.modifiers.getVisibilityLevel())
             assertEquals(VisibilityLevel.INTERNAL, property.modifiers.getVisibilityLevel())

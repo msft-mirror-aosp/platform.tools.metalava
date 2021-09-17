@@ -17,17 +17,8 @@
 package com.android.tools.metalava
 
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class KotlinInteropChecksTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class KotlinInteropChecksTest : DriverTest() {
     @Test
     fun `Hard Kotlin keywords`() {
         check(
@@ -61,6 +52,7 @@ class KotlinInteropChecksTest(enableKotlinPsi: Boolean) : DriverTest(enableKotli
     }
 
     @Test
+    @TestKotlinPsi
     fun `Sam-compatible parameters should be last`() {
         check(
             apiLint = "",
@@ -120,6 +112,7 @@ class KotlinInteropChecksTest(enableKotlinPsi: Boolean) : DriverTest(enableKotli
     }
 
     @Test
+    @TestKotlinPsi
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
             apiLint = "",
@@ -164,6 +157,7 @@ class KotlinInteropChecksTest(enableKotlinPsi: Boolean) : DriverTest(enableKotli
     }
 
     @Test
+    @TestKotlinPsi
     fun `Methods with default parameters should specify JvmOverloads`() {
         check(
             apiLint = "",
@@ -195,6 +189,7 @@ class KotlinInteropChecksTest(enableKotlinPsi: Boolean) : DriverTest(enableKotli
     }
 
     @Test
+    @TestKotlinPsi
     fun `Methods which throw exceptions should document them`() {
         check(
             apiLint = "",

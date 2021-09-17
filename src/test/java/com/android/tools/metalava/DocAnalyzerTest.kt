@@ -4,18 +4,9 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class DocAnalyzerTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class DocAnalyzerTest : DriverTest() {
     // TODO: Test @StringDef
 
     @Test
@@ -33,6 +24,10 @@ class DocAnalyzerTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
                         /** These are the docs for method2. It can sometimes return null. */
                         @Nullable public Double method2(@NonNull Double factor1, @NonNull Double factor2) { }
                         @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
+                        /**
+                         * @param factor2 Don't pass null here please.
+                         */
+                        @Nullable public Double method4(@NonNull Double factor1, @NonNull Double factor2) { }
                     }
                     """
                 ),
@@ -71,6 +66,13 @@ class DocAnalyzerTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
                      */
                     @androidx.annotation.Nullable
                     public java.lang.Double method3(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @param factor2 Don't pass null here please.
+                     * @param factor1 This value must never be {@code null}.
+                     * @return This value may be {@code null}.
+                     */
+                    @androidx.annotation.Nullable
+                    public java.lang.Double method4(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
@@ -1716,6 +1718,7 @@ class DocAnalyzerTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Include Kotlin deprecation text`() {
         check(
             sourceFiles = arrayOf(
