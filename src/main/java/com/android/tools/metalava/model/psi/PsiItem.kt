@@ -90,7 +90,7 @@ abstract class PsiItem(
     /** Get a mutable version of modifiers for this item */
     override fun mutableModifiers(): MutableModifierList = modifiers
 
-    override fun findTagDocumentation(tag: String): String? {
+    override fun findTagDocumentation(tag: String, value: String?): String? {
         if (element is PsiCompiledElement) {
             return null
         }
@@ -102,9 +102,17 @@ abstract class PsiItem(
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
         val docComment = codebase.getComment(documentation)
-        val docTag = docComment.findTagByName(tag) ?: return null
-        val text = docTag.text
+        val tagComment = if (value == null) {
+            docComment.findTagByName(tag)
+        } else {
+            docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
+        }
 
+        if (tagComment == null) {
+            return null
+        }
+
+        val text = tagComment.text
         // Trim trailing next line (javadoc *)
         var index = text.length - 1
         while (index > 0) {
@@ -115,10 +123,10 @@ abstract class PsiItem(
             index--
         }
         index++
-        return if (index < text.length) {
-            text.substring(0, index)
+        if (index < text.length) {
+            return text.substring(0, index)
         } else {
-            text
+            return text
         }
     }
 
