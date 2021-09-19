@@ -17,17 +17,9 @@
 package com.android.tools.metalava
 
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 @SuppressWarnings("ALL") // Sample code
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class ExtractAnnotationsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
+class ExtractAnnotationsTest : DriverTest() {
 
     private val sourceFiles1 = arrayOf(
         java(
@@ -114,6 +106,7 @@ class ExtractAnnotationsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check Kotlin and referencing hidden constants from typedef`() {
         check(
             includeSourceRetentionAnnotations = false,
@@ -192,6 +185,7 @@ class ExtractAnnotationsTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check including only class retention annotations other than typedefs`() {
         check(
             includeSourceRetentionAnnotations = true,

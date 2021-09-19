@@ -251,6 +251,7 @@ private fun processFlags() {
         } else {
             return
         }
+    codebase.apiLevel = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
@@ -746,7 +747,6 @@ internal fun parseSources(
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
     manifest: File? = options.manifest,
-    currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0,
     enableKotlinPsi: Boolean = options.enableKotlinPsi
 ): PsiBasedCodebase {
     val sourceRoots = mutableListOf<File>()
@@ -781,7 +781,6 @@ internal fun parseSources(
     val codebase = PsiBasedCodebase(rootDir, description, enableKotlinPsi)
     codebase.initialize(environment, units, packageDocs)
     codebase.manifest = manifest
-    codebase.apiLevel = currentApiLevel
     return codebase
 }
 

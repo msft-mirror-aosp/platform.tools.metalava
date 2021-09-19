@@ -18,19 +18,11 @@ package com.android.tools.metalava
 
 import org.junit.Ignore
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 
-@RunWith(Parameterized::class) // TODO(b/198440244): Remove parameterization
-class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlinPsi) {
-    companion object {
-        @Parameterized.Parameters(name = "enableKotlinPsi = {0}")
-        @JvmStatic
-        fun parameters() = arrayOf(false, true)
-    }
-
+class
+CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Change between class and interface`() {
         check(
@@ -179,6 +171,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Nullness`() {
         check(
             expectedIssues = """
@@ -262,6 +255,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Parameter Name Change`() {
         check(
             expectedIssues = """
@@ -349,6 +343,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove operator`() {
         check(
             expectedIssues = """
@@ -377,6 +372,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove vararg`() {
         check(
             expectedIssues = """
@@ -403,6 +399,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Add final`() {
         // Adding final on class or method is incompatible; adding it on a parameter is fine.
         // Field is iffy.
@@ -642,6 +639,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove infix`() {
         check(
             expectedIssues = """
@@ -674,6 +672,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Add seal`() {
         check(
             expectedIssues = """
@@ -697,6 +696,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
@@ -734,6 +734,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
@@ -1572,6 +1573,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Kotlin extensions`() {
         check(
             inputKotlinStyleNulls = true,
@@ -1619,6 +1621,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Kotlin type bounds`() {
         check(
             inputKotlinStyleNulls = false,
@@ -2501,6 +2504,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
             expectedIssues = """
@@ -2530,6 +2534,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Adding and removing reified`() {
         check(
             inputKotlinStyleNulls = true,
@@ -3681,6 +3686,7 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues = """
@@ -3756,6 +3762,54 @@ class CompatibilityCheckTest(enableKotlinPsi: Boolean) : DriverTest(enableKotlin
                         Class<?> markerClass() default void.class;
                     }
                 """
+                )
+            )
+        )
+    }
+
+    @Test
+    @TestKotlinPsi
+    fun `adding methods to interfaces`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/JavaInterface.java:5: error: Added method test.pkg.JavaInterface.hasDefault() [AddedMethod]
+                src/test/pkg/JavaInterface.java:8: error: Added method test.pkg.JavaInterface.newStatic() [AddedMethod]
+                src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
+            """,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public interface JavaInterface {
+                  }
+                  public interface KotlinInterface {
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public interface JavaInterface {
+                            void noDefault();
+                            default boolean hasDefault() {
+                                return true;
+                            }
+                            static void newStatic();
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface KotlinInterface {
+                            fun noDefault()
+                            fun hasDefault(): Boolean = true
+                        }
+                    """
                 )
             )
         )
