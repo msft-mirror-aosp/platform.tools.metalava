@@ -26,6 +26,7 @@ import com.android.tools.metalava.parseSources
 import com.android.tools.metalava.tempDirectory
 import com.intellij.openapi.util.Disposer
 import java.io.File
+import kotlin.test.assertNotNull
 
 inline fun testCodebase(
     vararg sources: TestFile,
@@ -65,4 +66,10 @@ fun destroyTestCodebase(codebase: PsiBasedCodebase) {
 
     UastEnvironment.disposeApplicationEnvironment()
     Disposer.assertIsEmpty(true)
+}
+
+fun PsiBasedCodebase.assertClass(qualifiedName: String): PsiClassItem {
+    val classItem = this.findClass(qualifiedName)
+    assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
+    return classItem
 }
