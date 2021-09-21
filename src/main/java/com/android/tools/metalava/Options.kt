@@ -80,6 +80,7 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
+const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
@@ -250,6 +251,12 @@ class Options(
      * (--doc-stubs) are not affected.)
      */
     var includeDocumentationInStubs = true
+
+    /**
+     * Enhance documentation in various ways, for example auto-generating documentation based on
+     * source annotations present in the code. This is implied by --doc-stubs.
+     */
+    var enhanceDocumentation = false
 
     /**
      * Whether metalava is invoked as part of updating the API files. When this is true, metalava
@@ -907,6 +914,7 @@ class Options(
                 ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
 
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
+                ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
 
                 // Note that this only affects stub generation, not signature files.
                 // For signature files, clear the compatibility mode
@@ -2283,6 +2291,9 @@ class Options(
             "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
             "A comma separated list of fully qualified names of " +
                 "annotation classes that must be stripped from metalava's outputs.",
+            ARG_ENHANCE_DOCUMENTATION,
+            "Enhance documentation in various ways, for example auto-generating documentation based on source " +
+                "annotations present in the code. This is implied by --doc-stubs.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS,
             "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
