@@ -439,6 +439,11 @@ interface AnnotationItem {
                 "android.view.ViewDebug.ExportedProperty",
                 "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
 
+                // Retained in the sdk/jar stub source code so that SdkConstant files can be extracted
+                // from those. This is useful for modularizing the main SDK stubs without having to
+                // add a separate module SDK artifact for sdk constants.
+                "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
                 "com.android.modules.annotation.MinSdk",

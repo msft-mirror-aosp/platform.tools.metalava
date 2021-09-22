@@ -37,6 +37,8 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
@@ -57,10 +59,15 @@ class PsiModifierItem(
     annotations: MutableList<AnnotationItem>? = null
 ) : DefaultModifierList(codebase, flags, annotations), ModifierList, MutableModifierList {
     companion object {
-        fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner, documentation: String?): PsiModifierItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            element: PsiModifierListOwner,
+            documentation: String?,
+            enableKotlinPsi: Boolean = false
+        ): PsiModifierItem {
             val modifiers =
                 if (element is UAnnotated) {
-                    create(codebase, element, element)
+                    create(codebase, element, element, enableKotlinPsi)
                 } else {
                     create(codebase, element)
                 }
@@ -213,6 +220,47 @@ class PsiModifierItem(
             return flags
         }
 
+        private fun computeFlag(element: KtModifierListOwner): Int {
+            // Visibility
+            var flags = when {
+                element.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
+                element.hasModifier(KtTokens.PROTECTED_KEYWORD) -> PROTECTED
+                element.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
+                else -> PUBLIC
+            }
+
+            fun set(flag: Int) { flags = flags or flag }
+
+            // Class-specific modifier rules
+            if (element is KtClassOrObject) {
+                // Abstractness
+                when {
+                    element is KtClass && element.isInterface() -> set(ABSTRACT)
+                    element.isAnnotation() -> set(ABSTRACT)
+                    element.hasModifier(KtTokens.ABSTRACT_KEYWORD) -> set(ABSTRACT)
+                    element.hasModifier(KtTokens.SEALED_KEYWORD) -> set(SEALED or ABSTRACT)
+                    element.hasModifier(KtTokens.OPEN_KEYWORD) -> {}
+                    else -> set(FINAL)
+                }
+
+                // Class types
+                when {
+                    element.hasModifier(KtTokens.INLINE_KEYWORD) -> set(INLINE)
+                    element.hasModifier(KtTokens.DATA_KEYWORD) -> set(DATA)
+                    element.hasModifier(KtTokens.VALUE_KEYWORD) -> set(VALUE)
+                    element.hasModifier(KtTokens.FUN_KEYWORD) -> set(FUN)
+                    element.hasModifier(KtTokens.COMPANION_KEYWORD) -> set(COMPANION)
+                }
+
+                // Static
+                if (!element.hasModifier(KtTokens.INNER_KEYWORD) && !element.isTopLevel()) {
+                    set(STATIC)
+                }
+            }
+
+            return flags
+        }
+
         private fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
             var flags = computeFlag(codebase, element, modifierList)
@@ -247,11 +295,20 @@ class PsiModifierItem(
         private fun create(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            annotated: UAnnotated
+            annotated: UAnnotated,
+            enableKotlinPsi: Boolean
         ): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
-            var flags = computeFlag(codebase, element, modifierList)
             val uAnnotations = annotated.uAnnotations
+
+            var flags = if (enableKotlinPsi) {
+                val ktModifiers = requireNotNull(annotated.sourcePsi as? KtModifierListOwner) {
+                    "Expected source PSI to implement KtModifierListOwner"
+                }
+                computeFlag(ktModifiers)
+            } else {
+                computeFlag(codebase, element, modifierList)
+            }
 
             return if (uAnnotations.isEmpty()) {
                 val psiAnnotations = modifierList.annotations
