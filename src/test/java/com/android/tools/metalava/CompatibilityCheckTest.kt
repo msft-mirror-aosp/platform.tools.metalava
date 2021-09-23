@@ -3767,6 +3767,54 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    @TestKotlinPsi
+    fun `adding methods to interfaces`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/JavaInterface.java:5: error: Added method test.pkg.JavaInterface.hasDefault() [AddedMethod]
+                src/test/pkg/JavaInterface.java:8: error: Added method test.pkg.JavaInterface.newStatic() [AddedMethod]
+                src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
+            """,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public interface JavaInterface {
+                  }
+                  public interface KotlinInterface {
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public interface JavaInterface {
+                            void noDefault();
+                            default boolean hasDefault() {
+                                return true;
+                            }
+                            static void newStatic();
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface KotlinInterface {
+                            fun noDefault()
+                            fun hasDefault(): Boolean = true
+                        }
+                    """
+                )
+            )
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

@@ -226,6 +226,10 @@ Generating Stubs:
 --exclude-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
+--enhance-documentation
+                                             Enhance documentation in various ways, for example auto-generating
+                                             documentation based on source annotations present in the code. This is
+                                             implied by --doc-stubs.
 --exclude-documentation-from-stubs
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.

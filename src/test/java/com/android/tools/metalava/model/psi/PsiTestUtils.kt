@@ -25,8 +25,8 @@ import com.android.tools.metalava.options
 import com.android.tools.metalava.parseSources
 import com.android.tools.metalava.tempDirectory
 import com.intellij.openapi.util.Disposer
-import org.junit.AssumptionViolatedException
 import java.io.File
+import kotlin.test.assertNotNull
 
 inline fun testCodebase(
     vararg sources: TestFile,
@@ -68,8 +68,8 @@ fun destroyTestCodebase(codebase: PsiBasedCodebase) {
     Disposer.assertIsEmpty(true)
 }
 
-/** Finds the named class or throws an [AssumptionViolatedException] */
-fun PsiBasedCodebase.assumeClass(className: String): PsiClassItem {
-    return findClass(className)
-        ?: throw AssumptionViolatedException("Expected $className to exist in codebase")
+fun PsiBasedCodebase.assertClass(qualifiedName: String): PsiClassItem {
+    val classItem = this.findClass(qualifiedName)
+    assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
+    return classItem
 }
