@@ -171,6 +171,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Nullness`() {
         check(
             expectedIssues = """
@@ -254,6 +255,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Parameter Name Change`() {
         check(
             expectedIssues = """
@@ -341,6 +343,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove operator`() {
         check(
             expectedIssues = """
@@ -369,6 +372,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove vararg`() {
         check(
             expectedIssues = """
@@ -395,6 +399,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Add final`() {
         // Adding final on class or method is incompatible; adding it on a parameter is fine.
         // Field is iffy.
@@ -634,6 +639,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove infix`() {
         check(
             expectedIssues = """
@@ -666,6 +672,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Add seal`() {
         check(
             expectedIssues = """
@@ -689,6 +696,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
@@ -726,6 +734,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
@@ -1564,6 +1573,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Kotlin extensions`() {
         check(
             inputKotlinStyleNulls = true,
@@ -1611,6 +1621,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Kotlin type bounds`() {
         check(
             inputKotlinStyleNulls = false,
@@ -2493,6 +2504,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
             expectedIssues = """
@@ -2522,6 +2534,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Adding and removing reified`() {
         check(
             inputKotlinStyleNulls = true,
@@ -3673,6 +3686,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues = """
@@ -3748,6 +3762,54 @@ CompatibilityCheckTest : DriverTest() {
                         Class<?> markerClass() default void.class;
                     }
                 """
+                )
+            )
+        )
+    }
+
+    @Test
+    @TestKotlinPsi
+    fun `adding methods to interfaces`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/JavaInterface.java:5: error: Added method test.pkg.JavaInterface.hasDefault() [AddedMethod]
+                src/test/pkg/JavaInterface.java:8: error: Added method test.pkg.JavaInterface.newStatic() [AddedMethod]
+                src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
+            """,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public interface JavaInterface {
+                  }
+                  public interface KotlinInterface {
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public interface JavaInterface {
+                            void noDefault();
+                            default boolean hasDefault() {
+                                return true;
+                            }
+                            static void newStatic();
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface KotlinInterface {
+                            fun noDefault()
+                            fun hasDefault(): Boolean = true
+                        }
+                    """
                 )
             )
         )

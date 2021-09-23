@@ -21,6 +21,7 @@ import org.junit.Test
 class ApiLintTest : DriverTest() {
 
     @Test
+    @TestKotlinPsi
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
@@ -639,6 +640,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Fields must be final and properly named`() {
         check(
             apiLint = "", // enabled
@@ -760,7 +762,7 @@ class ApiLintTest : DriverTest() {
                         public @Nullable Future<String> bad3() { return null; }
                         public void bad4(@Nullable Future<String> param) { }
 
-                        public @Nullable ListenableFuture<String> ok1() { return null; }
+                        public @Nullable ListenableFuture<String> okAsync() { return null; }
                         public void ok2(@Nullable ListenableFuture<String> param) { }
 
                         public interface BadFuture<T> extends Future<T> {
@@ -885,6 +887,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Api methods should not be synchronized in their signature`() {
         check(
             apiLint = "", // enabled
@@ -1760,6 +1763,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check boxed types`() {
         check(
             apiLint = "", // enabled
@@ -2568,6 +2572,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Return collections instead of arrays`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
@@ -2957,6 +2962,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `KotlinOperator check only applies when not using operator modifier`() {
         check(
             apiLint = "", // enabled
@@ -3020,6 +3026,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
@@ -3273,6 +3280,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `vararg use in annotations`() {
         check(
             apiLint = "", // enabled
@@ -3396,6 +3404,7 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `No warnings about nullability on private constructor getters`() {
         check(
             expectedIssues = "",
@@ -3407,6 +3416,58 @@ class ApiLintTest : DriverTest() {
                         class MyClass private constructor(
                             val myParameter: Set<Int>
                         )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Methods returning ListenableFuture end with async`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues = """
+                src/android/pkg/MyClass.java:7: error: Methods returning com.google.common.util.concurrent.ListenableFuture should have a suffix *Async to reserve unmodified name for a suspend function [AsyncSuffixFuture]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+                    import com.google.common.util.concurrent.ListenableFuture;
+
+                    public final class MyClass {
+                        public @Nullable ListenableFuture<String> bad() { return null; }
+                        public @Nullable ListenableFuture<String> goodAsync() { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package com.google.common.util.concurrent;
+                    public class ListenableFuture<T> {
+                    }
+                    """
+                ),
+                androidxNullableSource
+            )
+        )
+    }
+
+    @Test
+    fun `No warning on generic return type`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class SimpleArrayMap<K, V> {
+                            override fun getOrDefault(key: K, defaultValue: V): V {}
+                        }
                     """
                 )
             )

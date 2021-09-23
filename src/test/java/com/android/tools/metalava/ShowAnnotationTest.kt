@@ -653,6 +653,7 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check @PublishedApi handling`() {
         check(
             format = FileFormat.V3,
