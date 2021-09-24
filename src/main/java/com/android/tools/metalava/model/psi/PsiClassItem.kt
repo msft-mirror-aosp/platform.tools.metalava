@@ -506,7 +506,14 @@ open class PsiClassItem(
                     methods.add(method)
                 }
             }
-            if (noArgConstructor != null && !hasConstructorWithOnlyOptionalArgs) {
+
+            // Add the no-arg constructor back in if no constructors have only optional arguments
+            // or if an all-optional constructor created it as part of @JvmOverloads
+            if (noArgConstructor != null && (
+                !hasConstructorWithOnlyOptionalArgs ||
+                    noArgConstructor.modifiers.isAnnotatedWith("kotlin.jvm.JvmOverloads")
+                )
+            ) {
                 constructors.add(noArgConstructor)
             }
 
