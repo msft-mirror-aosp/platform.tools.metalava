@@ -38,6 +38,7 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -439,7 +440,10 @@ open class PsiClassItem(
             val classType = ClassType.getClassType(psiClass)
 
             val commentText = PsiItem.javadoc(psiClass)
-            val modifiers = modifiers(codebase, psiClass, commentText)
+            val isFacade = (psiClass as? KotlinUClass)?.javaPsi is KtLightClassForFacade
+            val modifiers = PsiModifierItem
+                .create(codebase, psiClass, commentText, codebase.enableKotlinPsi && !isFacade)
+
             val item = PsiClassItem(
                 codebase = codebase,
                 psiClass = psiClass,
@@ -502,7 +506,14 @@ open class PsiClassItem(
                     methods.add(method)
                 }
             }
-            if (noArgConstructor != null && !hasConstructorWithOnlyOptionalArgs) {
+
+            // Add the no-arg constructor back in if no constructors have only optional arguments
+            // or if an all-optional constructor created it as part of @JvmOverloads
+            if (noArgConstructor != null && (
+                !hasConstructorWithOnlyOptionalArgs ||
+                    noArgConstructor.modifiers.isAnnotatedWith("kotlin.jvm.JvmOverloads")
+                )
+            ) {
                 constructors.add(noArgConstructor)
             }
 

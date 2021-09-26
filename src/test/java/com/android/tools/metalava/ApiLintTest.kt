@@ -3455,4 +3455,22 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `No warning on generic return type`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class SimpleArrayMap<K, V> {
+                            override fun getOrDefault(key: K, defaultValue: V): V {}
+                        }
+                    """
+                )
+            )
+        )
+    }
 }
