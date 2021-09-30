@@ -524,7 +524,7 @@ open class PsiClassItem(
                 constructors.add(PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass))
             }
 
-            val fields: MutableList<FieldItem> = mutableListOf()
+            val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence()
@@ -557,7 +557,8 @@ open class PsiClassItem(
             if (isKotlin && methods.isNotEmpty()) {
                 val getters = mutableMapOf<String, PsiMethodItem>()
                 val setters = mutableMapOf<String, PsiMethodItem>()
-                val parameters = item.primaryConstructor?.parameters()
+                val backingFields = fields.associateBy { it.name() }
+                val constructorParameters = item.primaryConstructor?.parameters()
                     ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
                     ?.associateBy { it.name() }
                     .orEmpty()
@@ -591,7 +592,8 @@ open class PsiClassItem(
                         type = type,
                         getter = getter,
                         setter = setters[name],
-                        constructorParameter = parameters[name]
+                        constructorParameter = constructorParameters[name],
+                        backingField = backingFields[name]
                     )
                 }
                 item.properties = properties

@@ -35,7 +35,8 @@ class PsiPropertyItem private constructor(
     private val fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
     override val setter: PsiMethodItem?,
-    override val constructorParameter: PsiParameterItem?
+    override val constructorParameter: PsiParameterItem?,
+    override val backingField: PsiFieldItem?
 ) :
     PsiItem(
         codebase = codebase,
@@ -90,6 +91,9 @@ class PsiPropertyItem private constructor(
          * Properties declared in the primary constructor of a class have an associated
          * [constructorParameter]. This relationship is important for resolving docs which may
          * exist on the constructor parameter.
+         *
+         * Most properties on classes without a custom getter have a [backingField] to hold their
+         * value. This is private except for [JvmField] properties.
          */
         fun create(
             codebase: PsiBasedCodebase,
@@ -98,7 +102,8 @@ class PsiPropertyItem private constructor(
             type: PsiTypeItem,
             getter: PsiMethodItem,
             setter: PsiMethodItem? = null,
-            constructorParameter: PsiParameterItem? = null
+            constructorParameter: PsiParameterItem? = null,
+            backingField: PsiFieldItem? = null
         ): PsiPropertyItem {
             val psiMethod = getter.psiMethod
             val documentation = when (val sourcePsi = getter.sourcePsi) {
@@ -116,11 +121,13 @@ class PsiPropertyItem private constructor(
                 fieldType = type,
                 getter = getter,
                 setter = setter,
-                constructorParameter = constructorParameter
+                constructorParameter = constructorParameter,
+                backingField = backingField
             )
             getter.property = property
             setter?.property = property
             constructorParameter?.property = property
+            backingField?.property = property
             property.modifiers.setOwner(property)
             return property
         }

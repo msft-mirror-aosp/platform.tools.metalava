@@ -88,7 +88,6 @@ class PsiPropertyItemTest {
 
                         var privateCustomSet: Int = 0
                             private set(value) { field = value + 1 }
-                    }
                 """
             )
         ) { codebase ->
@@ -108,6 +107,30 @@ class PsiPropertyItemTest {
             assertTrue(privateCustomSet.isPublic)
             assertTrue(privateCustomSet.getter!!.isPublic)
             assertTrue(privateCustomSet.setter!!.isPrivate)
+        }
+    }
+
+    @Test
+    fun `properties have backing fields`() {
+        testCodebase(
+            kotlin(
+                """
+                    class Foo(val withField: Int) {
+                        val withoutField: Int
+                            get() = 0
+                    }
+                """
+            )
+        ) { codebase ->
+            val properties = codebase.assertClass("Foo").properties()
+            val withField = properties.single { it.name() == "withField" }
+            val withoutField = properties.single { it.name() == "withoutField" }
+
+            assertNull(withoutField.backingField)
+
+            assertNotNull(withField.backingField)
+            assertEquals("withField", withField.backingField?.name())
+            assertSame(withField, withField.backingField?.property)
         }
     }
 
