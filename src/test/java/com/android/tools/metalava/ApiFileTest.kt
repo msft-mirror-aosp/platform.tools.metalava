@@ -4442,6 +4442,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin doesn't expand java named constants`() {
         check(
             format = FileFormat.V3,
@@ -4461,6 +4462,61 @@ class ApiFileTest : DriverTest() {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
                     method public abstract long bar() default java.lang.Long.MIN_VALUE;
                     property public abstract long bar;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    @TestKotlinPsi
+    fun `Kotlin constructors with JvmOverloads`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class AllOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        class AllOptionalNoJvmOverloads(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        class SomeOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int,
+                            private val bar: Int = 0
+                        )
+
+                        class SomeOptionalNoJvmOverloads(
+                            private val foo: Int,
+                            private val bar: Int = 0
+                        )
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class AllOptionalJvmOverloads {
+                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
+                    ctor public AllOptionalJvmOverloads(optional int foo);
+                    ctor public AllOptionalJvmOverloads();
+                  }
+                  public final class AllOptionalNoJvmOverloads {
+                    ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
+                  }
+                  public final class SomeOptionalJvmOverloads {
+                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
+                    ctor public SomeOptionalJvmOverloads(int foo);
+                  }
+                  public final class SomeOptionalNoJvmOverloads {
+                    ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
                   }
                 }
             """
