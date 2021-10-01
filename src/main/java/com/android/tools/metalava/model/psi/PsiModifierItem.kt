@@ -37,6 +37,7 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
@@ -73,7 +74,9 @@ class PsiModifierItem(
                 }
             if (documentation?.contains("@deprecated") == true ||
                 // Check for @Deprecated annotation
-                ((element as? PsiDocCommentOwner)?.isDeprecated == true)
+                ((element as? PsiDocCommentOwner)?.isDeprecated == true) ||
+                // Check for @Deprecated on sourcePsi
+                isDeprecatedFromSourcePsi(element)
             ) {
                 modifiers.setDeprecated(true)
             }
@@ -81,17 +84,17 @@ class PsiModifierItem(
             return modifiers
         }
 
+        private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
+            return ((element as? UElement)?.sourcePsi as? KtAnnotated)?.annotationEntries?.any {
+                it.shortName?.toString() == "Deprecated"
+            } ?: false
+        }
+
         private fun computeFlag(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             modifierList: PsiModifierList
         ): Int {
-            var visibilityFlags = when {
-                modifierList.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
-                modifierList.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
-                modifierList.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
-                else -> PACKAGE_PRIVATE
-            }
             var flags = 0
             if (modifierList.hasModifierProperty(PsiModifier.STATIC)) {
                 flags = flags or STATIC
@@ -130,6 +133,18 @@ class PsiModifierItem(
                 if (sourcePsi is KtModifierListOwner) {
                     ktModifierList = sourcePsi.modifierList
                 }
+            }
+            var visibilityFlags = when {
+                modifierList.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
+                modifierList.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
+                modifierList.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
+                ktModifierList != null -> when {
+                    ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
+                    ktModifierList.hasModifier(KtTokens.PROTECTED_KEYWORD) -> PROTECTED
+                    ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
+                    else -> PUBLIC
+                }
+                else -> PACKAGE_PRIVATE
             }
             if (ktModifierList != null) {
                 if (ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)) {
