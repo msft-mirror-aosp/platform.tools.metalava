@@ -223,7 +223,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Java Parameter Name Change`() {
         check(
             expectedIssues = """
-                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 in method test.pkg.JavaClass.method1 [ParameterNameChange]
+                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 [ParameterNameChange]
                 src/test/pkg/JavaClass.java:7: error: Attempted to change parameter name from secondParameter to newName in method test.pkg.JavaClass.method2 [ParameterNameChange]
                 """,
             checkCompatibilityApi = """
@@ -700,8 +700,8 @@ CompatibilityCheckTest : DriverTest() {
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo in constructor test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
 
                 """,
             inputKotlinStyleNulls = true,
@@ -738,8 +738,8 @@ CompatibilityCheckTest : DriverTest() {
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo in constructor test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 """,
             inputKotlinStyleNulls = true,
             format = FileFormat.V4,
