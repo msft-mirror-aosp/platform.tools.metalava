@@ -78,6 +78,8 @@ open class PsiMethodItem(
     override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
+    override var property: PsiPropertyItem? = null
+
     override fun name(): String = name
     override fun containingClass(): PsiClassItem = containingClass
 
