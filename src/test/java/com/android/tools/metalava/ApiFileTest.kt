@@ -4396,6 +4396,8 @@ class ApiFileTest : DriverTest() {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp();
                     method public float getValue();
+                    method public inline operator float minus(float other);
+                    method public inline operator float plus(float other);
                     property public final float value;
                   }
                 }
@@ -4517,6 +4519,77 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun myMethod() { TODO() }
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        internal fun myInternalMethod() { TODO() }
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        private fun myPrivateMethod() { TODO() }
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.WARNING
+                        )
+                        fun myNormalDeprecatedMethod() { TODO() }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @Deprecated public static void myMethod();
+                    method @Deprecated public static void myNormalDeprecatedMethod();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        @IntRange(from=0)
+                        fun myMethod() { TODO() }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
                   }
                 }
             """
