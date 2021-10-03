@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 
-plugins {
-    kotlin("jvm") version "1.5.31"
-}
+package com.android.tools.metalava.model.psi
 
-repositories {
-    mavenCentral()
-}
+import com.android.tools.metalava.kotlin
+import kotlin.test.Test
+import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 
-dependencies {
-    implementation("com.google.code.gson:gson:2.8.6")
+class PsiFieldItemTest {
+    @Test
+    fun `backing fields have properties`() {
+        testCodebase(kotlin("class Foo(val bar: Int)")) { codebase ->
+            val field = codebase.assertClass("Foo").fields().single()
+
+            assertNotNull(field.property)
+            assertSame(field, field.property?.backingField)
+        }
+    }
 }
