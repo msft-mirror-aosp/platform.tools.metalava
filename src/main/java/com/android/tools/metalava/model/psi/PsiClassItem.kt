@@ -44,9 +44,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UFile
-import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.KotlinUClass
 
@@ -526,7 +524,7 @@ open class PsiClassItem(
                 constructors.add(PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass))
             }
 
-            val fields: MutableList<FieldItem> = mutableListOf()
+            val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence()
@@ -555,50 +553,48 @@ open class PsiClassItem(
             item.fields = fields
 
             item.properties = emptyList()
-            if (isKotlin) {
-                val primaryParameters = item.primaryConstructor?.parameters()
-                    ?.associateBy { (it.element as? UElement)?.sourcePsi as? KtParameter }
+
+            if (isKotlin && methods.isNotEmpty()) {
+                val getters = mutableMapOf<String, PsiMethodItem>()
+                val setters = mutableMapOf<String, PsiMethodItem>()
+                val backingFields = fields.associateBy { it.name() }
+                val constructorParameters = item.primaryConstructor?.parameters()
+                    ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
+                    ?.associateBy { it.name() }
                     .orEmpty()
-                // Try to initialize the Kotlin properties
-                val properties = mutableListOf<PsiPropertyItem>()
-                for (method in psiMethods) {
-                    if (method is UMethod) {
-                        if (method.modifierList.hasModifierProperty(PsiModifier.STATIC)) {
-                            // Skip extension properties
-                            continue
-                        }
-                        val sourcePsi = method.sourcePsi
-                        if (sourcePsi is KtProperty ||
-                            sourcePsi is KtPropertyAccessor ||
-                            sourcePsi is KtParameter
-                        ) {
-                            if (method.name.startsWith("set") ||
-                                method.name.startsWith("component")
-                            ) {
-                                continue
+
+                for (method in methods) {
+                    if (method.isKotlinProperty()) {
+                        val name = when (val sourcePsi = method.sourcePsi) {
+                            is KtProperty -> sourcePsi.name
+                            is KtPropertyAccessor -> sourcePsi.property.name
+                            is KtParameter -> sourcePsi.name
+                            else -> null
+                        } ?: continue
+
+                        if (method.parameters().isEmpty()) {
+                            if (!method.name().startsWith("component")) {
+                                getters[name] = method
                             }
-                            val name =
-                                when (sourcePsi) {
-                                    is KtProperty -> sourcePsi.name
-                                    is KtPropertyAccessor -> sourcePsi.property.name
-                                    is KtParameter -> {
-                                        if (sourcePsi.isPropertyParameter()) {
-                                            sourcePsi.name
-                                        } else null
-                                    }
-                                    else -> null
-                                } ?: continue
-                            val psiType = method.returnType ?: continue
-                            PsiPropertyItem.create(
-                                codebase = codebase,
-                                containingClass = item,
-                                name = name,
-                                psiType = psiType,
-                                psiMethod = method,
-                                constructorParameter = primaryParameters[sourcePsi as? KtParameter]
-                            ).also { properties.add(it) }
+                        } else {
+                            setters[name] = method
                         }
                     }
+                }
+
+                val properties = mutableListOf<PsiPropertyItem>()
+                for ((name, getter) in getters) {
+                    val type = getter.returnType() as? PsiTypeItem ?: continue
+                    properties += PsiPropertyItem.create(
+                        codebase = codebase,
+                        containingClass = item,
+                        name = name,
+                        type = type,
+                        getter = getter,
+                        setter = setters[name],
+                        constructorParameter = constructorParameters[name],
+                        backingField = backingFields[name]
+                    )
                 }
                 item.properties = properties
             }

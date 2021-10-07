@@ -183,7 +183,7 @@ class CompatibilityCheck(
             report(
                 Issues.PARAMETER_NAME_CHANGE,
                 new,
-                "Attempted to remove parameter name from ${describe(new)} in ${describe(new.containingMethod())}"
+                "Attempted to remove parameter name from ${describe(new)}"
             )
         } else if (newName != prevName) {
             report(
@@ -197,7 +197,7 @@ class CompatibilityCheck(
             report(
                 Issues.DEFAULT_VALUE_CHANGE,
                 new,
-                "Attempted to remove default value from ${describe(new)} in ${describe(new.containingMethod())}"
+                "Attempted to remove default value from ${describe(new)}"
             )
         }
 

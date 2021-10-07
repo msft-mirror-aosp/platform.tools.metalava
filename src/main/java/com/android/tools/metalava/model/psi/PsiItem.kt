@@ -25,6 +25,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
+import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
 import kotlin.properties.ReadWriteProperty
@@ -46,6 +47,9 @@ abstract class PsiItem(
     override var removed = documentation.contains("@removed")
 
     override val synthetic = false
+
+    /** The source PSI provided by UAST */
+    val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
     // a property with a lazily calculated default value
     inner class LazyDelegate<T>(
@@ -243,6 +247,10 @@ abstract class PsiItem(
         fun javadoc(element: PsiElement): String {
             if (element is PsiCompiledElement) {
                 return ""
+            }
+
+            if (element is KtDeclaration) {
+                return element.docComment?.text.orEmpty()
             }
 
             if (element is UElement) {

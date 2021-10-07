@@ -199,6 +199,8 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/Foo.kt:17: error: Method Foo.error_throwsCheckedExceptionWithWrongExceptionClassInThrows appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 src/test/pkg/Foo.kt:37: error: Method Foo.error_throwsRuntimeExceptionDocsMissing appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 src/test/pkg/Foo.kt:44: error: Method Foo.error_missingSpecificAnnotation appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
+                src/test/pkg/Foo.kt:76: error: Method Foo.getErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
+                src/test/pkg/Foo.kt:77: error: Method Foo.setErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -277,6 +279,22 @@ class KotlinInteropChecksTest : DriverTest() {
                                 println("Hello")
                             } catch (e: Exception) {}
                         }
+
+                        var errorVar: Int
+                            get() { throw UnsupportedOperationException() }
+                            set(value) { throw UnsupportedOperationException() }
+
+                        @get:Throws(FileNotFoundException::class)
+                        var okValAnnotation: Int
+                            get() { throw FileNotFoundException("Something") }
+
+                        /** Throws [UnsupportedOperationException] */
+                        val okValDocumented: Int
+                            get() { throw UnsupportedOperationException() }
+
+                        /** Throws [UnsupportedOperationException] */
+                        var okVarDocumented: Int = 0
+                            set(value) { throw UnsupportedOperationException() }
 
                         // TODO: What about something where you call in Java a method
                         // known to throw something (e.g. Integer.parseInt) and you don't catch it; should you
