@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -892,20 +890,10 @@ class ApiAnalyzer(
                 // but iterating through the type argument classes below will find and
                 // check the component class
                 if (cls != null && !filterReference.test(cls) && !cls.isFromClassPath()) {
-                    if (cls.modifiers.isCompanion() &&
-                        cls.isPrivate &&
-                        cls.containingClass()?.isInterface() == true
-                    ) {
-                        reporter.report(
-                            Issues.PRIVATE_COMPANION, cls, "Do not use private companion " +
-                                "objects inside interfaces as these become public if targeting " +
-                                "Java 8 or older.")
-                    } else {
-                        reporter.report(
-                            Issues.HIDDEN_TYPE_PARAMETER, item,
-                            "${item.toString().capitalize()} references hidden type $type."
-                        )
-                    }
+                    reporter.report(
+                        Issues.HIDDEN_TYPE_PARAMETER, item,
+                        "${item.toString().capitalize()} references hidden type $type."
+                    )
                 }
 
                 type.typeArgumentClasses()
@@ -955,8 +943,21 @@ class ApiAnalyzer(
         // be written, e.g. hidden things
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
+                val publiclyConstructable =
+                    cl.constructors().any { it.checkLevel() }
                 for (m in cl.methods()) {
                     if (!m.checkLevel()) {
+                        // TODO: enable this check for options.showSingleAnnotations
+                        if (options.showSingleAnnotations.isEmpty() &&
+                            publiclyConstructable && m.modifiers.isAbstract()
+                        ) {
+                            reporter.report(
+                                Issues.HIDDEN_ABSTRACT_METHOD, m,
+                                "${m.name()} cannot be hidden and abstract when " +
+                                    "${cl.simpleName()} has a visible constructor, in case a " +
+                                    "third-party attempts to subclass it."
+                            )
+                        }
                         continue
                     }
                     if (m.isHiddenOrRemoved()) {

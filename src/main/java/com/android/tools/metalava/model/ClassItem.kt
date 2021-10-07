@@ -417,6 +417,21 @@ interface ClassItem : Item {
         return null
     }
 
+    /**
+     * Finds a method matching the given method that satisfies the given predicate,
+     * considering all methods defined on this class and its super classes
+     */
+    fun findPredicateMethodWithSuper(template: MethodItem, filter: Predicate<Item>?): MethodItem? {
+        val method = findMethod(template, true, true)
+        if (method == null) {
+            return null
+        }
+        if (filter == null || filter.test(method)) {
+            return method
+        }
+        return method.findPredicateSuperMethod(filter)
+    }
+
     /** Finds a given method in this class matching the VM name signature */
     fun findMethodByDesc(
         name: String,
@@ -562,7 +577,10 @@ interface ClassItem : Item {
      * Return methods matching the given predicate. Forcibly includes local
      * methods that override a matching method in an ancestor class.
      */
-    fun filteredMethods(predicate: Predicate<Item>): Collection<MethodItem> {
+    fun filteredMethods(
+        predicate: Predicate<Item>,
+        includeSuperClassMethods: Boolean = false
+    ): Collection<MethodItem> {
         val methods = LinkedHashSet<MethodItem>()
         for (method in methods()) {
             if (predicate.test(method) || method.findPredicateSuperMethod(predicate) != null) {
@@ -571,6 +589,9 @@ interface ClassItem : Item {
                 methods.remove(method)
                 methods.add(method)
             }
+        }
+        if (includeSuperClassMethods) {
+            superClass()?.filteredMethods(predicate, includeSuperClassMethods)?.let { methods += it }
         }
         return methods
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-plugins {
-    kotlin("jvm") version "1.5.0"
-}
+package com.android.tools.metalava.model
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("com.google.code.gson:gson:2.8.6")
-}
+class MergedCodebase(val children: List<Codebase>)

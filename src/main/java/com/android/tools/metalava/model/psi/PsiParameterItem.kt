@@ -19,10 +19,11 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtConstantExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UastFacade
@@ -52,6 +53,13 @@ class PsiParameterItem(
             if (isReceiver()) {
                 return null
             }
+            // Hardcode parameter name for the generated suspend function continuation parameter
+            if (containingMethod.modifiers.isSuspend() &&
+                    "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
+                    containingMethod.parameters().size - 1 == parameterIndex
+            ) {
+                return "p"
+            }
             return name
         } else {
             // Java: Look for @ParameterName annotation
@@ -64,7 +72,9 @@ class PsiParameterItem(
         return null
     }
 
-    override fun hasDefaultValue(): Boolean {
+    override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
+
+    override fun isDefaultValueKnown(): Boolean {
         return if (isKotlin(psiParameter)) {
             getKtParameter()?.hasDefaultValue() ?: false && defaultValue() != INVALID_VALUE
         } else {
@@ -78,7 +88,7 @@ class PsiParameterItem(
 
     private fun getKtParameter(): KtParameter? {
         val ktParameters =
-            ((containingMethod.psiMethod as? KotlinUMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
+            ((containingMethod.psiMethod as? KotlinUMethod)?.sourcePsi as? KtFunction)?.valueParameters
                 ?: return null
 
         // Perform matching based on parameter names, because indices won't work in the
@@ -188,7 +198,7 @@ class PsiParameterItem(
         ): PsiParameterItem {
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
-            val modifiers = modifiers(codebase, psiParameter, commentText)
+            val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
             val type = codebase.getType(psiParameter.type)
             val parameter = PsiParameterItem(
                 codebase = codebase,
@@ -225,6 +235,24 @@ class PsiParameterItem(
             original: List<ParameterItem>
         ): List<PsiParameterItem> {
             return original.map { create(codebase, it as PsiParameterItem) }
+        }
+
+        fun createParameterModifiers(
+            codebase: PsiBasedCodebase,
+            psiParameter: PsiParameter,
+            commentText: String
+        ): PsiModifierItem {
+            val modifiers = modifiers(codebase, psiParameter, commentText)
+            // Method parameters don't have a visibility level; they are visible to anyone that can
+            // call their method. However, Kotlin constructors sometimes appear to specify the
+            // visibility of a constructor parameter by putting visibility inside the constructor
+            // signature. This is really to indicate that the matching property should have the
+            // mentioned visibility.
+            // If the method parameter seems to specify a visibility level, we correct it back to
+            // the default, here, to ensure we don't attempt to incorrectly emit this information
+            // into a signature file.
+            modifiers.setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
+            return modifiers
         }
 
         /**

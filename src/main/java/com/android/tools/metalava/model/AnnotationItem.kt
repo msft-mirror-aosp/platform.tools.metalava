@@ -35,7 +35,7 @@ import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.doclava1.ApiPredicate
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiCallExpression
@@ -176,6 +176,9 @@ interface AnnotationItem {
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return qualifiedName
             }
+            if (options.excludeAnnotations.contains(qualifiedName)) {
+                return null
+            }
             when (qualifiedName) {
                 // Resource annotations
                 "android.support.annotation.AnimRes",
@@ -281,6 +284,11 @@ interface AnnotationItem {
                 "android.annotation.StringDef" -> return "androidx.annotation.StringDef"
                 "android.support.annotation.LongDef",
                 "android.annotation.LongDef" -> return "androidx.annotation.LongDef"
+
+                // Context Types
+                "android.annotation.UiContext" -> return "androidx.annotation.UiContext"
+                "android.annotation.DisplayContext" -> return "androidx.annotation.DisplayContext"
+                "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
 
                 // Misc
                 "android.support.annotation.CallSuper",
@@ -394,6 +402,13 @@ interface AnnotationItem {
         private fun nonNullAnnotationName(target: AnnotationTarget) =
             if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
+        private val TYPEDEF_ANNOTATION_TARGETS =
+            if (options.typedefMode == Options.TypedefMode.INLINE ||
+                options.typedefMode == Options.TypedefMode.NONE) // just here for compatibility purposes
+                ANNOTATION_EXTERNAL
+            else
+                ANNOTATION_EXTERNAL_ONLY
+
         /** The applicable targets for this annotation */
         fun computeTargets(
             annotation: AnnotationItem,
@@ -416,7 +431,7 @@ interface AnnotationItem {
                 "androidx.annotation.StringDef",
                 "android.support.annotation.LongDef",
                 "android.annotation.LongDef",
-                "androidx.annotation.LongDef" -> return ANNOTATION_EXTERNAL_ONLY
+                "androidx.annotation.LongDef" -> return TYPEDEF_ANNOTATION_TARGETS
 
                 // Not directly API relevant
                 "android.view.ViewDebug.ExportedProperty",
@@ -424,11 +439,13 @@ interface AnnotationItem {
 
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
+                "com.android.modules.annotation.MinSdk",
                 "java.lang.annotation.Native",
                 "java.lang.SuppressWarnings",
                 "java.lang.Override",
                 "kotlin.Suppress",
                 "androidx.annotation.experimental.UseExperimental",
+                "androidx.annotation.OptIn",
                 "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 

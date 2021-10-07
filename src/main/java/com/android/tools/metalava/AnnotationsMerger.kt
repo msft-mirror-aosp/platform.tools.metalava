@@ -120,12 +120,12 @@ class AnnotationsMerger(
             // resolve types in the stubs
             val roots = mutableListOf<File>()
             extractRoots(options.sources, roots)
-            roots.addAll(options.classpath)
             roots.addAll(options.sourcePath)
             val javaStubsCodebase = parseSources(
                 javaStubFiles,
                 "Codebase loaded from stubs",
-                sourcePath = roots)
+                sourcePath = roots,
+                classpath = options.classpath)
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
     }
@@ -255,6 +255,10 @@ class AnnotationsMerger(
                 old.type()?.let {
                     mergeTypeAnnotations(it, new)
                 }
+            }
+
+            override fun removed(old: Item, from: Item?) {
+                reporter.report(Issues.UNMATCHED_MERGE_ANNOTATION, old, "qualifier annotations were given for $old but no matching item was found")
             }
 
             private fun mergeAnnotation(
