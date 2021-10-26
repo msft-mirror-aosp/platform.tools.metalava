@@ -461,7 +461,6 @@ interface AnnotationItem {
                 // for some common annotations.
 
                 "android.widget.RemoteViews.RemoteView",
-                "androidx.annotation.Discouraged",
 
                 "kotlin.annotation.Target",
                 "kotlin.annotation.Retention",
