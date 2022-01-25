@@ -3817,6 +3817,26 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Changing visibility from public to private`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+            """.trimIndent(),
+            signatureSource = """
+                package test.pkg {
+                  private class Foo {}
+                }
+            """.trimIndent(),
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class Foo {}
+                }
+            """.trimIndent()
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
