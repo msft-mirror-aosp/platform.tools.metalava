@@ -44,7 +44,7 @@ object Issues {
     val CHANGED_TYPE = Issue(Severity.WARNING, Category.COMPATIBILITY)
     val CHANGED_VALUE = Issue(Severity.WARNING, Category.COMPATIBILITY)
     val CHANGED_SUPERCLASS = Issue(Severity.WARNING, Category.COMPATIBILITY)
-    val CHANGED_SCOPE = Issue(Severity.WARNING, Category.COMPATIBILITY)
+    val CHANGED_SCOPE = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_ABSTRACT = Issue(Severity.WARNING, Category.COMPATIBILITY)
     val CHANGED_THROWS = Issue(Severity.WARNING, Category.COMPATIBILITY)
     val CHANGED_NATIVE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
