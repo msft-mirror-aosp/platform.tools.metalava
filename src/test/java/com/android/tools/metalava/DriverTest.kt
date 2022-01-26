@@ -354,8 +354,6 @@ abstract class DriverTest {
         sdk_features: String? = null,
         /** Corresponds to SDK constants file widgets.txt */
         sdk_widgets: String? = null,
-        /** Map from artifact id to artifact descriptor */
-        artifacts: Map<String, String>? = null,
         /** Extract annotations and check that the given packages contain the given extracted XML files */
         extractAnnotations: Map<String, String>? = null,
         /** Creates the nullability annotations validator, and check that the report has the given lines (does not define files to be validated) */
@@ -986,23 +984,6 @@ abstract class DriverTest {
             sdkFilesDir = null
         }
 
-        val artifactArgs = if (artifacts != null) {
-            val args = mutableListOf<String>()
-            var index = 1
-            for ((artifactId, signatures) in artifacts) {
-                val signatureFile = temporaryFolder.newFile("signature-file-$index.txt")
-                signatureFile.writeText(signatures.trimIndent())
-                index++
-
-                args.add(ARG_REGISTER_ARTIFACT)
-                args.add(signatureFile.path)
-                args.add(artifactId)
-            }
-            args.toTypedArray()
-        } else {
-            emptyArray()
-        }
-
         val extractedAnnotationsZip: File?
         val extractAnnotationsArgs = if (extractAnnotations != null) {
             extractedAnnotationsZip = temporaryFolder.newFile("extracted-annotations.zip")
@@ -1120,7 +1101,6 @@ abstract class DriverTest {
             *sdkFilesArgs,
             *importedPackageArgs.toTypedArray(),
             *skipEmitPackagesArgs.toTypedArray(),
-            *artifactArgs,
             *extractAnnotationsArgs,
             *validateNullabilityArgs,
             *validateNullabilityFromListArgs,
