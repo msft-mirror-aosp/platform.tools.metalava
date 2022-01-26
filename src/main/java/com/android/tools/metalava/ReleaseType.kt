@@ -19,43 +19,10 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.IssueConfiguration
 
 enum class ReleaseType(val flagName: String, private val displayName: String = flagName) {
-    DEV("current", "development") {
-        /**
-         * Customization of the severities to apply when doing compatibility checking against the
-         * current version of the API. Corresponds to the same flags passed into doclava's error
-         * check this way:
-         * args: "-error 2 -error 3 -error 4 -error 5 -error 6 " +
-         * "-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 -error 15 " +
-         * "-error 16 -error 17 -error 18 -error 19 -error 20 -error 21 -error 23 -error 24 " +
-         * "-error 25 -error 26 -error 27",
-         */
-        override fun getIssueConfiguration(): IssueConfiguration {
-            return super.getIssueConfiguration().apply {
-                error(Issues.ADDED_CLASS)
-                error(Issues.ADDED_FIELD)
-                error(Issues.ADDED_FINAL_UNINSTANTIABLE)
-                error(Issues.ADDED_INTERFACE)
-                error(Issues.ADDED_METHOD)
-                error(Issues.ADDED_PACKAGE)
-                error(Issues.CHANGED_ABSTRACT)
-                error(Issues.CHANGED_CLASS)
-                error(Issues.CHANGED_DEPRECATED)
-                error(Issues.CHANGED_SCOPE)
-                error(Issues.CHANGED_SYNCHRONIZED)
-                error(Issues.CHANGED_THROWS)
-                error(Issues.REMOVED_FINAL)
-            }
-        }
-    },
-
     RELEASED("released", "released") {
         /**
          * Customization of the severities to apply when doing compatibility checking against the
-         * previously released stable version of the API. Corresponds to the same flags passed into
-         * doclava's error check this way:
-         * args: "-hide 2 -hide 3 -hide 4 -hide 5 -hide 6 -hide 24 -hide 25 -hide 26 -hide 27 " +
-         * "-error 7 -error 8 -error 9 -error 10 -error 11 -error 12 -error 13 -error 14 -error 15 " +
-         * "-error 16 -error 17 -error 18 -error 31",
+         * previously released stable version of the API.
          */
         override fun getIssueConfiguration(): IssueConfiguration {
             return super.getIssueConfiguration().apply {

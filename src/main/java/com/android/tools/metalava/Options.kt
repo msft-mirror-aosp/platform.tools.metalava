@@ -88,9 +88,7 @@ const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
-const val ARG_CHECK_COMPATIBILITY_API_CURRENT = "--check-compatibility:api:current"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
-const val ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT = "--check-compatibility:removed:current"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_ALLOW_COMPATIBLE_DIFFERENCES = "--allow-compatible-differences"
@@ -162,7 +160,6 @@ const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS = "--force-conver
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
-const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT = "--error-message:compatibility:current"
 const val ARG_NO_IMPLICIT_ROOT = "--no-implicit-root"
 const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
 const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
@@ -587,12 +584,6 @@ class Options(
      */
     var errorMessageCompatibilityReleased: String? = null
 
-    /**
-     * If set, metalava will show this error message when "check-compatibility:*:current" fails.
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_CURRENT] and [ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT])
-     */
-    var errorMessageCompatibilityCurrent: String? = null
-
     /** [Reporter] for "api-lint" */
     var reporterApiLint: Reporter
 
@@ -601,12 +592,6 @@ class Options(
      * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var reporterCompatibilityReleased: Reporter
-
-    /**
-     * [Reporter] for "check-compatibility:*:current".
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_CURRENT] and [ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT])
-     */
-    var reporterCompatibilityCurrent: Reporter
 
     var allReporters: List<Reporter>
 
@@ -1010,7 +995,6 @@ class Options(
 
                 ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
                 ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED -> errorMessageCompatibilityReleased = getValue(args, ++index)
-                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT -> errorMessageCompatibilityCurrent = getValue(args, ++index)
 
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
@@ -1056,50 +1040,9 @@ class Options(
                     }
                 }
 
-                "--current-api" -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION, null as File?,
-                        "--current-api is deprecated; instead " +
-                            "use $ARG_CHECK_COMPATIBILITY_API_CURRENT"
-                    )
-                }
-
-                ARG_CHECK_COMPATIBILITY -> {
-                    // See if the next argument specifies the compatibility check.
-                    // Synonymous with ARG_CHECK_COMPATIBILITY_API_CURRENT, though
-                    // for backwards compatibility with earlier versions and usages
-                    // can also works in conjunction with ARG_CURRENT_API where the
-                    // usage was to use ARG_CURRENT_API to point to the API file and
-                    // then specify ARG_CHECK_COMPATIBILITY (without an argument) to
-                    // indicate that the current api should also be checked for
-                    // compatibility.
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            val file = stringToExistingFile(nextArg)
-                            if (file.isFile) {
-                                index++
-                                mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                            }
-                        }
-                    }
-                }
-
-                ARG_CHECK_COMPATIBILITY_API_CURRENT -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                }
-
                 ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.RELEASED))
-                }
-
-                ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.DEV))
                 }
 
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
@@ -1672,12 +1615,6 @@ class Options(
             baselineCompatibilityReleased ?: baseline,
             errorMessageCompatibilityReleased
         )
-        reporterCompatibilityCurrent = Reporter(
-            // Note, the compat-check:current shouldn't take a baseline file, so we don't have
-            // a task specific baseline file, but we still respect the global baseline file.
-            baseline,
-            errorMessageCompatibilityCurrent
-        )
 
         // Build "all baselines" and "all reporters"
 
@@ -1689,7 +1626,6 @@ class Options(
             reporter,
             reporterApiLint,
             reporterCompatibilityReleased,
-            reporterCompatibilityCurrent
         )
 
         updateClassPath()
@@ -2364,9 +2300,6 @@ class Options(
             "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED <message>",
             "If set, $PROGRAM_NAME shows it " +
                 "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-            "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT <message>",
-            "If set, $PROGRAM_NAME shows it " +
-                "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_CURRENT and $ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT.",
 
             "", "\nJDiff:",
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",

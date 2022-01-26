@@ -586,7 +586,7 @@ class CompatibilityCheck(
                         new,
                         capitalize = true
                     )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
-                    report(Issues.CHANGED_THROWS, new, message)
+                    report(Issues.ADDED_REIFIED, new, message)
                 }
             }
         }
@@ -926,7 +926,7 @@ class CompatibilityCheck(
                 .or(apiType.getEmitFilter())
                 .or(ApiType.PUBLIC_API.getReferenceFilter())
                 .or(ApiType.PUBLIC_API.getEmitFilter())
-            val checker = CompatibilityCheck(filter, previous, apiType, newBase, getReporterForReleaseType(releaseType))
+            val checker = CompatibilityCheck(filter, previous, apiType, newBase, options.reporterCompatibilityReleased)
             val issueConfiguration = releaseType.getIssueConfiguration()
             val previousConfiguration = configuration
             // newBase is considered part of the current codebase
@@ -946,11 +946,6 @@ class CompatibilityCheck(
             if (checker.foundProblems) {
                 throw DriverException(exitCode = -1, stderr = message)
             }
-        }
-
-        private fun getReporterForReleaseType(releaseType: ReleaseType): Reporter = when (releaseType) {
-            ReleaseType.DEV -> options.reporterCompatibilityCurrent
-            ReleaseType.RELEASED -> options.reporterCompatibilityReleased
         }
     }
 }

@@ -283,23 +283,15 @@ abstract class DriverTest {
         signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
-        /** An optional API signature to check the current API's compatibility with */
-        @Language("TEXT")
-        checkCompatibilityApi: String? = null,
         /** An optional API signature to check the last released API's compatibility with */
         @Language("TEXT")
         checkCompatibilityApiReleased: String? = null,
-        /** An optional API signature to check the current removed API's compatibility with */
-        @Language("TEXT")
-        checkCompatibilityRemovedApiCurrent: String? = null,
         /** An optional API signature to check the last released removed API's compatibility with */
         @Language("TEXT")
         checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to use as the base API codebase during compat checks */
         @Language("TEXT")
         checkCompatibilityBaseApi: String? = null,
-        /** An optional API signature to compute nullness migration status from */
-        allowCompatibleDifferences: Boolean = true,
         @Language("TEXT")
         migrateNullsApi: String? = null,
         /** An optional Proguard keep file to generate */
@@ -400,8 +392,6 @@ abstract class DriverTest {
         errorMessageApiLint: String? = null,
         /** [ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED] */
         errorMessageCheckCompatibilityReleased: String? = null,
-        /** [ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT] */
-        errorMessageCheckCompatibilityCurrent: String? = null,
 
         /**
          * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
@@ -428,18 +418,13 @@ abstract class DriverTest {
 
         defaultConfiguration.reset()
 
-        @Suppress("NAME_SHADOWING")
-        val expectedFail = expectedFail ?: if ((
-            checkCompatibilityApi != null ||
-                checkCompatibilityApiReleased != null ||
-                checkCompatibilityRemovedApiCurrent != null ||
-                checkCompatibilityRemovedApiReleased != null
-            ) &&
-            (expectedIssues != null && expectedIssues.trim().isNotEmpty())
-        ) {
-            "Aborting: Found compatibility problems with --check-compatibility"
-        } else {
-            ""
+        val actualExpectedFail = when {
+            expectedFail != null -> expectedFail
+            (checkCompatibilityApiReleased != null || checkCompatibilityRemovedApiReleased != null) &&
+                expectedIssues != null && expectedIssues.trim().isNotEmpty() -> {
+                "Aborting: Found compatibility problems with --check-compatibility"
+            }
+            else -> ""
         }
 
         // Unit test which checks that a signature file is as expected
@@ -566,19 +551,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val checkCompatibilityApiFile = if (checkCompatibilityApi != null) {
-            val jar = File(checkCompatibilityApi)
-            if (jar.isFile) {
-                jar
-            } else {
-                val file = File(project, "current-api.txt")
-                file.writeText(checkCompatibilityApi.trimIndent())
-                file
-            }
-        } else {
-            null
-        }
-
         val checkCompatibilityApiReleasedFile = if (checkCompatibilityApiReleased != null) {
             val jar = File(checkCompatibilityApiReleased)
             if (jar.isFile) {
@@ -586,19 +558,6 @@ abstract class DriverTest {
             } else {
                 val file = File(project, "released-api.txt")
                 file.writeText(checkCompatibilityApiReleased.trimIndent())
-                file
-            }
-        } else {
-            null
-        }
-
-        val checkCompatibilityRemovedApiCurrentFile = if (checkCompatibilityRemovedApiCurrent != null) {
-            val jar = File(checkCompatibilityRemovedApiCurrent)
-            if (jar.isFile) {
-                jar
-            } else {
-                val file = File(project, "removed-current-api.txt")
-                file.writeText(checkCompatibilityRemovedApiCurrent.trimIndent())
                 file
             }
         } else {
@@ -658,17 +617,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val checkCompatibilityArguments = if (checkCompatibilityApiFile != null) {
-            val extra: Array<String> = if (allowCompatibleDifferences) {
-                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
-            } else {
-                emptyArray()
-            }
-            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path, *extra)
-        } else {
-            emptyArray()
-        }
-
         val checkCompatibilityApiReleasedArguments = if (checkCompatibilityApiReleasedFile != null) {
             arrayOf(ARG_CHECK_COMPATIBILITY_API_RELEASED, checkCompatibilityApiReleasedFile.path)
         } else {
@@ -677,17 +625,6 @@ abstract class DriverTest {
 
         val checkCompatibilityBaseApiArguments = if (checkCompatibilityBaseApiFile != null) {
             arrayOf(ARG_CHECK_COMPATIBILITY_BASE_API, checkCompatibilityBaseApiFile.path)
-        } else {
-            emptyArray()
-        }
-
-        val checkCompatibilityRemovedCurrentArguments = if (checkCompatibilityRemovedApiCurrentFile != null) {
-            val extra: Array<String> = if (allowCompatibleDifferences) {
-                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
-            } else {
-                emptyArray()
-            }
-            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path, *extra)
         } else {
             emptyArray()
         }
@@ -1027,9 +964,6 @@ abstract class DriverTest {
         val errorMessageCheckCompatibilityReleasedArgs = buildOptionalArgs(errorMessageCheckCompatibilityReleased) {
             arrayOf(ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED, it)
         }
-        val errorMessageCheckCompatibilityCurrentArgs = buildOptionalArgs(errorMessageCheckCompatibilityCurrent) {
-            arrayOf(ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT, it)
-        }
 
         val repeatErrorsMaxArgs = if (repeatErrorsMax > 0) {
             arrayOf(ARG_REPEAT_ERRORS_MAX, repeatErrorsMax.toString())
@@ -1079,10 +1013,8 @@ abstract class DriverTest {
             *javaStubAnnotationsArgs,
             *inclusionAnnotationsArgs,
             *migrateNullsArguments,
-            *checkCompatibilityArguments,
             *checkCompatibilityApiReleasedArguments,
             *checkCompatibilityBaseApiArguments,
-            *checkCompatibilityRemovedCurrentArguments,
             *checkCompatibilityRemovedReleasedArguments,
             *proguardKeepArguments,
             *manifestFileArgs,
@@ -1109,10 +1041,9 @@ abstract class DriverTest {
             *extraArguments,
             *errorMessageApiLintArgs,
             *errorMessageCheckCompatibilityReleasedArgs,
-            *errorMessageCheckCompatibilityCurrentArgs,
             *repeatErrorsMaxArgs,
             *kotlinPsiArgs,
-            expectedFail = expectedFail
+            expectedFail = actualExpectedFail
         )
 
         if (expectedIssues != null || allReportedIssues.toString() != "") {
