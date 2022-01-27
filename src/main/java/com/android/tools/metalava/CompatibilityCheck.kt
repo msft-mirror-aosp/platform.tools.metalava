@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.IssueConfiguration
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
@@ -63,11 +64,10 @@ class CompatibilityCheck(
     data class CheckRequest(
         val file: File,
         val apiType: ApiType,
-        val releaseType: ReleaseType,
         val codebase: File? = null
     ) {
         override fun toString(): String {
-            return "--check-compatibility:${apiType.flagName}:${releaseType.flagName} $file"
+            return "--check-compatibility:${apiType.flagName}:released $file"
         }
     }
 
@@ -917,7 +917,6 @@ class CompatibilityCheck(
         fun checkCompatibility(
             codebase: Codebase,
             previous: Codebase,
-            releaseType: ReleaseType,
             apiType: ApiType,
             oldBase: Codebase? = null,
             newBase: Codebase? = null
@@ -927,7 +926,7 @@ class CompatibilityCheck(
                 .or(ApiType.PUBLIC_API.getReferenceFilter())
                 .or(ApiType.PUBLIC_API.getEmitFilter())
             val checker = CompatibilityCheck(filter, previous, apiType, newBase, options.reporterCompatibilityReleased)
-            val issueConfiguration = releaseType.getIssueConfiguration()
+            val issueConfiguration = IssueConfiguration()
             val previousConfiguration = configuration
             // newBase is considered part of the current codebase
             val currentFullCodebase = MergedCodebase(listOf(newBase, codebase).filterNotNull())
