@@ -241,10 +241,6 @@ Generating Stubs:
                                              stubs; otherwise it's the non-documentation stubs.
 --write-doc-stubs-source-list <file>
                                              Write the list of generated doc stub files into the given source list file
---register-artifact <api-file> <id>
-                                             Registers the given id for the packages found in the given signature file.
-                                             metalava will inject an @artifactId <id> tag into every top level stub
-                                             class in that API.
 
 
 Diffs and Checks:
