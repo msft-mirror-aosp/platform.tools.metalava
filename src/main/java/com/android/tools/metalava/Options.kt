@@ -76,6 +76,9 @@ const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
+/**
+ * Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX
+ */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
@@ -129,7 +132,6 @@ const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
-const val ARG_REGISTER_ARTIFACT = "--register-artifact"
 const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
@@ -668,9 +670,6 @@ class Options(
      * for R it would be "29". For R preview, if would be "R".
      */
     var compileSdkVersion: String? = null
-
-    /** Map from XML API descriptor file to corresponding artifact id name */
-    val artifactRegistrations = ArtifactTagger()
 
     /** List of signature files to export as JDiff files */
     val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
@@ -1244,12 +1243,6 @@ class Options(
                     docReplacements.add(docReplacement)
                 }
 
-                ARG_REGISTER_ARTIFACT, "-artifact" -> {
-                    val descriptor = stringToExistingFile(getValue(args, ++index))
-                    val artifactId = getValue(args, ++index)
-                    artifactRegistrations.register(artifactId, descriptor)
-                }
-
                 ARG_CONVERT_TO_JDIFF,
                 ARG_CONVERT_TO_V1,
                 ARG_CONVERT_TO_V2,
@@ -1618,7 +1611,6 @@ class Options(
             proguard = null
             mutableCompatibilityChecks.clear()
             mutableAnnotationCoverageOf.clear()
-            artifactRegistrations.clear()
             mutableConvertToXmlFiles.clear()
             nullabilityAnnotationsValidator = null
             nullabilityWarningsTxt = null
@@ -1638,7 +1630,6 @@ class Options(
             externalAnnotations = null
             proguard = null
             mutableAnnotationCoverageOf.clear()
-            artifactRegistrations.clear()
             mutableConvertToXmlFiles.clear()
             nullabilityAnnotationsValidator = null
             nullabilityWarningsTxt = null
@@ -2306,10 +2297,6 @@ class Options(
             "$ARG_DOC_STUBS_SOURCE_LIST <file>",
             "Write the list of generated doc stub files into the given source " +
                 "list file",
-            "$ARG_REGISTER_ARTIFACT <api-file> <id>",
-            "Registers the given id for the packages found in " +
-                "the given signature file. $PROGRAM_NAME will inject an @artifactId <id> tag into every top " +
-                "level stub class in that API.",
 
             "", "\nDiffs and Checks:",
             "$ARG_INPUT_KOTLIN_NULLS[=yes|no]",
