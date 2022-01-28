@@ -91,7 +91,6 @@ const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
-const val ARG_ALLOW_COMPATIBLE_DIFFERENCES = "--allow-compatible-differences"
 const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
@@ -476,16 +475,6 @@ class Options(
 
     /** The API to use a base for the otherwise checked API during compat checks. */
     var baseApiForCompatCheck: File? = null
-
-    /**
-     * When checking signature files, whether compatible differences in signature
-     * files are allowed. This is normally not allowed (since it means the next
-     * engineer adding an incompatible change will suddenly see the cumulative
-     * differences show up in their diffs when checking in signature files),
-     * but is useful from the test suite etc. Controlled by
-     * [ARG_ALLOW_COMPATIBLE_DIFFERENCES].
-     */
-    var allowCompatibleDifferences = false
 
     /** If false, attempt to use the native diff utility on the system */
     var noNativeDiff = false
@@ -1040,14 +1029,14 @@ class Options(
                     }
                 }
 
-                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
+                ARG_CHECK_COMPATIBILITY, ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.RELEASED))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
 
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
                 }
 
                 ARG_CHECK_COMPATIBILITY_BASE_API -> {
@@ -1055,7 +1044,6 @@ class Options(
                     baseApiForCompatCheck = file
                 }
 
-                ARG_ALLOW_COMPATIBLE_DIFFERENCES -> allowCompatibleDifferences = true
                 ARG_NO_NATIVE_DIFF -> noNativeDiff = true
 
                 // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
@@ -1074,7 +1062,6 @@ class Options(
                             CheckRequest(
                                 stableApiFile,
                                 ApiType.PUBLIC_API,
-                                ReleaseType.RELEASED,
                                 apiFileToBeTested
                             )
                         )
@@ -1082,7 +1069,6 @@ class Options(
                             CheckRequest(
                                 stableRemovedApiFile,
                                 ApiType.REMOVED,
-                                ReleaseType.RELEASED,
                                 removedApiFileToBeTested
                             )
                         )
@@ -1469,7 +1455,6 @@ class Options(
                                 CheckRequest(
                                     stableApiFile,
                                     ApiType.PUBLIC_API,
-                                    ReleaseType.RELEASED,
                                     apiFileToBeTested
                                 )
                             )
@@ -1477,7 +1462,6 @@ class Options(
                                 CheckRequest(
                                     stableRemovedApiFile,
                                     ApiType.REMOVED,
-                                    ReleaseType.RELEASED,
                                     removedApiFileToBeTested
                                 )
                             )
