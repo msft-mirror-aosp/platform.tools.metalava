@@ -550,7 +550,6 @@ fun checkCompatibility(
 
     var newBase: Codebase? = null
     var oldBase: Codebase? = null
-    val releaseType = check.releaseType
     val apiType = check.apiType
 
     // If diffing with a system-api or test-api (or other signature-based codebase
@@ -602,7 +601,7 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, oldBase, newBase)
+    CompatibilityCheck.checkCompatibility(new, current, apiType, oldBase, newBase)
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
