@@ -322,10 +322,6 @@ Diffs and Checks:
                                              If set, metalava shows it when errors are detected in
                                              --check-compatibility:api:released and
                                              --check-compatibility:removed:released.
---error-message:compatibility:current <message>
-                                             If set, metalava shows it when errors are detected in
-                                             --check-compatibility:api:current and
-                                             --check-compatibility:removed:current.
 
 
 JDiff:
