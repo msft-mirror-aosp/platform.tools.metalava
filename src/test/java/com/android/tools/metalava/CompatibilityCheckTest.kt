@@ -3741,6 +3741,26 @@ CompatibilityCheckTest : DriverTest() {
                     method default public void bar(Int);
                     }
                   }
+              """
+        )
+    }
+
+    fun `Allow change from non-final to final in sealed class`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                  sealed class Foo {
+                    method final public void bar(Int);
+                  }
+                }
+            """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  sealed class Foo {
+                    method public void bar(Int);
+                  }
+                }
             """
         )
     }
