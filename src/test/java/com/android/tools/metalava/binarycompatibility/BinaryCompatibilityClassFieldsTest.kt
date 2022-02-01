@@ -25,12 +25,12 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     fun `Change type of API field (Incompatible)`() {
         check(
             expectedIssues = """
-                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed type from java.lang.String to java.lang.Int [ChangedType]
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
             """,
             signatureSource = """
                 package test.pkg {
                   public class Foo {
-                    field public Int bar;
+                    field public int bar;
                   }
                 }
             """,
@@ -91,7 +91,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         )
     }
     @Test
-    fun `Increase access from protected to public (Compatible)`() {
+    fun `Increase access, eg from protected to public (Compatible)`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -133,6 +133,9 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     @Test
     fun `Change final to non-final, static with compile-time constant value (Incompatible)`() {
         check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
+            """,
             signatureSource = """
                 package test.pkg {
                   public class Foo {
@@ -234,6 +237,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-transient to transient (Compatible)`() {
         check(
