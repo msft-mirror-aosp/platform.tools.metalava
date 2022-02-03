@@ -53,7 +53,6 @@ class Java9LanguageFeaturesTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin language level`() {
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(

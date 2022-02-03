@@ -171,7 +171,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Nullness`() {
         check(
             expectedIssues = """
@@ -255,7 +254,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Parameter Name Change`() {
         check(
             expectedIssues = """
@@ -311,7 +309,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove operator`() {
         check(
             expectedIssues = """
@@ -340,7 +337,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove vararg`() {
         check(
             expectedIssues = """
@@ -367,7 +363,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Add final`() {
         // Adding final on class or method is incompatible; adding it on a parameter is fine.
         // Field is iffy.
@@ -607,7 +602,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove infix`() {
         check(
             expectedIssues = """
@@ -640,7 +634,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Add seal`() {
         check(
             expectedIssues = """
@@ -664,7 +657,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
@@ -702,7 +694,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
@@ -1503,7 +1494,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Kotlin extensions`() {
         check(
             inputKotlinStyleNulls = true,
@@ -1551,7 +1541,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Kotlin type bounds`() {
         check(
             inputKotlinStyleNulls = false,
@@ -2329,7 +2318,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
             expectedIssues = """
@@ -2359,7 +2347,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Adding and removing reified`() {
         check(
             inputKotlinStyleNulls = true,
@@ -3422,7 +3409,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues = """
@@ -3504,7 +3490,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `adding methods to interfaces`() {
         check(
             expectedIssues = """
