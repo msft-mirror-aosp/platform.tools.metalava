@@ -51,7 +51,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
-import org.junit.rules.RuleChain
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -65,15 +64,11 @@ import kotlin.text.Charsets.UTF_8
 const val CHECK_JDIFF = false
 
 abstract class DriverTest {
-    val kotlinPsi = KotlinPsiRule()
+    @get:Rule
     val temporaryFolder = TemporaryFolder()
-    val errorCollector = ErrorCollector()
 
     @get:Rule
-    val ruleChain: RuleChain = RuleChain
-        .outerRule(kotlinPsi)
-        .around(temporaryFolder)
-        .around(errorCollector)
+    val errorCollector = ErrorCollector()
 
     @Before
     fun setup() {
@@ -971,8 +966,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val kotlinPsiArgs = if (kotlinPsi.enabled) arrayOf(ARG_ENABLE_KOTLIN_PSI) else emptyArray()
-
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1042,7 +1035,6 @@ abstract class DriverTest {
             *errorMessageApiLintArgs,
             *errorMessageCheckCompatibilityReleasedArgs,
             *repeatErrorsMaxArgs,
-            *kotlinPsiArgs,
             expectedFail = actualExpectedFail
         )
 
