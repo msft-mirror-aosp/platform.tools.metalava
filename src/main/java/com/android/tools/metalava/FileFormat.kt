@@ -105,6 +105,12 @@ enum class FileFormat(val description: String, val version: String? = null) {
     }
 
     companion object {
+        /** The recommended signature file version, equivalent to --format=recommended */
+        val recommended = V2
+
+        /** The latest signature file version, equivalent to --format=latest */
+        val latest = values().maxOrNull()!!
+
         private fun firstLine(s: String): String {
             val index = s.indexOf('\n')
             if (index == -1) {
