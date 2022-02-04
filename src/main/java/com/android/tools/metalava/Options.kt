@@ -292,7 +292,7 @@ class Options(
     var outputConciseDefaultValues = false // requires V4
 
     /** The output format version being used */
-    var outputFormat: FileFormat = FileFormat.V2
+    var outputFormat: FileFormat = FileFormat.recommended
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
@@ -1417,18 +1417,12 @@ class Options(
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
                         outputFormat = when (arg) {
-                            "$ARG_FORMAT=v1" -> {
-                                FileFormat.V1
-                            }
-                            "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
-                                FileFormat.V2
-                            }
-                            "$ARG_FORMAT=v3" -> {
-                                FileFormat.V3
-                            }
-                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
-                                FileFormat.V4
-                            }
+                            "$ARG_FORMAT=v1" -> FileFormat.V1
+                            "$ARG_FORMAT=v2" -> FileFormat.V2
+                            "$ARG_FORMAT=v3" -> FileFormat.V3
+                            "$ARG_FORMAT=v4" -> FileFormat.V4
+                            "$ARG_FORMAT=recommended" -> FileFormat.recommended
+                            "$ARG_FORMAT=latest" -> FileFormat.latest
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this)
