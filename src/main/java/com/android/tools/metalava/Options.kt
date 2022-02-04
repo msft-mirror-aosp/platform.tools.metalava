@@ -285,12 +285,6 @@ class Options(
     /** Whether default values should be included in signature files */
     var outputDefaultValues = true
 
-    /**
-     *  Whether only the presence of default values should be included in signature files, and not
-     *  the full body of the default value.
-     */
-    var outputConciseDefaultValues = false // requires V4
-
     /** The output format version being used */
     var outputFormat: FileFormat = FileFormat.recommended
 
