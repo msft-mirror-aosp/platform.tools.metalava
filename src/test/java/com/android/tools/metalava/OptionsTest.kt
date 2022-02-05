@@ -198,8 +198,6 @@ Extracting Signature Files:
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
---enable-kotlin-psi
-                                             [EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST
 
 
 Generating Stubs:

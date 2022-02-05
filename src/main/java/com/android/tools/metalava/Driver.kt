@@ -713,8 +713,7 @@ internal fun parseSources(
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-    manifest: File? = options.manifest,
-    enableKotlinPsi: Boolean = options.enableKotlinPsi
+    manifest: File? = options.manifest
 ): PsiBasedCodebase {
     val sourceRoots = mutableListOf<File>()
     sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
@@ -745,7 +744,7 @@ internal fun parseSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description, enableKotlinPsi)
+    val codebase = PsiBasedCodebase(rootDir, description)
     codebase.initialize(environment, units, packageDocs)
     codebase.manifest = manifest
     return codebase
