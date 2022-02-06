@@ -147,7 +147,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
@@ -217,7 +216,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
@@ -292,7 +290,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Basic Kotlin class`() {
         check(
             format = FileFormat.V1,
@@ -366,7 +363,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Reified Methods`() {
         check(
             format = FileFormat.V1,
@@ -408,7 +404,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Reified Methods 2`() {
         check(
             sourceFiles = arrayOf(
@@ -441,7 +436,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Suspend functions`() {
         check(
             sourceFiles = arrayOf(
@@ -467,7 +461,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Var properties with private setters`() {
         check(
             format = FileFormat.V3,
@@ -502,7 +495,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Generics`() {
         check(
             format = FileFormat.V3,
@@ -534,7 +526,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Nullness in reified signatures`() {
         check(
             sourceFiles = arrayOf(
@@ -603,7 +594,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Nullness in varargs`() {
         check(
             sourceFiles = arrayOf(
@@ -698,7 +688,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Propagate Platform types in Kotlin`() {
         check(
             format = FileFormat.V3,
@@ -826,7 +815,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Known nullness`() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
@@ -980,7 +968,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
@@ -1032,7 +1019,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test JvmStatic`() {
         check(
             sourceFiles = arrayOf(
@@ -1069,7 +1055,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test JvmField`() {
         check(
             sourceFiles = arrayOf(
@@ -1103,7 +1088,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test JvmName`() {
         check(
             sourceFiles = arrayOf(
@@ -1139,7 +1123,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test RequiresOptIn and OptIn`() {
         check(
             sourceFiles = arrayOf(
@@ -1183,7 +1166,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Experimental and UseExperimental`() {
         check(
             sourceFiles = arrayOf(
@@ -1599,7 +1581,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Annotation retention`() {
         // For annotations where the java.lang.annotation classes themselves are not
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
@@ -2783,7 +2764,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
@@ -3235,7 +3215,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Visible For Testing`() {
         // Use the otherwise= visibility in signatures
         // Regression test for issue 118763806
@@ -3408,7 +3387,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `FooKt class constructors are not public`() {
         check(
             format = FileFormat.V3,
@@ -3829,7 +3807,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test tracking of @Composable annotation from classpath`() {
         check(
             format = FileFormat.V3,
@@ -3904,7 +3881,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test for experimental annotations from classpath`() {
         check(
             format = FileFormat.V3,
@@ -3979,7 +3955,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `@IntRange value in kotlin`() {
         check(
             format = FileFormat.V3,
@@ -4048,7 +4023,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin properties with overriding get`() {
         check(
             format = FileFormat.V3,
@@ -4084,7 +4058,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Constructor property tracking`() {
         check(
             format = FileFormat.V3,
@@ -4169,7 +4142,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Concise default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
@@ -4239,7 +4211,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Concise default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
@@ -4337,7 +4308,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Functional interface in signature`() {
         check(
             format = FileFormat.V4,
@@ -4369,7 +4339,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Inline class`() {
         check(
             format = FileFormat.V4,
@@ -4406,7 +4375,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Value class`() {
         check(
             format = FileFormat.V4,
@@ -4444,7 +4412,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin doesn't expand java named constants`() {
         check(
             format = FileFormat.V3,
@@ -4471,7 +4438,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin constructors with JvmOverloads`() {
         check(
             format = FileFormat.V4,

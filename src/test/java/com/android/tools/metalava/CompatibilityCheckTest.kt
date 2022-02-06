@@ -171,7 +171,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Nullness`() {
         check(
             expectedIssues = """
@@ -255,7 +254,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Parameter Name Change`() {
         check(
             expectedIssues = """
@@ -311,7 +309,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove operator`() {
         check(
             expectedIssues = """
@@ -340,7 +337,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove vararg`() {
         check(
             expectedIssues = """
@@ -367,7 +363,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Add final`() {
         // Adding final on class or method is incompatible; adding it on a parameter is fine.
         // Field is iffy.
@@ -607,7 +602,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove infix`() {
         check(
             expectedIssues = """
@@ -640,7 +634,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Add seal`() {
         check(
             expectedIssues = """
@@ -664,7 +657,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
@@ -702,7 +694,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
@@ -1229,7 +1220,6 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- visibility`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod1 changed visibility from protected to public [ChangedScope]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod2 changed visibility from public to protected [ChangedScope]
                 """,
             checkCompatibilityApiReleased = """
@@ -1504,7 +1494,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Kotlin extensions`() {
         check(
             inputKotlinStyleNulls = true,
@@ -1552,7 +1541,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Kotlin type bounds`() {
         check(
             inputKotlinStyleNulls = false,
@@ -2330,7 +2318,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
             expectedIssues = """
@@ -2360,7 +2347,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Adding and removing reified`() {
         check(
             inputKotlinStyleNulls = true,
@@ -3423,7 +3409,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues = """
@@ -3505,7 +3490,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `adding methods to interfaces`() {
         check(
             expectedIssues = """
@@ -3620,6 +3604,61 @@ CompatibilityCheckTest : DriverTest() {
                   public @interface AnnotationToEnum {}
                 }
             """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `Allow increased access`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    method public void bar();
+                    method protected void baz();
+                    method protected void spam();
+                  }
+                }
+            """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    method protected void bar();
+                    method private void baz();
+                    method internal void spam();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Block decreased access`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                TESTROOT/load-api.txt:5: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+            """,
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    method protected void bar();
+                    method private void baz();
+                    method internal void spam();
+                  }
+                }
+            """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    method public void bar();
+                    method protected void baz();
+                    method protected void spam();
+                  }
+                }
+            """
         )
     }
 
