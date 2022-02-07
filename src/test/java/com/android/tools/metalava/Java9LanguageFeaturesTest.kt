@@ -193,6 +193,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
         // Non-Android example
         val jdk = System.getProperty("java.home") ?: error("Expected java.home to be set")
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
