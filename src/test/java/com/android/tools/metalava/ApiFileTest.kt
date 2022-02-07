@@ -406,6 +406,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -438,6 +439,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Suspend functions`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -819,6 +821,7 @@ class ApiFileTest : DriverTest() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
+            format = FileFormat.V3,
             outputKotlinStyleNulls = true,
             sourceFiles = arrayOf(
                 java(
@@ -1837,6 +1840,7 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -1987,6 +1991,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Check correct throws list for generics`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2207,6 +2212,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Inheriting generic method from package private class`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2246,6 +2252,7 @@ class ApiFileTest : DriverTest() {
     fun `Type substitution for generic method referencing parent type parameter`() {
         // Type parameters from parent classes need to be replaced with their bounds in the child.
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2624,6 +2631,7 @@ class ApiFileTest : DriverTest() {
     fun `Check @remove class`() {
         // Test removing classes
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3537,6 +3545,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited methods that use generics`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
