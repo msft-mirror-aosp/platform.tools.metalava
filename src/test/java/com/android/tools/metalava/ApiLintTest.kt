@@ -735,13 +735,13 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyClass.java:9: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (method android.pkg.MyClass.bad1()) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
-                src/android/pkg/MyClass.java:10: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (parameter param in android.pkg.MyClass.bad2(java.util.concurrent.CompletableFuture<java.lang.String> param)) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
-                src/android/pkg/MyClass.java:11: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (method android.pkg.MyClass.bad3()) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
-                src/android/pkg/MyClass.java:12: error: Use ListenableFuture (library), or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (parameter param in android.pkg.MyClass.bad4(java.util.concurrent.Future<java.lang.String> param)) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
-                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
-                src/android/pkg/MyClass.java:17: error: BadFuture should not extend `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
-                src/android/pkg/MyClass.java:19: error: BadFutureClass should not implement `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`. [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:9: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (method android.pkg.MyClass.bad1()) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:10: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (parameter param in android.pkg.MyClass.bad2(java.util.concurrent.CompletableFuture<java.lang.String> param)) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:11: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (method android.pkg.MyClass.bad3()) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:12: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (parameter param in android.pkg.MyClass.bad4(java.util.concurrent.Future<java.lang.String> param)) [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:17: error: BadFuture should not extend `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
+                src/android/pkg/MyClass.java:19: error: BadFutureClass should not implement `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture] [See https://s.android.com/api-guidelines#bad-future]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -3443,6 +3443,58 @@ class ApiLintTest : DriverTest() {
                     """
                 ),
                 androidxNullableSource
+            )
+        )
+    }
+
+    @Test
+    fun `Listener replaceable with OutcomeReceiver or ListenableFuture`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues = """
+                src/android/pkg/Cases.java:7: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks] [See https://s.android.com/api-guidelines#callbacks-sam]
+                src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks] [See https://s.android.com/api-guidelines#callbacks-sam]
+                src/android/pkg/Cases.java:11: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks] [See https://s.android.com/api-guidelines#callbacks-sam]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.NonNull;
+                    import java.io.IOException;
+
+                    public final class Cases {
+                        public class BadCallback {
+                            public abstract void onSuccess(@NonNull String result);
+                            public void onFailure(@NonNull Throwable error) {}
+                        }
+                        public interface BadListener {
+                            void onResult(@NonNull Object result);
+                            void onError(@NonNull IOException error);
+                        }
+                        public interface BadGenericListener<R, E extends Throwable> {
+                            void onResult(@NonNull R result);
+                            void onError(@NonNull E error);
+                        }
+                        public interface OkListener {
+                            void onResult(@NonNull Object result);
+                            void onError(@NonNull int error);
+                        }
+                        public interface Ok2Listener {
+                            void onResult(@NonNull int result);
+                            void onError(@NonNull Throwable error);
+                        }
+                        public interface Ok3Listener {
+                            void onSuccess(@NonNull String result);
+                            void onOtherThing(@NonNull String result);
+                            void onFailure(@NonNull Throwable error);
+                        }
+                    }
+                    """
+                ),
+                androidxNonNullSource
             )
         )
     }
