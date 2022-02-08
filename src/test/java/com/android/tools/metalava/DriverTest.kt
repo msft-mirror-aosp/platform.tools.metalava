@@ -245,7 +245,7 @@ abstract class DriverTest {
          * whether the stubs include @doconly elements, uses rewritten/migration annotations, etc */
         docStubs: Boolean = false,
         /** Signature file format */
-        format: FileFormat? = null,
+        format: FileFormat = FileFormat.latest,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /** Whether to remove blank lines in the output (the signature file usually contains a lot of these) */
@@ -305,7 +305,7 @@ abstract class DriverTest {
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
         /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = format != null && format.useKotlinStyleNulls(),
+        outputKotlinStyleNulls: Boolean = format.useKotlinStyleNulls(),
         /** Whether we should interpret API files being read as having Kotlin-style nullness types */
         inputKotlinStyleNulls: Boolean = false,
         /** Expected output (stdout and stderr combined). If null, don't check. */
@@ -947,12 +947,6 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val signatureFormatArgs = if (format != null) {
-            arrayOf(format.outputFlag())
-        } else {
-            emptyArray()
-        }
-
         val errorMessageApiLintArgs = buildOptionalArgs(errorMessageApiLint) {
             arrayOf(ARG_ERROR_MESSAGE_API_LINT, it)
         }
@@ -1029,7 +1023,7 @@ abstract class DriverTest {
             *extractAnnotationsArgs,
             *validateNullabilityArgs,
             *validateNullabilityFromListArgs,
-            *signatureFormatArgs,
+            format.outputFlag(),
             *sourceList,
             *extraArguments,
             *errorMessageApiLintArgs,
@@ -1058,7 +1052,7 @@ abstract class DriverTest {
         if (api != null && apiFile != null) {
             assertTrue("${apiFile.path} does not exist even though --api was used", apiFile.exists())
             val actualText = readFile(apiFile, stripBlankLines, trim)
-            assertEquals(stripComments(api, DOT_TXT, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(prepareExpectedApi(api, format), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.outputKotlinStyleNulls)
         }
@@ -1136,10 +1130,7 @@ abstract class DriverTest {
                 removedApiFile.exists()
             )
             val actualText = readFile(removedApiFile, stripBlankLines, trim)
-            assertEquals(
-                stripComments(removedApi, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
+            assertEquals(prepareExpectedApi(removedApi, format), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls)
         }
@@ -1342,6 +1333,18 @@ abstract class DriverTest {
             return false
         }
         return true
+    }
+
+    /** Strip comments, trim indent, and add a signature format version header if one is missing */
+    private fun prepareExpectedApi(expectedApi: String, format: FileFormat): String {
+        val header = format.header()
+
+        return stripComments(expectedApi, DOT_TXT, stripLineComments = false)
+            .trimIndent()
+            .let {
+                if (header != null && !it.startsWith("// Signature format:")) header + it else it
+            }
+            .trim()
     }
 
     companion object {
