@@ -165,7 +165,6 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
-const val ARG_ENABLE_KOTLIN_PSI = "--enable-kotlin-psi"
 
 class Options(
     private val args: Array<String>,
@@ -286,14 +285,8 @@ class Options(
     /** Whether default values should be included in signature files */
     var outputDefaultValues = true
 
-    /**
-     *  Whether only the presence of default values should be included in signature files, and not
-     *  the full body of the default value.
-     */
-    var outputConciseDefaultValues = false // requires V4
-
     /** The output format version being used */
-    var outputFormat: FileFormat = FileFormat.V2
+    var outputFormat: FileFormat = FileFormat.recommended
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
@@ -495,11 +488,6 @@ class Options(
      * signatures/stubs from them or use them to diff APIs with (whereas [classpath]
      * is only used to resolve types.) */
     var apiJar: File? = null
-
-    /** Whether to use the experimental KtPsi model on .kt source files instead of existing
-     * PSI implementation
-     */
-    var enableKotlinPsi = false
 
     /**
      * mapping from API level to android.jar files, if computing API levels
@@ -769,8 +757,6 @@ class Options(
                 ARG_VERSION -> {
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
-
-                ARG_ENABLE_KOTLIN_PSI -> enableKotlinPsi = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -1425,18 +1411,12 @@ class Options(
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
                         outputFormat = when (arg) {
-                            "$ARG_FORMAT=v1" -> {
-                                FileFormat.V1
-                            }
-                            "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
-                                FileFormat.V2
-                            }
-                            "$ARG_FORMAT=v3" -> {
-                                FileFormat.V3
-                            }
-                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
-                                FileFormat.V4
-                            }
+                            "$ARG_FORMAT=v1" -> FileFormat.V1
+                            "$ARG_FORMAT=v2" -> FileFormat.V2
+                            "$ARG_FORMAT=v3" -> FileFormat.V3
+                            "$ARG_FORMAT=v4" -> FileFormat.V4
+                            "$ARG_FORMAT=recommended" -> FileFormat.recommended
+                            "$ARG_FORMAT=latest" -> FileFormat.latest
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this)
@@ -2179,8 +2159,6 @@ class Options(
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
-            ARG_ENABLE_KOTLIN_PSI,
-            "[EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST",
 
             "", "\nGenerating Stubs:",
             "$ARG_STUBS <dir>", "Generate stub source files for the API",
