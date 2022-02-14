@@ -3662,6 +3662,26 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `configuring issue severity`() {
+        check(
+            extraArguments = arrayOf(ARG_HIDE, Issues.REMOVED_METHOD.name),
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo {
+                        method public void bar();
+                    }
+                }
+            """
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
