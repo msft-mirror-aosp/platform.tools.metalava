@@ -252,7 +252,7 @@ class CompatibilityCheck(
 
         if (!oldModifiers.isSealed() && newModifiers.isSealed()) {
             report(Issues.ADD_SEALED, new, "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change")
-        } else if (old.isClass() && oldModifiers.isAbstract() != newModifiers.isAbstract()) {
+        } else if (old.isClass() && !oldModifiers.isAbstract() && newModifiers.isAbstract()) {
             report(
                 Issues.CHANGED_ABSTRACT, new, "${describe(new, capitalize = true)} changed 'abstract' qualifier"
             )
