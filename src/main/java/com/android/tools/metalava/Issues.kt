@@ -16,8 +16,6 @@
 package com.android.tools.metalava
 
 import com.android.sdklib.SdkVersionInfo
-import java.util.ArrayList
-import java.util.HashMap
 import java.util.Locale
 import kotlin.reflect.full.declaredMemberProperties
 
@@ -45,7 +43,7 @@ object Issues {
     val CHANGED_VALUE = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_SUPERCLASS = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_SCOPE = Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_ABSTRACT = Issue(Severity.WARNING, Category.COMPATIBILITY)
+    val CHANGED_ABSTRACT = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_THROWS = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_NATIVE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val CHANGED_CLASS = Issue(Severity.ERROR, Category.COMPATIBILITY)
