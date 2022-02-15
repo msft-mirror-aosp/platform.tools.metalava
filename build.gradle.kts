@@ -31,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.5.31"
+    kotlin("jvm") version "1.6.10"
     id("application")
     id("java")
     id("maven-publish")
@@ -56,8 +56,8 @@ tasks.withType(KotlinCompile::class.java) {
 
     kotlinOptions {
         jvmTarget = "1.8"
-        apiVersion = "1.5"
-        languageVersion = "1.5"
+        apiVersion = "1.6"
+        languageVersion = "1.6"
         allWarningsAsErrors = true
     }
 }
@@ -67,9 +67,9 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.1.0-alpha13"
+    "30.3.0-alpha01"
 }
-val kotlinVersion: String = "1.5.31"
+val kotlinVersion: String = "1.6.10"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
