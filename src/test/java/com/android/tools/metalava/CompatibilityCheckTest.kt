@@ -3683,6 +3683,54 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `block changing open to abstract`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public abstract class Foo {
+                        ctor public Foo();
+                        method public abstract void bar();
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `allow changing abstract to open`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo {
+                        ctor public Foo();
+                        method public abstract void bar();
+                    }
+                }
+            """
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
