@@ -20,6 +20,7 @@ import com.android.tools.lint.detector.api.ClassContext
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.JAVA_LANG_STRING
+import com.android.tools.metalava.compatibility
 import java.util.function.Predicate
 
 /**
@@ -172,15 +173,19 @@ interface TypeItem {
     companion object {
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
-            var cleaned = type
-            if (cleaned.contains("@androidx.annotation.")) {
-                cleaned = cleaned.replace("@androidx.annotation.", "@")
-            }
-            if (cleaned.contains("@android.support.annotation.")) {
-                cleaned = cleaned.replace("@android.support.annotation.", "@")
+            if (compatibility.omitCommonPackages) {
+                var cleaned = type
+                if (cleaned.contains("@androidx.annotation.")) {
+                    cleaned = cleaned.replace("@androidx.annotation.", "@")
+                }
+                if (cleaned.contains("@android.support.annotation.")) {
+                    cleaned = cleaned.replace("@android.support.annotation.", "@")
+                }
+
+                return stripJavaLangPrefix(cleaned)
             }
 
-            return stripJavaLangPrefix(cleaned)
+            return type
         }
 
         /**
@@ -216,9 +221,19 @@ interface TypeItem {
         }
 
         fun formatType(type: String?): String {
-            return if (type == null) {
-                ""
-            } else cleanupGenerics(type)
+            if (type == null) {
+                return ""
+            }
+
+            var cleaned = type
+
+            if (compatibility.spaceAfterCommaInTypes && cleaned.indexOf(',') != -1) {
+                // The compat files have spaces after commas where we normally don't
+                cleaned = cleaned.replace(",", ", ").replace(",  ", ", ")
+            }
+
+            cleaned = cleanupGenerics(cleaned)
+            return cleaned
         }
 
         fun cleanupGenerics(signature: String): String {
