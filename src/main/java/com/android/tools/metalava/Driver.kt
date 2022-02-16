@@ -21,6 +21,11 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
+import com.android.ide.common.process.CachedProcessOutputHandler
+import com.android.ide.common.process.DefaultProcessExecutor
+import com.android.ide.common.process.ProcessInfoBuilder
+import com.android.ide.common.process.ProcessOutput
+import com.android.ide.common.process.ProcessOutputHandler
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -36,6 +41,8 @@ import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
+import com.android.utils.StdLogger
+import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
@@ -46,13 +53,12 @@ import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
-import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
@@ -101,6 +107,7 @@ fun run(
         maybeDumpArgv(stdout, originalArgs, modifiedArgs)
 
         // Actual work begins here.
+        compatibility = Compatibility(compat = Options.useCompatMode(modifiedArgs))
         options = Options(modifiedArgs, stdout, stderr)
 
         maybeActivateSandbox()
@@ -216,11 +223,11 @@ private fun maybeActivateSandbox() {
 
 private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: Int) {
     writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumOf { it.errorCount }
+    val totalErrors = reporters.sumBy { it.errorCount }
     var remainingCap = max
     var totalShown = 0
     reporters.forEach {
-        val numShown = it.printErrors(writer, remainingCap)
+        var numShown = it.printErrors(writer, remainingCap)
         remainingCap -= numShown
         totalShown += numShown
     }
@@ -251,8 +258,6 @@ private fun processFlags() {
         } else {
             return
         }
-    codebase.apiLevel = options.currentApiLevel +
-        if (options.currentCodeName != null && "REL" != options.currentCodeName) 1 else 0
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
@@ -268,7 +273,7 @@ private fun processFlags() {
     val apiLevelJars = options.apiLevelJars
     if (androidApiLevelXml != null && apiLevelJars != null) {
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
-        ApiGenerator.generate(apiLevelJars, options.firstApiLevel, androidApiLevelXml, codebase)
+        ApiGenerator.generate(apiLevelJars, androidApiLevelXml, codebase)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {
@@ -322,8 +327,8 @@ private fun processFlags() {
         val removedEmit = apiType.getEmitFilter()
         val removedReference = apiType.getReferenceFilter()
 
-        createReportFile(unfiltered, apiFile, "removed API", options.deleteEmptyRemovedSignatures) { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null, options.includeSignatureFormatVersionRemoved)
+        createReportFile(unfiltered, apiFile, "removed API") { printWriter ->
+            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null)
         }
     }
 
@@ -336,6 +341,19 @@ private fun processFlags() {
         createReportFile(
             codebase, apiFile, "DEX API"
         ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
+    }
+
+    options.removedDexApiFile?.let { apiFile ->
+        val unfiltered = codebase.original ?: codebase
+
+        val removedFilter = FilterPredicate(ApiPredicate(matchRemoved = true))
+        val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
+        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
+        val removedDexEmit = memberIsNotCloned.and(removedFilter)
+
+        createReportFile(
+            unfiltered, apiFile, "removed DEX API"
+        ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
     }
 
     options.proguard?.let { proguard ->
@@ -417,10 +435,22 @@ private fun processFlags() {
     }
     options.externalAnnotations?.let { extractAnnotations(codebase, it) }
 
+    // Coverage stats?
+    if (options.dumpAnnotationStatistics) {
+        progress("Measuring annotation statistics: ")
+        AnnotationStatistics(codebase).count()
+    }
+    if (options.annotationCoverageOf.isNotEmpty()) {
+        progress("Measuring annotation coverage: ")
+        AnnotationStatistics(codebase).measureCoverageOf(options.annotationCoverageOf)
+    }
+
     if (options.verbose) {
         val packageCount = codebase.size()
         progress("$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n")
     }
+
+    invokeDocumentationTool()
 }
 
 fun subtractApi(codebase: Codebase, subtractApiFile: File) {
@@ -432,14 +462,11 @@ fun subtractApi(codebase: Codebase, subtractApiFile: File) {
             else -> throw DriverException("Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}")
         }
 
-    CodebaseComparator().compare(
-        object : ComparisonVisitor() {
-            override fun compare(old: ClassItem, new: ClassItem) {
-                new.emit = false
-            }
-        },
-        oldCodebase, codebase, ApiType.ALL.getReferenceFilter()
-    )
+    CodebaseComparator().compare(object : ComparisonVisitor() {
+        override fun compare(old: ClassItem, new: ClassItem) {
+            new.emit = false
+        }
+    }, oldCodebase, codebase, ApiType.ALL.getReferenceFilter())
 }
 
 fun processNonCodebaseFlags() {
@@ -484,40 +511,52 @@ fun processNonCodebaseFlags() {
                     file = baseFile,
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
-                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
+
+                val includeFields =
+                    if (convert.outputFormat == FileFormat.V2) true else compatibility.includeFieldsInApiDiff
+                TextCodebase.computeDelta(baseFile, baseApi, signatureApi, includeFields)
             } else {
                 signatureApi
             }
 
-        val output = convert.outputFile
-        if (convert.outputFormat == FileFormat.JDIFF) {
-            // See JDiff's XMLToAPI#nameAPI
-            val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
-            createReportFile(outputApi, output, "JDiff File") { printWriter ->
-                JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
-            }
+        if (outputApi.isEmpty() && baseFile != null && compatibility.compat) {
+            // doclava compatibility: emits error warning instead of emitting empty <api/> element
+            options.stdout.println("No API change detected, not generating diff")
         } else {
-            val prevOptions = options
-            try {
-                when (convert.outputFormat) {
-                    FileFormat.V1 -> {
-                        options = Options(emptyArray(), options.stdout, options.stderr)
-                        FileFormat.V1.configureOptions(options)
-                    }
-                    FileFormat.V2 -> {
-                        options = Options(emptyArray(), options.stdout, options.stderr)
-                        FileFormat.V2.configureOptions(options)
-                    }
-                    else -> error("Unsupported format ${convert.outputFormat}")
+            val output = convert.outputFile
+            if (convert.outputFormat == FileFormat.JDIFF) {
+                // See JDiff's XMLToAPI#nameAPI
+                val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
+                createReportFile(outputApi, output, "JDiff File") { printWriter ->
+                    JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
                 }
+            } else {
+                val prevOptions = options
+                val prevCompatibility = compatibility
+                try {
+                    when (convert.outputFormat) {
+                        FileFormat.V1 -> {
+                            compatibility = Compatibility(true)
+                            options = Options(emptyArray(), options.stdout, options.stderr)
+                            FileFormat.V1.configureOptions(options, compatibility)
+                        }
+                        FileFormat.V2 -> {
+                            compatibility = Compatibility(false)
+                            options = Options(emptyArray(), options.stdout, options.stderr)
+                            FileFormat.V2.configureOptions(options, compatibility)
+                        }
+                        else -> error("Unsupported format ${convert.outputFormat}")
+                    }
 
-                createReportFile(outputApi, output, "Diff API File") { printWriter ->
-                    SignatureWriter(
-                        printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip
-                    )
+                    createReportFile(outputApi, output, "Diff API File") { printWriter ->
+                        SignatureWriter(
+                            printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip
+                        )
+                    }
+                } finally {
+                    options = prevOptions
+                    compatibility = prevCompatibility
                 }
-            } finally {
-                options = prevOptions
             }
         }
     }
@@ -550,6 +589,7 @@ fun checkCompatibility(
 
     var newBase: Codebase? = null
     var oldBase: Codebase? = null
+    val releaseType = check.releaseType
     val apiType = check.apiType
 
     // If diffing with a system-api or test-api (or other signature-based codebase
@@ -570,10 +610,8 @@ fun checkCompatibility(
             if (options.baseApiForCompatCheck != null) {
                 // This option does not make sense with showAnnotation, as the "base" in that case
                 // is the non-annotated APIs.
-                throw DriverException(
-                    ARG_CHECK_COMPATIBILITY_BASE_API +
-                        " is not compatible with --showAnnotation."
-                )
+                throw DriverException(ARG_CHECK_COMPATIBILITY_BASE_API +
+                    " is not compatible with --showAnnotation.")
             }
 
             newBase = codebase
@@ -601,7 +639,42 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, apiType, oldBase, newBase)
+    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, oldBase, newBase)
+
+    // Make sure the text files are identical too? (only applies for *current.txt;
+    // last-released is expected to differ)
+    if (releaseType == ReleaseType.DEV && !options.allowCompatibleDifferences) {
+        val apiFile = if (new.location.isFile)
+            new.location
+        else
+            apiType.getSignatureFile(codebase, "compat-diff-signatures-$apiType")
+
+        fun getCanonicalSignatures(file: File): String {
+            // Get rid of trailing newlines and Windows line endings
+            val text = file.readText(UTF_8)
+            return text.replace("\r\n", "\n").trim()
+        }
+        val currentTxt = getCanonicalSignatures(signatureFile)
+        val newTxt = getCanonicalSignatures(apiFile)
+        if (newTxt != currentTxt) {
+            val diff = getNativeDiff(signatureFile, apiFile) ?: getDiff(currentTxt, newTxt, 1)
+            val updateApi = if (isBuildingAndroid())
+                "Run make update-api to update.\n"
+            else
+                ""
+            val message =
+                """
+                    Your changes have resulted in differences in the signature file
+                    for the ${apiType.displayName} API.
+
+                    The changes may be compatible, but the signature file needs to be updated.
+                    $updateApi
+                    Diffs:
+                """.trimIndent() + "\n" + diff
+
+            throw DriverException(exitCode = -1, stderr = message)
+        }
+    }
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
@@ -614,6 +687,102 @@ fun createTempFile(namePrefix: String, nameSuffix: String): File {
         File.createTempFile(namePrefix, nameSuffix, tempFolder)
     } else {
         File.createTempFile(namePrefix, nameSuffix)
+    }
+}
+
+fun invokeDocumentationTool() {
+    if (options.noDocs) {
+        return
+    }
+
+    val args = options.invokeDocumentationToolArguments
+    if (args.isNotEmpty()) {
+        if (!options.quiet) {
+            options.stdout.println(
+                "Invoking external documentation tool ${args[0]} with arguments\n\"${
+                args.slice(1 until args.size).joinToString(separator = "\",\n\"") { it }}\""
+            )
+            options.stdout.flush()
+        }
+
+        val builder = ProcessInfoBuilder()
+
+        builder.setExecutable(File(args[0]))
+        builder.addArgs(args.slice(1 until args.size))
+
+        val processOutputHandler =
+            if (options.quiet) {
+                CachedProcessOutputHandler()
+            } else {
+                object : ProcessOutputHandler {
+                    override fun handleOutput(processOutput: ProcessOutput?) {
+                    }
+
+                    override fun createOutput(): ProcessOutput {
+                        val out = PrintWriterOutputStream(options.stdout)
+                        val err = PrintWriterOutputStream(options.stderr)
+                        return object : ProcessOutput {
+                            override fun getStandardOutput(): OutputStream {
+                                return out
+                            }
+
+                            override fun getErrorOutput(): OutputStream {
+                                return err
+                            }
+
+                            override fun close() {
+                                out.flush()
+                                err.flush()
+                            }
+                        }
+                    }
+                }
+            }
+
+        val result = DefaultProcessExecutor(StdLogger(ERROR))
+            .execute(builder.createProcess(), processOutputHandler)
+
+        val exitCode = result.exitValue
+        if (!options.quiet) {
+            options.stdout.println("${args[0]} finished with exitCode $exitCode")
+            options.stdout.flush()
+        }
+        if (exitCode != 0) {
+            val stdout = if (processOutputHandler is CachedProcessOutputHandler)
+                processOutputHandler.processOutput.standardOutputAsString
+            else ""
+            val stderr = if (processOutputHandler is CachedProcessOutputHandler)
+                processOutputHandler.processOutput.errorOutputAsString
+            else ""
+            throw DriverException(
+                stdout = "Invoking documentation tool ${args[0]} failed with exit code $exitCode\n$stdout",
+                stderr = stderr,
+                exitCode = exitCode
+            )
+        }
+    }
+}
+
+class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() {
+
+    override fun write(b: ByteArray) {
+        writer.write(String(b, UTF_8))
+    }
+
+    override fun write(b: Int) {
+        write(byteArrayOf(b.toByte()), 0, 1)
+    }
+
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        writer.write(String(b, off, len, UTF_8))
+    }
+
+    override fun flush() {
+        writer.flush()
+    }
+
+    override fun close() {
+        writer.close()
     }
 }
 
@@ -634,11 +803,13 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 private fun loadFromSources(): Codebase {
     progress("Processing sources: ")
 
-    val sources = options.sources.ifEmpty {
+    val sources = if (options.sources.isEmpty()) {
         if (options.verbose) {
             options.stdout.println("No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})")
         }
         gatherSources(options.sourcePath)
+    } else {
+        options.sources
     }
 
     progress("Reading Codebase: ")
@@ -713,7 +884,8 @@ internal fun parseSources(
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-    manifest: File? = options.manifest
+    manifest: File? = options.manifest,
+    currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
 ): PsiBasedCodebase {
     val sourceRoots = mutableListOf<File>()
     sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
@@ -727,12 +899,6 @@ internal fun parseSources(
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
     config.addClasspathRoots(classpath.map { it.absoluteFile })
-    options.jdkHome?.let {
-        if (options.isJdkModular(it)) {
-            config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
-            config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
-        }
-    }
 
     val environment = createProjectEnvironment(config)
 
@@ -747,6 +913,7 @@ internal fun parseSources(
     val codebase = PsiBasedCodebase(rootDir, description)
     codebase.initialize(environment, units, packageDocs)
     codebase.manifest = manifest
+    codebase.apiLevel = currentApiLevel
     return codebase
 }
 
@@ -861,6 +1028,13 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     }
 
     val localTimer = Stopwatch.createStarted()
+    val prevCompatibility = compatibility
+    if (compatibility.compat) {
+        compatibility = Compatibility(false)
+        // But preserve the setting for whether we want to erase throws signatures (to ensure the API
+        // stays compatible)
+        compatibility.useErasureInThrows = prevCompatibility.useErasureInThrows
+    }
 
     val stubWriter =
         StubWriter(
@@ -896,6 +1070,8 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
         }
     }
 
+    compatibility = prevCompatibility
+
     progress(
         "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
         localTimer.elapsed(SECONDS)} seconds\n"
@@ -906,7 +1082,6 @@ fun createReportFile(
     codebase: Codebase,
     apiFile: File,
     description: String?,
-    deleteEmptyFiles: Boolean = false,
     createVisitor: (PrintWriter) -> ApiVisitor
 ) {
     if (description != null) {
@@ -914,15 +1089,10 @@ fun createReportFile(
     }
     val localTimer = Stopwatch.createStarted()
     try {
-        val stringWriter = StringWriter()
-        val writer = PrintWriter(stringWriter)
+        val writer = PrintWriter(Files.asCharSink(apiFile, UTF_8).openBufferedStream())
         writer.use { printWriter ->
             val apiWriter = createVisitor(printWriter)
             codebase.accept(apiWriter)
-        }
-        val text = stringWriter.toString()
-        if (text.isNotEmpty() || !deleteEmptyFiles) {
-            apiFile.writeText(text)
         }
     } catch (e: IOException) {
         reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
@@ -955,9 +1125,9 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
     } else if (file.isFile) {
         when {
             file.name.endsWith(DOT_JAVA) ||
-                file.name.endsWith(DOT_KT) ||
-                file.name.equals(PACKAGE_HTML) ||
-                file.name.equals(OVERVIEW_HTML) -> list.add(file)
+            file.name.endsWith(DOT_KT) ||
+            file.name.equals(PACKAGE_HTML) ||
+            file.name.equals(OVERVIEW_HTML) -> list.add(file)
         }
     }
 }
@@ -1053,8 +1223,7 @@ private fun findRoot(file: File): File? {
             return File(path.substring(0, endIndex))
         } else {
             reporter.report(
-                Issues.IO_ERROR, file,
-                "$PROGRAM_NAME was unable to determine the package name. " +
+                Issues.IO_ERROR, file, "$PROGRAM_NAME was unable to determine the package name. " +
                     "This usually means that a source file was where the directory does not seem to match the package " +
                     "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
             )
