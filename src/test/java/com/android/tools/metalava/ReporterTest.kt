@@ -55,8 +55,7 @@ class ReporterTest : DriverTest() {
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
-                java(
-                    """
+                java("""
                     package test.pkg;
                     import android.annotation.SuppressLint;
 
@@ -68,10 +67,8 @@ class ReporterTest : DriverTest() {
 
                         public void Unsuppressed() { }
                     }
-                """
-                ),
-                kotlin(
-                    """
+                """),
+                kotlin("""
                     package test.pkg
                     import android.annotation.SuppressLint;
 
@@ -83,8 +80,7 @@ class ReporterTest : DriverTest() {
 
                         fun Unsuppressed() { }
                     }
-                """
-                ),
+                """),
                 suppressLintSource
             )
         )
@@ -96,8 +92,7 @@ class ReporterTest : DriverTest() {
             apiLint = "",
             expectedIssues = "",
             sourceFiles = arrayOf(
-                java(
-                    """
+                java("""
                     package test.pkg;
                     import android.annotation.SuppressLint;
 
@@ -105,8 +100,7 @@ class ReporterTest : DriverTest() {
                         @SuppressLint("KotlinOperator")
                         public int get(int i) { return i + 1; }
                     }
-                """
-                ),
+                """),
                 suppressLintSource
             )
         )
@@ -126,15 +120,13 @@ class ReporterTest : DriverTest() {
             """.trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
             sourceFiles = arrayOf(
-                java(
-                    """
+                java("""
                     package test.pkg;
 
                     public class Foo {
                         public void foo1(String a) {} 
                     }
-                """
-                ),
+                """),
                 suppressLintSource
             )
         )
@@ -162,8 +154,7 @@ class ReporterTest : DriverTest() {
             """.trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
             sourceFiles = arrayOf(
-                java(
-                    """
+                java("""
                     package test.pkg;
 
                     public class Foo {
@@ -173,8 +164,7 @@ class ReporterTest : DriverTest() {
                         public void foo4(String a) {} 
                         public void foo5(String a) {} 
                     }
-                """
-                ),
+                """),
                 suppressLintSource
             )
         )
@@ -204,8 +194,7 @@ class ReporterTest : DriverTest() {
             """.trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
             sourceFiles = arrayOf(
-                java(
-                    """
+                java("""
                     package test.pkg;
 
                     public class Foo {
@@ -216,8 +205,7 @@ class ReporterTest : DriverTest() {
                         public void foo5(String a) {} 
                         public void foo6(String a) {} 
                     }
-                """
-                ),
+                """),
                 suppressLintSource
             )
         )

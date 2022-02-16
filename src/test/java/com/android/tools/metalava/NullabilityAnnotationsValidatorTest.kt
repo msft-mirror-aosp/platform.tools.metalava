@@ -46,7 +46,9 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 libcoreNullableSource,
                 libcoreNullFromTypeParamSource
             ),
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -87,7 +89,9 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 libcoreNonNullSource,
                 libcoreNullFromTypeParamSource
             ),
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -128,7 +132,9 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 ),
                 libcoreNullableSource
             ),
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -170,7 +176,9 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 libcoreNullableSource,
                 libcoreNullFromTypeParamSource
             ),
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -213,7 +221,9 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 libcoreNullableSource,
                 libcoreNullFromTypeParamSource
             ),
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
             mergeJavaStubAnnotations = """
                 package test.pkg;
 
@@ -258,7 +268,9 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 ),
                 libcoreNullableSource
             ),
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
             validateNullabilityFromList =
             """

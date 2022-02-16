@@ -27,8 +27,4 @@ interface ConstructorItem : MethodItem {
      * constructor). Note that it may not be in a super class, as in the case of a this-call.
      */
     var superConstructor: ConstructorItem?
-
-    /** True if this is the primary constructor in Kotlin. */
-    val isPrimary: Boolean
-        get() = false
 }
