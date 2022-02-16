@@ -201,7 +201,8 @@ class StubWriter(
             }
 
             // Copyright statements from the original file?
-            cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            val compilationUnit = cls.getCompilationUnit()
+            compilationUnit?.getHeaderComments()?.let { textWriter.println(it) }
         }
         stubWriter?.visitClass(cls)
     }

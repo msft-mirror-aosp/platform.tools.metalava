@@ -157,10 +157,9 @@ public class ApiGenerator {
     }
 
     public static boolean generate(@NotNull File[] apiLevels,
-                                   int firstApiLevel,
                                    @NotNull File outputFile,
                                    @Nullable Codebase codebase) throws IOException {
-        AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
+        AndroidJarReader reader = new AndroidJarReader(apiLevels, codebase);
         Api api = reader.getApi();
         return createApiFile(outputFile, api);
     }
