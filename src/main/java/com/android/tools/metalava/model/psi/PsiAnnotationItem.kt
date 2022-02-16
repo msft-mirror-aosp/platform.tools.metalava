@@ -32,8 +32,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiAnnotationMethod
+import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiBinaryExpression
 import com.intellij.psi.PsiClass
@@ -48,9 +48,13 @@ import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 class PsiAnnotationItem private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
-    override val originalName: String?
+    private val originalName: String?
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(codebase, originalName)
+    private val qualifiedName = AnnotationItem.mapName(codebase, originalName)
+
+    private var attributes: List<AnnotationAttribute>? = null
+
+    override fun originalName(): String? = originalName
 
     override fun toString(): String = toSource()
 
@@ -74,16 +78,37 @@ class PsiAnnotationItem private constructor(
         return super.isNonNull()
     }
 
-    override val attributes: List<PsiAnnotationAttribute> by lazy {
-        psiAnnotation.parameterList.attributes.mapNotNull { attribute ->
-            attribute.value?.let { value ->
-                PsiAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, value)
+    override fun qualifiedName() = qualifiedName
+
+    override fun attributes(): List<AnnotationAttribute> {
+        if (attributes == null) {
+            val psiAttributes = psiAnnotation.parameterList.attributes
+            attributes = if (psiAttributes.isEmpty()) {
+                emptyList()
+            } else {
+                val list = mutableListOf<AnnotationAttribute>()
+                for (parameter in psiAttributes) {
+                    list.add(
+                        PsiAnnotationAttribute(
+                            codebase,
+                            parameter.name ?: ATTR_VALUE, parameter.value ?: continue
+                        )
+                    )
+                }
+                list
             }
-        }.toList()
+        }
+
+        return attributes!!
     }
 
-    override val targets: Set<AnnotationTarget> by lazy {
-        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
+    override fun targets(): Set<AnnotationTarget> {
+        if (targets == null) {
+            targets = AnnotationItem.computeTargets(this) { className ->
+                codebase.findOrCreateClass(className)
+            }
+        }
+        return targets!!
     }
 
     companion object {
@@ -110,7 +135,7 @@ class PsiAnnotationItem private constructor(
         }
 
         private fun getAttributes(annotation: PsiAnnotation, showDefaultAttrs: Boolean):
-            List<Pair<String?, PsiAnnotationMemberValue?>> {
+                List<Pair<String?, PsiAnnotationMemberValue?>> {
             val annotationClass = annotation.nameReferenceElement?.resolve() as? PsiClass
             val list = mutableListOf<Pair<String?, PsiAnnotationMemberValue?>>()
             if (annotationClass != null && showDefaultAttrs) {
@@ -193,8 +218,7 @@ class PsiAnnotationItem private constructor(
                                 if (initializer != null) {
                                     val fieldItem = cls.findField(resolved.name)
                                     if (fieldItem == null || fieldItem.isHiddenOrRemoved() ||
-                                        !fieldItem.isPublic
-                                    ) {
+                                            !fieldItem.isPublic) {
                                         // Use the literal value instead
                                         val source = getConstantSource(initializer)
                                         if (source != null) {

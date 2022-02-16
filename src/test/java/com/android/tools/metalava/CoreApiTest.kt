@@ -27,7 +27,6 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with --hide-annotation`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -78,13 +77,13 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
+                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
                   }
                 }
                 package test.pkg {
-                  @libcore.api.IntraCoreApi public class Exposed {
-                    method @libcore.api.IntraCoreApi public void exposed();
-                    field @libcore.api.IntraCoreApi public String exposed;
+                  public class Exposed {
+                    method public void exposed();
+                    field public java.lang.String exposed;
                   }
                 }
                 """,
@@ -122,7 +121,6 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with package javadoc and hiding default constructor explicitly`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -172,12 +170,12 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
+                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
                   }
                 }
                 package test.pkg {
-                  @libcore.api.IntraCoreApi public class Exposed {
-                    method @libcore.api.IntraCoreApi public void exposed();
+                  public class Exposed {
+                    method public void exposed();
                   }
                 }
                 """,
@@ -216,7 +214,6 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Complain if annotating a member and the surrounding class is not included`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -259,7 +256,7 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
+                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
                   }
                 }
                 """,
@@ -268,9 +265,9 @@ class CoreApiTest : DriverTest() {
                 ARG_HIDE_ANNOTATION, "libcore.api.LibCoreHidden"
             ),
             expectedIssues = """
-            src/test/pkg/Exposed.java:12: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-            src/test/pkg/Exposed.java:15: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
-            src/test/pkg/Exposed.java:18: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+            src/test/pkg/Exposed.java:11: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+            src/test/pkg/Exposed.java:14: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+            src/test/pkg/Exposed.java:17: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
             """
         )
     }
@@ -278,7 +275,6 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with --hide-meta-annotation`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -331,16 +327,16 @@ class CoreApiTest : DriverTest() {
                 libcoreCoreMetaHidden
             ),
             api =
-            """
+                """
                 package libcore.api {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE}) public @interface LibCoreMetaHidden {
+                  public abstract class LibCoreMetaHidden implements java.lang.annotation.Annotation {
                   }
                 }
                 package test.pkg {
                   public class ExposedClass {
                     ctor public ExposedClass();
                     method public void exposedMethod();
-                    field public String exposedField;
+                    field public java.lang.String exposedField;
                   }
                 }
                 """,
