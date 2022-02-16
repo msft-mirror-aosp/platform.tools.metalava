@@ -26,20 +26,16 @@ class PsiPackageItem(
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: PsiModifierItem,
-    documentation: String,
-    /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
+    documentation: String
 ) :
     PsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
         element = psiPackage
-    ),
-    PackageItem {
-
+    ), PackageItem {
     // Note - top level classes only
-    private val classes: MutableList<ClassItem> = mutableListOf()
+    private val classes: MutableList<PsiClassItem> = mutableListOf()
 
     override fun topLevelClasses(): Sequence<ClassItem> = classes.toList().asSequence().filter { it.isTopLevelClass() }
 
@@ -121,7 +117,7 @@ class PsiPackageItem(
         val initialClasses = ArrayList(classes)
         var original = initialClasses.size // classes added after this point will have indices >= original
         for (cls in initialClasses) {
-            if (cls is PsiClassItem) cls.finishInitialization()
+            cls.finishInitialization()
         }
 
         // Finish initialization of any additional classes that were registered during
@@ -130,20 +126,13 @@ class PsiPackageItem(
             val added = ArrayList(classes.subList(original, classes.size))
             original = classes.size
             for (cls in added) {
-                if (cls is PsiClassItem) cls.finishInitialization()
+                cls.finishInitialization()
             }
         }
     }
 
-    override fun isFromClassPath(): Boolean = fromClassPath
-
     companion object {
-        fun create(
-            codebase: PsiBasedCodebase,
-            psiPackage: PsiPackage,
-            extraDocs: String?,
-            fromClassPath: Boolean
-        ): PsiPackageItem {
+        fun create(codebase: PsiBasedCodebase, psiPackage: PsiPackage, extraDocs: String?): PsiPackageItem {
             val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
@@ -157,8 +146,7 @@ class PsiPackageItem(
                 psiPackage = psiPackage,
                 qualifiedName = qualifiedName,
                 documentation = commentText,
-                modifiers = modifiers,
-                fromClassPath = fromClassPath
+                modifiers = modifiers
             )
             pkg.modifiers.setOwner(pkg)
             return pkg
@@ -170,8 +158,7 @@ class PsiPackageItem(
                 psiPackage = original.psiPackage,
                 qualifiedName = original.qualifiedName,
                 documentation = original.documentation,
-                modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                fromClassPath = original.isFromClassPath()
+                modifiers = PsiModifierItem.create(codebase, original.modifiers)
             )
             pkg.modifiers.setOwner(pkg)
             return pkg
