@@ -24,8 +24,6 @@ java_binary_host {
     ],
     java_resource_dirs: ["src/main/resources/"],
     static_libs: [
-        "jsr305",
-        "jsr330",
         "kotlin-reflect",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",

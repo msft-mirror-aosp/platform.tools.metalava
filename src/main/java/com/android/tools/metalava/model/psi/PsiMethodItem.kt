@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
@@ -27,18 +29,21 @@ import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
+import com.intellij.psi.util.TypeConversionUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
+import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.getParentOfType
+import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import java.io.StringWriter
 
@@ -57,8 +62,7 @@ open class PsiMethodItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod
-    ),
-    MethodItem {
+    ), MethodItem {
 
     init {
         for (parameter in parameters) {
@@ -77,8 +81,6 @@ open class PsiMethodItem(
 
     override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
-
-    override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
     override fun containingClass(): PsiClassItem = containingClass
@@ -112,7 +114,7 @@ open class PsiMethodItem(
 
     override fun returnType(): TypeItem? = returnType
 
-    override fun parameters(): List<PsiParameterItem> = parameters
+    override fun parameters(): List<ParameterItem> = parameters
 
     override val synthetic: Boolean get() = isEnumSyntheticMethod()
 
@@ -130,8 +132,7 @@ open class PsiMethodItem(
     override fun typeParameterList(): TypeParameterList {
         if (psiMethod.hasTypeParameters()) {
             return PsiTypeParameterList(
-                codebase,
-                psiMethod.typeParameterList
+                codebase, psiMethod.typeParameterList
                     ?: return TypeParameterList.NONE
             )
         } else {
@@ -167,7 +168,7 @@ open class PsiMethodItem(
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
             val ktParameters =
-                ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
+                ((psiMethod as? KotlinUMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
                     ?: return false
             return ktParameters.size < parameters.size
         }
@@ -176,11 +177,10 @@ open class PsiMethodItem(
     }
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is UMethod && (
+        return psiMethod is KotlinUMethod && (
             psiMethod.sourcePsi is KtProperty ||
-                psiMethod.sourcePsi is KtPropertyAccessor ||
-                psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar()
-            )
+            psiMethod.sourcePsi is KtPropertyAccessor ||
+            psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
@@ -237,19 +237,29 @@ open class PsiMethodItem(
     }
 
     override fun defaultValue(): String {
-        return when (psiMethod) {
-            is UAnnotationMethod -> {
-                psiMethod.uastDefaultValue?.let {
-                    codebase.printer.toSourceString(it)
-                } ?: ""
+        if (psiMethod is PsiAnnotationMethod) {
+            val value = psiMethod.defaultValue
+            if (value != null) {
+                if (isKotlin(value)) {
+                    val defaultExpression: UExpression = UastFacade.convertElement(
+                        value, null,
+                        UExpression::class.java
+                    ) as? UExpression ?: return ""
+                    val constant = defaultExpression.evaluate()
+                    return if (constant != null) {
+                        CodePrinter.constantToSource(constant)
+                    } else {
+                        // Expression: Compute from UAST rather than just using the source text
+                        // such that we can ensure references are fully qualified etc.
+                        codebase.printer.toSourceString(defaultExpression) ?: ""
+                    }
+                } else {
+                    return codebase.printer.toSourceExpression(value, this)
+                }
             }
-            is PsiAnnotationMethod -> {
-                psiMethod.defaultValue?.let {
-                    codebase.printer.toSourceExpression(it, this)
-                } ?: super.defaultValue()
-            }
-            else -> super.defaultValue()
         }
+
+        return super.defaultValue()
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
@@ -267,7 +277,7 @@ open class PsiMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-        if (targetContainingClass.deprecated) {
+        if (targetContainingClass.deprecated && compatibility.propagateDeprecatedMembers) {
             duplicated.deprecated = true
         }
         duplicated.throwsTypes = throwsTypes
@@ -455,6 +465,12 @@ open class PsiMethodItem(
 
             val result = ArrayList<ClassItem>(interfaces.size)
             for (cls in interfaces) {
+                if (compatibility.useErasureInThrows) {
+                    val erased = TypeConversionUtil.erasure(cls)
+                    result.add(codebase.findClass(erased) ?: continue)
+                    continue
+                }
+
                 result.add(codebase.findClass(cls) ?: continue)
             }
 
