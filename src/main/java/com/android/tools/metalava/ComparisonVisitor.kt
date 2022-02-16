@@ -22,14 +22,15 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisitCandidate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.util.containers.Stack
+import java.util.Comparator
 import java.util.function.Predicate
 
 /**
@@ -305,8 +306,7 @@ class CodebaseComparator {
                 val superField = newParent.findField(
                     fieldName = old.name(),
                     includeSuperClasses = true,
-                    includeInterfaces = true
-                )
+                    includeInterfaces = true)
 
                 if (superField != null && (filter == null || filter.test(superField))) {
                     superField.duplicate(newParent)
@@ -451,7 +451,7 @@ class CodebaseComparator {
                         item1.parameterIndex.compareTo((item2 as ParameterItem).parameterIndex)
                     }
                     is AnnotationItem -> {
-                        (item1.qualifiedName ?: "").compareTo((item2 as AnnotationItem).qualifiedName ?: "")
+                        (item1.qualifiedName() ?: "").compareTo((item2 as AnnotationItem).qualifiedName() ?: "")
                     }
                     is PropertyItem -> {
                         item1.name().compareTo((item2 as PropertyItem).name())
@@ -535,23 +535,23 @@ class CodebaseComparator {
                 // So, when doing compatibility checking we want to consider public APIs even if the caller didn't explicitly pass --show-unannotated
                 showUnannotated = true
             ) {
-                    override fun visitItem(item: Item) {
-                        val node = ItemTree(item)
-                        val parent = stack.peek()
-                        parent.children += node
+                override fun visitItem(item: Item) {
+                    val node = ItemTree(item)
+                    val parent = stack.peek()
+                    parent.children += node
 
-                        stack.push(node)
-                    }
+                    stack.push(node)
+                }
 
-                    override fun include(cls: ClassItem): Boolean = if (acceptAll) true else super.include(cls)
+                override fun include(cls: ClassItem): Boolean = if (acceptAll) true else super.include(cls)
 
-                    /** Include all classes in the tree, even implicitly defined classes (such as containing classes) */
-                    override fun shouldEmitClass(vc: VisitCandidate): Boolean = true
+                /** Include all classes in the tree, even implicitly defined classes (such as containing classes) */
+                override fun shouldEmitClass(vc: VisitCandidate): Boolean = true
 
-                    override fun afterVisitItem(item: Item) {
-                        stack.pop()
-                    }
-                })
+                override fun afterVisitItem(item: Item) {
+                    stack.pop()
+                }
+            })
         }
 
         if (codebases.count() >= 2) {
