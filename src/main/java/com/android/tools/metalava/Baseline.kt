@@ -204,8 +204,7 @@ class Baseline(
             if (line.startsWith("//") ||
                 line.startsWith("#") ||
                 line.isBlank() ||
-                line.startsWith(" ")
-            ) {
+                line.startsWith(" ")) {
                 continue
             }
             val idEnd = line.indexOf(':')
@@ -272,11 +271,9 @@ class Baseline(
         }
 
         writer.println("Baseline issue type counts for $description baseline:")
-        writer.println(
-            "" +
-                "    Count Issue Id                       Severity\n" +
-                "    ---------------------------------------------\n"
-        )
+        writer.println("" +
+            "    Count Issue Id                       Severity\n" +
+            "    ---------------------------------------------\n")
         val list = counts.entries.toMutableList()
         list.sortWith(compareBy({ -it.value }, { it.key.name }))
         var total = 0
@@ -286,11 +283,9 @@ class Baseline(
             writer.println("    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${configuration.getSeverity(issue)}")
             total += count
         }
-        writer.println(
-            "" +
-                "    ---------------------------------------------\n" +
-                "    ${String.format("%5d", total)}"
-        )
+        writer.println("" +
+            "    ---------------------------------------------\n" +
+            "    ${String.format("%5d", total)}")
         writer.println()
     }
 

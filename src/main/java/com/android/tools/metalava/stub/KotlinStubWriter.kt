@@ -48,7 +48,8 @@ class KotlinStubWriter(
                 writer.println("package $qualifiedName")
                 writer.println()
             }
-            cls.getSourceFile()?.getImportStatements(filterReference)?.let {
+            val compilationUnit = cls.getCompilationUnit()
+            compilationUnit?.getImportStatements(filterReference)?.let {
                 for (item in it) {
                     when (item) {
                         is PackageItem ->
@@ -114,6 +115,7 @@ class KotlinStubWriter(
         ModifierList.write(
             writer, modifiers, item,
             target = annotationTarget,
+            includeAnnotations = true,
             skipNullnessAnnotations = true,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,
