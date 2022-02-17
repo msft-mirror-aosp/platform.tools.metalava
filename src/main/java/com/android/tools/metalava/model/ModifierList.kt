@@ -175,11 +175,26 @@ interface ModifierList {
         return findAnnotation(qualifiedName) != null
     }
 
-    /** Returns the annotation of the given qualified name if found in this modifier list */
+    /**
+     * Returns the annotation of the given qualified name (or equivalent) if found
+     * in this modifier list
+     */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
         val mappedName = AnnotationItem.mapName(codebase, qualifiedName)
         return annotations().firstOrNull {
             mappedName == it.qualifiedName
+        }
+    }
+
+    /**
+     * Returns the annotation of the given qualified name if found in this modifier list.
+     * Like [findAnnotation], but where that method translates both the annotations in
+     * the source and the target name to their canonical form (E.g. the androidx name),
+     * this method will look at the original source for the exact name passed in here.
+     */
+    fun findExactAnnotation(qualifiedName: String): AnnotationItem? {
+        return annotations().firstOrNull {
+            qualifiedName == it.originalName
         }
     }
 
