@@ -38,8 +38,10 @@ class PsiTypeParameterItem(
     hasImplicitDefaultConstructor = false,
     classType = TYPE_PARAMETER,
     modifiers = modifiers,
-    documentation = ""
-), TypeParameterItem {
+    documentation = "",
+    fromClassPath = false
+),
+    TypeParameterItem {
     override fun bounds(): List<ClassItem> = bounds
 
     override fun isReified(): Boolean {
@@ -80,7 +82,8 @@ class PsiTypeParameterItem(
         fun isReified(element: PsiTypeParameter?): Boolean {
             element ?: return false
             if (element is KtLightTypeParameter &&
-                element.kotlinOrigin.text.startsWith("reified")) {
+                element.kotlinOrigin.text.startsWith("reified")
+            ) {
                 return true
             } else if (element is KotlinLightTypeParameterBuilder) {
                 if (element.sourcePsi.text.startsWith("reified")) {
