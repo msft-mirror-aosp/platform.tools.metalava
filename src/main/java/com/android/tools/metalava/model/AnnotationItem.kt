@@ -30,12 +30,11 @@ import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
 import com.android.tools.metalava.ANDROID_SUPPORT_ANNOTATION_PREFIX
-import com.android.tools.metalava.Compatibility
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiCallExpression
@@ -60,10 +59,10 @@ interface AnnotationItem {
     val codebase: Codebase
 
     /** Fully qualified name of the annotation */
-    fun qualifiedName(): String?
+    val qualifiedName: String?
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    fun originalName(): String?
+    val originalName: String?
 
     /** Generates source code for this annotation (using fully qualified names) */
     fun toSource(
@@ -72,10 +71,10 @@ interface AnnotationItem {
     ): String
 
     /** The applicable targets for this annotation */
-    fun targets(): Set<AnnotationTarget>
+    val targets: Set<AnnotationTarget>
 
     /** Attributes of the annotation (may be empty) */
-    fun attributes(): List<AnnotationAttribute>
+    val attributes: List<AnnotationAttribute>
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
     fun isNullnessAnnotation(): Boolean {
@@ -84,26 +83,28 @@ interface AnnotationItem {
 
     /** True if this annotation represents @Nullable (or some synonymous annotation) */
     fun isNullable(): Boolean {
-        return isNullableAnnotation(qualifiedName() ?: return false)
+        return isNullableAnnotation(qualifiedName ?: return false)
     }
 
     /** True if this annotation represents @NonNull (or some synonymous annotation) */
     fun isNonNull(): Boolean {
-        return isNonNullAnnotation(qualifiedName() ?: return false)
+        return isNonNullAnnotation(qualifiedName ?: return false)
     }
 
     /** True if this annotation represents @IntDef, @LongDef or @StringDef */
     fun isTypeDefAnnotation(): Boolean {
-        val name = qualifiedName() ?: return false
+        val name = qualifiedName ?: return false
         if (!(name.endsWith("Def"))) {
             return false
         }
-        return (INT_DEF_ANNOTATION.isEquals(name) ||
-            STRING_DEF_ANNOTATION.isEquals(name) ||
-            LONG_DEF_ANNOTATION.isEquals(name) ||
-            ANDROID_INT_DEF == name ||
-            ANDROID_STRING_DEF == name ||
-            ANDROID_LONG_DEF == name)
+        return (
+            INT_DEF_ANNOTATION.isEquals(name) ||
+                STRING_DEF_ANNOTATION.isEquals(name) ||
+                LONG_DEF_ANNOTATION.isEquals(name) ||
+                ANDROID_INT_DEF == name ||
+                ANDROID_STRING_DEF == name ||
+                ANDROID_LONG_DEF == name
+            )
     }
 
     /**
@@ -111,7 +112,7 @@ interface AnnotationItem {
      * The parameter name should be the default attribute or "value".
      */
     fun isParameterName(): Boolean {
-        return qualifiedName()?.endsWith(".ParameterName") ?: return false
+        return qualifiedName?.endsWith(".ParameterName") ?: return false
     }
 
     /**
@@ -119,30 +120,30 @@ interface AnnotationItem {
      * The default value should be the default attribute or "value".
      */
     fun isDefaultValue(): Boolean {
-        return qualifiedName()?.endsWith(".DefaultValue") ?: return false
+        return qualifiedName?.endsWith(".DefaultValue") ?: return false
     }
 
     /** Returns the given named attribute if specified */
     fun findAttribute(name: String?): AnnotationAttribute? {
         val actualName = name ?: ATTR_VALUE
-        return attributes().firstOrNull { it.name == actualName }
+        return attributes.firstOrNull { it.name == actualName }
     }
 
     /** Find the class declaration for the given annotation */
     fun resolve(): ClassItem? {
-        return codebase.findClass(qualifiedName() ?: return null)
+        return codebase.findClass(qualifiedName ?: return null)
     }
 
     /** If this annotation has a typedef annotation associated with it, return it */
     fun findTypedefAnnotation(): AnnotationItem? {
-        val className = originalName() ?: return null
+        val className = originalName ?: return null
         return codebase.findClass(className)?.modifiers?.annotations()?.firstOrNull { it.isTypeDefAnnotation() }
     }
 
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
-            val name = qualifiedName()
+            val name = qualifiedName
             if (name != null) {
                 val cls = codebase.findClass(name) ?: (codebase as? PsiBasedCodebase)?.findOrCreateClass(name)
                 if (cls != null) {
@@ -158,8 +159,7 @@ interface AnnotationItem {
     companion object {
         /** The simple name of an annotation, which is the annotation name (not qualified name) prefixed by @ */
         fun simpleName(item: AnnotationItem): String {
-            val qualifiedName = item.qualifiedName() ?: return ""
-            return "@${qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)}"
+            return item.qualifiedName?.let { "@${it.substringAfterLast('.')}" }.orEmpty()
         }
 
         /**
@@ -295,6 +295,7 @@ interface AnnotationItem {
                 "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
                 "android.support.annotation.CheckResult",
                 "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
+                "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
                 "android.support.annotation.RequiresPermission",
                 "android.annotation.RequiresPermission" -> return "androidx.annotation.RequiresPermission"
                 "android.annotation.RequiresPermission.Read" -> return "androidx.annotation.RequiresPermission.Read"
@@ -404,7 +405,8 @@ interface AnnotationItem {
 
         private val TYPEDEF_ANNOTATION_TARGETS =
             if (options.typedefMode == Options.TypedefMode.INLINE ||
-                options.typedefMode == Options.TypedefMode.NONE) // just here for compatibility purposes
+                options.typedefMode == Options.TypedefMode.NONE
+            ) // just here for compatibility purposes
                 ANNOTATION_EXTERNAL
             else
                 ANNOTATION_EXTERNAL_ONLY
@@ -414,7 +416,7 @@ interface AnnotationItem {
             annotation: AnnotationItem,
             classFinder: (String) -> ClassItem?
         ): Set<AnnotationTarget> {
-            val qualifiedName = annotation.qualifiedName() ?: return NO_ANNOTATION_TARGETS
+            val qualifiedName = annotation.qualifiedName ?: return NO_ANNOTATION_TARGETS
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return ANNOTATION_IN_ALL_STUBS
             }
@@ -557,8 +559,7 @@ interface AnnotationItem {
 
         /**
          * Given a "full" annotation name, shortens it by removing redundant package names.
-         * This is intended to be used by the [Compatibility.omitCommonPackages] flag
-         * to reduce clutter in signature files.
+         * This is intended to be used to reduce clutter in signature files.
          *
          * For example, this method will convert `@androidx.annotation.Nullable` to just
          * `@Nullable`, and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
@@ -648,8 +649,10 @@ interface AnnotationItem {
                         nullable = false
                     }
                 }
-            } else if (item.synthetic && (item is MethodItem && item.isEnumSyntheticMethod() ||
-                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
+            } else if (item.synthetic && (
+                item is MethodItem && item.isEnumSyntheticMethod() ||
+                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod()
+                )
             ) {
                 // Workaround the fact that the Kotlin synthetic enum methods
                 // do not have nullness information
@@ -677,15 +680,8 @@ interface AnnotationItem {
 
 /** Default implementation of an annotation item */
 abstract class DefaultAnnotationItem(override val codebase: Codebase) : AnnotationItem {
-    protected var targets: Set<AnnotationTarget>? = null
-
-    override fun targets(): Set<AnnotationTarget> {
-        if (targets == null) {
-            targets = AnnotationItem.computeTargets(this) { className ->
-                codebase.findClass(className)
-            }
-        }
-        return targets!!
+    override val targets: Set<AnnotationTarget> by lazy {
+        AnnotationItem.computeTargets(this, codebase::findClass)
     }
 }
 
@@ -848,7 +844,8 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
     override fun toString(): String = toSource()
 }
 
-class DefaultAnnotationSingleAttributeValue(override val valueSource: String) : DefaultAnnotationValue(),
+class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
+    DefaultAnnotationValue(),
     AnnotationSingleAttributeValue {
     @Suppress("IMPLICIT_CAST_TO_ANY")
     override val value = when {
@@ -872,7 +869,8 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) : 
     override fun toSource() = valueSource
 }
 
-class DefaultAnnotationArrayAttributeValue(val value: String) : DefaultAnnotationValue(),
+class DefaultAnnotationArrayAttributeValue(val value: String) :
+    DefaultAnnotationValue(),
     AnnotationArrayAttributeValue {
     init {
         assert(value.startsWith("{") && value.endsWith("}")) { value }
