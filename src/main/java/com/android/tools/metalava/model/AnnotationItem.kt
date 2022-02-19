@@ -291,6 +291,7 @@ interface AnnotationItem {
                 "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
 
                 // Misc
+                "android.annotation.DeprecatedForSdk" -> return "java.lang.Deprecated"
                 "android.support.annotation.CallSuper",
                 "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
                 "android.support.annotation.CheckResult",
@@ -458,6 +459,7 @@ interface AnnotationItem {
 
                 // TODO(aurimas): consider using annotation directly instead of modifiers
                 "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
+                "android.annotation.DeprecatedForSdk",
                 "java.lang.Deprecated", // tracked separately as a pseudo-modifier
 
                 // Below this when-statement we perform the correct lookup: check API predicate, and check
