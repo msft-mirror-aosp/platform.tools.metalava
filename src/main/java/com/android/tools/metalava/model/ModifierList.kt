@@ -93,6 +93,13 @@ interface ModifierList {
     }
 
     /**
+     * Returns true if this modifier list contains the `@JvmSynthetic` annotation
+     */
+    fun hasJvmSyntheticAnnotation(): Boolean {
+        return annotations().any { it.isJvmSynthetic() }
+    }
+
+    /**
      * Returns true if this modifier list contains any annotations explicitly passed in
      * via [Options.showAnnotations]
      */
