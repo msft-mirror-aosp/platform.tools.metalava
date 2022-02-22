@@ -55,6 +55,10 @@ fun isNonNullAnnotation(qualifiedName: String): Boolean {
         qualifiedName.endsWith("Nonnull")
 }
 
+fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
+    return qualifiedName == "kotlin.jvm.JvmSynthetic"
+}
+
 interface AnnotationItem {
     val codebase: Codebase
 
@@ -89,6 +93,11 @@ interface AnnotationItem {
     /** True if this annotation represents @NonNull (or some synonymous annotation) */
     fun isNonNull(): Boolean {
         return isNonNullAnnotation(qualifiedName ?: return false)
+    }
+
+    /** True if this annotation represents @JvmSynthetic */
+    fun isJvmSynthetic(): Boolean {
+        return isJvmSyntheticAnnotation(qualifiedName ?: return false)
     }
 
     /** True if this annotation represents @IntDef, @LongDef or @StringDef */
