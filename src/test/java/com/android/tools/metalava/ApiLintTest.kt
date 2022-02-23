@@ -3545,4 +3545,44 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `No error for nullability on synthetic methods`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                            @JvmSynthetic
+                            fun bar(): String {}
+                        }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Constructors return types don't require nullability`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo() {
+                            // Doesn't require nullability
+                            public Foo(@NonNull String bar);
+                            // Requires nullability
+                            public @NonNull String baz(@NonNull String whatever);
+                        }
+                    """
+                )
+            )
+        )
+    }
 }
