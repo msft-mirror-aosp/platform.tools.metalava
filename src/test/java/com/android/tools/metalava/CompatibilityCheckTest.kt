@@ -1730,7 +1730,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased =
@@ -1782,7 +1781,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased =
@@ -1850,7 +1848,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased =
@@ -1914,7 +1911,6 @@ CompatibilityCheckTest : DriverTest() {
             """,
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased = """
@@ -2421,7 +2417,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
             expectedIssues = ""
 
@@ -2475,7 +2470,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
             expectedIssues = ""
         )
@@ -2715,7 +2709,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             expectedIssues = """
@@ -2758,7 +2751,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             expectedIssues = """
