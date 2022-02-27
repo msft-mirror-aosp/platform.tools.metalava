@@ -92,6 +92,18 @@ interface ModifierList {
         return annotations().any { it.isNullable() }
     }
 
+    /** Returns true if this modifier list contains any a NonNull annotation */
+    fun isNonNull(): Boolean {
+        return annotations().any { it.isNonNull() }
+    }
+
+    /**
+     * Returns true if this modifier list contains the `@JvmSynthetic` annotation
+     */
+    fun hasJvmSyntheticAnnotation(): Boolean {
+        return annotations().any { it.isJvmSynthetic() }
+    }
+
     /**
      * Returns true if this modifier list contains any annotations explicitly passed in
      * via [Options.showAnnotations]
