@@ -154,6 +154,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -235,10 +236,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allMethods = methods.asSequence() + constructors.asSequence()
-        checkClass(
-            cls, methods, constructors, allMethods, fields, superClass, interfaces,
-            filterReference
-        )
+        checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -282,8 +280,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         methodsAndConstructors: Sequence<MethodItem>,
         fields: Sequence<FieldItem>,
         superClass: ClassItem?,
-        interfaces: Sequence<TypeItem>,
-        filterReference: Predicate<Item>
+        interfaces: Sequence<TypeItem>
     ) {
         checkEquals(methods)
         checkEnums(cls)
@@ -308,7 +305,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkFiles(methodsAndConstructors)
         checkManagerList(cls, methods)
         checkAbstractInner(cls)
-        checkRuntimeExceptions(methodsAndConstructors, filterReference)
         checkError(cls, superClass)
         checkCloseable(cls, methods)
         checkNotKotlinOperator(methods)
@@ -1446,40 +1442,64 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (exception in method.filteredThrowsTypes(filterReference)) {
-            when (val qualifiedName = exception.qualifiedName()) {
-                "java.lang.Exception",
-                "java.lang.Throwable",
-                "java.lang.Error" -> {
-                    report(
-                        GENERIC_EXCEPTION, method,
-                        "Methods must not throw generic exceptions (`$qualifiedName`)"
-                    )
-                }
-                "android.os.RemoteException" -> {
-                    when (method.containingClass().qualifiedName()) {
-                        "android.content.ContentProviderClient",
-                        "android.os.Binder",
-                        "android.os.IBinder" -> {
-                            // exceptions
+            if (
+                isUncheckedException(exception) &&
+                configuration.getSeverity(BANNED_THROW) != Severity.HIDDEN
+            ) {
+                report(
+                    BANNED_THROW, method,
+                    "Methods must not throw unchecked exceptions"
+                )
+            } else {
+                when (val qualifiedName = exception.qualifiedName()) {
+                    "java.lang.Exception",
+                    "java.lang.Throwable",
+                    "java.lang.Error" -> {
+                        report(
+                            GENERIC_EXCEPTION, method,
+                            "Methods must not throw generic exceptions (`$qualifiedName`)"
+                        )
+                    }
+                    "android.os.RemoteException" -> {
+                        when (method.containingClass().qualifiedName()) {
+                            "android.content.ContentProviderClient",
+                            "android.os.Binder",
+                            "android.os.IBinder" -> {
+                                // exceptions
+                            }
+                            else -> {
+                                report(
+                                    RETHROW_REMOTE_EXCEPTION, method,
+                                    "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
+                                )
+                            }
                         }
-                        else -> {
+                    }
+                    "java.lang.IllegalArgumentException",
+                    "java.lang.NullPointerException" -> {
+                        if (method.parameters().isEmpty()) {
                             report(
-                                RETHROW_REMOTE_EXCEPTION, method,
-                                "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
+                                ILLEGAL_STATE_EXCEPTION, method,
+                                "Methods taking no arguments should throw `IllegalStateException` instead of `$qualifiedName`"
                             )
                         }
                     }
                 }
-                "java.lang.IllegalArgumentException",
-                "java.lang.NullPointerException" -> {
-                    if (method.parameters().isEmpty()) {
-                        report(
-                            ILLEGAL_STATE_EXCEPTION, method,
-                            "Methods taking no arguments should throw `IllegalStateException` instead of `$qualifiedName`"
-                        )
-                    }
-                }
             }
+        }
+    }
+
+    /**
+     * Unchecked exceptions are subclasses of RuntimeException or Error. These are not
+     * checked by the compiler, and it is against API guidelines to put them in the 'throws'.
+     * See https://docs.oracle.com/javase/tutorial/essential/exceptions/runtime.html
+     */
+    private fun isUncheckedException(exception: ClassItem): Boolean {
+        val superNames = exception.allSuperClasses().map {
+            it.qualifiedName()
+        }
+        return superNames.any {
+            it == "java.lang.RuntimeException" || it == "java.lang.Error"
         }
     }
 
@@ -2110,57 +2130,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 ABSTRACT_INNER, cls,
                 "Abstract inner classes should be static to improve testability: ${cls.describe()}"
             )
-        }
-    }
-
-    private fun checkRuntimeExceptions(
-        methodsAndConstructors: Sequence<MethodItem>,
-        filterReference: Predicate<Item>
-    ) {
-        for (method in methodsAndConstructors) {
-            if (method.synthetic) {
-                continue
-            }
-            for (throws in method.filteredThrowsTypes(filterReference)) {
-                when (throws.qualifiedName()) {
-                    "java.lang.NullPointerException",
-                    "java.lang.ClassCastException",
-                    "java.lang.IndexOutOfBoundsException",
-                    "java.lang.reflect.UndeclaredThrowableException",
-                    "java.lang.reflect.MalformedParametersException",
-                    "java.lang.reflect.MalformedParameterizedTypeException",
-                    "java.lang.invoke.WrongMethodTypeException",
-                    "java.lang.EnumConstantNotPresentException",
-                    "java.lang.IllegalMonitorStateException",
-                    "java.lang.SecurityException",
-                    "java.lang.UnsupportedOperationException",
-                    "java.lang.annotation.AnnotationTypeMismatchException",
-                    "java.lang.annotation.IncompleteAnnotationException",
-                    "java.lang.TypeNotPresentException",
-                    "java.lang.IllegalStateException",
-                    "java.lang.ArithmeticException",
-                    "java.lang.IllegalArgumentException",
-                    "java.lang.ArrayStoreException",
-                    "java.lang.NegativeArraySizeException",
-                    "java.util.MissingResourceException",
-                    "java.util.EmptyStackException",
-                    "java.util.concurrent.CompletionException",
-                    "java.util.concurrent.RejectedExecutionException",
-                    "java.util.IllformedLocaleException",
-                    "java.util.ConcurrentModificationException",
-                    "java.util.NoSuchElementException",
-                    "java.io.UncheckedIOException",
-                    "java.time.DateTimeException",
-                    "java.security.ProviderException",
-                    "java.nio.BufferUnderflowException",
-                    "java.nio.BufferOverflowException" -> {
-                        report(
-                            BANNED_THROW, method,
-                            "Methods must not mention RuntimeException subclasses in throws clauses (was `${throws.qualifiedName()}`)"
-                        )
-                    }
-                }
-            }
         }
     }
 
