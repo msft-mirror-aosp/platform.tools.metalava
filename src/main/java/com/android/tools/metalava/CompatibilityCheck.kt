@@ -419,8 +419,12 @@ class CompatibilityCheck(
                 report(Issues.CHANGED_TYPE, new, message)
             }
 
-            // Annotation methods?
-            if (!old.hasSameValue(new)) {
+            // Annotation methods
+            if (
+                new.containingClass().isAnnotationType() &&
+                old.containingClass().isAnnotationType() &&
+                new.defaultValue() != old.defaultValue()
+            ) {
                 val prevValue = old.defaultValue()
                 val prevString = if (prevValue.isEmpty()) {
                     "nothing"
