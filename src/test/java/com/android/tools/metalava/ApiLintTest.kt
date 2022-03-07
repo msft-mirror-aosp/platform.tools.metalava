@@ -3817,4 +3817,34 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `Nullability overrides in unbounded generics should be allowed`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg;
+
+                        interface Base<T> {
+                            fun method1(input: T): T
+                        }
+
+                        class Subject1 : Base<String> {
+                            override fun method1(input: String): String {
+                                TODO()
+                            }
+                        }
+
+                        class Subject2 : Base<String?> {
+                            override fun method1(input: String?): String? {
+                                TODO()
+                            }
+                        }
+                    """
+                )
+            )
+        )
+    }
 }
