@@ -1636,13 +1636,19 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
-            superMethod.modifiers.isNonNull()
+            superMethod.modifiers.isNonNull() &&
+                // Disable check for generics
+                superMethod.returnType()?.isTypeParameter() != true
         }
     }
 
     private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
         return parameter.containingMethod().superMethods().any { superMethod ->
-            superMethod.parameters().firstOrNull { param ->
+            // Disable check for generics
+            superMethod.parameters().none {
+                it.type().isTypeParameter()
+            } &&
+                superMethod.parameters().firstOrNull { param ->
                 parameter.parameterIndex == param.parameterIndex
             }?.modifiers?.isNullable() ?: false
         }
@@ -1650,17 +1656,23 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
-            !superMethod.hasNullnessInfo()
+            !superMethod.hasNullnessInfo() &&
+                // Disable check for generics
+                superMethod.returnType()?.isTypeParameter() != true
         }
     }
 
     private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
         return parameter.containingMethod().superMethods().any { superMethod ->
-            !(
-                superMethod.parameters().firstOrNull { param ->
-                    parameter.parameterIndex == param.parameterIndex
-                }?.hasNullnessInfo() ?: true
-                )
+            // Disable check for generics
+            superMethod.parameters().none {
+                it.type().isTypeParameter()
+            } &&
+                !(
+                    superMethod.parameters().firstOrNull { param ->
+                        parameter.parameterIndex == param.parameterIndex
+                    }?.hasNullnessInfo() ?: true
+                    )
         }
     }
 
