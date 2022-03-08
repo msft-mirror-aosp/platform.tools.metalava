@@ -675,12 +675,6 @@ class CompatibilityCheck(
             )
         }
 
-        if (oldModifiers.isTransient() != newModifiers.isTransient()) {
-            report(
-                Issues.CHANGED_TRANSIENT, new, "${describe(new, capitalize = true)} has changed 'transient' qualifier"
-            )
-        }
-
         if (oldModifiers.isVolatile() != newModifiers.isVolatile()) {
             report(
                 Issues.CHANGED_VOLATILE, new, "${describe(new, capitalize = true)} has changed 'volatile' qualifier"
