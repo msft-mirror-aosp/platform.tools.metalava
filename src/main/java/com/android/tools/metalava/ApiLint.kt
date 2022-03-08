@@ -80,7 +80,6 @@ import com.android.tools.metalava.Issues.GENERIC_EXCEPTION
 import com.android.tools.metalava.Issues.GETTER_ON_BUILDER
 import com.android.tools.metalava.Issues.GETTER_SETTER_NAMES
 import com.android.tools.metalava.Issues.HEAVY_BIT_SET
-import com.android.tools.metalava.Issues.ILLEGAL_STATE_EXCEPTION
 import com.android.tools.metalava.Issues.INTENT_BUILDER_NAME
 import com.android.tools.metalava.Issues.INTENT_NAME
 import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
@@ -154,7 +153,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -1442,10 +1440,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (exception in method.filteredThrowsTypes(filterReference)) {
-            if (
-                isUncheckedException(exception) &&
-                configuration.getSeverity(BANNED_THROW) != Severity.HIDDEN
-            ) {
+            if (isUncheckedException(exception)) {
                 report(
                     BANNED_THROW, method,
                     "Methods must not throw unchecked exceptions"
@@ -1473,15 +1468,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                                     "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
                                 )
                             }
-                        }
-                    }
-                    "java.lang.IllegalArgumentException",
-                    "java.lang.NullPointerException" -> {
-                        if (method.parameters().isEmpty()) {
-                            report(
-                                ILLEGAL_STATE_EXCEPTION, method,
-                                "Methods taking no arguments should throw `IllegalStateException` instead of `$qualifiedName`"
-                            )
                         }
                     }
                 }
@@ -1636,13 +1622,19 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
-            superMethod.modifiers.isNonNull()
+            superMethod.modifiers.isNonNull() &&
+                // Disable check for generics
+                superMethod.returnType()?.isTypeParameter() != true
         }
     }
 
     private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
         return parameter.containingMethod().superMethods().any { superMethod ->
-            superMethod.parameters().firstOrNull { param ->
+            // Disable check for generics
+            superMethod.parameters().none {
+                it.type().isTypeParameter()
+            } &&
+                superMethod.parameters().firstOrNull { param ->
                 parameter.parameterIndex == param.parameterIndex
             }?.modifiers?.isNullable() ?: false
         }
@@ -1650,17 +1642,23 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
-            !superMethod.hasNullnessInfo()
+            !superMethod.hasNullnessInfo() &&
+                // Disable check for generics
+                superMethod.returnType()?.isTypeParameter() != true
         }
     }
 
     private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
         return parameter.containingMethod().superMethods().any { superMethod ->
-            !(
-                superMethod.parameters().firstOrNull { param ->
-                    parameter.parameterIndex == param.parameterIndex
-                }?.hasNullnessInfo() ?: true
-                )
+            // Disable check for generics
+            superMethod.parameters().none {
+                it.type().isTypeParameter()
+            } &&
+                !(
+                    superMethod.parameters().firstOrNull { param ->
+                        parameter.parameterIndex == param.parameterIndex
+                    }?.hasNullnessInfo() ?: true
+                    )
         }
     }
 
