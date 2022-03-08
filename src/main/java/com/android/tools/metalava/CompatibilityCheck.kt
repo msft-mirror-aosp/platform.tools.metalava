@@ -475,6 +475,14 @@ class CompatibilityCheck(
             }
         }
 
+        if (new.containingClass().isInterface() || new.containingClass().isAnnotationType()) {
+            if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
+                report(
+                    Issues.CHANGED_DEFAULT, new, "${describe(new, capitalize = true)} has changed 'default' qualifier"
+                )
+            }
+        }
+
         if (oldModifiers.isNative() != newModifiers.isNative()) {
             report(
                 Issues.CHANGED_NATIVE, new, "${describe(new, capitalize = true)} has changed 'native' qualifier"
