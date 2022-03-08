@@ -787,7 +787,6 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Parent.java:6: error: Field test.pkg.Parent.field3 has changed type from int to char [ChangedType]
                 src/test/pkg/Parent.java:7: error: Field test.pkg.Parent.field4 has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Parent.java:8: error: Field test.pkg.Parent.field5 has changed 'static' qualifier [ChangedStatic]
-                src/test/pkg/Parent.java:9: error: Field test.pkg.Parent.field6 has changed 'transient' qualifier [ChangedTransient]
                 src/test/pkg/Parent.java:10: error: Field test.pkg.Parent.field7 has changed 'volatile' qualifier [ChangedVolatile]
                 src/test/pkg/Parent.java:20: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
                 """,
@@ -1341,7 +1340,6 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible field change -- visibility and removing final`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: error: Field test.pkg.MyClass.myField1 changed visibility from protected to public [ChangedScope]
                 src/test/pkg/MyClass.java:6: error: Field test.pkg.MyClass.myField2 changed visibility from public to protected [ChangedScope]
                 """,
             checkCompatibilityApiReleased = """
@@ -3596,6 +3594,59 @@ CompatibilityCheckTest : DriverTest() {
                   public @interface AnnotationToEnum {}
                 }
             """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `Allow increased field access for classes`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    field public int bar;
+                    field protected int baz;
+                    field protected int spam;
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    field protected int bar;
+                    field private int baz;
+                    field internal int spam;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Block decreased field access in classes`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                TESTROOT/load-api.txt:4: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                TESTROOT/load-api.txt:5: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+            """,
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    field protected int bar;
+                    field private int baz;
+                    field internal int spam;
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    field public int bar;
+                    field protected int baz;
+                    field protected int spam;
+                  }
+                }
+            """
         )
     }
 
