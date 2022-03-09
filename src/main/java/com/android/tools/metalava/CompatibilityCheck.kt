@@ -285,10 +285,6 @@ class CompatibilityCheck(
                         Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} added 'final' qualifier"
                     )
                 }
-            } else if (oldModifiers.isFinal() && !newModifiers.isFinal()) {
-                report(
-                    Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} removed 'final' qualifier"
-                )
             }
 
             if (oldModifiers.isStatic() != newModifiers.isStatic()) {
@@ -509,10 +505,6 @@ class CompatibilityCheck(
                     report(
                         Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} has added 'final' qualifier"
                     )
-                } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
-                    report(
-                        Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} has removed 'final' qualifier"
-                    )
                 }
             }
         }
@@ -626,14 +618,14 @@ class CompatibilityCheck(
                 val message = "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
             } else if (!old.hasSameValue(new)) {
-                val prevValue = old.initialValue(true)
+                val prevValue = old.initialValue()
                 val prevString = if (prevValue == null && !old.modifiers.isFinal()) {
                     "nothing/not constant"
                 } else {
                     prevValue
                 }
 
-                val newValue = new.initialValue(true)
+                val newValue = new.initialValue()
                 val newString = if (newValue is PsiField) {
                     newValue.containingClass?.qualifiedName + "." + newValue.name
                 } else {
@@ -681,7 +673,11 @@ class CompatibilityCheck(
             report(
                 Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} has added 'final' qualifier"
             )
-        } else if (oldModifiers.isFinal() && !newModifiers.isFinal()) {
+        } else if (
+            // Final can't be removed if field is static with compile-time constant
+            oldModifiers.isFinal() && !newModifiers.isFinal() &&
+            oldModifiers.isStatic() && old.initialValue() != null
+        ) {
             report(
                 Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} has removed 'final' qualifier"
             )
