@@ -3723,6 +3723,28 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    fun `Change default to abstract`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
+            """,
+            signatureSource = """
+                package test.pkg {
+                  interface Foo {
+                    method abstract public void bar(Int);
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  interface Foo {
+                    method default public void bar(Int);
+                    }
+                  }
+            """
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
