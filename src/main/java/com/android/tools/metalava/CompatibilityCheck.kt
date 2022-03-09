@@ -653,13 +653,18 @@ class CompatibilityCheck(
         val oldVisibility = oldModifiers.getVisibilityString()
         val newVisibility = newModifiers.getVisibilityString()
         if (oldVisibility != newVisibility) {
-            // TODO: Use newModifiers.asAccessibleAs(oldModifiers) to provide different error messages
-            // based on whether this seems like a reasonable change, e.g. making a private or final method more
-            // accessible is fine (no overridden method affected) but not making methods less accessible etc
-            report(
-                Issues.CHANGED_SCOPE, new,
-                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
-            )
+            // Only report issue if the change is a decrease in access; e.g. public -> protected
+            if (!newModifiers.asAccessibleAs(oldModifiers)) {
+                report(
+                    Issues.CHANGED_SCOPE, new,
+                    "${
+                    describe(
+                        new,
+                        capitalize = true
+                    )
+                    } changed visibility from $oldVisibility to $newVisibility"
+                )
+            }
         }
 
         if (oldModifiers.isStatic() != newModifiers.isStatic()) {
@@ -675,12 +680,6 @@ class CompatibilityCheck(
         } else if (oldModifiers.isFinal() && !newModifiers.isFinal()) {
             report(
                 Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} has removed 'final' qualifier"
-            )
-        }
-
-        if (oldModifiers.isTransient() != newModifiers.isTransient()) {
-            report(
-                Issues.CHANGED_TRANSIENT, new, "${describe(new, capitalize = true)} has changed 'transient' qualifier"
             )
         }
 
