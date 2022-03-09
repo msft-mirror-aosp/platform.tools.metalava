@@ -1103,28 +1103,62 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible class change -- type variables`() {
+    fun `allow adding first type parameter`() {
         check(
-            expectedIssues = """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 changed number of type parameters from 1 to 2 [ChangedType]
-                """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  public class Class1<X> {
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class Class1<X,Y> {
-                        private Class1() {}
+                    public class Foo {
                     }
-                    """
-                )
-            )
+                }
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public class Foo<T> {
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `disallow removing type parameter`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo<T> {
+                    }
+                }
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `disallow changing number of type parameters`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo<A> {
+                    }
+                }
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public class Foo<A,B> {
+                    }
+                }
+            """
         )
     }
 
