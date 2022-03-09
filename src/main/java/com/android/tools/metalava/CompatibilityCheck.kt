@@ -503,7 +503,9 @@ class CompatibilityCheck(
                 // and (b) the method is not already inferred to be 'final' by virtue of its class.
                 if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
                     report(
-                        Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} has added 'final' qualifier"
+                        Issues.ADDED_FINAL,
+                        new,
+                        "${describe(new, capitalize = true)} has added 'final' qualifier"
                     )
                 }
             }
