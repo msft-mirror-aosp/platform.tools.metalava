@@ -1636,8 +1636,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:6: error: Methods must not throw generic exceptions (`java.lang.Exception`) [GenericException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 src/android/pkg/MyClass.java:7: error: Methods must not throw generic exceptions (`java.lang.Throwable`) [GenericException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException] [See https://s.android.com/api-guidelines#appropriate-exception]
-                src/android/pkg/MyClass.java:9: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.IllegalArgumentException` [IllegalStateException] [See https://s.android.com/api-guidelines#appropriate-exception]
-                src/android/pkg/MyClass.java:10: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.NullPointerException` [IllegalStateException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 """,
             expectedFail = DefaultLintErrorMessage,
@@ -2185,32 +2183,6 @@ class ApiLintTest : DriverTest() {
                          public abstract static class MyOkManager {
                              private MyOkManager() {}
                          }
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `Check for banned runtime exceptions`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues = """
-                src/android/pkg/MyClass.java:6: error: Methods must not throw unchecked exceptions [BannedThrow]
-                src/android/pkg/MyClass.java:7: error: Methods must not throw unchecked exceptions [BannedThrow]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package android.pkg;
-
-                    public class MyClass {
-                         private MyClass() throws NullPointerException {} // OK, private
-                         @SuppressWarnings("RedundantThrows") public MyClass(int i) throws java.io.IOException {} // OK, not runtime exception
-                         public MyClass(double l) throws ClassCastException {} // error
-                         public void foo() throws SecurityException {} // error
                     }
                     """
                 )
@@ -3814,6 +3786,36 @@ class ApiLintTest : DriverTest() {
                         }
                     """
                 ),
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability overrides in unbounded generics should be allowed`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg;
+
+                        interface Base<T> {
+                            fun method1(input: T): T
+                        }
+
+                        class Subject1 : Base<String> {
+                            override fun method1(input: String): String {
+                                TODO()
+                            }
+                        }
+
+                        class Subject2 : Base<String?> {
+                            override fun method1(input: String?): String? {
+                                TODO()
+                            }
+                        }
+                    """
+                )
             )
         )
     }
