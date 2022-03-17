@@ -1643,12 +1643,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
-        return parameter.containingMethod().superMethods().any { superMethod ->
+        val supers = parameter.containingMethod().superMethods()
+        return supers.all { superMethod ->
             // Disable check for generics
             superMethod.parameters().none {
                 it.type().isTypeParameter()
-            } &&
-                superMethod.parameters().firstOrNull { param ->
+            }
+        } && supers.any { superMethod ->
+            superMethod.parameters().firstOrNull { param ->
                 parameter.parameterIndex == param.parameterIndex
             }?.modifiers?.isNullable() ?: false
         }
@@ -1663,16 +1665,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
-        return parameter.containingMethod().superMethods().any { superMethod ->
+        val supers = parameter.containingMethod().superMethods()
+        return supers.all { superMethod ->
             // Disable check for generics
             superMethod.parameters().none {
                 it.type().isTypeParameter()
-            } &&
-                !(
-                    superMethod.parameters().firstOrNull { param ->
-                        parameter.parameterIndex == param.parameterIndex
-                    }?.hasNullnessInfo() ?: true
-                    )
+            }
+        } && supers.any { superMethod ->
+            !(
+                superMethod.parameters().firstOrNull { param ->
+                    parameter.parameterIndex == param.parameterIndex
+                }?.hasNullnessInfo() ?: true
+                )
         }
     }
 
