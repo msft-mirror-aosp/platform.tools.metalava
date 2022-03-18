@@ -3807,6 +3807,7 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
     fun `Change default to abstract`() {
         check(
             expectedIssues = """
@@ -3829,6 +3830,7 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
     fun `Allow change from non-final to final in sealed class`() {
         check(
             signatureSource = """
