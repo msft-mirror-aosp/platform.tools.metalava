@@ -176,20 +176,22 @@ class CompatibilityCheck(
     }
 
     override fun compare(old: ParameterItem, new: ParameterItem) {
-        val prevName = old.publicName() ?: return
+        val prevName = old.publicName()
         val newName = new.publicName()
-        if (newName == null) {
-            report(
-                Issues.PARAMETER_NAME_CHANGE,
-                new,
-                "Attempted to remove parameter name from ${describe(new)}"
-            )
-        } else if (newName != prevName) {
-            report(
-                Issues.PARAMETER_NAME_CHANGE,
-                new,
-                "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
-            )
+        if (prevName != null) {
+            if (newName == null) {
+                report(
+                    Issues.PARAMETER_NAME_CHANGE,
+                    new,
+                    "Attempted to remove parameter name from ${describe(new)}"
+                )
+            } else if (newName != prevName) {
+                report(
+                    Issues.PARAMETER_NAME_CHANGE,
+                    new,
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
+                )
+            }
         }
 
         if (old.hasDefaultValue() && !new.hasDefaultValue()) {
