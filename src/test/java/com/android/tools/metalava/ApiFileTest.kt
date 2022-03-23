@@ -85,6 +85,7 @@ class ApiFileTest : DriverTest() {
     fun `Parameter Names in Java`() {
         // Java code which explicitly specifies parameter names
         check(
+            compatibilityMode = false, // parameter names only in v2
             sourceFiles = arrayOf(
                 java(
                     """
@@ -151,6 +152,7 @@ class ApiFileTest : DriverTest() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V3,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -293,6 +295,7 @@ class ApiFileTest : DriverTest() {
     fun `Basic Kotlin class`() {
         check(
             format = FileFormat.V1,
+            extraArguments = arrayOf("--parameter-names=true"),
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -333,29 +336,29 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@NonNull String property1, int arg2);
-                    method @NonNull public String getProperty1();
-                    method @Nullable public String getProperty2();
+                    ctor public Kotlin(java.lang.String property1, int arg2);
+                    method public java.lang.String getProperty1();
+                    method public java.lang.String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String value);
-                    property @NonNull public final String property1;
-                    property @Nullable public final String property2;
-                    field @NonNull public static final test.pkg.Kotlin.Companion Companion;
+                    method public void setProperty2(java.lang.String property2);
+                    property public final java.lang.String property1;
+                    property public final java.lang.String property2;
+                    field public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
                   public static final class Kotlin.Companion {
                   }
                   public final class KotlinKt {
-                    method @NonNull public static inline operator String component1(@NonNull String);
+                    method public static inline operator java.lang.String component1(java.lang.String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
                   }
                   public class Parent {
                     ctor public Parent();
-                    method @Nullable public String method();
-                    method @Nullable public String method2(boolean value, @Nullable Boolean value);
-                    method public int method3(@Nullable Integer value, int value2);
+                    method public java.lang.String method();
+                    method public java.lang.String method2(boolean value, java.lang.Boolean value);
+                    method public int method3(java.lang.Integer value, int value2);
                   }
                 }
                 """
@@ -365,7 +368,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -392,11 +394,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
+                    method public final <T> T getSystemService(java.lang.Class<T>);
                   }
-                  public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
+                  public final class _java_Kt {
+                    method public static inline <reified T> T systemService1(test.pkg.Context);
+                    method public static inline java.lang.String systemService2(test.pkg.Context);
                   }
                 }
                 """
@@ -406,7 +408,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
-            format = FileFormat.V2,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -439,7 +441,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Suspend functions`() {
         check(
-            format = FileFormat.V2,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -512,6 +514,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
+            compatibilityMode = false,
             api = """
                 // Signature format: 3.0
                 package test.pkg {
@@ -530,6 +533,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Nullness in reified signatures`() {
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     "src/test/pkg/test.kt",
@@ -589,8 +593,7 @@ class ApiFileTest : DriverTest() {
                 ARG_HIDE_PACKAGE, "test.pkg2",
                 ARG_HIDE, "ReferencesHidden",
                 ARG_HIDE, "UnavailableSymbol",
-                ARG_HIDE, "HiddenTypeParameter",
-                ARG_HIDE, "HiddenSuperclass"
+                ARG_HIDE, "HiddenTypeParameter"
             )
         )
     }
@@ -598,6 +601,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Nullness in varargs`() {
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -692,6 +696,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
+            compatibilityMode = false,
             format = FileFormat.V3,
             sourceFiles = arrayOf(
                 kotlin(
@@ -821,7 +826,7 @@ class ApiFileTest : DriverTest() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
-            format = FileFormat.V3,
+            compatibilityMode = false,
             outputKotlinStyleNulls = true,
             sourceFiles = arrayOf(
                 java(
@@ -975,6 +980,7 @@ class ApiFileTest : DriverTest() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
             format = FileFormat.V3,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -1081,7 +1087,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
-                    method public void setNonJvmField(int value);
+                    method public void setNonJvmField(int nonJvmField);
                     property public final int nonJvmField;
                     field public int jvmField;
                   }
@@ -1115,8 +1121,8 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getAnotherProperty();
                     method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int value);
-                    method public void setMyProperty(int value);
+                    method public void setAnotherProperty(int anotherProperty);
+                    method public void setMyProperty(int myProperty);
                     property public final int anotherProperty;
                     property public final int myProperty;
                   }
@@ -1154,7 +1160,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1199,8 +1205,7 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                 ),
-                kotlin(
-                    """
+                kotlin("""
                     package androidx.annotation.experimental
 
                     import kotlin.annotation.Retention
@@ -1226,16 +1231,15 @@ class ApiFileTest : DriverTest() {
                          */
                         vararg val markerClass: KClass<out Annotation>
                     )
-                """
-                )
+                """)
             ),
             format = FileFormat.V3,
             api = """
                 // Signature format: 3.0
                 package androidx.annotation.experimental {
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface UseExperimental {
                     method public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
+                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>![] markerClass;
                   }
                 }
                 package test.pkg {
@@ -1243,7 +1247,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AnotherSimpleClass();
                     method public void methodUsingFancyBar();
                   }
-                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1264,7 +1268,6 @@ class ApiFileTest : DriverTest() {
         // correctly (in particular, using fully qualified names instead of what appears in
         // the source code.)
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1274,16 +1277,14 @@ class ApiFileTest : DriverTest() {
                             extends MyBaseInterface {
                     }
                     """
-                ),
-                java(
+                ), java(
                     """
                     package a.b.c;
                     @SuppressWarnings("ALL")
                     public interface MyStream<T, S extends MyStream<T, S>> extends test.pkg.AutoCloseable {
                     }
                     """
-                ),
-                java(
+                ), java(
                     """
                     package test.pkg;
                     @SuppressWarnings("ALL")
@@ -1322,27 +1323,27 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                     package a.b.c {
-                      public interface MyStream<T, S extends a.b.c.MyStream<T, S>> extends test.pkg.AutoCloseable {
+                      public abstract interface MyStream<T, S extends a.b.c.MyStream<T, S>> implements test.pkg.AutoCloseable {
                       }
                     }
                     package test.pkg {
-                      public interface AutoCloseable {
+                      public abstract interface AutoCloseable {
                       }
-                      public interface MyBaseInterface {
-                        method public void fun(int, String);
+                      public abstract interface MyBaseInterface {
+                        method public abstract void fun(int, java.lang.String);
                       }
-                      public interface MyInterface<T> extends test.pkg.MyBaseInterface {
+                      public abstract interface MyInterface<T> implements test.pkg.MyBaseInterface {
                       }
-                      public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
+                      public abstract interface MyInterface2<T extends java.lang.Number> implements test.pkg.MyBaseInterface {
                       }
-                      public abstract static class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
+                      public static abstract class MyInterface2.Range<T extends java.lang.Comparable<? super T>> {
                         ctor public MyInterface2.Range();
-                        field protected String myString;
+                        field protected java.lang.String myString;
                       }
                       public static class MyInterface2.TtsSpan<C extends test.pkg.MyInterface<?>> {
                         ctor public MyInterface2.TtsSpan();
                       }
-                      public interface MyOtherInterface extends test.pkg.MyBaseInterface test.pkg.AutoCloseable {
+                      public abstract interface MyOtherInterface implements test.pkg.AutoCloseable test.pkg.MyBaseInterface {
                       }
                     }
                 """,
@@ -1409,7 +1410,6 @@ class ApiFileTest : DriverTest() {
         // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
         // in the interface are taken to be public etc)
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1423,8 +1423,8 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public interface Foo {
-                    method public void foo();
+                  public abstract interface Foo {
+                    method public abstract void foo();
                   }
                 }
                 """
@@ -1433,8 +1433,9 @@ class ApiFileTest : DriverTest() {
 
     @Test
     fun `Enum class extraction`() {
+        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
+        // in the interface are taken to be public etc)
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1448,7 +1449,9 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public enum Foo {
+                  public final class Foo extends java.lang.Enum {
+                    method public static test.pkg.Foo valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
+                    method public static final test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -1458,7 +1461,9 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Enum class`() {
+    fun `Enum class, non-compat mode`() {
+        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
+        // in the interface are taken to be public etc)
         check(
             sourceFiles = arrayOf(
                 java(
@@ -1471,6 +1476,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
+            compatibilityMode = false,
             api = """
                 package test.pkg {
                   public enum Foo {
@@ -1513,13 +1519,80 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.annotation {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
-                    method public abstract String[] value();
+                  public abstract class SuppressLint implements java.lang.annotation.Annotation {
                   }
                 }
                 package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
-                    method public abstract String value();
+                  public abstract class Foo implements java.lang.annotation.Annotation {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Do not include inherited public methods from private parents in compat mode`() {
+        // Real life example: StringBuilder.setLength, in compat mode
+        check(
+            compatibilityMode = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class MyStringBuilder extends AbstractMyStringBuilder {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    class AbstractMyStringBuilder {
+                        public void setLength(int length) {
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class MyStringBuilder {
+                    ctor public MyStringBuilder();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Include inherited public methods from private parents`() {
+        // In non-compat mode, include public methods from hidden parents too.
+        // Real life example: StringBuilder.setLength
+        // This is just like the above test, but with compat mode disabled.
+        check(
+            compatibilityMode = false,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class MyStringBuilder extends AbstractMyStringBuilder {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    class AbstractMyStringBuilder {
+                        public void setLength(int length) {
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class MyStringBuilder {
+                    ctor public MyStringBuilder();
+                    method public void setLength(int);
                   }
                 }
                 """
@@ -1528,12 +1601,14 @@ class ApiFileTest : DriverTest() {
 
     @Test
     fun `Skip inherited package private methods from private parents`() {
-        // Include public methods from hidden parents too.
+        // In non-compat mode, include public methods from hidden parents too.
         // Real life example: StringBuilder.setLength
+        // This is just like the above test, but with compat mode disabled.
         check(
             expectedIssues = """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1584,12 +1659,55 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Annotation class extraction, non-compat mode`() {
+        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
+        // in the interface are taken to be public etc)
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public @interface Foo {
+                        String value();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.annotation;
+                    import static java.lang.annotation.ElementType.*;
+                    import java.lang.annotation.*;
+                    @Target({TYPE, FIELD, METHOD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE})
+                    @Retention(RetentionPolicy.CLASS)
+                    @SuppressWarnings("ALL")
+                    public @interface SuppressLint {
+                        String[] value();
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            api = """
+                package android.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
+                    method public abstract String[] value();
+                  }
+                }
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
+                    method public abstract String value();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Annotation retention`() {
         // For annotations where the java.lang.annotation classes themselves are not
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
         // it should show up in the stubs file.).
         check(
-            format = FileFormat.V3,
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             sourceFiles = arrayOf(
                 java(
@@ -1626,6 +1744,7 @@ class ApiFileTest : DriverTest() {
                     """.trimIndent()
                 )
             ),
+            format = FileFormat.V3,
             api = """
             // Signature format: 3.0
             package android.annotation {
@@ -1634,7 +1753,7 @@ class ApiFileTest : DriverTest() {
               }
             }
             package test.pkg {
-              @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.RUNTIME) public @interface ExplicitRuntimeRetention {
+              @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) public @interface ExplicitRuntimeRetention {
               }
               @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                 method public abstract String value();
@@ -1643,6 +1762,7 @@ class ApiFileTest : DriverTest() {
               }
             }
             """.trimIndent(),
+            compatibilityMode = true,
             stubFiles = arrayOf(
                 // For annotations where the java.lang.annotation classes themselves are not
                 // part of the source tree, ensure that we compute the right retention (runtime, meaning
@@ -1716,7 +1836,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Extract fields with types and initial values`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1751,7 +1870,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    field public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
+                    field public static final java.lang.String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
                     field public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
                     field protected int field00;
                     field public static final boolean field01 = true;
@@ -1762,7 +1881,7 @@ class ApiFileTest : DriverTest() {
                     field public static final char field06 = 99; // 0x0063 'c'
                     field public static final float field07 = 98.5f;
                     field public static final double field08 = 98.5;
-                    field public static final String field09 = "String with \"escapes\" and \u00a9...";
+                    field public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
                     field public static final double field10 = (0.0/0.0);
                     field public static final double field11 = (1.0/0.0);
                   }
@@ -1779,7 +1898,6 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1814,18 +1932,18 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public abstract class Foo {
                         ctor public Foo();
-                        method @Deprecated public static final void method1();
-                        method @Deprecated public static final void method2();
+                        method public static final deprecated synchronized void method1();
+                        method public static final deprecated synchronized void method2();
                       }
-                      @Deprecated protected static final class Foo.Inner1 {
-                        ctor @Deprecated protected Foo.Inner1();
+                      protected static final deprecated class Foo.Inner1 {
+                        ctor protected Foo.Inner1();
                       }
-                      @Deprecated protected abstract static class Foo.Inner2 {
-                        ctor @Deprecated protected Foo.Inner2();
+                      protected static abstract deprecated class Foo.Inner2 {
+                        ctor protected Foo.Inner2();
                       }
-                      @Deprecated protected static interface Foo.Inner3 {
-                        method @Deprecated public default void method3();
-                        method @Deprecated public static void method4(int);
+                      protected static abstract deprecated interface Foo.Inner3 {
+                        method public default void method3();
+                        method public static void method4(int);
                       }
                     }
                 """
@@ -1840,7 +1958,7 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
-            format = FileFormat.V2,
+            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -1866,6 +1984,55 @@ class ApiFileTest : DriverTest() {
                   public abstract class Foo {
                     ctor public Foo();
                     method public String findViewById(int);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Check all modifiers, non-compat mode`() {
+        // Like testModifiers but turns off compat mode, such that we have
+        // a modifier order more in line with standard code conventions
+        check(
+            compatibilityMode = false,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public abstract class Foo {
+                        @Deprecated private static final long field1 = 5;
+                        @Deprecated private static volatile long field2 = 5;
+                        /** @deprecated */ @Deprecated public static strictfp final synchronized void method1() { }
+                        /** @deprecated */ @Deprecated public static final synchronized native void method2();
+                        /** @deprecated */ @Deprecated protected static final class Inner1 { }
+                        /** @deprecated */ @Deprecated protected static abstract class Inner2 { }
+                        /** @deprecated */ @Deprecated protected interface Inner3 {
+                            protected default void method3() { }
+                            static void method4(final int arg) { }
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public abstract class Foo {
+                    ctor public Foo();
+                    method @Deprecated public static final void method1();
+                    method @Deprecated public static final void method2();
+                  }
+                  @Deprecated protected static final class Foo.Inner1 {
+                    ctor @Deprecated protected Foo.Inner1();
+                  }
+                  @Deprecated protected abstract static class Foo.Inner2 {
+                    ctor @Deprecated protected Foo.Inner2();
+                  }
+                  @Deprecated protected static interface Foo.Inner3 {
+                    method @Deprecated public default void method3();
+                    method @Deprecated public static void method4(int);
                   }
                 }
                 """
@@ -1951,7 +2118,6 @@ class ApiFileTest : DriverTest() {
         // and that they are listed separately.
 
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1976,8 +2142,10 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public enum FooBar {
+                  public class FooBar extends java.lang.Enum {
                     method protected abstract void foo();
+                    method public static test.pkg.FooBar valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
+                    method public static final test.pkg.FooBar[] values();
                     enum_constant public static final test.pkg.FooBar ABC;
                     enum_constant public static final test.pkg.FooBar DEF;
                     field public static int field1;
@@ -1989,9 +2157,12 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Check correct throws list for generics`() {
+    fun `Check erasure in throws-list`() {
+        // Makes sure that when we have a generic signature in the throws list we take
+        // the erasure instead (in compat mode); "Throwable" instead of "X" in the below
+        // test. Real world example: Optional.orElseThrow.
         check(
-            format = FileFormat.V2,
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2012,7 +2183,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Test<T> {
                     ctor public Test();
-                    method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws X;
+                    method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
                   }
                 }
                 """
@@ -2023,7 +2194,6 @@ class ApiFileTest : DriverTest() {
     fun `Check various generics signature subtleties`() {
         // Some additional declarations where PSI default type handling diffs from doclava1
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2054,6 +2224,29 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
+
+            // This is the output from doclava1; I'm not quite matching this yet (sorting order differs,
+            // and my heuristic to remove "extends java.lang.Object" is somehow preserved here. I'm
+            // not clear on when they do it and when they don't.
+            /*
+            api = """
+            package test.pkg {
+              public abstract class Collections {
+                ctor public Collections();
+                method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
+                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
+              }
+              public final class Collections.Range<T extends java.lang.Comparable<? super T>> {
+                ctor public Collections.Range();
+              }
+              public class MoreAsserts {
+                ctor public MoreAsserts();
+                method public static void assertEquals(java.util.Set<? extends java.lang.Object>, java.util.Set<? extends java.lang.Object>);
+                method public static void assertEquals(java.lang.String, java.util.Set<? extends java.lang.Object>, java.util.Set<? extends java.lang.Object>);
+              }
+            }
+            """,
+            */
             api = """
                 package test.pkg {
                   public abstract class Collections {
@@ -2066,7 +2259,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public class MoreAsserts {
                     ctor public MoreAsserts();
-                    method public static void assertEquals(String, java.util.Set<?>, java.util.Set<?>);
+                    method public static void assertEquals(java.lang.String, java.util.Set<?>, java.util.Set<?>);
                     method public static void assertEquals(java.util.Set<?>, java.util.Set<?>);
                   }
                 }
@@ -2080,7 +2273,6 @@ class ApiFileTest : DriverTest() {
         // correctly (there's some special casing around enums to insert extra methods
         // that was broken, as exposed by ChronoUnit#toString)
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2120,15 +2312,17 @@ class ApiFileTest : DriverTest() {
             importedPackages = emptyList(),
             api = """
                 package test.pkg {
-                  public enum ChronUnit implements test.pkg.TempUnit {
-                    method public String valueOf(int);
-                    method public String values(String);
+                  public final class ChronUnit extends java.lang.Enum implements test.pkg.TempUnit {
+                    method public java.lang.String valueOf(int);
+                    method public static test.pkg.ChronUnit valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
+                    method public final java.lang.String values(java.lang.String);
+                    method public static final test.pkg.ChronUnit[] values();
                     enum_constant public static final test.pkg.ChronUnit A;
                     enum_constant public static final test.pkg.ChronUnit B;
                     enum_constant public static final test.pkg.ChronUnit C;
                   }
-                  public interface TempUnit {
-                    method public String toString();
+                  public abstract interface TempUnit {
+                    method public abstract java.lang.String toString();
                   }
                 }
                 """
@@ -2140,8 +2334,8 @@ class ApiFileTest : DriverTest() {
         // Checks sorting order of enum constant values
         val source = """
             package java.nio.file.attribute {
-              public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
+              public final class AclEntryPermission extends java.lang.Enum {
+                method public static java.nio.file.attribute.AclEntryPermission valueOf(java.lang.String);
                 method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
@@ -2164,15 +2358,78 @@ class ApiFileTest : DriverTest() {
             }
                     """
         check(
-            format = FileFormat.V1,
             signatureSource = source,
             api = source
         )
     }
 
     @Test
+    fun `Superclass filtering, should skip intermediate hidden classes`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public class MyClass extends HiddenParent {
+                        public void method4() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings("ALL")
+                    public class HiddenParent extends HiddenParent2 {
+                        public static final String CONSTANT = "MyConstant";
+                        protected int mContext;
+                        public void method3() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings("ALL")
+                    public class HiddenParent2 extends PublicParent {
+                        public void method2() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public class PublicParent {
+                        public void method1() { }
+                    }
+                    """
+                )
+            ),
+            // Notice how the intermediate methods (method2, method3) have been removed
+            includeStrippedSuperclassWarnings = true,
+            expectedIssues = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
+            api = """
+                package test.pkg {
+                  public class MyClass extends test.pkg.PublicParent {
+                    ctor public MyClass();
+                    method public void method4();
+                  }
+                  public class PublicParent {
+                    ctor public PublicParent();
+                    method public void method1();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Inheriting from package private classes, package private class should be included`() {
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2212,7 +2469,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Inheriting generic method from package private class`() {
         check(
-            format = FileFormat.V2,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2252,7 +2509,7 @@ class ApiFileTest : DriverTest() {
     fun `Type substitution for generic method referencing parent type parameter`() {
         // Type parameters from parent classes need to be replaced with their bounds in the child.
         check(
-            format = FileFormat.V2,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2287,10 +2544,54 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Using compatibility flag manually`() {
+        // Like previous test, but using compatibility mode and explicitly turning on
+        // the hidden super class compatibility flag. This test is mostly intended
+        // to test the flag handling for individual compatibility flags.
+        check(
+            compatibilityMode = true,
+            extraArguments = arrayOf("--skip-inherited-methods=false"),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public class MyClass extends HiddenParent {
+                        public void method1() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    class HiddenParent {
+                        public static final String CONSTANT = "MyConstant";
+                        protected int mContext;
+                        public void method2() { }
+                    }
+                    """
+                )
+            ),
+            expectedIssues = "",
+            api = """
+                    package test.pkg {
+                      public class MyClass {
+                        ctor public MyClass();
+                        method public void method1();
+                        method public void method2();
+                      }
+                    }
+            """
+        )
+    }
+
+    @Test
     fun `When implementing rather than extending package private class, inline members instead`() {
         // If you implement a package private interface, we just remove it and inline the members into
         // the subclass
         check(
+            compatibilityMode = true,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2325,10 +2626,10 @@ class ApiFileTest : DriverTest() {
                     ctor public MyClass();
                     method public void method();
                     method public void other();
-                    field public static final String CONSTANT = "MyConstant";
+                    field public static final java.lang.String CONSTANT = "MyConstant";
                   }
-                  public interface OtherInterface {
-                    method public void other();
+                  public abstract interface OtherInterface {
+                    method public abstract void other();
                   }
                 }
                 """
@@ -2336,11 +2637,13 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Implementing package private class`() {
-        // Include all the non-hidden public interfaces into the signature
+    fun `Implementing package private class, non-compat mode`() {
+        // Like the previous test, but in non compat mode we correctly
+        // include all the non-hidden public interfaces into the signature
 
         // BUG: Note that we need to implement the parent
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2390,7 +2693,6 @@ class ApiFileTest : DriverTest() {
         // If signatures vary only by the "default" modifier in the interface, don't show it on the implementing
         // class
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2420,8 +2722,8 @@ class ApiFileTest : DriverTest() {
                     ctor public MyClass();
                     method public void method();
                   }
-                  public interface SuperInterface {
-                    method public void method();
+                  public abstract interface SuperInterface {
+                    method public abstract void method();
                     method public default void method2();
                   }
                 }
@@ -2479,7 +2781,6 @@ class ApiFileTest : DriverTest() {
         // class. This is an issue for example for the ZonedDateTime#getLong method
         // implementing the TemporalAccessor#getLong method
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2506,7 +2807,7 @@ class ApiFileTest : DriverTest() {
               public class Foo implements test.pkg.SomeInterface2 {
                 ctor public Foo();
               }
-              public interface SomeInterface2 {
+              public abstract interface SomeInterface2 {
                 method public default long getLong();
               }
             }
@@ -2517,7 +2818,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Implementing interface method 2`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2552,10 +2852,10 @@ class ApiFileTest : DriverTest() {
                   public class Foo implements test.pkg.SomeInterface test.pkg.SomeInterface2 {
                     ctor public Foo();
                   }
-                  public interface SomeInterface {
-                    method public long getLong();
+                  public abstract interface SomeInterface {
+                    method public abstract long getLong();
                   }
-                  public interface SomeInterface2 {
+                  public abstract interface SomeInterface2 {
                     method public default long getLong();
                   }
                 }
@@ -2623,7 +2923,16 @@ class ApiFileTest : DriverTest() {
                     field public int removed;
                   }
                 }
-                """
+                """,
+            removedDexApi = "" +
+                "Ltest/pkg/Bar;-><init>()V\n" +
+                "Ltest/pkg/Bar;->removedMethod()V\n" +
+                "Ltest/pkg/Bar;->removedField:I\n" +
+                "Ltest/pkg/Bar\$Inner;\n" +
+                "Ltest/pkg/Bar\$Inner;-><init>()V\n" +
+                "Ltest/pkg/Bar\$Inner2\$Inner3\$Inner4;\n" +
+                "Ltest/pkg/Bar\$Inner2\$Inner3\$Inner4;-><init>()V\n" +
+                "Ltest/pkg/Bar\$Inner5\$Inner6\$Inner7;->removed:I"
         )
     }
 
@@ -2631,7 +2940,6 @@ class ApiFileTest : DriverTest() {
     fun `Check @remove class`() {
         // Test removing classes
         check(
-            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2714,7 +3022,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2753,7 +3060,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
                         ctor public Child();
-                        method @Deprecated public String toString();
+                        method public deprecated java.lang.String toString();
                       }
                       public class Parent {
                         ctor public Parent();
@@ -2775,7 +3082,6 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 kotlin(
                     "src/test/pkg/Foo.kt",
@@ -2792,7 +3098,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class -Foo {
-                    method public static inline void printHelloWorld(@NonNull String);
+                    method public static inline void printHelloWorld(java.lang.String);
                   }
                 }
                 """
@@ -2896,9 +3202,6 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            expectedIssues = """
-                src/android/net/http/HttpResponseCache.java:7: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
-            """,
             api = """
                 package android.net.http {
                   public final class HttpResponseCache implements java.io.Closeable {
@@ -2913,7 +3216,6 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V1,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -2955,20 +3257,20 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package android.content.res {
-                  public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
-                    method public void close();
+                  public abstract interface XmlResourceParser implements android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
+                    method public abstract void close();
                   }
                 }
                 package android.util {
-                  public interface AttributeSet {
+                  public abstract interface AttributeSet {
                   }
                 }
                 package my {
-                  public interface AutoCloseable {
+                  public abstract interface AutoCloseable {
                   }
                 }
                 package org.xmlpull.v1 {
-                  public interface XmlPullParser {
+                  public abstract interface XmlPullParser {
                   }
                 }
                 """
@@ -3021,6 +3323,7 @@ class ApiFileTest : DriverTest() {
     fun `Check skipping implicit final or deprecated override`() {
         // Regression test for 122358225
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3103,6 +3406,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Ignore synchronized differences`() {
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3145,6 +3449,7 @@ class ApiFileTest : DriverTest() {
         check(
             // Simulate test-mock scenario for getIContentProvider
             extraArguments = arrayOf("--stub-packages", "android.test.mock"),
+            compatibilityMode = false,
             expectedIssues = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
@@ -3227,7 +3532,6 @@ class ApiFileTest : DriverTest() {
         // Use the otherwise= visibility in signatures
         // Regression test for issue 118763806
         check(
-            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3294,10 +3598,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public class ProductionCodeJava {
-                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected void shouldBeProtected();
+                    method protected void shouldBeProtected();
                   }
                   public class ProductionCodeKotlin {
-                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected final void shouldBeProtected();
+                    method protected final void shouldBeProtected();
                   }
                 }
                 """,
@@ -3399,8 +3703,7 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin(
-                    "src/main/java/test/pkg/Foo.kt",
+                kotlin("src/main/java/test/pkg/Foo.kt",
                     """
                     package test.pkg
                     fun myCall() : Boolean = false
@@ -3425,6 +3728,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited hidden methods for descendant classes - Package private`() {
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3484,6 +3788,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited hidden methods for descendant classes - Hidden annotation`() {
         check(
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3545,7 +3850,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test inherited methods that use generics`() {
         check(
-            format = FileFormat.V2,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3578,7 +3883,7 @@ class ApiFileTest : DriverTest() {
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             expectedIssues = "",
             api =
-            """
+                """
                 package test.pkg {
                   public class Class2 {
                     ctor public Class2();
@@ -3626,7 +3931,7 @@ class ApiFileTest : DriverTest() {
                 method public void method1();
               }
               public final class Class2 {
-                method public void method1(String);
+                method public void method1(java.lang.String);
               }
             }
             package Test.pkg1 {
@@ -3636,12 +3941,11 @@ class ApiFileTest : DriverTest() {
             }
             package Test.pkg2 {
               public final class Class1 {
-                method public void method1(String, String);
+                method public void method1(java.lang.String, java.lang.String);
               }
             }
                     """
         check(
-            format = FileFormat.V1,
             signatureSources = arrayOf(source1, source2),
             api = expected
         )
@@ -3705,14 +4009,13 @@ class ApiFileTest : DriverTest() {
         val expected = """
             package test.pkg {
               public final class Class1 {
-                method public void method1(test.pkg.Class2 arg);
+                method public void method1(test.pkg.Class2);
               }
               public final class Class2 {
               }
             }
                     """
         check(
-            format = FileFormat.V1,
             signatureSources = arrayOf(source1, source2),
             api = expected
         )
@@ -3834,8 +4137,7 @@ class ApiFileTest : DriverTest() {
                     annotation class Composable
                  */
                 base64gzip(
-                    "test.jar",
-                    "" +
+                    "test.jar", "" +
                         "UEsDBAoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAZ3qzULJ/" +
                         "Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM+zUjDUM+Dl" +
                         "4uUCAFBLAwQKAAAICABnerNQDArdZgwAAAAQAAAAGwAAAE1FVEEtSU5GL3RlbXAua290bGluX21v" +
@@ -3902,8 +4204,7 @@ class ApiFileTest : DriverTest() {
                     annotation class ExternalExperimentalAnnotation
                  */
                 base64gzip(
-                    "test.jar",
-                    "" +
+                    "test.jar", "" +
                         "UEsDBAoAAAgIADt2U1IAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAFXZ" +
                         "TUrJ/Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM" +
                         "+zUjDUM+Dl4uUCAFBLAwQKAAAICAA7dlNSDWpm1BUAAAAYAAAAGwAAAE1FVEEtSU5GL3Rlc" +
@@ -3968,8 +4269,7 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin(
-                    """
+                kotlin("""
                     package test.pkg
 
                     import androidx.annotation.IntRange
@@ -3987,10 +4287,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class KotlinClass {
-                    ctor public KotlinClass(@IntRange(from=1L) int param);
-                    ctor public KotlinClass(@IntRange(from=2L) int differentParam);
+                    ctor public KotlinClass(@IntRange(from=1) int param);
+                    ctor public KotlinClass(@IntRange(from=2) int differentParam);
                     method public int getParam();
-                    method public void myMethod(@IntRange(from=3L) int methodParam);
+                    method public void myMethod(@IntRange(from=3) int methodParam);
                     property public final int param;
                   }
                 }
@@ -4003,11 +4303,10 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V2,
             sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
+                java("""
+                    package test.pkg
 
-                    import androidx.annotation.IntRange;
+                    import androidx.annotation.IntRange
 
                     public final class ApiClass {
                         private int hiddenConstant = 1;
@@ -4036,8 +4335,7 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin(
-                    """
+                kotlin("""
                     package test.pkg
 
                     import androidx.annotation.IntRange
@@ -4071,8 +4369,7 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             sourceFiles = arrayOf(
-                kotlin(
-                    """
+                kotlin("""
                     package test.pkg
                     sealed class MyClass(
                         val firstConstructorProperty: Int,
@@ -4082,15 +4379,13 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                 ),
-                kotlin(
-                    """
+                kotlin("""
                     package test.pkg
                     data class MyDataClass(
                         val constructorProperty: String,
                         internal val internalConstructorProperty: String
                     )
-                """
-                )
+                """)
             ),
             api = """
                 // Signature format: 3.0
@@ -4155,6 +4450,7 @@ class ApiFileTest : DriverTest() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V4,
+            compatibilityMode = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4296,8 +4592,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test type erasure and dexApi from signature`() {
         check(
-            signatureSources = arrayOf(
-                """
+            signatureSources = arrayOf("""
                 package android.widget {
 
                   @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
@@ -4306,8 +4601,7 @@ class ApiFileTest : DriverTest() {
                   }
 
                 }
-"""
-            ),
+"""),
             dexApi = """
             Landroid/widget/ListView;
             Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
@@ -4321,8 +4615,7 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V4,
             sourceFiles = arrayOf(
-                kotlin(
-                    """
+                kotlin("""
                     package test.pkg
 
                     fun interface FunctionalInterface {
@@ -4341,311 +4634,6 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class FunctionalInterfaceKt {
                     method public static void userOfFunctionalInterface(test.pkg.FunctionalInterface parameter);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Inline class`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-
-                    inline class Dp(val value: Float) : Comparable<Dp> {
-                        inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
-                        inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
-                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
-                        val someBits
-                            get() = value && 0x00ff
-                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
-                        fun doSomething() {}
-                    }
-                """
-                )
-            ),
-            api = """
-                // Signature format: 4.0
-                package test.pkg {
-                  public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp();
-                    method public float getValue();
-                    method public inline operator float minus(float other);
-                    method public inline operator float plus(float other);
-                    property public final float value;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Value class`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-                    @JvmInline
-                    value class Dp(val value: Float) : Comparable<Dp> {
-                        inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
-                        inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
-                        val someBits
-                            get() = value && 0x00ff
-                        fun doSomething() {}
-                    }
-                """
-                )
-            ),
-            api = """
-                // Signature format: 4.0
-                package test.pkg {
-                  @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp(float value);
-                    method public void doSomething();
-                    method public boolean getSomeBits();
-                    method public float getValue();
-                    method public inline operator float minus(float other);
-                    method public inline operator float plus(float other);
-                    property public final boolean someBits;
-                    property public final float value;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Kotlin doesn't expand java named constants`() {
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-            arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        annotation class Foo(val bar: Long = java.lang.Long.MIN_VALUE)
-                    """
-                )
-            ),
-            api =
-            """
-                // Signature format: 3.0
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
-                    method public abstract long bar() default java.lang.Long.MIN_VALUE;
-                    property public abstract long bar;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Kotlin constructors with JvmOverloads`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-
-                        class AllOptionalJvmOverloads @JvmOverloads constructor(
-                            private val foo: Int = 0,
-                            private val bar: Int = 0
-                        )
-
-                        class AllOptionalNoJvmOverloads(
-                            private val foo: Int = 0,
-                            private val bar: Int = 0
-                        )
-
-                        class SomeOptionalJvmOverloads @JvmOverloads constructor(
-                            private val foo: Int,
-                            private val bar: Int = 0
-                        )
-
-                        class SomeOptionalNoJvmOverloads(
-                            private val foo: Int,
-                            private val bar: Int = 0
-                        )
-                    """
-                )
-            ),
-            api = """
-                // Signature format: 4.0
-                package test.pkg {
-                  public final class AllOptionalJvmOverloads {
-                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
-                    ctor public AllOptionalJvmOverloads(optional int foo);
-                    ctor public AllOptionalJvmOverloads();
-                  }
-                  public final class AllOptionalNoJvmOverloads {
-                    ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
-                  }
-                  public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
-                    ctor public SomeOptionalJvmOverloads(int foo);
-                  }
-                  public final class SomeOptionalNoJvmOverloads {
-                    ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
-        check(
-            format = FileFormat.V3,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun myMethod() { TODO() }
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        internal fun myInternalMethod() { TODO() }
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        private fun myPrivateMethod() { TODO() }
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.WARNING
-                        )
-                        fun myNormalDeprecatedMethod() { TODO() }
-                    """
-                )
-            ),
-            api = """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @Deprecated public static void myMethod();
-                    method @Deprecated public static void myNormalDeprecatedMethod();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
-        check(
-            format = FileFormat.V3,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        @IntRange(from=0)
-                        fun myMethod() { TODO() }
-                    """
-                )
-            ),
-            api = """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Constants in a file scope annotation`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    @file:RestrictTo(RestrictTo.Scope.LIBRARY)
-                    package test.pkg
-                    import androidx.annotation.RestrictTo
-                    private fun veryFun(): Boolean = true
-                """
-                ),
-                restrictToSource
-            ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            api = """
-                // Signature format: 4.0
-                package test.pkg {
-                  @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `RestrictTo on a file hiding it`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    @file:RestrictTo(RestrictTo.Scope.LIBRARY)
-                    package test.pkg
-                    import androidx.annotation.RestrictTo
-                    private fun veryFun(): Boolean = true
-                """
-                ),
-                restrictToSource
-            ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", "--show-unannotated"),
-            hideAnnotations = arrayOf(
-                "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
-            ),
-            api = """
-                // Signature format: 4.0
-            """
-        )
-    }
-
-    /** Regression test for b/202968090 */
-    @Test
-    fun `annotation arrays should be non-null`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        annotation class Foo (
-                            val bar: Array<String>,
-                            vararg val baz: String
-                        )
-                    """
-                )
-            ),
-            api = """
-                // Signature format: 4.0
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
-                    method public abstract String[] bar();
-                    method public abstract String[] baz();
-                    property public abstract String[] bar;
-                    property public abstract String[] baz;
                   }
                 }
             """
