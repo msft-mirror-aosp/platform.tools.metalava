@@ -57,10 +57,6 @@ const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
-const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
-const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
-const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
-const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
@@ -88,12 +84,9 @@ const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
-const val ARG_CHECK_COMPATIBILITY_API_CURRENT = "--check-compatibility:api:current"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
-const val ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT = "--check-compatibility:removed:current"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
-const val ARG_ALLOW_COMPATIBLE_DIFFERENCES = "--allow-compatible-differences"
 const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
@@ -162,14 +155,12 @@ const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS = "--force-conver
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
-const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT = "--error-message:compatibility:current"
 const val ARG_NO_IMPLICIT_ROOT = "--no-implicit-root"
 const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
 const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
-const val ARG_ENABLE_KOTLIN_PSI = "--enable-kotlin-psi"
 
 class Options(
     private val args: Array<String>,
@@ -290,14 +281,8 @@ class Options(
     /** Whether default values should be included in signature files */
     var outputDefaultValues = true
 
-    /**
-     *  Whether only the presence of default values should be included in signature files, and not
-     *  the full body of the default value.
-     */
-    var outputConciseDefaultValues = false // requires V4
-
     /** The output format version being used */
-    var outputFormat: FileFormat = FileFormat.V2
+    var outputFormat: FileFormat = FileFormat.recommended
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
@@ -480,16 +465,6 @@ class Options(
     /** The API to use a base for the otherwise checked API during compat checks. */
     var baseApiForCompatCheck: File? = null
 
-    /**
-     * When checking signature files, whether compatible differences in signature
-     * files are allowed. This is normally not allowed (since it means the next
-     * engineer adding an incompatible change will suddenly see the cumulative
-     * differences show up in their diffs when checking in signature files),
-     * but is useful from the test suite etc. Controlled by
-     * [ARG_ALLOW_COMPATIBLE_DIFFERENCES].
-     */
-    var allowCompatibleDifferences = false
-
     /** If false, attempt to use the native diff utility on the system */
     var noNativeDiff = false
 
@@ -509,11 +484,6 @@ class Options(
      * signatures/stubs from them or use them to diff APIs with (whereas [classpath]
      * is only used to resolve types.) */
     var apiJar: File? = null
-
-    /** Whether to use the experimental KtPsi model on .kt source files instead of existing
-     * PSI implementation
-     */
-    var enableKotlinPsi = false
 
     /**
      * mapping from API level to android.jar files, if computing API levels
@@ -587,12 +557,6 @@ class Options(
      */
     var errorMessageCompatibilityReleased: String? = null
 
-    /**
-     * If set, metalava will show this error message when "check-compatibility:*:current" fails.
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_CURRENT] and [ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT])
-     */
-    var errorMessageCompatibilityCurrent: String? = null
-
     /** [Reporter] for "api-lint" */
     var reporterApiLint: Reporter
 
@@ -601,12 +565,6 @@ class Options(
      * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
     var reporterCompatibilityReleased: Reporter
-
-    /**
-     * [Reporter] for "check-compatibility:*:current".
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_CURRENT] and [ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT])
-     */
-    var reporterCompatibilityCurrent: Reporter
 
     var allReporters: List<Reporter>
 
@@ -725,8 +683,7 @@ class Options(
         val fromApiFile: File,
         val outputFile: File,
         val baseApiFile: File? = null,
-        val strip: Boolean = false,
-        val outputFormat: FileFormat = FileFormat.JDIFF
+        val strip: Boolean = false
     )
 
     /** Temporary folder to use instead of the JDK default, if any */
@@ -795,8 +752,6 @@ class Options(
                 ARG_VERSION -> {
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
-
-                ARG_ENABLE_KOTLIN_PSI -> enableKotlinPsi = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -1010,7 +965,6 @@ class Options(
 
                 ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
                 ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED -> errorMessageCompatibilityReleased = getValue(args, ++index)
-                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT -> errorMessageCompatibilityCurrent = getValue(args, ++index)
 
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
@@ -1056,55 +1010,14 @@ class Options(
                     }
                 }
 
-                "--current-api" -> {
+                ARG_CHECK_COMPATIBILITY, ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION, null as File?,
-                        "--current-api is deprecated; instead " +
-                            "use $ARG_CHECK_COMPATIBILITY_API_CURRENT"
-                    )
-                }
-
-                ARG_CHECK_COMPATIBILITY -> {
-                    // See if the next argument specifies the compatibility check.
-                    // Synonymous with ARG_CHECK_COMPATIBILITY_API_CURRENT, though
-                    // for backwards compatibility with earlier versions and usages
-                    // can also works in conjunction with ARG_CURRENT_API where the
-                    // usage was to use ARG_CURRENT_API to point to the API file and
-                    // then specify ARG_CHECK_COMPATIBILITY (without an argument) to
-                    // indicate that the current api should also be checked for
-                    // compatibility.
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            val file = stringToExistingFile(nextArg)
-                            if (file.isFile) {
-                                index++
-                                mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                            }
-                        }
-                    }
-                }
-
-                ARG_CHECK_COMPATIBILITY_API_CURRENT -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                }
-
-                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.RELEASED))
-                }
-
-                ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.DEV))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
 
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
                 }
 
                 ARG_CHECK_COMPATIBILITY_BASE_API -> {
@@ -1112,7 +1025,6 @@ class Options(
                     baseApiForCompatCheck = file
                 }
 
-                ARG_ALLOW_COMPATIBLE_DIFFERENCES -> allowCompatibleDifferences = true
                 ARG_NO_NATIVE_DIFF -> noNativeDiff = true
 
                 // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
@@ -1131,7 +1043,6 @@ class Options(
                             CheckRequest(
                                 stableApiFile,
                                 ApiType.PUBLIC_API,
-                                ReleaseType.RELEASED,
                                 apiFileToBeTested
                             )
                         )
@@ -1139,7 +1050,6 @@ class Options(
                             CheckRequest(
                                 stableRemovedApiFile,
                                 ApiType.REMOVED,
-                                ReleaseType.RELEASED,
                                 removedApiFileToBeTested
                             )
                         )
@@ -1244,39 +1154,24 @@ class Options(
                 }
 
                 ARG_CONVERT_TO_JDIFF,
-                ARG_CONVERT_TO_V1,
-                ARG_CONVERT_TO_V2,
                 // doclava compatibility:
                 "-convert2xml",
                 "-convert2xmlnostrip" -> {
                     val strip = arg == "-convert2xml"
-                    val format = when (arg) {
-                        ARG_CONVERT_TO_V1 -> FileFormat.V1
-                        ARG_CONVERT_TO_V2 -> FileFormat.V2
-                        else -> FileFormat.JDIFF
-                    }
-
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val outputFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip, format))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip))
                 }
 
                 ARG_CONVERT_NEW_TO_JDIFF,
-                ARG_CONVERT_NEW_TO_V1,
-                ARG_CONVERT_NEW_TO_V2,
                 // doclava compatibility:
                 "-new_api",
                 "-new_api_no_strip" -> {
-                    val format = when (arg) {
-                        ARG_CONVERT_NEW_TO_V1 -> FileFormat.V1
-                        ARG_CONVERT_NEW_TO_V2 -> FileFormat.V2
-                        else -> FileFormat.JDIFF
-                    }
                     val strip = arg == "-new_api"
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip, format))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip))
                 }
 
                 "--write-android-jar-signatures" -> {
@@ -1496,18 +1391,12 @@ class Options(
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
                         outputFormat = when (arg) {
-                            "$ARG_FORMAT=v1" -> {
-                                FileFormat.V1
-                            }
-                            "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
-                                FileFormat.V2
-                            }
-                            "$ARG_FORMAT=v3" -> {
-                                FileFormat.V3
-                            }
-                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
-                                FileFormat.V4
-                            }
+                            "$ARG_FORMAT=v1" -> FileFormat.V1
+                            "$ARG_FORMAT=v2" -> FileFormat.V2
+                            "$ARG_FORMAT=v3" -> FileFormat.V3
+                            "$ARG_FORMAT=v4" -> FileFormat.V4
+                            "$ARG_FORMAT=recommended" -> FileFormat.recommended
+                            "$ARG_FORMAT=latest" -> FileFormat.latest
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this)
@@ -1526,7 +1415,6 @@ class Options(
                                 CheckRequest(
                                     stableApiFile,
                                     ApiType.PUBLIC_API,
-                                    ReleaseType.RELEASED,
                                     apiFileToBeTested
                                 )
                             )
@@ -1534,7 +1422,6 @@ class Options(
                                 CheckRequest(
                                     stableRemovedApiFile,
                                     ApiType.REMOVED,
-                                    ReleaseType.RELEASED,
                                     removedApiFileToBeTested
                                 )
                             )
@@ -1672,12 +1559,6 @@ class Options(
             baselineCompatibilityReleased ?: baseline,
             errorMessageCompatibilityReleased
         )
-        reporterCompatibilityCurrent = Reporter(
-            // Note, the compat-check:current shouldn't take a baseline file, so we don't have
-            // a task specific baseline file, but we still respect the global baseline file.
-            baseline,
-            errorMessageCompatibilityCurrent
-        )
 
         // Build "all baselines" and "all reporters"
 
@@ -1689,7 +1570,6 @@ class Options(
             reporter,
             reporterApiLint,
             reporterCompatibilityReleased,
-            reporterCompatibilityCurrent
         )
 
         updateClassPath()
@@ -2259,8 +2139,6 @@ class Options(
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
-            ARG_ENABLE_KOTLIN_PSI,
-            "[EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST",
 
             "", "\nGenerating Stubs:",
             "$ARG_STUBS <dir>", "Generate stub source files for the API",
@@ -2364,9 +2242,6 @@ class Options(
             "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED <message>",
             "If set, $PROGRAM_NAME shows it " +
                 "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-            "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_CURRENT <message>",
-            "If set, $PROGRAM_NAME shows it " +
-                "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_CURRENT and $ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT.",
 
             "", "\nJDiff:",
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",
@@ -2376,15 +2251,6 @@ class Options(
             "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>",
             "Reads in the given old and new api files, " +
                 "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
-            "$ARG_CONVERT_TO_V1 <sig> <sig>",
-            "Reads in the given signature file and writes it out as a " +
-                "signature file in the original v1/doclava format.",
-            "$ARG_CONVERT_TO_V2 <sig> <sig>",
-            "Reads in the given signature file and writes it out as a " +
-                "signature file in the new signature format, v2.",
-            "$ARG_CONVERT_NEW_TO_V2 <old> <new> <sig>",
-            "Reads in the given old and new api files, " +
-                "computes the difference, and writes out only the new parts of the API in the v2 format.",
 
             "", "\nExtracting Annotations:",
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

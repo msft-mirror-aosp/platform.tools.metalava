@@ -30,8 +30,8 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
-import com.android.tools.metalava.TestKotlinPsi
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
 import com.android.tools.metalava.intDefAnnotationSource
@@ -44,6 +44,8 @@ import com.android.tools.metalava.requiresApiSource
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
+import com.android.tools.metalava.systemApiSource
+import com.android.tools.metalava.testApiSource
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 import java.io.File
@@ -64,7 +66,7 @@ class StubsTest : DriverTest() {
         showAnnotations: Array<String> = emptyArray(),
         includeSourceRetentionAnnotations: Boolean = true,
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
-        format: FileFormat? = null,
+        format: FileFormat = FileFormat.latest,
         sourceFiles: Array<TestFile>
     ) {
         check(
@@ -1244,6 +1246,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check generating type parameters in interface list`() {
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1322,7 +1325,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Basic Kotlin class`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -1374,7 +1376,7 @@ class StubsTest : DriverTest() {
                     @android.annotation.Nullable
                     public java.lang.String getProperty2() { throw new RuntimeException("Stub!"); }
                     /** property doc */
-                    public void setProperty2(@android.annotation.Nullable java.lang.String property2) { throw new RuntimeException("Stub!"); }
+                    public void setProperty2(@android.annotation.Nullable java.lang.String value) { throw new RuntimeException("Stub!"); }
                     @android.annotation.NonNull
                     public java.lang.String getProperty1() { throw new RuntimeException("Stub!"); }
                     public int someField2;
@@ -1418,6 +1420,7 @@ class StubsTest : DriverTest() {
         // When APIs reference annotations that are hidden, make sure the're excluded from the stubs and
         // signature files
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1861,6 +1864,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as sdk stubs`() {
         check(
+            format = FileFormat.V2,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1895,6 +1899,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as doc stubs`() {
         check(
+            format = FileFormat.V2,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1978,6 +1983,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Pass through libcore annotations`() {
         check(
+            format = FileFormat.V2,
             checkCompilation = true,
             extraArguments = arrayOf(
                 ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
@@ -2493,6 +2499,7 @@ class StubsTest : DriverTest() {
     fun `Rewriting implements class references`() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2654,6 +2661,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Picking Super Constructors`() {
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3405,6 +3413,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check writing package info file`() {
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3882,6 +3891,7 @@ class StubsTest : DriverTest() {
     @Test(expected = FileNotFoundException::class)
     fun `Test update-api should not generate stubs`() {
         check(
+            format = FileFormat.V2,
             extraArguments = arrayOf(
                 ARG_UPDATE_API,
                 ARG_EXCLUDE_ALL_ANNOTATIONS
@@ -3957,6 +3967,7 @@ class StubsTest : DriverTest() {
     fun `Include package private classes referenced from public API`() {
         // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
         check(
+            format = FileFormat.V2,
             expectedIssues = """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
                 src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
@@ -4068,6 +4079,7 @@ class StubsTest : DriverTest() {
         // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in android.car-system-stubs
         // referenced from outer class constructor
         check(
+            format = FileFormat.V2,
             expectedIssues = """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (as parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
                 src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
@@ -4111,6 +4123,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Use type argument in constructor cast`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -4316,7 +4329,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Basic Kotlin stubs`() {
         check(
             extraArguments = arrayOf(
@@ -4395,7 +4407,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
         check(
             extraArguments = arrayOf(
@@ -4505,6 +4516,241 @@ class StubsTest : DriverTest() {
                     """
                 )
             )
+        )
+    }
+
+    @Test
+    fun `Translate DeprecatedForSdk to Deprecated`() {
+        // See b/144111352
+        check(
+            expectedIssues = """
+                src/test/pkg/PublicApi.java:30: error: Method test.pkg.PublicApi.method4(): Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk [DeprecationMismatch]
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.DeprecatedForSdk;
+                    import android.annotation.DeprecatedForSdk.*;
+
+                    public class PublicApi {
+                        private PublicApi() { }
+                        // Normal deprecation:
+                        /** @deprecated My deprecation reason 1 */
+                        @Deprecated
+                        public static void method1() { }
+
+                        // Deprecated in the SDK. No comment; make sure annotation comment
+                        // shows up in the doc stubs.
+                        @DeprecatedForSdk("My deprecation reason 2")
+                        public static void method2() { }
+
+                        // Deprecated in the SDK, and has comment: Make sure comments merged
+                        // in the doc stubs.
+                        /**
+                         * My docs here.
+                         * @return the value
+                         */
+                        @DeprecatedForSdk("My deprecation reason 3")
+                        public static void method3() { } // warn about missing annotation
+
+                        // Already implicitly deprecated everywhere (because of @deprecated
+                        // comment; complain if combined with @DeprecatedForSdk
+                        /** @deprecated Something */
+                        @DeprecatedForSdk("Something")
+                        public static void method4() { }
+
+                        // Test @DeprecatedForSdk with specific exemptions; none of these are
+                        // the current public SDK so make sure it's deprecated there.
+                        // A different test will check whath appens when generating the
+                        // system API or test API.
+                        @DeprecatedForSdk(value = "Explanation", allowIn = { SYSTEM_API, TEST_API })
+                        public static void method5() { }
+                    }
+                    """
+                ).indented(),
+                deprecatedForSdkSource
+            ),
+            api = """
+                package test.pkg {
+                  public class PublicApi {
+                    method @Deprecated public static void method1();
+                    method @Deprecated public static void method2();
+                    method @Deprecated public static void method3();
+                    method @Deprecated public static void method4();
+                    method @Deprecated public static void method5();
+                  }
+                }
+                """,
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicApi {
+                    private PublicApi() { throw new RuntimeException("Stub!"); }
+                    /** @deprecated My deprecation reason 1 */
+                    @Deprecated
+                    public static void method1() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @deprecated My deprecation reason 2
+                     */
+                    @Deprecated
+                    public static void method2() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * My docs here.
+                     * @deprecated My deprecation reason 3
+                     * @return the value
+                     */
+                    @Deprecated
+                    public static void method3() { throw new RuntimeException("Stub!"); }
+                    /** @deprecated Something */
+                    @Deprecated
+                    public static void method4() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @deprecated Explanation
+                     */
+                    @Deprecated
+                    public static void method5() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
+            ),
+            docStubs = true
+        )
+    }
+
+    @Test
+    fun `Translate DeprecatedForSdk with API Filtering`() {
+        // See b/144111352.
+        // Remaining: don't include @deprecated in the docs for allowed platforms!
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import android.annotation.SystemApi;
+                    import android.annotation.TestApi;
+                    import android.annotation.DeprecatedForSdk;
+
+                    public class PublicApi2 {
+                        private PublicApi2() {
+                        }
+
+                        // This method should be deprecated in the SDK but *not* here in
+                        // the system API (this test runs with --show-annotations SystemApi)
+                        @DeprecatedForSdk(value = "My deprecation reason 1", allowIn = {SystemApi.class, TestApi.class})
+                        public static void method1() {
+                        }
+
+                        // Same as method 1 (here we're just using a different annotation
+                        // initializer form to test we're handling both types): *not* deprecated.
+
+                        /**
+                         * My docs.
+                         */
+                        @DeprecatedForSdk(value = "My deprecation reason 2", allowIn = SystemApi.class)
+                        public static void method2() {
+                        }
+
+                        // Finally, this method *is* deprecated in the system API and should
+                        // show up as such.
+
+                        /**
+                         * My docs.
+                         */
+                        @DeprecatedForSdk(value = "My deprecation reason 3", allowIn = TestApi.class)
+                        public static void method3() {
+                        }
+                    }
+                    """
+                ).indented(),
+                // Include some Kotlin files too to make sure we correctly handle
+                // annotation lookup for Kotlin (which uses UAST instead of plain Java PSI
+                // behind the scenes), even if android.util.ArrayMap is really implemented in Java
+                kotlin(
+                    """
+                    package android.util
+                    import android.annotation.DeprecatedForSdk
+                    import android.annotation.SystemApi;
+                    import android.annotation.TestApi;
+
+                    @DeprecatedForSdk(value = "Use androidx.collection.ArrayMap")
+                    class ArrayMap
+
+                    @DeprecatedForSdk(value = "Use androidx.collection.ArrayMap", allowIn = [SystemApi::class])
+                    class SystemArrayMap
+
+                    @DeprecatedForSdk("Use android.Manifest.permission.ACCESS_FINE_LOCATION instead")
+                    const val FINE_LOCATION =  "android.permission.ACCESS_FINE_LOCATION"
+                    """
+                ).indented(),
+                deprecatedForSdkSource,
+                systemApiSource,
+                testApiSource
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicApi2 {
+                    private PublicApi2() { throw new RuntimeException("Stub!"); }
+                    public static void method1() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * My docs.
+                     */
+                    public static void method2() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * My docs.
+                     * @deprecated My deprecation reason 3
+                     */
+                    @Deprecated
+                    public static void method3() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.util;
+                    /**
+                     * @deprecated Use androidx.collection.ArrayMap
+                     */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @Deprecated
+                    public final class ArrayMap {
+                    @Deprecated
+                    public ArrayMap() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                // SystemArrayMap is like ArrayMap, but has allowedIn=SystemApi::class, so
+                // it should not be deprecated here in the system api stubs
+                java(
+                    """
+                    package android.util;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class SystemArrayMap {
+                    public SystemArrayMap() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.util;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class ArrayMapKt {
+                    /**
+                     * @deprecated Use android.Manifest.permission.ACCESS_FINE_LOCATION instead
+                     */
+                    @Deprecated @androidx.annotation.NonNull public static final java.lang.String FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION";
+                    }
+                    """
+                )
+            ),
+            docStubs = true
         )
     }
 

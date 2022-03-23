@@ -28,6 +28,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Signature files contain annotations`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             sourceFiles = arrayOf(
@@ -56,7 +57,6 @@ class AnnotationsMergerTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "android.annotation",
                 ARG_HIDE_PACKAGE, "androidx.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
             api = """
                 package test.pkg {
@@ -74,6 +74,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merged class and method annotations with no arguments`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -91,19 +92,19 @@ class AnnotationsMergerTest : DriverTest() {
             mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest">
-                    <annotation name="android.support.annotation.UiThread" />
+                    <annotation name="androidx.annotation.UiThread" />
                   </item>
                   <item name="test.pkg.MyTest java.lang.Double convert(java.lang.Float)">
-                    <annotation name="android.support.annotation.Nullable" />
+                    <annotation name="androidx.annotation.Nullable" />
                   </item>
                   <item name="test.pkg.MyTest java.lang.Double convert(java.lang.Float) 0">
-                    <annotation name="android.support.annotation.NonNull" />
+                    <annotation name="androidx.annotation.NonNull" />
                   </item>
                   <item name="test.pkg.MyTest myNumber">
-                    <annotation name="android.support.annotation.Nullable" />
+                    <annotation name="androidx.annotation.Nullable" />
                   </item>
                   <item name="test.pkg.MyTest int clamp(int)">
-                    <annotation name="android.support.annotation.IntRange">
+                    <annotation name="androidx.annotation.IntRange">
                       <val name="from" val="10" />
                       <val name="to" val="20" />
                     </annotation>
@@ -132,6 +133,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge signature files`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -175,6 +177,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge qualifier annotations from Java stub files`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -290,6 +293,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge type use qualifier annotations from Java stub files`() {
         // See b/123223339
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -326,6 +330,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge qualifier annotations from Java stub files making sure they apply to public members of hidden superclasses`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -563,6 +568,7 @@ class AnnotationsMergerTest : DriverTest() {
         // This is a contrived test that verifies that even if Child no longer directly declares
         // method1, the inherited method1 is still found
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -602,6 +608,157 @@ class AnnotationsMergerTest : DriverTest() {
                 }
                 """,
             expectedIssues = "" // should not report that Child.method1 is undefined
+        )
+    }
+
+    @Test
+    fun `Merge Contract and Language annotations from XML files`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.text;
+
+                    public class TextUtils {
+                        public static boolean isEmpty(CharSequence str) {
+                            return str == null || str.length() == 0;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.graphics;
+                    public class RuntimeShader {
+                        public RuntimeShader(@NonNull String sksl) {
+                        }
+                    }
+                    """
+                )
+            ),
+            outputKotlinStyleNulls = false,
+            mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence)">
+                    <annotation name="org.jetbrains.annotations.Contract">
+                      <val name="value" val="&quot;null-&gt;true&quot;" />
+                    </annotation>
+                  </item>
+                  <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence) 0">
+                    <annotation name="androidx.annotation.Nullable" />
+                  </item>
+                  <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String) 0">
+                    <annotation name="org.intellij.lang.annotations.Language">
+                      <val name="value" val="&quot;AGSL&quot;" />
+                    </annotation>
+                  </item>
+                  <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String, boolean) 0">
+                    <annotation name="org.intellij.lang.annotations.Language">
+                      <val name="value" val="&quot;AGSL&quot;" />
+                    </annotation>
+                  </item>
+                </root>
+                """,
+            api = """
+                // Signature format: 4.0
+                package android.graphics {
+                  public class RuntimeShader {
+                    ctor public RuntimeShader(String);
+                  }
+                }
+                package android.text {
+                  public class TextUtils {
+                    ctor public TextUtils();
+                    method public static boolean isEmpty(CharSequence?);
+                  }
+                }
+                """,
+            extractAnnotations = mapOf(
+                "android.text" to """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence)">
+                    <annotation name="org.jetbrains.annotations.Contract">
+                      <val name="value" val="&quot;null-&gt;true&quot;" />
+                    </annotation>
+                  </item>
+                </root>
+                """,
+                "android.graphics" to """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String) 0">
+                    <annotation name="org.intellij.lang.annotations.Language">
+                      <val name="value" val="&quot;AGSL&quot;" />
+                    </annotation>
+                  </item>
+                </root>
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Merge Contract and Language annotations from signature files`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.text;
+
+                    public class TextUtils {
+                        public static boolean isEmpty(CharSequence str) {
+                            return str == null || str.length() == 0;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.graphics;
+                    public class RuntimeShader {
+                        public RuntimeShader(@NonNull String sksl) {
+                        }
+                    }
+                    """
+                )
+            ),
+            outputKotlinStyleNulls = false,
+            mergeSignatureAnnotations = """
+                // Signature format: 4.0
+                package android.graphics {
+                  public class RuntimeShader {
+                    ctor public RuntimeShader(@org.intellij.lang.annotations.Language("AGSL") String);
+                  }
+                }
+                package android.text {
+                  public class TextUtils {
+                    method @org.jetbrains.annotations.Contract("null->true") public static boolean isEmpty(CharSequence?);
+                  }
+                }
+            """,
+            extractAnnotations = mapOf(
+                "android.text" to """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence)">
+                    <annotation name="org.jetbrains.annotations.Contract">
+                      <val name="value" val="&quot;null-&gt;true&quot;" />
+                    </annotation>
+                  </item>
+                </root>
+                """,
+                "android.graphics" to """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String) 0">
+                    <annotation name="org.intellij.lang.annotations.Language">
+                      <val name="value" val="&quot;AGSL&quot;" />
+                    </annotation>
+                  </item>
+                </root>
+                """
+            )
         )
     }
 }

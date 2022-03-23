@@ -17,13 +17,15 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.ANDROIDX_VISIBLE_FOR_TESTING
-import com.android.tools.metalava.ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+import com.android.tools.metalava.ANDROID_DEPRECATED_FOR_SDK
+import com.android.tools.metalava.ATTR_ALLOW_IN
 import com.android.tools.metalava.ATTR_OTHERWISE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.options
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierList
@@ -40,13 +42,10 @@ import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
@@ -66,12 +65,11 @@ class PsiModifierItem(
         fun create(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: String?,
-            enableKotlinPsi: Boolean = false
+            documentation: String?
         ): PsiModifierItem {
             val modifiers =
                 if (element is UAnnotated) {
-                    create(codebase, element, element, enableKotlinPsi)
+                    create(codebase, element, element)
                 } else {
                     create(codebase, element)
                 }
@@ -238,52 +236,6 @@ class PsiModifierItem(
             return flags
         }
 
-        private fun computeFlag(element: KtModifierListOwner): Int {
-            // Visibility
-            var flags = when {
-                element.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
-                element.hasModifier(KtTokens.PROTECTED_KEYWORD) -> PROTECTED
-                element.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
-                else -> PUBLIC
-            }
-
-            fun set(flag: Int) { flags = flags or flag }
-
-            // Element specific modifier rules
-            when (element) {
-                is KtClassOrObject -> {
-                    // Abstractness
-                    when {
-                        element is KtClass && element.isInterface() -> set(ABSTRACT)
-                        element.isAnnotation() -> set(ABSTRACT)
-                        element.hasModifier(KtTokens.ABSTRACT_KEYWORD) -> set(ABSTRACT)
-                        element.hasModifier(KtTokens.SEALED_KEYWORD) -> set(SEALED or ABSTRACT)
-                        element.hasModifier(KtTokens.OPEN_KEYWORD) -> {}
-                        else -> set(FINAL)
-                    }
-
-                    // Class types
-                    when {
-                        element.hasModifier(KtTokens.INLINE_KEYWORD) -> set(INLINE)
-                        element.hasModifier(KtTokens.DATA_KEYWORD) -> set(DATA)
-                        element.hasModifier(KtTokens.VALUE_KEYWORD) -> set(VALUE)
-                        element.hasModifier(KtTokens.FUN_KEYWORD) -> set(FUN)
-                        element.hasModifier(KtTokens.COMPANION_KEYWORD) -> set(COMPANION)
-                    }
-
-                    // Static
-                    if (!element.hasModifier(KtTokens.INNER_KEYWORD) && !element.isTopLevel()) {
-                        set(STATIC)
-                    }
-                }
-                is KtParameter -> {
-                    if (element.isVarArg) set(VARARG)
-                }
-            }
-
-            return flags
-        }
-
         private fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
             var flags = computeFlag(codebase, element, modifierList)
@@ -297,9 +249,7 @@ class PsiModifierItem(
                     psiAnnotations.distinct().map {
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
-                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
-                        ) {
+                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -310,7 +260,7 @@ class PsiModifierItem(
                         }
 
                         PsiAnnotationItem.create(codebase, it, qualifiedName)
-                    }.toMutableList()
+                    }.filter { !it.isDeprecatedForSdk() }.toMutableList()
                 PsiModifierItem(codebase, flags, annotations)
             }
         }
@@ -318,20 +268,12 @@ class PsiModifierItem(
         private fun create(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            annotated: UAnnotated,
-            enableKotlinPsi: Boolean
+            annotated: UAnnotated
         ): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
             val uAnnotations = annotated.uAnnotations
 
-            var flags = if (enableKotlinPsi) {
-                val ktModifiers = requireNotNull(annotated.sourcePsi as? KtModifierListOwner) {
-                    "Expected source PSI to implement KtModifierListOwner"
-                }
-                computeFlag(ktModifiers)
-            } else {
-                computeFlag(codebase, element, modifierList)
-            }
+            var flags = computeFlag(codebase, element, modifierList)
 
             return if (uAnnotations.isEmpty()) {
                 val psiAnnotations = modifierList.annotations
@@ -355,9 +297,7 @@ class PsiModifierItem(
                     .map {
 
                         val qualifiedName = it.qualifiedName
-                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
-                        ) {
+                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -368,7 +308,7 @@ class PsiModifierItem(
                         }
 
                         UAnnotationItem.create(codebase, it, qualifiedName)
-                    }.toMutableList()
+                    }.filter { !it.isDeprecatedForSdk() }.toMutableList()
 
                 if (!isPrimitiveVariable) {
                     val psiAnnotations = modifierList.annotations
@@ -382,6 +322,24 @@ class PsiModifierItem(
 
                 PsiModifierItem(codebase, flags, annotations)
             }
+        }
+
+        /** Returns whether this is a `@DeprecatedForSdk` annotation **that should be skipped**. */
+        private fun AnnotationItem.isDeprecatedForSdk(): Boolean {
+            if (originalName != ANDROID_DEPRECATED_FOR_SDK) {
+                return false
+            }
+
+            val allowIn = findAttribute(ATTR_ALLOW_IN) ?: return false
+
+            for (api in allowIn.leafValues()) {
+                val annotationName = api.value() as? String ?: continue
+                if (options.showAnnotations.matchesAnnotationName(annotationName)) {
+                    return true
+                }
+            }
+
+            return false
         }
 
         private val NOT_NULL = NotNull::class.qualifiedName

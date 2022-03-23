@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.ARG_CLASS_PATH
+import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.findKotlinStdlibPathArgs
@@ -33,35 +35,33 @@ inline fun testCodebase(
     vararg sources: TestFile,
     action: (PsiBasedCodebase) -> Unit
 ) {
-    // TODO(b/198440244): Remove parameterization
-    for (enableKotlinPsi in arrayOf(true, false)) {
-        tempDirectory { tempDirectory ->
-            val codebase = createTestCodebase(tempDirectory, enableKotlinPsi, *sources)
-            try {
-                action(codebase)
-            } finally {
-                destroyTestCodebase(codebase)
-            }
+    tempDirectory { tempDirectory ->
+        val codebase = createTestCodebase(tempDirectory, *sources)
+        try {
+            action(codebase)
+        } finally {
+            destroyTestCodebase(codebase)
         }
     }
 }
 
 fun createTestCodebase(
     directory: File,
-    enableKotlinPsi: Boolean,
     vararg sources: TestFile
 ): PsiBasedCodebase {
     System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     Disposer.setDebugMode(true)
 
     val sourcePaths = sources.map { it.targetPath }.toTypedArray()
-    val kotlinPathArgs = findKotlinStdlibPathArgs(sourcePaths)
-    options = Options(kotlinPathArgs)
+    val args = findKotlinStdlibPathArgs(sourcePaths) + arrayOf(
+        ARG_CLASS_PATH,
+        DriverTest.getAndroidJar().path
+    )
+    options = Options(args)
 
     return parseSources(
         sources = sources.map { it.createFile(directory) },
-        description = "Test ${if (enableKotlinPsi) "Kotlin PSI" else "UAST"} Codebase",
-        enableKotlinPsi = enableKotlinPsi
+        description = "Test Codebase",
     )
 }
 
