@@ -35,8 +35,6 @@ interface MemberItem : Item {
      * be final because its containing class is final
      */
     fun isEffectivelyFinal(): Boolean {
-        return modifiers.isFinal() ||
-            containingClass().modifiers.isFinal() ||
-            containingClass().modifiers.isSealed()
+        return modifiers.isFinal() || containingClass().modifiers.isFinal()
     }
 }

@@ -1,24 +1,24 @@
 # Metalava
 
-Metalava is a metadata generator intended for JVM type projects. The main
-users of this tool are Android Platform and AndroidX libraries, however this
-tool also works on non-Android libraries.
+(Also known as "doclava2", but deliberately not named doclava2 since crucially
+it does not generate docs; it's intended only for **meta**data extraction and
+generation.)
 
-Metalava has many features related to API management. Some examples of the most
-commonly used ones are:
+Metalava is a metadata generator intended for the Android source tree, used for
+a number of purposes:
 
-* Allows extracting the API (into signature text files, into stub API files
-  which in turn get compiled into android.jar, the Android SDK library) and
+* Allow extracting the API (into signature text files, into stub API files
+  (which in turn get compiled into android.jar, the Android SDK library) and
   more importantly to hide code intended to be implementation only, driven by
-  javadoc comments like @hide, @doconly, @removed, etc, as well as various
+  javadoc comments like @hide, @$doconly, @removed, etc, as well as various
   annotations.
 
 * Extracting source level annotations into external annotations file (such as
   the typedef annotations, which cannot be stored in the SDK as .class level
-  annotations) to ship alongside the Android SDK and used by Android Lint.
+  annotations).
 
 * Diffing versions of the API and determining whether a newer version is
-  compatible with the older version. (See [COMPATIBILITY.md](COMPATIBILITY.md))
+  compatible with the older version.
 
 ## Building and running
 
@@ -29,29 +29,11 @@ To build:
     $ cd tools/metalava
     $ ./gradlew
 
-It puts build artifacts in `../../out/metalava/`.
+This builds a binary distribution in `../../out/host/common/install/metalava/bin/metalava`.
 
-To run the metalava executable:
+To run metalava:
 
-### Through Gradle 
-
-To list all the options:
-
-    $ ./gradlew run
-
-To run it with specific arguments:
-
-    $ ./gradlew run --args="--api path/to/api.txt"
-
-### Through distribution artifact
-
-First build it with:
-
-    $ ./gradlew installDist
-
-Then run it with:
-
-    $ ../../out/metalava/install/metalava/bin/metalava
+    $ ../../out/host/common/install/metalava/bin/metalava
                     _        _
      _ __ ___   ___| |_ __ _| | __ ___   ____ _
     | '_ ` _ \ / _ \ __/ _` | |/ _` \ \ / / _` |
@@ -73,7 +55,24 @@ Then run it with:
 
 (*output truncated*)
 
+Metalava has a new command line syntax, but it also understands the doclava1
+flags and translates them on the fly. Flags that are ignored are listed on the
+command line. If metalava is dropped into an Android framework build for
+example, you'll see something like this (unless running with --quiet) :
+
+    metalava: Ignoring javadoc-related doclava1 flag -J-Xmx1600m
+    metalava: Ignoring javadoc-related doclava1 flag -J-XX:-OmitStackTraceInFastThrow
+    metalava: Ignoring javadoc-related doclava1 flag -XDignore.symbol.file
+    metalava: Ignoring javadoc-related doclava1 flag -doclet
+    metalava: Ignoring javadoc-related doclava1 flag -docletpath
+    metalava: Ignoring javadoc-related doclava1 flag -templatedir
+    metalava: Ignoring javadoc-related doclava1 flag -htmldir
+    ...
+
 ## Features
+
+* Compatibility with doclava1: in compat mode, metalava spits out the same
+  signature files for the framework as doclava1.
 
 * Ability to read in an existing android.jar file instead of from source, which
   means we can regenerate signature files etc for older versions according to
@@ -85,7 +84,7 @@ Then run it with:
   annotations. This isn't just merged at export time, it's merged at codebase
   load time such that it can be part of the API analysis.
 
-* Support for an updated signature file format (which is described in [FORMAT.md](FORMAT.md))
+* Support for an updated signature file format (which is described in FORMAT.md)
 
   * Address errors in the doclava1 format which for example was missing
     annotation class instance methods
