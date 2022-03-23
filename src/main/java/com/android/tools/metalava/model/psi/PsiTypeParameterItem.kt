@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
 import com.intellij.psi.PsiTypeParameter
@@ -37,17 +38,15 @@ class PsiTypeParameterItem(
     hasImplicitDefaultConstructor = false,
     classType = TYPE_PARAMETER,
     modifiers = modifiers,
-    documentation = "",
-    fromClassPath = false
-),
-    TypeParameterItem {
-    override fun typeBounds(): List<PsiTypeItem> = bounds
+    documentation = ""
+), TypeParameterItem {
+    override fun bounds(): List<ClassItem> = bounds
 
     override fun isReified(): Boolean {
         return isReified(element as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<PsiTypeItem>
+    private lateinit var bounds: List<ClassItem>
 
     override fun finishInitialization() {
         super.finishInitialization()
@@ -56,7 +55,7 @@ class PsiTypeParameterItem(
         bounds = if (refs != null && refs.isNotEmpty()) {
             // Omit java.lang.Object since PSI will turn "T extends Comparable" to "T extends Object & Comparable"
             // and this just makes comparisons harder; *everything* extends Object.
-            refs.mapNotNull { PsiTypeItem.create(codebase, it) }.filter { !it.isJavaLangObject() }
+            refs.mapNotNull { PsiTypeItem.create(codebase, it).asClass() }.filter { !it.isJavaLangObject() }
         } else {
             emptyList()
         }
@@ -81,11 +80,10 @@ class PsiTypeParameterItem(
         fun isReified(element: PsiTypeParameter?): Boolean {
             element ?: return false
             if (element is KtLightTypeParameter &&
-                element.kotlinOrigin.text.startsWith("reified")
-            ) {
+                element.kotlinOrigin.text.startsWith("reified")) {
                 return true
             } else if (element is KotlinLightTypeParameterBuilder) {
-                if (element.origin.text.startsWith("reified")) {
+                if (element.sourcePsi.text.startsWith("reified")) {
                     return true
                 }
             }

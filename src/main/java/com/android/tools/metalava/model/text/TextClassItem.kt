@@ -46,9 +46,7 @@ open class TextClassItem(
     codebase = codebase,
     position = position,
     modifiers = modifiers
-),
-    ClassItem,
-    TypeParameterListOwner {
+), ClassItem, TypeParameterListOwner {
 
     init {
         @Suppress("LeakingThis")

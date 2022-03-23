@@ -23,12 +23,12 @@ class TextTypeItemTest {
     @Test
     fun `test typeString()`() {
         val full =
-            "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
+            "@android.support.annotation.Nullable java.util.List<@android.support.annotation.Nullable java.lang.String>"
         assertThat(TextTypeItem.toTypeString(full, false, false, false)).isEqualTo(
             "java.util.List<java.lang.String>"
         )
         assertThat(TextTypeItem.toTypeString(full, false, true, false)).isEqualTo(
-            "java.util.List<@androidx.annotation.Nullable java.lang.String>"
+            "java.util.List<@android.support.annotation.Nullable java.lang.String>"
         )
         assertThat(TextTypeItem.toTypeString(full, false, false, true)).isEqualTo(
             "java.util.List"
@@ -40,7 +40,7 @@ class TextTypeItemTest {
                 true,
                 false
             )
-        ).isEqualTo("@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>")
+        ).isEqualTo("@android.support.annotation.Nullable java.util.List<@android.support.annotation.Nullable java.lang.String>")
         assertThat(
             TextTypeItem.toTypeString(
                 full,
@@ -48,7 +48,7 @@ class TextTypeItemTest {
                 true,
                 true
             )
-        ).isEqualTo("@androidx.annotation.Nullable java.util.List")
+        ).isEqualTo("@android.support.annotation.Nullable java.util.List")
         assertThat(TextTypeItem.toTypeString("int", false, false, false)).isEqualTo("int")
 
         assertThat(
@@ -66,8 +66,7 @@ class TextTypeItemTest {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
         val codebase = ApiFile.parseApi(
-            "test",
-            """
+            "test", """
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();
@@ -77,8 +76,7 @@ class TextTypeItemTest {
                 method public D build();
               }
             }
-            """.trimIndent(),
-            false
+        """.trimIndent(), false
         )
         val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
         val method = cls?.findMethod("build", "") as TextMethodItem
@@ -108,15 +106,13 @@ class TextTypeItemTest {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
         val codebase = ApiFile.parseApi(
-            "test",
-            """
+            "test", """
             package test.pkg {
               public final class TestClass<D> {
                 method public D build();
               }
             }
-            """.trimIndent(),
-            false
+        """.trimIndent(), false
         )
         val cls = codebase.findClass("test.pkg.TestClass")
         val method = cls?.findMethod("build", "") as TextMethodItem
@@ -141,16 +137,14 @@ class TextTypeItemTest {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
         val codebase = ApiFile.parseApi(
-            "test",
-            """
+            "test", """
             package test.pkg {
               public class EnumMap<K extends java.lang.Enum<K>, V> extends java.util.AbstractMap implements java.lang.Cloneable java.io.Serializable {
                 method public java.util.EnumMap<K, V> clone();
                 method public java.util.Set<java.util.Map.Entry<K, V>> entrySet();
               }
             }
-            """.trimIndent(),
-            false
+        """.trimIndent(), false
         )
         val cls = codebase.findClass("test.pkg.EnumMap")
         val method = cls?.findMethod("clone", "") as TextMethodItem
