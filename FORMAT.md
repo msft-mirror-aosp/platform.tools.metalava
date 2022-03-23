@@ -449,6 +449,7 @@ words, instead of any of these alternative declarations:
 
 ```
    method public void setTitleTextColor(@android.annotation.ColorInt int);
+   method public void setTitleTextColor(@android.support.annotation.ColorInt int);
    method public void setTitleTextColor(@androidx.annotation.ColorInt int);
 ```
 
