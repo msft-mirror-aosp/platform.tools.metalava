@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -31,7 +30,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
-import java.util.Locale
+import java.util.ArrayList
+import java.util.HashMap
+import java.util.HashSet
 import java.util.function.Predicate
 
 /**
@@ -177,10 +178,8 @@ class ApiAnalyzer(
                 for (constructor in constructors) {
                     val superConstructor = constructor.superConstructor
                     if (superConstructor == null ||
-                        (
-                            superConstructor.containingClass() != superClass &&
-                                superConstructor.containingClass() != cls
-                            )
+                        (superConstructor.containingClass() != superClass &&
+                            superConstructor.containingClass() != cls)
                     ) {
                         constructor.superConstructor = superDefaultConstructor
                     }
@@ -676,8 +675,7 @@ class ApiAnalyzer(
                     reporter.report(
                         Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS, item,
                         "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                            "hidden and should also be annotated with $violatingAnnotation"
-                    )
+                            "hidden and should also be annotated with $violatingAnnotation")
                 }
             }
         })
@@ -693,7 +691,7 @@ class ApiAnalyzer(
 
         if (annotation != null) {
             hasAnnotation = true
-            for (attribute in annotation.attributes) {
+            for (attribute in annotation.attributes()) {
                 var values: List<AnnotationAttributeValue>? = null
                 var any = false
                 when (attribute.name) {
@@ -746,8 +744,7 @@ class ApiAnalyzer(
                     hasAnnotation = false
                 } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
-                        Issues.REQUIRES_PERMISSION, method,
-                        "Method '" + method.name() +
+                        Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
                             "' must be protected with a system permission; it currently" +
                             " allows non-system callers holding " + nonSystem.toString()
                     )
@@ -757,8 +754,7 @@ class ApiAnalyzer(
 
         if (!hasAnnotation) {
             reporter.report(
-                Issues.REQUIRES_PERMISSION, method,
-                "Method '" + method.name() +
+                Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
                     "' must be protected with a system permission."
             )
         }
@@ -785,32 +781,13 @@ class ApiAnalyzer(
                     // Don't warn about this in Kotlin; the Kotlin deprecation annotation includes deprecation
                     // messages (unlike java.lang.Deprecated which has no attributes). Instead, these
                     // are added to the documentation by the [DocAnalyzer].
-                    !item.isKotlin() &&
-                    // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's correct
-                    // and expected to *not* combine this with @deprecated in the text; here,
-                    // the text comes from an annotation attribute.
-                    item.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.originalName != ANDROID_DEPRECATED_FOR_SDK
+                    !item.isKotlin()
                 ) {
                     reporter.report(
                         Issues.DEPRECATION_MISMATCH, item,
                         "${item.toString().capitalize()}: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match"
                     )
                     // TODO: Check opposite (doc tag but no annotation)
-                } else {
-                    val deprecatedForSdk = item.modifiers.findExactAnnotation(ANDROID_DEPRECATED_FOR_SDK)
-                    if (deprecatedForSdk != null) {
-                        item.deprecated = true
-                        if (item.documentation.contains("@deprecated")) {
-                            reporter.report(
-                                Issues.DEPRECATION_MISMATCH, item,
-                                "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
-                            )
-                        } else {
-                            val value = deprecatedForSdk.findAttribute(ATTR_VALUE)
-                            val message = value?.value?.value()?.toString() ?: ""
-                            item.appendDocumentation(message, "@deprecated")
-                        }
-                    }
                 }
 
                 if (checkHiddenShowAnnotations &&
@@ -818,11 +795,9 @@ class ApiAnalyzer(
                     !item.originallyHidden &&
                     !item.modifiers.hasShowSingleAnnotation()
                 ) {
-                    val annotationName = (
-                        item.modifiers.annotations().firstOrNull { annotation ->
-                            options.showAnnotations.matches(annotation)
-                        }?.qualifiedName ?: options.showAnnotations.firstQualifiedName()
-                        ).removePrefix(ANDROID_ANNOTATION_PREFIX)
+                    val annotationName = (item.modifiers.annotations().firstOrNull { annotation ->
+                        options.showAnnotations.matches(annotation)
+                    }?.qualifiedName() ?: options.showAnnotations.firstQualifiedName()).removePrefix(ANDROID_ANNOTATION_PREFIX)
                     reporter.report(
                         Issues.UNHIDDEN_SYSTEM_API, item,
                         "@$annotationName APIs must also be marked @hide: ${item.describe()}"
@@ -835,7 +810,7 @@ class ApiAnalyzer(
                 // Done here rather than in the analyzer which propagates visibility, since we want to do it
                 // after warning
                 val containingClass = cls.containingClass()
-                if (containingClass != null && containingClass.deprecated) {
+                if (containingClass != null && containingClass.deprecated && compatibility.propagateDeprecatedInnerClasses) {
                     cls.deprecated = true
                 }
 
@@ -859,7 +834,7 @@ class ApiAnalyzer(
 
             override fun visitField(field: FieldItem) {
                 val containingClass = field.containingClass()
-                if (containingClass.deprecated) {
+                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
                     field.deprecated = true
                 }
 
@@ -875,7 +850,7 @@ class ApiAnalyzer(
                 }
 
                 val containingClass = method.containingClass()
-                if (containingClass.deprecated) {
+                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
                     method.deprecated = true
                 }
 
@@ -994,8 +969,7 @@ class ApiAnalyzer(
                         // don't bother reporting deprecated methods
                         // unless they are public
                         reporter.report(
-                            Issues.DEPRECATED, m,
-                            "Method " + cl.qualifiedName() + "." +
+                            Issues.DEPRECATED, m, "Method " + cl.qualifiedName() + "." +
                                 m.name() + " is deprecated"
                         )
                     }
@@ -1157,20 +1131,17 @@ class ApiAnalyzer(
         }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val superItems = cl.allInterfaces().toMutableSet()
-        cl.superClass()?.let { superClass -> superItems.add(superClass) }
-
-        for (superItem in superItems) {
-            if (superItem.isHiddenOrRemoved()) {
+        val superClass = cl.superClass()
+        if (superClass != null) {
+            if (superClass.isHiddenOrRemoved()) {
                 // cl is a public class declared as extending a hidden superclass.
                 // this is not a desired practice but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (!superItem.isFromClassPath()) {
+                if (!superClass.isFromClassPath()) {
                     reporter.report(
-                        Issues.HIDDEN_SUPERCLASS, cl,
-                        "Public class " + cl.qualifiedName() +
-                            " stripped of unavailable superclass " + superItem.qualifiedName()
+                        Issues.HIDDEN_SUPERCLASS, cl, "Public class " + cl.qualifiedName() +
+                            " stripped of unavailable superclass " + superClass.qualifiedName()
                     )
                 }
             } else {
@@ -1178,11 +1149,10 @@ class ApiAnalyzer(
                 // right (this was just done for its stub handling)
                 //   cantStripThis(superClass, filter, notStrippable, stubImportPackages, cl, "as super class")
 
-                if (superItem.isPrivate && !superItem.isFromClassPath()) {
+                if (superClass.isPrivate && !superClass.isFromClassPath()) {
                     reporter.report(
-                        Issues.PRIVATE_SUPERCLASS, cl,
-                        "Public class " +
-                            cl.qualifiedName() + " extends private class " + superItem.qualifiedName()
+                        Issues.PRIVATE_SUPERCLASS, cl, "Public class " +
+                            cl.qualifiedName() + " extends private class " + superClass.qualifiedName()
                     )
                 }
             }
@@ -1304,15 +1274,5 @@ class ApiAnalyzer(
             }
         }
         return null
-    }
-}
-
-private fun String.capitalize(): String {
-    return this.replaceFirstChar {
-        if (it.isLowerCase()) {
-            it.titlecase(Locale.getDefault())
-        } else {
-            it.toString()
-        }
     }
 }
