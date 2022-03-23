@@ -23,12 +23,12 @@ import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
@@ -56,49 +56,28 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.KotlinUastResolveProviderService
 import java.io.File
 import java.io.IOException
+import java.util.ArrayList
+import java.util.HashMap
 import java.util.zip.ZipFile
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
-/**
- * A codebase containing Java, Kotlin, or UAST PSI classes
- *
- * After creation, a list of PSI file or a JAR file is passed to [initialize]. This creates package
- * and class items along with their members. This process is broken into two phases:
- *
- * First, [initializing] is set to true, and class items are created from the supplied sources.
- * These are main classes of the codebase and have [ClassItem.emit] set to true and
- * [ClassItem.isFromClassPath] set to false. While creating these, package names are reserved and
- * associated with their classes in [packageClasses].
- *
- * Next, package items are created for source classes based on the contents of [packageClasses]
- * with [PackageItem.emit] set to true.
- *
- * Then [initializing] is set to false and the second pass begins. This path iteratively resolves
- * supertypes of class items until all are fully resolved, creating new class and package items as
- * needed. Since all the source class and package items have been created, new items are assumed to
- * originate from the classpath and have [Item.emit] set to false and [Item.isFromClassPath] set to
- * true.
- */
-open class PsiBasedCodebase(
-    location: File,
-    override var description: String = "Unknown"
-) : DefaultCodebase(location) {
+open class PsiBasedCodebase(location: File, override var description: String = "Unknown") : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
 
-    /** Map from class name to class item. Classes are added via [registerClass] */
+    /** Map from class name to class item */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
+
+    /** Map from psi type to type item */
+    private val typeMap: MutableMap<PsiType, TypeItem> = HashMap(400)
 
     /**
      * Map from classes to the set of methods for each (but only for classes where we've
@@ -109,7 +88,7 @@ open class PsiBasedCodebase(
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
-    /** Map from package name to list of classes in that package. Only used during [initialize]. */
+    /** Map from package name to list of classes in that package */
     private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
 
     /** A set of packages to hide */
@@ -119,18 +98,8 @@ open class PsiBasedCodebase(
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
-    private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
+    private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
 
-    /**
-     * Set to true in [initialize] for the first pass of creating class items for all classes in
-     * the codebase sources and false for the second pass of creating class items for the
-     * supertypes of the codebase classes. New class items created in the supertypes pass must come
-     * from the classpath (dependencies) since all source classes have been created.
-     *
-     * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
-     * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
-     * [registerPackage] to set [PackageItem.emit] to true for source packages.
-     */
     private var initializing = false
 
     override fun trustedApi(): Boolean = false
@@ -141,13 +110,9 @@ open class PsiBasedCodebase(
 
     private lateinit var emptyPackage: PsiPackageItem
 
-    fun initialize(
-        uastEnvironment: UastEnvironment,
-        psiFiles: List<PsiFile>,
-        packages: PackageDocs,
-    ) {
+    fun initialize(uastEnvironment: UastEnvironment, units: List<PsiFile>, packages: PackageDocs) {
         initializing = true
-        this.units = psiFiles
+        this.units = units
         packageDocs = packages
 
         this.uastEnvironment = uastEnvironment
@@ -165,11 +130,11 @@ open class PsiBasedCodebase(
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
-        // Make sure we only process the files once; sometimes there's overlap in the source lists
-        for (psiFile in psiFiles.asSequence().distinct()) {
+        // Make sure we only process the units once; sometimes there's overlap in the source lists
+        for (unit in units.asSequence().distinct()) {
             tick() // show progress
 
-            psiFile.accept(object : JavaRecursiveElementVisitor() {
+            unit.accept(object : JavaRecursiveElementVisitor() {
                 override fun visitImportStatement(element: PsiImportStatement) {
                     super.visitImportStatement(element)
                     if (element.resolve() == null) {
@@ -182,54 +147,54 @@ open class PsiBasedCodebase(
                 }
             })
 
-            var classes = (psiFile as? PsiClassOwner)?.classes?.toList() ?: emptyList()
+            var classes = (unit as? PsiClassOwner)?.classes?.toList() ?: emptyList()
             if (classes.isEmpty()) {
-                val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
+                val uFile = UastFacade.convertElementWithParent(unit, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
-            when {
-                classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    // package-info.java ?
-                    val packageStatement = psiFile.packageStatement
-                    // Look for javadoc on the package statement; this is NOT handed to us on
-                    // the PsiPackage!
-                    if (packageStatement != null) {
-                        val comment = PsiTreeUtil.getPrevSiblingOfType(
-                            packageStatement,
-                            PsiDocComment::class.java
-                        )
-                        if (comment != null) {
-                            val packageName = packageStatement.packageName
-                            val text = comment.text
-                            if (text.contains("@hide")) {
-                                this.hiddenPackages[packageName] = true
-                            }
-                            if (packageDocs[packageName] != null) {
-                                reporter.report(
-                                    Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                                    psiFile,
-                                    "It is illegal to provide both a package-info.java file and " +
-                                        "a package.html file for the same package"
-                                )
-                            }
-                            packageDocs[packageName] = text
+            var packageName: String? = null
+            if (classes.isEmpty() && unit is PsiJavaFile) {
+                // package-info.java ?
+                val packageStatement = unit.packageStatement
+                // Look for javadoc on the package statement; this is NOT handed to us on
+                // the PsiPackage!
+                if (packageStatement != null) {
+                    packageName = packageStatement.packageName
+                    val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
+                    if (comment != null) {
+                        val text = comment.text
+                        if (text.contains("@hide")) {
+                            this.hiddenPackages[packageName] = true
                         }
+                        if (packageDocs[packageName] != null) {
+                            reporter.report(
+                                Issues.BOTH_PACKAGE_INFO_AND_HTML,
+                                unit,
+                                "It is illegal to provide both a package-info.java file and a " +
+                                    "package.html file for the same package"
+                            )
+                        }
+                        packageDocs[packageName] = text
                     }
                 }
-                else -> {
-                    for (psiClass in classes) {
-                        psiClass.accept(object : JavaRecursiveElementVisitor() {
-                            override fun visitErrorElement(element: PsiErrorElement) {
-                                super.visitErrorElement(element)
-                                reporter.report(
-                                    Issues.INVALID_SYNTAX,
-                                    element,
-                                    "Syntax error: `${element.errorDescription}`"
-                                )
-                            }
-                        })
+            } else {
+                for (psiClass in classes) {
+                    psiClass.accept(object : JavaRecursiveElementVisitor() {
+                        override fun visitErrorElement(element: PsiErrorElement) {
+                            super.visitErrorElement(element)
+                            reporter.report(
+                                Issues.INVALID_SYNTAX,
+                                element,
+                                "Syntax error: `${element.errorDescription}`"
+                            )
+                        }
+                    })
 
-                        topLevelClassesFromSource += createClass(psiClass)
+                    val classItem = createClass(psiClass)
+                    topLevelClassesFromSource.add(classItem)
+
+                    if (packageName == null) {
+                        packageName = getPackageName(psiClass)
                     }
                 }
             }
@@ -247,6 +212,7 @@ open class PsiBasedCodebase(
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             registerPackage(psiPackage, sortedClasses, packageDocs[pkgName], pkgName)
         }
+
         initializing = false
 
         emptyPackage = findPackage("")!!
@@ -271,8 +237,6 @@ open class PsiBasedCodebase(
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
         addParentPackages(packageMap.values)
-
-        packageClasses.clear() // Not used after this point
     }
 
     override fun dispose() {
@@ -302,7 +266,8 @@ open class PsiBasedCodebase(
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
             val packageHtml = null
-            registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
+            val pkg = registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
+            pkg.emit = false // don't expose these packages in the API signature files, stubs, etc
         }
 
         // Connect up all the package items
@@ -331,10 +296,7 @@ open class PsiBasedCodebase(
         packageHtml: String?,
         pkgName: String
     ): PsiPackageItem {
-        val packageItem = PsiPackageItem
-            .create(this, psiPackage, packageHtml, fromClassPath = !initializing)
-        packageItem.emit = initializing
-
+        val packageItem = PsiPackageItem.create(this, psiPackage, packageHtml)
         packageMap[pkgName] = packageItem
         if (isPackageHidden(pkgName)) {
             packageItem.hidden = true
@@ -441,15 +403,13 @@ open class PsiBasedCodebase(
         for (pkg in packageMap.values) {
             pkg.finishInitialization()
         }
-
-        packageClasses.clear() // Not used after this point
     }
 
     fun dumpStats() {
         options.stdout.println(
             "INTERNAL STATS: Size of classMap=${classMap.size} and size of " +
                 "methodMap=${methodMap.size} and size of packageMap=${packageMap.size}, and the " +
-                "size of packageClasses=${packageClasses.size} "
+                "typemap size is ${typeMap.size}, and the packageClasses size is ${packageClasses.size} "
         )
     }
 
@@ -491,12 +451,14 @@ open class PsiBasedCodebase(
     }
 
     private fun createClass(clz: PsiClass): PsiClassItem {
-        // If initializing is true, this class is from source
-        val classItem = PsiClassItem.create(this, clz, fromClassPath = !initializing)
-        // Set emit to true for source classes but false for classpath classes
-        classItem.emit = initializing
+        val classItem = PsiClassItem.create(this, clz)
 
         if (!initializing) {
+            // This class is found while we're no longer initializing all the source units:
+            // that means it must be found on the classpath instead. These should be treated
+            // as hidden; we don't want to generate code for them.
+            classItem.emit = false
+
             // Workaround: we're pulling in .aidl files from .jar files. These are
             // marked @hide, but since we only see the .class files we don't know that.
             if (classItem.simpleName().startsWith("I") &&
@@ -515,12 +477,15 @@ open class PsiBasedCodebase(
             classItem.finishInitialization()
             return classItem
         }
+        val qualifiedName: String = clz.qualifiedName ?: clz.name!!
+        classMap[qualifiedName] = classItem
 
         // TODO: Cache for adjacent files!
         val packageName = getPackageName(clz)
         registerPackageClass(packageName, classItem)
 
         if (!initializing) {
+            classItem.emit = false
             classItem.finishInitialization()
             val pkgName = getPackageName(clz)
             val pkg = findPackage(pkgName)
@@ -532,6 +497,8 @@ open class PsiBasedCodebase(
                 val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
+                    // Don't include packages from API that isn't directly included in the API
+                    packageItem.emit = false
                     packageItem.addClass(classItem)
                 }
             } else {
@@ -693,7 +660,7 @@ open class PsiBasedCodebase(
         return methodItem
     }
 
-    fun findField(field: PsiField): FieldItem? {
+    fun findField(field: PsiField): Item? {
         val containingClass = field.containingClass ?: return null
         val cls = findOrCreateClass(containingClass)
         return cls.findField(field.name)
@@ -767,17 +734,9 @@ open class PsiBasedCodebase(
 
     override fun toString(): String = description
 
-    /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
-    internal fun registerClass(cls: PsiClassItem) {
-        classMap[cls.qualifiedName()] = cls
-    }
+    fun registerClass(cls: PsiClassItem) {
+        assert(classMap[cls.qualifiedName()] == null || classMap[cls.qualifiedName()] == cls)
 
-    /** Get a Kotlin [BindingContext] at [element]
-     *
-     * Do not cache returned binding context for longer than the lifetime of this codebase
-     */
-    fun bindingContext(element: KtElement): BindingContext {
-        return checkNotNull(project.getService(KotlinUastResolveProviderService::class.java))
-            .getBindingContext(element)
+        classMap[cls.qualifiedName()] = cls
     }
 }
