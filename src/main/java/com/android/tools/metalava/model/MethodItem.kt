@@ -16,14 +16,19 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
-import java.util.LinkedHashSet
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
+    /**
+     * The property this method is an accessor for; inverse of [PropertyItem.getter] and
+     * [PropertyItem.setter]
+     */
+    val property: PropertyItem?
+        get() = null
+
     /** Whether this method is a constructor */
     fun isConstructor(): Boolean
 
@@ -117,7 +122,7 @@ interface MethodItem : MemberItem {
     ): LinkedHashSet<ClassItem> {
 
         for (cls in throwsTypes()) {
-            if (predicate.test(cls) || cls.isTypeParameter && !compatibility.useErasureInThrows) {
+            if (predicate.test(cls) || cls.isTypeParameter) {
                 classes.add(cls)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so, include those
@@ -282,8 +287,7 @@ interface MethodItem : MemberItem {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated &&
-                (!compatibility.hideDifferenceImplicit || !method.deprecated)) {
+            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
                 return false
             }
 
@@ -362,17 +366,13 @@ interface MethodItem : MemberItem {
     }
 
     override fun requiresNullnessInfo(): Boolean {
-        if (isConstructor()) {
-            return false
-        } else if (returnType()?.primitive != true) {
-            return true
+        return when {
+            modifiers.hasJvmSyntheticAnnotation() -> false
+            isConstructor() -> false
+            (returnType()?.primitive != true) -> true
+            parameters().any { !it.type().primitive } -> true
+            else -> false
         }
-        for (parameter in parameters()) {
-            if (!parameter.type().primitive) {
-                return true
-            }
-        }
-        return false
     }
 
     override fun hasNullnessInfo(): Boolean {
@@ -409,19 +409,6 @@ interface MethodItem : MemberItem {
 
     fun hasDefaultValue(): Boolean {
         return defaultValue() != ""
-    }
-
-    /**
-     * Check the declared default annotation value and return true if the defaults
-     * are the same. Only defined on two annotation methods; for all other
-     * methods the result is "true".
-     */
-    fun hasSameValue(other: MethodItem): Boolean {
-        if (!containingClass().isAnnotationType() || !other.containingClass().isAnnotationType()) {
-            return true
-        }
-
-        return defaultValue() == other.defaultValue()
     }
 
     /**
@@ -541,8 +528,10 @@ interface MethodItem : MemberItem {
     /** Returns true if this is a synthetic enum method */
     fun isEnumSyntheticMethod(): Boolean {
         return containingClass().isEnum() &&
-            (name() == "values" && parameters().isEmpty() ||
-                name() == "valueOf" && parameters().size == 1 &&
-                parameters()[0].type().isString())
+            (
+                name() == "values" && parameters().isEmpty() ||
+                    name() == "valueOf" && parameters().size == 1 &&
+                    parameters()[0].type().isString()
+                )
     }
 }
