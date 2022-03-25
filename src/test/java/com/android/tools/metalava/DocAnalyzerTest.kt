@@ -3,11 +3,7 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.nio.file.Files
-import kotlin.text.Charsets.UTF_8
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
 class DocAnalyzerTest : DriverTest() {
@@ -133,6 +129,7 @@ class DocAnalyzerTest : DriverTest() {
 
     @Test
     fun `Fix typo replacement`() {
+        // common_typos_disable
         check(
             sourceFiles = arrayOf(
                 java(
@@ -149,7 +146,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            expectedIssues = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
+            expectedIssues = "src/test/pkg/Foo.java:3: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
             stubFiles = arrayOf(
                 java(
                     """
@@ -164,6 +161,7 @@ class DocAnalyzerTest : DriverTest() {
                 )
             )
         )
+        // common_typos_enable
     }
 
     @Test
@@ -204,7 +202,7 @@ class DocAnalyzerTest : DriverTest() {
                         }
 
                         // Typo in marker
-                        @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, "carier priviliges"})
+                        @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, "carier priviliges"}) // NOTYPO
                         public void test6() {
                         }
                     }
@@ -227,8 +225,9 @@ class DocAnalyzerTest : DriverTest() {
                 requiresPermissionSource
             ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            expectedIssues = "src/test/pkg/PermissionTest.java:31: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]",
+            expectedIssues = "src/test/pkg/PermissionTest.java:33: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
             stubFiles = arrayOf(
+                // common_typos_disable
                 java(
                     """
                     package test.pkg;
@@ -271,6 +270,7 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     """
                 )
+                // common_typos_enable
             )
         )
     }
@@ -446,7 +446,7 @@ class DocAnalyzerTest : DriverTest() {
                 workerThreadSource
             ),
             checkCompilation = true,
-            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+            expectedIssues = "src/test/pkg/RangeTest.java:6: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
             stubFiles = arrayOf(
                 java(
@@ -475,7 +475,7 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Merge Multiple sections`() {
         check(
-            expectedIssues = "src/android/widget/Toolbar2.java:14: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedIssues = "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -741,7 +741,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            expectedIssues = "src/test/pkg/RangeTest.java:4: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubFiles = arrayOf(
                 java(
                     """
@@ -1161,7 +1161,7 @@ class DocAnalyzerTest : DriverTest() {
          * This is a comment
          * This is a second comment
          */
-        """.trimIndent()
+                """.trimIndent()
             )
         )
     }
@@ -1273,6 +1273,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public class Camera {
+                    @Deprecated
                     public Camera() { throw new RuntimeException("Stub!"); }
                     /**
                      * @deprecated Use something else.
@@ -1757,6 +1758,7 @@ class DocAnalyzerTest : DriverTest() {
                     public final class Foo {
                     @Deprecated
                     public Foo() { throw new RuntimeException("Stub!"); }
+                    @Deprecated
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * {@inheritDoc}
@@ -1977,6 +1979,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Documentation 1 here
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation2
                     public @interface MyAnnotation1 {
                     }
@@ -1989,6 +1992,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Documentation 2 here
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation1
                     public @interface MyAnnotation2 {
                     }
@@ -1996,114 +2000,6 @@ class DocAnalyzerTest : DriverTest() {
                 )
             )
         )
-    }
-
-    @Test
-    fun `Invoke external documentation tool`() {
-        val jdkPath = getJdkPath()
-        if (jdkPath == null) {
-            println("Ignoring external doc test: JDK not found")
-            return
-        }
-
-        val version = System.getProperty("java.version")
-        if (!version.startsWith("1.8.")) {
-            println("Javadoc invocation test does not work on Java 1.9 and later; bootclasspath not supported")
-            return
-        }
-
-        val javadoc = File(jdkPath, "bin/javadoc")
-        if (!javadoc.isFile) {
-            println("Ignoring external doc test: javadoc not found *or* not running on Linux/OSX")
-            return
-        }
-        val androidJar = getAndroidJar(API_LEVEL)?.path
-        if (androidJar == null) {
-            println("Ignoring external doc test: android.jar not found")
-            return
-        }
-
-        val dir = Files.createTempDirectory(null).toFile()
-        val html = "$dir/javadoc"
-        val sourceList = "$dir/sources.txt"
-
-        check(
-            extraArguments = arrayOf(
-                ARG_DOC_STUBS_SOURCE_LIST,
-                sourceList,
-                ARG_GENERATE_DOCUMENTATION,
-                javadoc.path,
-                "-sourcepath",
-                "STUBS_DIR",
-                "-d",
-                html,
-                "-bootclasspath",
-                androidJar,
-                "STUBS_SOURCE_LIST"
-            ),
-            docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    import android.annotation.RequiresFeature;
-                    import android.content.pm.PackageManager;
-                    @SuppressWarnings("WeakerAccess")
-                    @RequiresFeature(PackageManager.FEATURE_LOCATION)
-                    public class LocationManager {
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package android.content.pm;
-                    public abstract class PackageManager {
-                        public static final String FEATURE_LOCATION = "android.hardware.location";
-                        public boolean hasSystemFeature(String name) {
-                            return false;
-                        }
-                    }
-                    """
-                ),
-
-                requiresFeatureSource
-            ),
-            checkCompilation = true,
-
-            stubFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    import android.content.pm.PackageManager;
-                    /**
-                     * Requires the {@link android.content.pm.PackageManager#FEATURE_LOCATION PackageManager#FEATURE_LOCATION} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class LocationManager {
-                    public LocationManager() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                )
-            )
-        )
-
-        val doc = File(html, "test/pkg/LocationManager.html").readText(UTF_8)
-        assertTrue(
-            "Did not find matching javadoc fragment in LocationManager.html: actual content is\n$doc",
-            doc.contains(
-                """
-                <hr>
-                <br>
-                <pre>public class <span class="typeNameLabel">LocationManager</span>
-                extends java.lang.Object</pre>
-                <div class="block">Requires the <a href="../../android/content/pm/PackageManager.html#FEATURE_LOCATION"><code>PackageManager#FEATURE_LOCATION</code></a> feature which can be detected using <a href="../../android/content/pm/PackageManager.html#hasSystemFeature-java.lang.String-"><code>PackageManager.hasSystemFeature(String)</code></a>.</div>
-                </li>
-                </ul>
-                """.trimIndent()
-            )
-        )
-
-        dir.deleteRecursively()
     }
 
     @Test
@@ -2145,7 +2041,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = false, // stubs contain Cursor.NONEXISTENT so it does not compile
             expectedIssues = """
-                src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
+                src/test/pkg/ColumnTest.java:13: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
             docStubs = true,
             stubFiles = arrayOf(
@@ -2232,7 +2128,8 @@ class DocAnalyzerTest : DriverTest() {
     fun `memberDoc crash`() {
         check(
             sourceFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package test.pkg;
                     import java.lang.annotation.ElementType;
                     import java.lang.annotation.Retention;
@@ -2246,14 +2143,18 @@ class DocAnalyzerTest : DriverTest() {
                     @Target({ ElementType.FIELD })
                     @Retention(RetentionPolicy.SOURCE)
                     public @interface Foo { }
-                """),
-                java("""
+                """
+                ),
+                java(
+                    """
                     package another.pkg;
                     public class Bar {
                         public String BAR = "BAAAAR";
                     }
-                """),
-                java("""
+                """
+                ),
+                java(
+                    """
                     package yetonemore.pkg;
                     public class Fun {
                         /**
@@ -2262,11 +2163,13 @@ class DocAnalyzerTest : DriverTest() {
                         @test.pkg.Foo
                         public static final String FUN = "FUN";
                     }
-                """)
+                """
+                )
             ),
             docStubs = true,
             stubFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package yetonemore.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Fun {
@@ -2279,7 +2182,8 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     public static final java.lang.String FUN = "FUN";
                     }
-                """)
+                """
+                )
             )
         )
     }
