@@ -40,7 +40,10 @@ class RewriteAnnotationsTest : DriverTest() {
 
             ARG_COPY_ANNOTATIONS,
             source.path,
-            target.path
+            target.path,
+
+            ARG_CLASS_PATH,
+            getAndroidJar().path
         )
 
         // Source retention: Shouldn't exist
@@ -83,14 +86,16 @@ class RewriteAnnotationsTest : DriverTest() {
             @Retention(CLASS)
             @Target({METHOD, PARAMETER, FIELD})
             @interface RecentlyNullable {}
-        """.trimIndent().trim(), recentlyNull.readText(UTF_8).trim().replace("\r\n", "\n")
+            """.trimIndent().trim(),
+            recentlyNull.readText(UTF_8).trim().replace("\r\n", "\n")
         )
     }
 
     @Test
     fun `Test rewriting the bytecode for one of the public annotations`() {
         val bytecode = base64gzip(
-            "androidx/annotation/CallSuper.class", "" +
+            "androidx/annotation/CallSuper.class",
+            "" +
                 "H4sIAAAAAAAAAIWPsU4CQRRF70NhEQWxJMZoLCjdxs6KIMYCA2E3NlbD8kKG" +
                 "DDNkmSXwaxZ+gB9FfGMBFps4yczc5J53kve9//wC8IirCK0IlxHahEbiijzj" +
                 "F22Y0OorY5JixfnDQm0UoTMprNdLftdrPTXcs9Z55bWza8LdMDCxUXYeq0MR" +
@@ -107,7 +112,10 @@ class RewriteAnnotationsTest : DriverTest() {
             ARG_NO_BANNER,
 
             ARG_REWRITE_ANNOTATIONS,
-            compiledStubs.path
+            compiledStubs.path,
+
+            ARG_CLASS_PATH,
+            getAndroidJar().path
         )
 
         // Load the class to make sure it's legit
@@ -122,7 +130,8 @@ class RewriteAnnotationsTest : DriverTest() {
     @Test
     fun `Test rewriting the bytecode for one of the public annotations in a jar file`() {
         val bytecode = base64gzip(
-            "androidx/annotation/CallSuper.class", "" +
+            "androidx/annotation/CallSuper.class",
+            "" +
                 "H4sIAAAAAAAAAIWPsU4CQRRF70NhEQWxJMZoLCjdxs6KIMYCA2E3NlbD8kKG" +
                 "DDNkmSXwaxZ+gB9FfGMBFps4yczc5J53kve9//wC8IirCK0IlxHahEbiijzj" +
                 "F22Y0OorY5JixfnDQm0UoTMprNdLftdrPTXcs9Z55bWza8LdMDCxUXYeq0MR" +
@@ -144,7 +153,10 @@ class RewriteAnnotationsTest : DriverTest() {
             ARG_NO_BANNER,
 
             ARG_REWRITE_ANNOTATIONS,
-            jarFile.path
+            jarFile.path,
+
+            ARG_CLASS_PATH,
+            getAndroidJar().path
         )
 
         // Load the class to make sure it's legit
