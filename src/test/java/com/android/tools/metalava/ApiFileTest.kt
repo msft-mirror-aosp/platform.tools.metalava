@@ -4591,7 +4591,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Constants in a file scope annotation`() {
         check(
-            format = FileFormat.V4,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4599,6 +4598,8 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
                     import androidx.annotation.RestrictTo
                     private fun veryFun(): Boolean = true
+                    const val CONST = "Hello"
+                    fun bar()
                 """
                 ),
                 restrictToSource
@@ -4608,6 +4609,8 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
+                    method public static void bar();
+                    field public static final String CONST = "Hello";
                   }
                 }
             """
@@ -4833,6 +4836,65 @@ class ApiFileTest : DriverTest() {
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Don't print empty facade classes`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        internal fun bar() {}
+
+                        private val baz
+
+                        class Toast {
+                            val foo: Int
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class Bar
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        /**
+                        * @suppress
+                        */
+                        @PublishedApi
+                        internal fun internalYetPublished() {}
+
+                        private val buzz
+                    """
+                ),
+            ),
+            extraArguments = arrayOf(
+                ARG_SHOW_UNANNOTATED,
+                ARG_SHOW_ANNOTATION, "kotlin.PublishedApi",
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Bar {
+                    ctor public Bar();
+                  }
+                  public final class TestKt {
+                    method @kotlin.PublishedApi internal static void internalYetPublished();
+                  }
+                  public final class Toast {
+                    ctor public Toast();
+                    method public int getFoo();
+                    property public final int foo;
                   }
                 }
             """
