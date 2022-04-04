@@ -176,20 +176,22 @@ class CompatibilityCheck(
     }
 
     override fun compare(old: ParameterItem, new: ParameterItem) {
-        val prevName = old.publicName() ?: return
+        val prevName = old.publicName()
         val newName = new.publicName()
-        if (newName == null) {
-            report(
-                Issues.PARAMETER_NAME_CHANGE,
-                new,
-                "Attempted to remove parameter name from ${describe(new)}"
-            )
-        } else if (newName != prevName) {
-            report(
-                Issues.PARAMETER_NAME_CHANGE,
-                new,
-                "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
-            )
+        if (prevName != null) {
+            if (newName == null) {
+                report(
+                    Issues.PARAMETER_NAME_CHANGE,
+                    new,
+                    "Attempted to remove parameter name from ${describe(new)}"
+                )
+            } else if (newName != prevName) {
+                report(
+                    Issues.PARAMETER_NAME_CHANGE,
+                    new,
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
+                )
+            }
         }
 
         if (old.hasDefaultValue() && !new.hasDefaultValue()) {
@@ -639,13 +641,7 @@ class CompatibilityCheck(
                     capitalize = true
                 )} has changed value from $prevString to $newString"
 
-                if (message == "Field android.telephony.data.ApnSetting.TYPE_DEFAULT has changed value from 17 to 1") {
-                    // Temporarily ignore: this value changed incompatibly from 28.txt to current.txt.
-                    // It's not clear yet whether this value change needs to be reverted, or suppressed
-                    // permanently in the source code, but suppressing from metalava so we can unblock
-                    // getting the compatibility checks enabled.
-                } else
-                    report(Issues.CHANGED_VALUE, new, message)
+                report(Issues.CHANGED_VALUE, new, message)
             }
         }
 
