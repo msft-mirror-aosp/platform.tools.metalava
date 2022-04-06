@@ -3562,8 +3562,8 @@ class ApiLintTest : DriverTest() {
     fun `No nullability allowed on overrides of unannotated methods or parameters`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.java:10: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
-                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:10: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
                 src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 """,
@@ -3596,7 +3596,7 @@ class ApiLintTest : DriverTest() {
 
         check(
             expectedIssues = """
-                src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
                 src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 """,
@@ -3633,7 +3633,7 @@ class ApiLintTest : DriverTest() {
     fun `Overrides of non-null methods cannot be nullable`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.java:9: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:9: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3662,7 +3662,7 @@ class ApiLintTest : DriverTest() {
     fun `Overrides of nullable parameters cannot be non-null`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3814,6 +3814,78 @@ class ApiLintTest : DriverTest() {
                                 TODO()
                             }
                         }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class SimpleArrayMap<K, V> {
+                            open operator fun get(key: K): V? {
+                                TODO()
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        
+                        import java.util.Map;
+                        
+                        public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
+                            @Override
+                            @Nullable
+                            public V get(@NonNull Object key) {
+                                return super.get((K) key);
+                            }
+                        }
+                        
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class SimpleArrayMap<K, V> {
+                            open operator fun get(key: K): V? {
+                                TODO()
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        
+                        import java.util.Map;
+                        
+                        public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
+                            @Override
+                            @Nullable
+                            public V get(@Nullable Object key) {
+                                return super.get((K) key);
+                            }
+                        }
+                        
                     """
                 )
             )

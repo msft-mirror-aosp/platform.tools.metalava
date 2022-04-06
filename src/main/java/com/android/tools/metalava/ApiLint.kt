@@ -85,7 +85,7 @@ import com.android.tools.metalava.Issues.INTENT_NAME
 import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.Issues.INTERNAL_FIELD
-import com.android.tools.metalava.Issues.INVALID_NULLABILITY
+import com.android.tools.metalava.Issues.INVALID_NULLABILITY_OVERRIDE
 import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.Issues.LISTENER_INTERFACE
@@ -154,6 +154,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
@@ -1039,7 +1040,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.toType().toTypeString()
+        val clsType = cls.toType()
 
         for (method in methods) {
             val name = method.name()
@@ -1052,17 +1053,30 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     "Getter should be on the built object, not the builder: ${method.describe()}"
                 )
             } else if (name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")) {
-                val returnType = method.returnType()?.toTypeString() ?: ""
-                val returnTypeBounds = method.returnType()?.asTypeParameter(context = method)?.bounds()?.map {
-                    it.toType().toTypeString()
-                } ?: listOf()
-
-                if (returnType != clsType && !returnTypeBounds.contains(clsType)) {
-                    report(
-                        SETTER_RETURNS_THIS, method,
-                        "Methods must return the builder object (return type $clsType instead of $returnType): ${method.describe()}"
-                    )
+                val returnType = method.returnType()
+                if (returnType != null) {
+                    val returnsClassType = if (
+                        returnType is PsiTypeItem && clsType is PsiTypeItem
+                    ) {
+                        clsType.isAssignableFromWithoutUnboxing(returnType)
+                    } else {
+                        // fallback to a limited text based check
+                        val returnTypeBounds = returnType
+                            .asTypeParameter(context = method)
+                            ?.typeBounds()?.map {
+                                it.toTypeString()
+                            } ?: emptyList()
+                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
+                    }
+                    if (!returnsClassType) {
+                        report(
+                            SETTER_RETURNS_THIS, method,
+                            "Methods must return the builder object (return type " +
+                                "$clsType instead of $returnType): ${method.describe()}"
+                        )
+                    }
                 }
+
                 if (method.modifiers.isNullable()) {
                     report(
                         SETTER_RETURNS_THIS, method,
@@ -1599,9 +1613,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     if (item.containingMethod().isConstructor()) return
                     if (item.modifiers.isNonNull()) {
                         if (anySuperParameterLacksNullnessInfo(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated.")
                         } else if (anySuperParameterIsNullable(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable.")
                         }
                     }
                 }
@@ -1610,9 +1624,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     if (item.isConstructor()) return
                     if (item.modifiers.isNullable()) {
                         if (anySuperMethodLacksNullnessInfo(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable.")
                         } else if (anySuperMethodIsNonNull(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable.")
                         }
                     }
                 }
@@ -1629,12 +1643,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
-        return parameter.containingMethod().superMethods().any { superMethod ->
+        val supers = parameter.containingMethod().superMethods()
+        return supers.all { superMethod ->
             // Disable check for generics
             superMethod.parameters().none {
                 it.type().isTypeParameter()
-            } &&
-                superMethod.parameters().firstOrNull { param ->
+            }
+        } && supers.any { superMethod ->
+            superMethod.parameters().firstOrNull { param ->
                 parameter.parameterIndex == param.parameterIndex
             }?.modifiers?.isNullable() ?: false
         }
@@ -1649,16 +1665,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
-        return parameter.containingMethod().superMethods().any { superMethod ->
+        val supers = parameter.containingMethod().superMethods()
+        return supers.all { superMethod ->
             // Disable check for generics
             superMethod.parameters().none {
                 it.type().isTypeParameter()
-            } &&
-                !(
-                    superMethod.parameters().firstOrNull { param ->
-                        parameter.parameterIndex == param.parameterIndex
-                    }?.hasNullnessInfo() ?: true
-                    )
+            }
+        } && supers.any { superMethod ->
+            !(
+                superMethod.parameters().firstOrNull { param ->
+                    parameter.parameterIndex == param.parameterIndex
+                }?.hasNullnessInfo() ?: true
+                )
         }
     }
 
