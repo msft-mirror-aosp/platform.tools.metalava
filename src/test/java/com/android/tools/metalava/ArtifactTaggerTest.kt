@@ -86,27 +86,25 @@ class ArtifactTaggerTest : DriverTest() {
                 src/test/pkg/baz/Missing.java:2: error: No registered artifact signature file referenced class test.pkg.baz.Missing [NoArtifactData]
             """,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg.foo;
-                    /**
-                     * My Foo class documentation.
-                     * @artifactId my.library.group:foo:1.0.0
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Foo {
-                    public Foo() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @artifactId my.library.group:foo:1.0.0
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Inner {
-                    public Inner() { throw new RuntimeException("Stub!"); }
-                    }
-                    }
-                    """
-                )
+            stubs = arrayOf(
+                """
+                package test.pkg.foo;
+                /**
+                 * My Foo class documentation.
+                 * @artifactId my.library.group:foo:1.0.0
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                /**
+                 * @artifactId my.library.group:foo:1.0.0
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Inner {
+                public Inner() { throw new RuntimeException("Stub!"); }
+                }
+                }
+                """
             )
 
         )

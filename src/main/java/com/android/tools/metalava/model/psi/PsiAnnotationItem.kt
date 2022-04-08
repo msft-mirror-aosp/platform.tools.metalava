@@ -65,7 +65,7 @@ class PsiAnnotationItem private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
+        return codebase.findClass(originalName ?: return null)
     }
 
     override fun isNonNull(): Boolean {
@@ -217,8 +217,7 @@ class PsiAnnotationItem private constructor(
                                 val initializer = resolved.initializer
                                 if (initializer != null) {
                                     val fieldItem = cls.findField(resolved.name)
-                                    if (fieldItem == null || fieldItem.isHiddenOrRemoved() ||
-                                            !fieldItem.isPublic) {
+                                    if (fieldItem == null || fieldItem.isHiddenOrRemoved()) {
                                         // Use the literal value instead
                                         val source = getConstantSource(initializer)
                                         if (source != null) {

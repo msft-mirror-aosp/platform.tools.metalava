@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.doclava1.Issues
 import org.junit.Test
 
 class ShowForStubPurposesAnnotationTest : DriverTest() {
@@ -356,79 +357,70 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class SystemClass {
-                    public SystemClass() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    public void moduleAndSystem() { throw new RuntimeException("Stub!"); }
-                    public void referFromModuleToSystem(test.pkg.SystemClass2 arg) { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public static class NestedDefault {
-                    public NestedDefault() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public static class NestedModule {
-                    public NestedModule() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class PublicClass {
-                    public PublicClass() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public static class NestedDefault {
-                    public NestedDefault() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public static class NestedModule {
-                    public NestedModule() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class SystemClass2 {
-                    public SystemClass2() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class ModuleClass {
-                    public ModuleClass() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                )
+            stubs = arrayOf("""
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class SystemClass {
+                public SystemClass() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void system() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                public void moduleAndSystem() { throw new RuntimeException("Stub!"); }
+                public void referFromModuleToSystem(test.pkg.SystemClass2 arg) { throw new RuntimeException("Stub!"); }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class NestedDefault {
+                public NestedDefault() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void system() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class NestedModule {
+                public NestedModule() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicClass {
+                public PublicClass() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void system() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class NestedDefault {
+                public NestedDefault() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void system() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class NestedModule {
+                public NestedModule() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class SystemClass2 {
+                public SystemClass2() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class ModuleClass {
+                public ModuleClass() { throw new RuntimeException("Stub!"); }
+                public void noAnnotation() { throw new RuntimeException("Stub!"); }
+                public void module() { throw new RuntimeException("Stub!"); }
+                }
+                """
             )
         )
     }
@@ -682,9 +674,12 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 }
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
+            expectedFail = """
+                1 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+                """,
             expectedIssues = """
-                src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability]
                 """
         )
     }

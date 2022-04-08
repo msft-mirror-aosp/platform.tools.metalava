@@ -15,11 +15,11 @@
  */
 
 plugins {
-    kotlin("jvm") version "1.5.0"
+    kotlin("jvm") version "1.3.72"
 }
 
 repositories {
-    mavenCentral()
+    jcenter()
 }
 
 dependencies {

@@ -41,29 +41,16 @@ interface ParameterItem : Item {
     fun publicName(): String?
 
     /**
-     * Returns whether this parameter has a default value. In Kotlin, this is supported directly;
-     * in Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This
-     * does not necessarily imply that the default value is accessible, and we know the body of the
-     * default value.
-     *
-     * @see isDefaultValueKnown
+     * Returns whether this parameter has a default value. In Kotlin, this is supported
+     * directly; in Java, it's supported via a special annotation,
+     * {@literal @DefaultValue("source").
      */
     fun hasDefaultValue(): Boolean
 
     /**
-     * Returns whether this parameter has an accessible default value that we plan to keep. This is
-     * a superset of [hasDefaultValue] - if we are not writing the default values to the signature
-     * file, then the default value might not be available, even though the parameter does have a
-     * default.
-     *
-     * @see hasDefaultValue
-     */
-    fun isDefaultValueKnown(): Boolean
-
-    /**
      * Returns the default value.
      *
-     * **This method should only be called if [isDefaultValueKnown] returned true!** (This
+     * **This method should only be called if [hasDefaultValue] returned true!** (This
      * is necessary since the null return value is a valid default value separate from
      * no default value specified.)
      *

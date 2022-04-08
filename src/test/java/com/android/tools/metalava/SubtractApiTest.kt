@@ -71,19 +71,17 @@ class SubtractApiTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class OnlyInNew {
-                    private OnlyInNew() { throw new RuntimeException("Stub!"); }
-                    public void method1() { throw new RuntimeException("Stub!"); }
-                    public void method5() { throw new RuntimeException("Stub!"); }
-                    public void method6() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                )
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class OnlyInNew {
+                private OnlyInNew() { throw new RuntimeException("Stub!"); }
+                public void method1() { throw new RuntimeException("Stub!"); }
+                public void method5() { throw new RuntimeException("Stub!"); }
+                public void method6() { throw new RuntimeException("Stub!"); }
+                }
+                """
             ),
             stubsSourceList = """
                 TESTROOT/stubs/test/pkg/OnlyInNew.java

@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.Options
+import com.android.tools.metalava.options
+
 /** Various places where a given annotation can be written */
 enum class AnnotationTarget {
     /** Write the annotation into the signature file */
@@ -26,8 +29,8 @@ enum class AnnotationTarget {
     DOC_STUBS_FILE,
     /** Write the annotation into external annotation files */
     EXTERNAL_ANNOTATIONS_FILE,
-    /** Write the annotation for internal purposes (e.g. cloning a method) */
-    INTERNAL;
+    /** Don't write the annotation anywhere */
+    NONE;
 
     /** Is this target a stubs file? */
     fun isStubsFile(): Boolean {
@@ -36,7 +39,7 @@ enum class AnnotationTarget {
 }
 
 /** Don't write this annotation anywhere; it is not API significant. */
-val NO_ANNOTATION_TARGETS = setOf(AnnotationTarget.INTERNAL)
+val NO_ANNOTATION_TARGETS = setOf(AnnotationTarget.NONE)
 
 /**
  * Annotation is API significant: write it into the signature file and stub source code.
@@ -55,19 +58,14 @@ val NO_ANNOTATION_TARGETS = setOf(AnnotationTarget.INTERNAL)
 val ANNOTATION_IN_ALL_STUBS = setOf(
     AnnotationTarget.SIGNATURE_FILE,
     AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.DOC_STUBS_FILE,
-    AnnotationTarget.INTERNAL
+    AnnotationTarget.DOC_STUBS_FILE
 )
 
 /**
  * Like [ANNOTATION_IN_ALL_STUBS], but limited to SDK stubs, not included in documentation stubs.
  * Example: RecentlyNonNull.
  */
-val ANNOTATION_IN_SDK_STUBS = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_IN_SDK_STUBS = setOf(AnnotationTarget.SIGNATURE_FILE, AnnotationTarget.SDK_STUBS_FILE)
 
 /**
  * Like [ANNOTATION_IN_ALL_STUBS], but limited to documentation stubs, not included in SDK stubs.
@@ -78,32 +76,21 @@ val ANNOTATION_IN_SDK_STUBS = setOf(
 val ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL = setOf(
     AnnotationTarget.SIGNATURE_FILE,
     AnnotationTarget.DOC_STUBS_FILE,
-    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
-    AnnotationTarget.INTERNAL
+    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE
 )
 
 /** Annotation is API significant: write it into the signature file and into external annotations file. */
-val ANNOTATION_EXTERNAL = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_EXTERNAL = setOf(AnnotationTarget.SIGNATURE_FILE, AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
 
 /** Write it only into the external annotations file, not the signature file */
-val ANNOTATION_EXTERNAL_ONLY = setOf(
-    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_EXTERNAL_ONLY = if (options.typedefMode == Options.TypedefMode.INLINE ||
+    options.typedefMode == Options.TypedefMode.NONE) // just here for compatibility purposes
+    setOf(AnnotationTarget.SIGNATURE_FILE, AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
+else
+    setOf(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
 
-/** Write it only into the signature file */
-val ANNOTATION_SIGNATURE_ONLY = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.INTERNAL
-)
+/** Write it only into the he signature file */
+val ANNOTATION_SIGNATURE_ONLY = setOf(AnnotationTarget.SIGNATURE_FILE)
 
 /** Write it only into the stubs, but don't track it in the signature files. */
-val ANNOTATION_STUBS_ONLY = setOf(
-    AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.DOC_STUBS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_STUBS_ONLY = setOf(AnnotationTarget.SDK_STUBS_FILE, AnnotationTarget.DOC_STUBS_FILE)

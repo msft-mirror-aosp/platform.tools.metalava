@@ -64,7 +64,7 @@ class UAnnotationItem private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
+        return codebase.findClass(originalName ?: return null)
     }
 
     override fun isNonNull(): Boolean {

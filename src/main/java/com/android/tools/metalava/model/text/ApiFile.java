@@ -684,10 +684,6 @@ public class ApiFile {
                     modifiers.setVarArg(true);
                     token = tokenizer.requireToken();
                     break;
-                case "fun":
-                    modifiers.setFunctional(true);
-                    token = tokenizer.requireToken();
-                    break;
                 default:
                     break processModifiers;
             }
@@ -824,12 +820,7 @@ public class ApiFile {
             }
 
             // Each item can be
-            // optional annotations optional-modifiers type-with-use-annotations-and-generics optional-name optional-equals-default-value
-
-            // Used to represent the presence of a default value, instead of showing the entire
-            // default value
-            boolean hasDefaultValue = token.equals("optional");
-            if (hasDefaultValue) { token = tokenizer.requireToken(); }
+            // annotations optional-modifiers type-with-use-annotations-and-generics optional-name optional-equals-default-value
 
             // Metalava: including annotations in file now
             List<String> annotations = getAnnotations(tokenizer, token);
@@ -874,7 +865,7 @@ public class ApiFile {
                 publicName = null;
             }
 
-            String defaultValue = TextParameterItemKt.UNKNOWN_DEFAULT_VALUE;
+            String defaultValue = TextParameterItemKt.NO_DEFAULT_VALUE;
             if ("=".equals(token)) {
                 defaultValue = tokenizer.requireToken(true);
                 StringBuilder sb = new StringBuilder(defaultValue);
@@ -915,10 +906,6 @@ public class ApiFile {
                 defaultValue = sb.toString();
             }
 
-            if (!defaultValue.equals(TextParameterItemKt.UNKNOWN_DEFAULT_VALUE)) {
-                hasDefaultValue = true;
-            }
-
             if (",".equals(token)) {
                 token = tokenizer.requireToken();
             } else if (")".equals(token)) {
@@ -926,7 +913,7 @@ public class ApiFile {
                 throw new ApiParseException("expected , or ), found " + token, tokenizer);
             }
 
-            method.addParameter(new TextParameterItem(api, method, name, publicName, hasDefaultValue, defaultValue, index,
+            method.addParameter(new TextParameterItem(api, method, name, publicName, defaultValue, index,
                 typeInfo, modifiers, tokenizer.pos()));
             if (modifiers.isVarArg()) {
                 method.setVarargs(true);

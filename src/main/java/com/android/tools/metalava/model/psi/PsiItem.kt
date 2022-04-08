@@ -225,10 +225,6 @@ abstract class PsiItem(
         modifiers.setOwner(this)
     }
 
-    override fun isJava(): Boolean {
-        return !isKotlin()
-    }
-
     override fun isKotlin(): Boolean {
         return isKotlin(element)
     }

@@ -32,7 +32,6 @@ import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UClass
@@ -172,8 +171,7 @@ open class PsiMethodItem(
     override fun isKotlinProperty(): Boolean {
         return psiMethod is KotlinUMethod && (
             psiMethod.sourcePsi is KtProperty ||
-            psiMethod.sourcePsi is KtPropertyAccessor ||
-            psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+            psiMethod.sourcePsi is KtPropertyAccessor)
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
@@ -218,15 +216,6 @@ open class PsiMethodItem(
         })
 
         return exceptions
-    }
-
-    fun areAllParametersOptional(): Boolean {
-        for (param in parameters) {
-            if (!param.hasDefaultValue()) {
-                return false
-            }
-        }
-        return true
     }
 
     override fun defaultValue(): String {
@@ -288,16 +277,8 @@ open class PsiMethodItem(
     }
     */
 
-    /**
-     * Converts the method to a stub that can be converted back to a PsiMethod.
-     *
-     * Note: This must not be used for emitting stub jars. For that, see
-     * [com.android.tools.metalava.stub.StubWriter].
-     *
-     * @param replacementMap a map that specifies replacement types for formal type parameters.
-     */
     @Language("JAVA")
-    fun toStubForCloning(replacementMap: Map<String, String> = emptyMap()): String {
+    fun toStub(replacementMap: Map<String, String> = emptyMap()): String {
         val method = this
         // There are type variables; we have to recreate the method signature
         val sb = StringBuilder(100)
@@ -305,7 +286,7 @@ open class PsiMethodItem(
         val modifierString = StringWriter()
         ModifierList.write(
             modifierString, method.modifiers, method,
-            target = AnnotationTarget.INTERNAL,
+            target = AnnotationTarget.SDK_STUBS_FILE,
             removeAbstract = false,
             removeFinal = false,
             addPublic = true
@@ -333,7 +314,7 @@ open class PsiMethodItem(
             val parameterModifierString = StringWriter()
             ModifierList.write(
                 parameterModifierString, parameter.modifiers, parameter,
-                target = AnnotationTarget.INTERNAL
+                target = AnnotationTarget.SDK_STUBS_FILE
             )
             sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))
