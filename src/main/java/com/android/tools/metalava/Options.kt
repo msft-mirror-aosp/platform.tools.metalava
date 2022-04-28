@@ -57,10 +57,6 @@ const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
-const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
-const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
-const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
-const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
@@ -140,7 +136,6 @@ const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
-const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
 const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
@@ -589,11 +584,6 @@ class Options(
     var reportEvenIfSuppressedWriter: PrintWriter? = null
 
     /**
-     * DocReplacements to apply to the documentation.
-     */
-    var docReplacements = mutableListOf<DocReplacement>()
-
-    /**
      * Whether to omit locations for warnings and errors. This is not a flag exposed to users
      * or listed in help; this is intended for the unit test suite, used for example for the
      * test which checks compatibility between signature and API files where the paths vary.
@@ -687,8 +677,7 @@ class Options(
         val fromApiFile: File,
         val outputFile: File,
         val baseApiFile: File? = null,
-        val strip: Boolean = false,
-        val outputFormat: FileFormat = FileFormat.JDIFF
+        val strip: Boolean = false
     )
 
     /** Temporary folder to use instead of the JDK default, if any */
@@ -1150,48 +1139,25 @@ class Options(
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
 
-                ARG_REPLACE_DOCUMENTATION -> {
-                    val packageNames = args[++index].split(":")
-                    val regex = Regex(args[++index])
-                    val replacement = args[++index]
-                    val docReplacement = DocReplacement(packageNames, regex, replacement)
-                    docReplacements.add(docReplacement)
-                }
-
                 ARG_CONVERT_TO_JDIFF,
-                ARG_CONVERT_TO_V1,
-                ARG_CONVERT_TO_V2,
                 // doclava compatibility:
                 "-convert2xml",
                 "-convert2xmlnostrip" -> {
                     val strip = arg == "-convert2xml"
-                    val format = when (arg) {
-                        ARG_CONVERT_TO_V1 -> FileFormat.V1
-                        ARG_CONVERT_TO_V2 -> FileFormat.V2
-                        else -> FileFormat.JDIFF
-                    }
-
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val outputFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip, format))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip))
                 }
 
                 ARG_CONVERT_NEW_TO_JDIFF,
-                ARG_CONVERT_NEW_TO_V1,
-                ARG_CONVERT_NEW_TO_V2,
                 // doclava compatibility:
                 "-new_api",
                 "-new_api_no_strip" -> {
-                    val format = when (arg) {
-                        ARG_CONVERT_NEW_TO_V1 -> FileFormat.V1
-                        ARG_CONVERT_NEW_TO_V2 -> FileFormat.V2
-                        else -> FileFormat.JDIFF
-                    }
                     val strip = arg == "-new_api"
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip, format))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip))
                 }
 
                 "--write-android-jar-signatures" -> {
@@ -2079,13 +2045,6 @@ class Options(
 
             "$ARG_MANIFEST <file>", "A manifest file, used to for check permissions to cross check APIs",
 
-            "$ARG_REPLACE_DOCUMENTATION <p> <r> <t>",
-            "Amongst nonempty documentation of items from Java " +
-                "packages <p> and their subpackages, replaces any matches of regular expression <r> " +
-                "with replacement text <t>. <p> is given as a nonempty list of Java package names separated " +
-                "by ':' (e.g. \"java:android.util\"); <t> may contain backreferences (\$1, \$2 etc.) to " +
-                "matching groups from <r>.",
-
             "$ARG_HIDE_PACKAGE <package>",
             "Remove the given packages from the API even if they have not been " +
                 "marked with @hide",
@@ -2271,15 +2230,6 @@ class Options(
             "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>",
             "Reads in the given old and new api files, " +
                 "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
-            "$ARG_CONVERT_TO_V1 <sig> <sig>",
-            "Reads in the given signature file and writes it out as a " +
-                "signature file in the original v1/doclava format.",
-            "$ARG_CONVERT_TO_V2 <sig> <sig>",
-            "Reads in the given signature file and writes it out as a " +
-                "signature file in the new signature format, v2.",
-            "$ARG_CONVERT_NEW_TO_V2 <old> <new> <sig>",
-            "Reads in the given old and new api files, " +
-                "computes the difference, and writes out only the new parts of the API in the v2 format.",
 
             "", "\nExtracting Annotations:",
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

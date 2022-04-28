@@ -787,7 +787,6 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Parent.java:6: error: Field test.pkg.Parent.field3 has changed type from int to char [ChangedType]
                 src/test/pkg/Parent.java:7: error: Field test.pkg.Parent.field4 has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Parent.java:8: error: Field test.pkg.Parent.field5 has changed 'static' qualifier [ChangedStatic]
-                src/test/pkg/Parent.java:9: error: Field test.pkg.Parent.field6 has changed 'transient' qualifier [ChangedTransient]
                 src/test/pkg/Parent.java:10: error: Field test.pkg.Parent.field7 has changed 'volatile' qualifier [ChangedVolatile]
                 src/test/pkg/Parent.java:20: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
                 """,
@@ -944,7 +943,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible class change -- change qualifiers`() {
         check(
             expectedIssues = """
-                src/test/pkg/Parent.java:3: warning: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased = """
@@ -1104,28 +1103,62 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible class change -- type variables`() {
+    fun `allow adding first type parameter`() {
         check(
-            expectedIssues = """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 changed number of type parameters from 1 to 2 [ChangedType]
-                """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  public class Class1<X> {
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class Class1<X,Y> {
-                        private Class1() {}
+                    public class Foo {
                     }
-                    """
-                )
-            )
+                }
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public class Foo<T> {
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `disallow removing type parameter`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo<T> {
+                    }
+                }
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `disallow changing number of type parameters`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo<A> {
+                    }
+                }
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public class Foo<A,B> {
+                    }
+                }
+            """
         )
     }
 
@@ -1133,7 +1166,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- modifiers`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: warning: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased = """
@@ -1295,7 +1328,6 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method3 has changed return type from java.util.List<Integer> to java.util.List<java.lang.Number> [ChangedType]
                 src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method4 has changed return type from String to String[] [ChangedType]
                 src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method5 has changed return type from String[] to String[][] [ChangedType]
-                src/test/pkg/MyClass.java:10: error: Method test.pkg.MyClass.method6 has changed return type from T (extends java.lang.Object) to U (extends java.lang.Number) [ChangedType]
                 src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T to Number [ChangedType]
                 src/test/pkg/MyClass.java:13: error: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
                 """,
@@ -1341,7 +1373,6 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible field change -- visibility and removing final`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: error: Field test.pkg.MyClass.myField1 changed visibility from protected to public [ChangedScope]
                 src/test/pkg/MyClass.java:6: error: Field test.pkg.MyClass.myField2 changed visibility from public to protected [ChangedScope]
                 """,
             checkCompatibilityApiReleased = """
@@ -1730,7 +1761,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased =
@@ -1782,7 +1812,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased =
@@ -1850,7 +1879,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased =
@@ -1914,7 +1942,6 @@ CompatibilityCheckTest : DriverTest() {
             """,
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApiReleased = """
@@ -1938,7 +1965,7 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
                 TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
-                src/test/pkg/MyClass.java:5: warning: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 TESTROOT/released-api.txt:14: error: Removed class test.pkg.MyOldClass [RemovedClass]
                 TESTROOT/released-api.txt:17: error: Removed package test.pkg3 [RemovedPackage]
@@ -2421,7 +2448,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
             expectedIssues = ""
 
@@ -2475,7 +2501,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
             expectedIssues = ""
         )
@@ -2715,7 +2740,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             expectedIssues = """
@@ -2758,7 +2782,6 @@ CompatibilityCheckTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             expectedIssues = """
@@ -3608,6 +3631,59 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Allow increased field access for classes`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    field public int bar;
+                    field protected int baz;
+                    field protected int spam;
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    field protected int bar;
+                    field private int baz;
+                    field internal int spam;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Block decreased field access in classes`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                TESTROOT/load-api.txt:4: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                TESTROOT/load-api.txt:5: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+            """,
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    field protected int bar;
+                    field private int baz;
+                    field internal int spam;
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    field public int bar;
+                    field protected int baz;
+                    field protected int spam;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Allow increased access`() {
         check(
             signatureSource = """
@@ -3659,6 +3735,145 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `configuring issue severity`() {
+        check(
+            extraArguments = arrayOf(ARG_HIDE, Issues.REMOVED_METHOD.name),
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `block changing open to abstract`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public abstract class Foo {
+                        ctor public Foo();
+                        method public abstract void bar();
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `allow changing abstract to open`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo {
+                        ctor public Foo();
+                        method public abstract void bar();
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Change default to abstract`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
+            """,
+            signatureSource = """
+                package test.pkg {
+                  interface Foo {
+                    method abstract public void bar(Int);
+                  }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  interface Foo {
+                    method default public void bar(Int);
+                    }
+                  }
+              """
+        )
+    }
+
+    @Test
+    fun `Allow change from non-final to final in sealed class`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                  sealed class Foo {
+                    method final public void bar(Int);
+                  }
+                }
+            """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  sealed class Foo {
+                    method public void bar(Int);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `unchanged self-referencing type parameter is compatible`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo<T extends test.pkg.Foo<T>> {
+                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T>, String);
+                    }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.NonNull;
+                    public abstract class Foo<T extends Foo<T>> {
+                        @NonNull
+                        public static <T extends Foo<T>> T valueOf(@NonNull Class<T> fooType, @NonNull String name) {}
+                    }
+                    """
+                ),
+                nonNullSource
+            )
         )
     }
 
