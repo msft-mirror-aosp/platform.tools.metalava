@@ -77,7 +77,7 @@ class ExtractAnnotationsTest : DriverTest() {
             includeSourceRetentionAnnotations = false,
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            expectedIssues = "src/test/pkg/IntDefTest.java:11: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
+            expectedIssues = "src/test/pkg/IntDefTest.java:13: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
             extractAnnotations = mapOf(
                 "test.pkg" to """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -334,10 +334,8 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Include merged annotations in exported source annotations`() {
         check(
             includeSourceRetentionAnnotations = true,
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles = arrayOf(
                 java(
@@ -400,10 +398,8 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Only including class retention annotations in stubs`() {
         check(
             includeSourceRetentionAnnotations = false,
-            compatibilityMode = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            omitCommonPackages = false,
             sourceFiles = arrayOf(
                 java(
                     """
