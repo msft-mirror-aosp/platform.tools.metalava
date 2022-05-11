@@ -1454,6 +1454,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (exception in method.filteredThrowsTypes(filterReference)) {
+            if (method.isEnumSyntheticMethod()) continue
             if (isUncheckedException(exception)) {
                 report(
                     BANNED_THROW, method,
