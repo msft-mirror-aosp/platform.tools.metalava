@@ -161,7 +161,7 @@ interface AnnotationItem {
                 }
             }
 
-            return AnnotationRetention.CLASS
+            return AnnotationRetention.getDefault()
         }
 
     companion object {
