@@ -15,7 +15,8 @@ defaultTasks = mutableListOf(
     "test",
     CREATE_ARCHIVE_TASK,
     CREATE_BUILD_INFO_TASK,
-    "ktlint"
+    "ktlint",
+    "lint"
 )
 
 repositories {
@@ -32,6 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
+    id("com.android.lint") version "7.4.0-alpha02"
     id("application")
     id("java")
     id("maven-publish")
@@ -67,7 +69,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.3.0-alpha08"
+    "30.4.0-alpha01"
 }
 
 dependencies {
