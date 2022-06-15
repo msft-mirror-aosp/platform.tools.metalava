@@ -44,7 +44,8 @@ class TextModifiers(
         return TextModifiers(codebase, flags, newAnnotations)
     }
 
-    fun addAnnotations(annotationSources: List<String>) {
+    fun addAnnotations(annotationSources: List<String>?) {
+        annotationSources ?: return
         if (annotationSources.isEmpty()) {
             return
         }
@@ -68,9 +69,9 @@ class TextModifiers(
                 }
             val codebase = codebase
             val item = object : DefaultAnnotationItem(codebase) {
-                override val attributes: List<AnnotationAttribute> = attributes
-                override val originalName: String? = originalName
-                override val qualifiedName: String? = qualifiedName
+                override fun attributes(): List<AnnotationAttribute> = attributes
+                override fun originalName(): String? = originalName
+                override fun qualifiedName(): String? = qualifiedName
                 override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String = source
             }
             annotations.add(item)
