@@ -17,14 +17,19 @@
 package com.android.tools.metalava.apilevels;
 
 import com.android.tools.metalava.model.Codebase;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -159,9 +164,17 @@ public class ApiGenerator {
     public static boolean generate(@NotNull File[] apiLevels,
                                    int firstApiLevel,
                                    @NotNull File outputFile,
-                                   @Nullable Codebase codebase) throws IOException {
+                                   @Nullable Codebase codebase,
+                                   @Nullable File sdkJarRoot,
+                                   @Nullable File sdkFilterFile) throws IOException, IllegalArgumentException {
+        if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
+            throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
+        }
         AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
         Api api = reader.getApi();
+        if (sdkJarRoot != null && sdkFilterFile != null) {
+            processExtensionSdkApis(api, sdkJarRoot, sdkFilterFile);
+        }
         return createApiFile(outputFile, api);
     }
 
@@ -179,6 +192,80 @@ public class ApiGenerator {
         System.err.println("SdkFolder: if given, this adds the pattern\n" +
             "           '$SdkFolder/platforms/android-%/android.jar'");
         System.err.println("If multiple --pattern are specified, they are tried in the order given.\n");
+    }
+
+    /**
+     * Modify the extension SDK API parts of an API as dictated by a filter.
+     *
+     *   - remove APIs not listed in the filter
+     *   - assign APIs listed in the filter their corresponding extensions
+     *
+     * @param api the api to modify
+     * @param sdkJarRoot path to directory containing extension SDK jars (usually $ANDROID_ROOT/prebuilts/sdk/extensions)
+     * @param filterPath: path to the filter file. @see ApiToExtensionsMap
+     * @throws IOException if the filter file can not be read
+     * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar files were found
+     */
+    private static void processExtensionSdkApis(@NotNull Api api, @NotNull File sdkJarRoot, @NotNull File filterPath) throws IOException, IllegalArgumentException {
+        String rules = new String(Files.readAllBytes(filterPath.toPath()));
+
+        Map<String, List<VersionAndPath>> map = ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles(sdkJarRoot);
+        if (map.isEmpty()) {
+            throw new IllegalArgumentException("no extension sdk jar files found in " + sdkJarRoot);
+        }
+        for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
+            ApiToExtensionsMap filter = ApiToExtensionsMap.Companion.fromString(entry.getKey(), rules);
+            ExtensionSdkJarReader sdkReader = new ExtensionSdkJarReader(entry.getKey(), entry.getValue());
+            Api sdkApi = sdkReader.getApi();
+
+            for (ApiClass sdkClass : sdkApi.getClasses()) {
+                ApiClass clazz = api.findClass(sdkClass.getName());
+                if (clazz == null) {
+                    continue;
+                }
+
+                Set<String> extensions;
+                boolean atLeastOneMemberKept = false;
+
+                Iterator<ApiElement> iter = clazz.getFieldIterator();
+                while (iter.hasNext()) {
+                    ApiElement field = iter.next();
+                    extensions = filter.getExtensions(clazz, field);
+                    if (extensions.isEmpty()) {
+                        iter.remove();
+                    } else {
+                        atLeastOneMemberKept = true;
+                        // TODO: update field with from="<extensions>"
+                    }
+                }
+
+                iter = clazz.getMethodIterator();
+                while (iter.hasNext()) {
+                    ApiElement method = iter.next();
+                    extensions = filter.getExtensions(clazz, method);
+                    if (extensions.isEmpty()) {
+                        iter.remove();
+                    } else {
+                        atLeastOneMemberKept = true;
+                        // TODO: update method with from="<extensions>"
+                    }
+                }
+
+                extensions = filter.getExtensions(clazz);
+                if (extensions.isEmpty()) {
+                    if (atLeastOneMemberKept) {
+                        // This will not detect the case where the class is an inner class, and the
+                        // outer class is removed. Since the explicit map is a temporary we ignore
+                        // this case: callers should manually verify the output is correct.
+                        throw new IllegalArgumentException("bad API to extensions map: class " +
+                            clazz.getName() + ": map says to remove the class but keep some of its members");
+                    }
+                    api.removeClass(clazz.getName());
+                } else {
+                    // TODO: update class with from="<extensions>"
+                }
+            }
+        }
     }
 
     /**
