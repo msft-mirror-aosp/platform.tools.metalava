@@ -35,7 +35,7 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
-import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
+import org.jetbrains.kotlin.asJava.elements.KtLightElement
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
@@ -128,11 +128,14 @@ class PsiModifierItem(
             // Look for special Kotlin keywords
             var ktModifierList: KtModifierList? = null
             val sourcePsi = (element as? UElement)?.sourcePsi
-            if (modifierList is KtLightModifierList<*>) {
-                ktModifierList = modifierList.kotlinOrigin
-            } else if (modifierList is LightModifierList && element is UMethod) {
-                if (sourcePsi is KtModifierListOwner) {
-                    ktModifierList = sourcePsi.modifierList
+            when (modifierList) {
+                is KtLightElement<*, *> -> {
+                    ktModifierList = modifierList.kotlinOrigin as? KtModifierList
+                }
+                is LightModifierList -> {
+                    if (element is UMethod && sourcePsi is KtModifierListOwner) {
+                        ktModifierList = sourcePsi.modifierList
+                    }
                 }
             }
             var visibilityFlags = when {
