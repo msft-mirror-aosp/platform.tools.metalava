@@ -41,7 +41,7 @@ public class Api extends ApiElement {
      * @param stream the stream to print the XML elements to
      */
     public void print(PrintStream stream) {
-        stream.print("<api version=\"2\"");
+        stream.print("<api version=\"3\"");
         if (mMin > 1) {
             stream.print(" min=\"" + mMin + "\"");
         }

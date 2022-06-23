@@ -321,4 +321,12 @@ public class ApiClass extends ApiElement {
     public Iterator<ApiElement> getMethodIterator() {
         return mMethods.values().iterator();
     }
+
+    public ApiElement getField(String name) {
+        return mFields.get(name);
+    }
+
+    public ApiElement getMethod(String name) {
+        return mMethods.get(name);
+    }
 }

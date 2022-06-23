@@ -143,6 +143,7 @@ class ApiGeneratorTest : DriverTest() {
             conscrypt.module.public.api        *    R
             framework-connectivity             *    R
             framework-mediaprovider            *    R
+            framework-mediaprovider            android.provider.MediaStore#canManageMedia    T
             framework-permission-s             *    R
             framework-permission               *    R
             framework-scheduling               *    R
@@ -179,9 +180,18 @@ class ApiGeneratorTest : DriverTest() {
 
         assertTrue(output.isFile)
         val xml = output.readText(UTF_8)
-        assertTrue(xml.contains("<api version=\"2\" min=\"21\">"))
+        assertTrue(xml.contains("<api version=\"3\" min=\"21\">"))
         assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
+
+        // top level class marked as since=21 and R=1
+        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" since=\"21\" from=\"0:21,30:1\">"))
+
+        // method with identical from attribute as containing class: from should be omitted
+        assertTrue(xml.contains("<method name=\"getMediaScannerUri()Landroid/net/Uri;\"/>"))
+
+        // method with different from attribute than containing class
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" from=\"0:31,33:1\"/>"))
 
         val apiLookup = getApiLookup(output)
         apiLookup.getClassVersion("android.v")
@@ -306,5 +316,18 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Calculate from xml attribute`() {
+        assertEquals(
+            "0:33,30:4,31:4",
+            ApiGenerator.calculateFromAttr(33, setOf("R", "S"), 4)
+        )
+
+        assertEquals(
+            "30:4",
+            ApiGenerator.calculateFromAttr(0, setOf("R"), 4)
+        )
     }
 }

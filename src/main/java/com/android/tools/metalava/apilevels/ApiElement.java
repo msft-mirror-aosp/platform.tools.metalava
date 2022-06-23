@@ -29,6 +29,7 @@ import java.util.List;
 public class ApiElement implements Comparable<ApiElement> {
     private final String mName;
     private int mSince;
+    private String mFrom = null;
     private int mDeprecatedIn;
     private int mLastPresentIn;
 
@@ -112,6 +113,8 @@ public class ApiElement implements Comparable<ApiElement> {
         update(version, isDeprecated());
     }
 
+    public void updateFrom(String from) { mFrom = from; }
+
     /**
      * Checks whether the API element is deprecated or not.
      */
@@ -154,6 +157,10 @@ public class ApiElement implements Comparable<ApiElement> {
         if (mSince > parentElement.mSince) {
             stream.print("\" since=\"");
             stream.print(mSince);
+        }
+        if (mFrom != null) {
+            stream.print("\" from=\"");
+            stream.print(mFrom);
         }
         if (mDeprecatedIn != 0) {
             stream.print("\" deprecated=\"");
