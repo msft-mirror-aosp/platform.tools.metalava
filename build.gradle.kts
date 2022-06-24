@@ -33,7 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
-    id("com.android.lint") version "7.4.0-alpha02"
+    id("com.android.lint") version "7.4.0-alpha05"
     id("application")
     id("java")
     id("maven-publish")
@@ -69,7 +69,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.4.0-alpha01"
+    "30.4.0-alpha05"
 }
 
 dependencies {
