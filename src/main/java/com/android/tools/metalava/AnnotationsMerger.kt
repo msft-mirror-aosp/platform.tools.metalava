@@ -24,8 +24,10 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_XML
 import com.android.SdkConstants.DOT_ZIP
 import com.android.SdkConstants.GT_ENTITY
+import com.android.SdkConstants.INT_DEF_ANNOTATION
 import com.android.SdkConstants.LT_ENTITY
 import com.android.SdkConstants.QUOT_ENTITY
+import com.android.SdkConstants.STRING_DEF_ANNOTATION
 import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
 import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
 import com.android.SdkConstants.VALUE_TRUE
@@ -666,15 +668,17 @@ class AnnotationsMerger(
                     codebase,
                     XmlBackedAnnotationItem(
                         codebase,
-                        if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
+                        if (valName == "stringValues") STRING_DEF_ANNOTATION.newName() else INT_DEF_ANNOTATION.newName(),
                         attributes
                     )
                 )
             }
 
-            name == ANDROIDX_STRING_DEF ||
+            name == STRING_DEF_ANNOTATION.oldName() ||
+                name == STRING_DEF_ANNOTATION.newName() ||
                 name == ANDROID_STRING_DEF ||
-                name == ANDROIDX_INT_DEF ||
+                name == INT_DEF_ANNOTATION.oldName() ||
+                name == INT_DEF_ANNOTATION.newName() ||
                 name == ANDROID_INT_DEF -> {
 
                 val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
@@ -698,12 +702,14 @@ class AnnotationsMerger(
                 if (children.size == 2) {
                     parseChild(children[1])
                 }
-                val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
+                val intDef = INT_DEF_ANNOTATION.oldName() == name ||
+                    INT_DEF_ANNOTATION.newName() == name ||
+                    ANDROID_INT_DEF == name
                 return PsiAnnotationItem.create(
                     codebase,
                     XmlBackedAnnotationItem(
                         codebase,
-                        if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF, attributes
+                        if (intDef) INT_DEF_ANNOTATION.newName() else STRING_DEF_ANNOTATION.newName(), attributes
                     )
                 )
             }
