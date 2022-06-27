@@ -53,9 +53,6 @@ java {
 }
 
 tasks.withType(KotlinCompile::class.java) {
-    sourceCompatibility = "11"
-    targetCompatibility = "11"
-
     kotlinOptions {
         jvmTarget = "11"
         apiVersion = "1.6"
