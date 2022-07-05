@@ -2304,11 +2304,16 @@ class Options(
             ARG_SDK_FILTER_FILE,
             "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
                 "and describes, per extension SDK, what APIs from that extension to include in the " +
-                "file created via $ARG_GENERATE_API_LEVELS. The format of each line is " +
+                "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
                 "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the" +
                 "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
                 "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
-                "in which these SDKs first appeared. " +
+                "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
+                "<ext-name> is the name of an SDK, " +
+                "<ext-id> its numerical ID and <type> is one of " +
+                "\"platform\" (the Android platform SDK), " +
+                "\"platform-ext\" (an extension to the Android platform SDK), " +
+                "\"standalone\" (a separate SDK). " +
                 "Fields are separated by whitespace. " +
                 "A mainline module may be listed multiple times. " +
                 "The special pattern \"*\" refers to all APIs in the given mainline module. " +

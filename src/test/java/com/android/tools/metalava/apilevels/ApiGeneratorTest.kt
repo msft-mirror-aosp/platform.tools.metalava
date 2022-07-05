@@ -134,6 +134,11 @@ class ApiGeneratorTest : DriverTest() {
         filter.deleteOnExit()
         filter.writeText(
             """
+            ANDROID    0     platform
+            R          30    platform-ext
+            S          31    platform-ext
+            T          33    platform-ext
+
             # Keep everything from these extension SDKs
             # Specifically, keep framework-permission-s's android/app/role/RoleManager class
             android.net.ipsec.ike              *    R
@@ -316,18 +321,5 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
-    }
-
-    @Test
-    fun `Calculate from xml attribute`() {
-        assertEquals(
-            "0:33,30:4,31:4",
-            ApiGenerator.calculateFromAttr(33, setOf("R", "S"), 4)
-        )
-
-        assertEquals(
-            "30:4",
-            ApiGenerator.calculateFromAttr(0, setOf("R"), 4)
-        )
     }
 }
