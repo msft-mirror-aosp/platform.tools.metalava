@@ -189,8 +189,8 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
-        // top level class marked as since=21 and R=1
-        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" since=\"21\" from=\"0:21,30:1\">"))
+        // top level class marked as since=21 and R=1, implemented in the framework-mediaprovider mainline module
+        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" from=\"0:21,30:1\">"))
 
         // method with identical from attribute as containing class: from should be omitted
         assertTrue(xml.contains("<method name=\"getMediaScannerUri()Landroid/net/Uri;\"/>"))

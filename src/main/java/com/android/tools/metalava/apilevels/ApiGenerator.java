@@ -217,8 +217,9 @@ public class ApiGenerator {
             throw new IllegalArgumentException("no extension sdk jar files found in " + sdkJarRoot);
         }
         for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
-            ApiToExtensionsMap extensionsMap = ApiToExtensionsMap.Companion.fromString(entry.getKey(), rules);
-            ExtensionSdkJarReader sdkReader = new ExtensionSdkJarReader(entry.getKey(), entry.getValue());
+            String mainlineModule = entry.getKey();
+            ApiToExtensionsMap extensionsMap = ApiToExtensionsMap.Companion.fromString(mainlineModule, rules);
+            ExtensionSdkJarReader sdkReader = new ExtensionSdkJarReader(mainlineModule, entry.getValue());
             Api sdkApi = sdkReader.getApi();
 
             for (ApiClass sdkClass : sdkApi.getClasses()) {
@@ -284,6 +285,7 @@ public class ApiGenerator {
                     }
                     api.removeClass(clazz.getName());
                 } else {
+                    clazz.updateMainlineModule(mainlineModule);
                     clazz.updateFrom(clazzFromAttr);
                 }
             }
