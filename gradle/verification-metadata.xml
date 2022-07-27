@@ -77,7 +77,10 @@
             <trusting group="com.sun.activation"/>
             <trusting group="jakarta.activation"/>
          </trusted-key>
-         <trusted-key id="6f538074ccebf35f28af9b066a0975f8b1127b83" group="org.jetbrains.kotlin"/>
+         <trusted-key id="6f538074ccebf35f28af9b066a0975f8b1127b83">
+            <trusting group="org.jetbrains.kotlin"/>
+            <trusting group="org.jetbrains.kotlin.jvm"/>
+         </trusted-key>
          <trusted-key id="7615ad56144df2376f49d98b1669c4bb543e0445" group="com.google.errorprone"/>
          <trusted-key id="7616eb882daf57a11477aaf559a252fb1199d873" group="com.google.code.findbugs"/>
          <trusted-key id="79752db6c966f0b8" group="com.google.android"/>
@@ -115,6 +118,7 @@
          <trusted-key id="c51e6cbc7ff46f0b" group="com.google.auto"/>
          <trusted-key id="c70b844f002f21f6d2b9c87522e44ac0622b91c3" group="com.beust"/>
          <trusted-key id="c727d053c4481cf5" group="org.tensorflow"/>
+         <trusted-key id="c7be5bcc9fec15518cfda882b0f3710fa64900e7" group="com.google.code.gson"/>
          <trusted-key id="c7cb325467893cc4" group="junit"/>
          <trusted-key id="c9fbaa83a8753994">
             <trusting group="com.fasterxml.jackson.core"/>
