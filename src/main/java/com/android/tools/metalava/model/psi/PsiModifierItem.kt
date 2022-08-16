@@ -196,7 +196,7 @@ class PsiModifierItem(
                     // Workaround for b/117565118:
                     val func = sourcePsi as? KtNamedFunction
                     if (func != null &&
-                        (func.typeParameterList?.text ?: "").contains("reified") &&
+                        (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
                         !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
                         !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
                     ) {
