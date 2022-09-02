@@ -136,7 +136,6 @@ const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
-const val ARG_REPLACE_DOCUMENTATION = "--replace-documentation"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
 const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
@@ -161,6 +160,8 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
+const val ARG_SDK_FILTER_FILE = "--sdk-extensions-filter"
 
 class Options(
     private val args: Array<String>,
@@ -508,6 +509,15 @@ class Options(
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
 
+    /** Directory of prebuilt extension SDK jars that contribute to the API */
+    var sdkJarRoot: File? = null
+
+    /**
+     * Rules to filter out some of the extension SDK APIs from the API, and assign extensions to
+     * the APIs that are kept
+     */
+    var sdkFilterFile: File? = null
+
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
 
@@ -583,11 +593,6 @@ class Options(
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     var reportEvenIfSuppressed: File? = null
     var reportEvenIfSuppressedWriter: PrintWriter? = null
-
-    /**
-     * DocReplacements to apply to the documentation.
-     */
-    var docReplacements = mutableListOf<DocReplacement>()
 
     /**
      * Whether to omit locations for warnings and errors. This is not a flag exposed to users
@@ -1145,14 +1150,6 @@ class Options(
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
 
-                ARG_REPLACE_DOCUMENTATION -> {
-                    val packageNames = args[++index].split(":")
-                    val regex = Regex(args[++index])
-                    val replacement = args[++index]
-                    val docReplacement = DocReplacement(packageNames, regex, replacement)
-                    docReplacements.add(docReplacement)
-                }
-
                 ARG_CONVERT_TO_JDIFF,
                 // doclava compatibility:
                 "-convert2xml",
@@ -1246,6 +1243,14 @@ class Options(
 
                 ARG_REPEAT_ERRORS_MAX -> {
                     repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
+                }
+
+                ARG_SDK_JAR_ROOT -> {
+                    sdkJarRoot = stringToExistingDir(getValue(args, ++index))
+                }
+
+                ARG_SDK_FILTER_FILE -> {
+                    sdkFilterFile = stringToExistingFile(getValue(args, ++index))
                 }
 
                 "--temp-folder" -> {
@@ -1461,6 +1466,10 @@ class Options(
             )
         }
 
+        if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
+            throw DriverException(stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_FILTER_FILE must both be supplied")
+        }
+
         // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
             if (outputFormat < FileFormat.V3) {
@@ -1487,6 +1496,8 @@ class Options(
             // flags count
             apiLevelJars = null
             generateApiLevelXml = null
+            sdkJarRoot = null
+            sdkFilterFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -1507,6 +1518,8 @@ class Options(
         } else if (onlyCheckApi) {
             apiLevelJars = null
             generateApiLevelXml = null
+            sdkJarRoot = null
+            sdkFilterFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -2059,13 +2072,6 @@ class Options(
 
             "$ARG_MANIFEST <file>", "A manifest file, used to for check permissions to cross check APIs",
 
-            "$ARG_REPLACE_DOCUMENTATION <p> <r> <t>",
-            "Amongst nonempty documentation of items from Java " +
-                "packages <p> and their subpackages, replaces any matches of regular expression <r> " +
-                "with replacement text <t>. <p> is given as a nonempty list of Java package names separated " +
-                "by ':' (e.g. \"java:android.util\"); <t> may contain backreferences (\$1, \$2 etc.) to " +
-                "matching groups from <r>.",
-
             "$ARG_HIDE_PACKAGE <package>",
             "Remove the given packages from the API even if they have not been " +
                 "marked with @hide",
@@ -2290,6 +2296,28 @@ class Options(
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
+            ARG_SDK_JAR_ROOT,
+            "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
+                "contain snapshots of historical extension SDK versions in the form of stub jars. " +
+                "The paths should be on the format \"<int>/public/<module-name>-stubs.jar\", where <int> " +
+                "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
+            ARG_SDK_FILTER_FILE,
+            "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
+                "and describes, per extension SDK, what APIs from that extension to include in the " +
+                "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
+                "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the" +
+                "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
+                "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
+                "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
+                "<ext-name> is the name of an SDK, " +
+                "<ext-id> its numerical ID and <type> is one of " +
+                "\"platform\" (the Android platform SDK), " +
+                "\"platform-ext\" (an extension to the Android platform SDK), " +
+                "\"standalone\" (a separate SDK). " +
+                "Fields are separated by whitespace. " +
+                "A mainline module may be listed multiple times. " +
+                "The special pattern \"*\" refers to all APIs in the given mainline module. " +
+                "Lines beginning with # are comments.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,
