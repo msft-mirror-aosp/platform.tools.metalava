@@ -28,9 +28,9 @@ class ApiToExtensionsMapTest {
         val rules = """
             # No rules is a valid (albeit weird).
             ANDROID    0     platform
-            R          30    platform-ext
-            S          31    platform-ext
-            T          33    platform-ext
+            R          30    extension
+            S          31    extension
+            T          33    extension
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
@@ -42,7 +42,7 @@ class ApiToExtensionsMapTest {
         val rules = """
             # All APIs will default to extension SDK A.
             ANDROID    0    platform
-            A          1    platform-ext
+            A          1    extension
 
             file.jar    *    A
         """.trimIndent()
@@ -58,7 +58,7 @@ class ApiToExtensionsMapTest {
             # A single class. The class, any internal classes, and any methods are allowed;
             # everything else is denied.
             ANDROID    0    platform
-            A          1    platform-ext
+            A          1    extension
 
             file.jar    com.foo.Bar    A
         """.trimIndent()
@@ -83,10 +83,10 @@ class ApiToExtensionsMapTest {
         val rules = """
             # Any number of white space separated extension SDKs may be listed.
             ANDROID    0     platform
-            A          1     platform-ext
-            B          2     platform-ext
-            FOO        10    standalone
-            BAR        11    standalone
+            A          1     extension
+            B          2     extension
+            FOO        10    extension
+            BAR        11    extension
 
             file.jar    *    A B FOO BAR
         """.trimIndent()
@@ -100,10 +100,10 @@ class ApiToExtensionsMapTest {
         val rules = """
             # Multiple classes, and multiple rules with different precedence.
             ANDROID    0     platform
-            A          1     platform-ext
-            B          2     platform-ext
-            C          3     platform-ext
-            D          4     platform-ext
+            A          1     extension
+            B          2     extension
+            C          3     extension
+            D          4     extension
 
             file.jar    *              A
             file.jar    com.foo.Bar    B
@@ -129,8 +129,8 @@ class ApiToExtensionsMapTest {
         val rules = """
             # The allow list will only consider patterns that are marked with the given jar file
             ANDROID    0     platform
-            A          1     platform-ext
-            B          2     platform-ext
+            A          1     extension
+            B          2     extension
 
             a.jar    *    A
             b.jar    *    B
@@ -149,9 +149,9 @@ class ApiToExtensionsMapTest {
         val rules = """
             # SDK declarations and rule lines can be mixed in any order
             ANDROID     0    platform
-            A           1    platform-ext
+            A           1    extension
             file.jar    *    A B
-            B           2    platform-ext
+            B           2    extension
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
@@ -166,7 +166,7 @@ class ApiToExtensionsMapTest {
                 """
                 # missing jar file
                 ANDROID    0    platform
-                A          1    platform-ext
+                A          1    extension
 
                 com.foo.Bar    A
                 """.trimIndent()
@@ -179,7 +179,7 @@ class ApiToExtensionsMapTest {
                 """
                 # duplicate rules pattern
                 ANDROID    0    platform
-                A          1    platform-ext
+                A          1    extension
 
                 file.jar    com.foo.Bar    A
                 file.jar    com.foo.Bar    B
@@ -192,8 +192,8 @@ class ApiToExtensionsMapTest {
                 "file.jar",
                 """
                 # missing ANDROID/platform ID
-                A    1    platform-ext
-                B    2    platform-ext
+                A    1    extension
+                B    2    extension
 
                 file.jar    com.foo.Bar    A
                 """.trimIndent()
@@ -206,48 +206,21 @@ class ApiToExtensionsMapTest {
                 """
                 # rules refer to a non-declared SDK
                 ANDROID    0    platform
-                B          2    platform-ext
+                B          2    extension
 
                 file.jar    com.foo.Bar    A
                 """.trimIndent()
             )
         }
 
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
-                """
-                # platform-ext IDs not exclusive range (bad standalone)
-                ANDROID    0    platform
-                A          1    platform-ext
-                C          2    standalone
-                B          3    platform-ext
-
-                file.jar    com.foo.Bar    A
-                """.trimIndent()
-            )
-        }
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
-                """
-                # platform-ext IDs not exclusive range (bad platform)
-                A          1    platform-ext
-                ANDROID    2    platform
-                B          3    platform-ext
-
-                file.jar    com.foo.Bar    A
-                """.trimIndent()
-            )
-        }
         assertThrows {
             ApiToExtensionsMap.fromString(
                 "file.jar",
                 """
                 # duplicate numerical ID
                 ANDROID    0    platform
-                A          1    platform-ext
-                B          1    platform-ext
+                A          1    extension
+                B          1    extension
 
                 file.jar    com.foo.Bar    A
                 """.trimIndent()
@@ -259,8 +232,8 @@ class ApiToExtensionsMapTest {
                 """
                 # duplicate SDK name
                 ANDROID    0    platform
-                A          1    platform-ext
-                A          2    platform-ext
+                A          1    extension
+                A          2    extension
 
                 file.jar    com.foo.Bar    A
                 """.trimIndent()
@@ -269,15 +242,14 @@ class ApiToExtensionsMapTest {
     }
 
     @Test
-    fun `Calculate from xml attribute`() {
+    fun `calculate from xml attribute`() {
         val rules = """
-            # All APIs will default to extension SDK A.
             ANDROID    0       platform
-            R          30      platform-ext
-            S          31      platform-ext
-            T          33      platform-ext
-            FOO        1000    standalone
-            BAR        1001    standalone
+            R          30      extension
+            S          31      extension
+            T          33      extension
+            FOO        1000    extension
+            BAR        1001    extension
         """.trimIndent()
         val filter = ApiToExtensionsMap.fromString("file.jar", rules)
 
@@ -292,22 +264,22 @@ class ApiToExtensionsMapTest {
         )
 
         Assert.assertEquals(
-            "30:4",
-            filter.calculateFromAttr(null, setOf("R", "S"), 4)
+            setOf("30:4", "31:4"),
+            filter.calculateFromAttr(null, setOf("R", "S"), 4).split(',').toSet()
         )
 
         Assert.assertEquals(
-            setOf("0:33", "30:4"),
+            setOf("0:33", "30:4", "31:4"),
             filter.calculateFromAttr(33, setOf("R", "S"), 4).split(',').toSet()
         )
 
         Assert.assertEquals(
-            setOf("0:33", "30:4", "1000:4"),
+            setOf("0:33", "30:4", "31:4", "1000:4"),
             filter.calculateFromAttr(33, setOf("R", "S", "FOO"), 4).split(',').toSet()
         )
 
         Assert.assertEquals(
-            setOf("0:33", "30:4", "1000:4", "1001:4"),
+            setOf("0:33", "30:4", "31:4", "1000:4", "1001:4"),
             filter.calculateFromAttr(33, setOf("R", "S", "FOO", "BAR"), 4).split(',').toSet()
         )
 

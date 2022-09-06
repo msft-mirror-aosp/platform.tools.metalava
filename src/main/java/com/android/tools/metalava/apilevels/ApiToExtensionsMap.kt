@@ -96,7 +96,6 @@ class ApiToExtensionsMap private constructor(
             } ?: throw IllegalStateException("no ${SdkType.PLATFORM} SDK")
             versions.add("${platformSdkId.id}:$androidSince")
         }
-        var earliestPlatformExt: Int? = null
         for (ext in extensions) {
             val ident = sdkIdentifiers.find {
                 it.name == ext
@@ -104,16 +103,7 @@ class ApiToExtensionsMap private constructor(
             if (ident.type == SdkType.PLATFORM) {
                 throw IllegalStateException("PLATFORM SDK in list of extension SDKs")
             }
-            if (ident.type == SdkType.PLATFORM_EXT) {
-                if (earliestPlatformExt == null || ident.id < earliestPlatformExt) {
-                    earliestPlatformExt = ident.id
-                }
-            } else {
-                versions.add("${ident.id}:$extensionsSince")
-            }
-        }
-        if (earliestPlatformExt != null) {
-            versions.add("$earliestPlatformExt:$extensionsSince")
+            versions.add("${ident.id}:$extensionsSince")
         }
         return versions.joinToString(",")
     }
@@ -225,18 +215,6 @@ class ApiToExtensionsMap private constructor(
                 throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
             }
 
-            // verify: check platform-ext IDs form an exclusive range
-            val minPlatformExt = sdkIdentifiers.filter { it.type == SdkType.PLATFORM_EXT }.minByOrNull { it.id }
-            val maxPlatformExt = sdkIdentifiers.filter { it.type == SdkType.PLATFORM_EXT }.maxByOrNull { it.id }
-            if (minPlatformExt != null && maxPlatformExt != null) {
-                val range = IntRange(minPlatformExt.id, maxPlatformExt.id)
-                for (ident in sdkIdentifiers.filter { it.type != SdkType.PLATFORM_EXT }) {
-                    if (range.contains(ident.id)) {
-                        throw IllegalArgumentException("${ident.type} ID ${ident.id} within ${SdkType.PLATFORM_EXT} range $range")
-                    }
-                }
-            }
-
             return ApiToExtensionsMap(sdkIdentifiers, root)
         }
     }
@@ -262,8 +240,7 @@ private class Node(val breadcrumb: String) {
 
 private enum class SdkType(val value: String) {
     PLATFORM("platform"),
-    PLATFORM_EXT("platform-ext"),
-    STANDALONE("standalone");
+    PLATFORM_EXT("extension");
 
     companion object {
         fun valueOfOrNull(str: String): SdkType? {
