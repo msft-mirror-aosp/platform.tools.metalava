@@ -135,10 +135,9 @@ class ApiGeneratorTest : DriverTest() {
         filter.writeText(
             """
             # Definitions
-            ANDROID    0     platform
-            R          30    extension
-            S          31    extension
-            T          33    extension
+            R    30
+            S    31
+            T    33
 
             # Rules
             android.net.ipsec.ike              *    R
