@@ -89,6 +89,7 @@ import com.android.tools.metalava.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.Issues.INTERNAL_FIELD
 import com.android.tools.metalava.Issues.INVALID_NULLABILITY_OVERRIDE
 import com.android.tools.metalava.Issues.Issue
+import com.android.tools.metalava.Issues.KOTLIN_DEFAULT_PARAMETER_ORDER
 import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.Issues.LISTENER_INTERFACE
 import com.android.tools.metalava.Issues.LISTENER_LAST
@@ -251,6 +252,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
         }
+        checkParameterOrder(method)
         kotlinInterop.checkMethod(method)
     }
 
@@ -2649,6 +2651,47 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "Methods returning $listenableFuture should have a suffix *Async to " +
                     "reserve unmodified name for a suspend function"
             )
+        }
+    }
+
+    /**
+     * Make sure that any parameters with default values (in Kotlin) come after all required,
+     * non-trailing-lambda parameters.
+     */
+    private fun checkParameterOrder(method: MethodItem) {
+        // Ignore Java / non-PSI backed MethodItems
+        if (!method.isKotlin() || method !is PsiMethodItem) {
+            return
+        }
+        // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
+        // to Kotlin callers so just ignore it.
+        val parameters = if (method.modifiers.isSuspend()) {
+            method.parameters().dropLast(1)
+        } else {
+            method.parameters()
+        }
+        val (optionalParameters, requiredParameters) = parameters.partition {
+            it.hasDefaultValue()
+        }
+        if (requiredParameters.isEmpty() || optionalParameters.isEmpty()) return
+        val lastRequiredParameter = requiredParameters.last()
+        val hasTrailingLambda = lastRequiredParameter.parameterIndex == parameters.lastIndex &&
+            lastRequiredParameter.isSamCompatibleOrKotlinLambda()
+        val lastRequiredParameterIndex = if (hasTrailingLambda) {
+            requiredParameters.dropLast(1).lastOrNull()
+        } else {
+            requiredParameters.last()
+        }?.parameterIndex ?: return
+        optionalParameters.forEach { parameter ->
+            if (parameter.parameterIndex < lastRequiredParameterIndex) {
+                report(
+                    KOTLIN_DEFAULT_PARAMETER_ORDER,
+                    parameter,
+                    "Parameter `${parameter.name()}` has a default value and should come " +
+                        "after all parameters without default values (except for a trailing " +
+                        "lambda parameter)"
+                )
+            }
         }
     }
 
