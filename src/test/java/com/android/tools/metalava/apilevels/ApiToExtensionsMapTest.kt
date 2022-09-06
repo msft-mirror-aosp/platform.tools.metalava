@@ -310,6 +310,10 @@ class ApiToExtensionsMapTest {
             setOf("0:33", "30:4", "1000:4", "1001:4"),
             filter.calculateFromAttr(33, setOf("R", "S", "FOO", "BAR"), 4).split(',').toSet()
         )
+
+        assertThrows {
+            filter.calculateFromAttr(33, setOf("ANDROID"), 4)
+        }
     }
 
     private fun assertThrows(expr: () -> Unit) {

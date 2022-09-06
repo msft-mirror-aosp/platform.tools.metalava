@@ -101,6 +101,9 @@ class ApiToExtensionsMap private constructor(
             val ident = sdkIdentifiers.find {
                 it.name == ext
             } ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
+            if (ident.type == SdkType.PLATFORM) {
+                throw IllegalStateException("PLATFORM SDK in list of extension SDKs")
+            }
             if (ident.type == SdkType.PLATFORM_EXT) {
                 if (earliestPlatformExt == null || ident.id < earliestPlatformExt) {
                     earliestPlatformExt = ident.id
