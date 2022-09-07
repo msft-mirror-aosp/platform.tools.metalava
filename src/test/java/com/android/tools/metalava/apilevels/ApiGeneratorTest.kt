@@ -21,7 +21,7 @@ import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
-import com.android.tools.metalava.ARG_SDK_FILTER_FILE
+import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
@@ -176,7 +176,7 @@ class ApiGeneratorTest : DriverTest() {
                 "${platformJars.path}/%/public/android.jar",
                 ARG_SDK_JAR_ROOT,
                 "$extensionSdkJars",
-                ARG_SDK_FILTER_FILE,
+                ARG_SDK_INFO_FILE,
                 filter.path,
                 ARG_FIRST_VERSION,
                 "21"
