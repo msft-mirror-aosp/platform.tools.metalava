@@ -17,6 +17,7 @@
 package com.android.tools.metalava.apilevels;
 
 import com.android.tools.metalava.model.Codebase;
+import com.android.tools.metalava.SdkIdentifier;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -158,7 +160,7 @@ public class ApiGenerator {
                                     @Nullable Codebase codebase) throws IOException {
         AndroidJarReader reader = new AndroidJarReader(patterns, minApi, currentJar, currentApi, codebase);
         Api api = reader.getApi();
-        return createApiFile(new File(outPath), api);
+        return createApiFile(new File(outPath), api, Collections.emptySet());
     }
 
     public static boolean generate(@NotNull File[] apiLevels,
@@ -172,10 +174,11 @@ public class ApiGenerator {
         }
         AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
         Api api = reader.getApi();
+        Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
         if (sdkJarRoot != null && sdkFilterFile != null) {
-            processExtensionSdkApis(api, sdkJarRoot, sdkFilterFile);
+            sdkIdentifiers = processExtensionSdkApis(api, sdkJarRoot, sdkFilterFile);
         }
-        return createApiFile(outputFile, api);
+        return createApiFile(outputFile, api, sdkIdentifiers);
     }
 
     private static void printUsage() {
@@ -206,7 +209,7 @@ public class ApiGenerator {
      * @throws IOException if the filter file can not be read
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar files were found
      */
-    private static void processExtensionSdkApis(@NotNull Api api, @NotNull File sdkJarRoot, @NotNull File filterPath) throws IOException, IllegalArgumentException {
+    private static Set<SdkIdentifier> processExtensionSdkApis(@NotNull Api api, @NotNull File sdkJarRoot, @NotNull File filterPath) throws IOException, IllegalArgumentException {
         String rules = new String(Files.readAllBytes(filterPath.toPath()));
 
         Map<String, List<VersionAndPath>> map = ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles(sdkJarRoot);
@@ -269,15 +272,17 @@ public class ApiGenerator {
                 }
             }
         }
+        return ApiToExtensionsMap.Companion.fromString("", rules).getSdkIdentifiers();
     }
 
     /**
      * Creates the simplified diff-based API level.
      *
-     * @param outFile the output file
-     * @param api     the api to write
+     * @param outFile        the output file
+     * @param api            the api to write
+     * @param sdkIdentifiers SDKs referenced by the api
      */
-    private static boolean createApiFile(File outFile, Api api) {
+    private static boolean createApiFile(@NotNull File outFile, @NotNull Api api, @NotNull Set<SdkIdentifier> sdkIdentifiers) {
         File parentFile = outFile.getParentFile();
         if (!parentFile.exists()) {
             boolean ok = parentFile.mkdirs();
@@ -288,7 +293,7 @@ public class ApiGenerator {
         }
         try (PrintStream stream = new PrintStream(outFile, "UTF-8")) {
             stream.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-            api.print(stream);
+            api.print(stream, sdkIdentifiers);
         } catch (Exception e) {
             e.printStackTrace();
             return false;
