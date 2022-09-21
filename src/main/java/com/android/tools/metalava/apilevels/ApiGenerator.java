@@ -17,7 +17,6 @@
 package com.android.tools.metalava.apilevels;
 
 import com.android.tools.metalava.model.Codebase;
-import com.google.common.annotations.VisibleForTesting;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,12 +26,10 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
