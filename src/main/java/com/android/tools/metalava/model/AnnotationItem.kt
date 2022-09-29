@@ -44,6 +44,9 @@ import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.uast.UElement
 import java.util.function.Predicate
 
+fun isNullnessAnnotation(qualifiedName: String): Boolean =
+    isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
+
 fun isNullableAnnotation(qualifiedName: String): Boolean {
     return qualifiedName.endsWith("Nullable")
 }
