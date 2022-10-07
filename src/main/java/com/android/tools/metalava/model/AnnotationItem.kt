@@ -18,15 +18,15 @@ package com.android.tools.metalava.model
 
 import com.android.SdkConstants
 import com.android.SdkConstants.ATTR_VALUE
-import com.android.SdkConstants.INT_DEF_ANNOTATION
-import com.android.SdkConstants.LONG_DEF_ANNOTATION
-import com.android.SdkConstants.STRING_DEF_ANNOTATION
 import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_LONG_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
 import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.ANDROIDX_INT_DEF
+import com.android.tools.metalava.ANDROIDX_LONG_DEF
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
+import com.android.tools.metalava.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
 import com.android.tools.metalava.ApiPredicate
@@ -43,6 +43,9 @@ import com.intellij.psi.PsiReference
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.uast.UElement
 import java.util.function.Predicate
+
+fun isNullnessAnnotation(qualifiedName: String): Boolean =
+    isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
     return qualifiedName.endsWith("Nullable")
@@ -106,9 +109,9 @@ interface AnnotationItem {
             return false
         }
         return (
-            INT_DEF_ANNOTATION.isEquals(name) ||
-                STRING_DEF_ANNOTATION.isEquals(name) ||
-                LONG_DEF_ANNOTATION.isEquals(name) ||
+            ANDROIDX_INT_DEF == name ||
+                ANDROIDX_STRING_DEF == name ||
+                ANDROIDX_LONG_DEF == name ||
                 ANDROID_INT_DEF == name ||
                 ANDROID_STRING_DEF == name ||
                 ANDROID_LONG_DEF == name
@@ -161,7 +164,7 @@ interface AnnotationItem {
                 }
             }
 
-            return AnnotationRetention.CLASS
+            return AnnotationRetention.getDefault()
         }
 
     companion object {
