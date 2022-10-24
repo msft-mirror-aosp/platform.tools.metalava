@@ -1640,7 +1640,6 @@ class Options(
         currentCodeName: String?,
         currentJar: File?
     ): Array<File> {
-
         @Suppress("NAME_SHADOWING")
         val currentApiLevel = if (currentCodeName != null && "REL" != currentCodeName) {
             currentApiLevel + 1
