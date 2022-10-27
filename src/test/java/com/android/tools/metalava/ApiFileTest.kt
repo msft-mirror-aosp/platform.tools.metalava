@@ -4401,6 +4401,8 @@ class ApiFileTest : DriverTest() {
                             get() = value && 0x00ff
                         fun doSomething() {}
                     }
+
+                    fun box(val p : Dp) {}
                 """
                 )
             ),
@@ -4416,6 +4418,9 @@ class ApiFileTest : DriverTest() {
                     method public inline operator float plus(float other);
                     property public final boolean someBits;
                     property public final float value;
+                  }
+                  public final class DpKt {
+                    method public static void box(float p);
                   }
                 }
             """
