@@ -4680,4 +4680,28 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `implements kotlin collection`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class MyList : List<String> {
+                          override operator fun get(index: Int): String {}
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
+                    ctor public MyList();
+                    method public operator String get(int index);
+                  }
+                }
+            """
+        )
+    }
 }
