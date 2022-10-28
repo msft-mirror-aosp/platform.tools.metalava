@@ -66,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.4.0-alpha08"
+    "31.0.0-alpha05"
 }
 
 dependencies {
