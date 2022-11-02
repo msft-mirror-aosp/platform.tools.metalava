@@ -722,7 +722,6 @@ class Options(
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        var delayedCheckApiFiles = false
         var skipGenerateAnnotations = false
         reporter = Reporter(null, null)
 
@@ -1031,35 +1030,6 @@ class Options(
                 }
 
                 ARG_NO_NATIVE_DIFF -> noNativeDiff = true
-
-                // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
-                "--check-api-files" -> {
-                    if (index < args.size - 1 && args[index + 1].startsWith("-")) {
-                        // Work around bug where --check-api-files is invoked with all
-                        // the other metalava args before the 4 files; this will be
-                        // fixed by https://android-review.googlesource.com/c/platform/build/+/874473
-                        delayedCheckApiFiles = true
-                    } else {
-                        val stableApiFile = stringToExistingFile(getValue(args, ++index))
-                        val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                        val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
-                        val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                        mutableCompatibilityChecks.add(
-                            CheckRequest(
-                                stableApiFile,
-                                ApiType.PUBLIC_API,
-                                apiFileToBeTested
-                            )
-                        )
-                        mutableCompatibilityChecks.add(
-                            CheckRequest(
-                                stableRemovedApiFile,
-                                ApiType.REMOVED,
-                                removedApiFileToBeTested
-                            )
-                        )
-                    }
-                }
 
                 ARG_ERROR, "-error" -> setIssueSeverity(
                     getValue(args, ++index),
@@ -1410,35 +1380,13 @@ class Options(
                         val usage = getUsage(includeHeader = false, colorize = color)
                         throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
-                        if (delayedCheckApiFiles) {
-                            delayedCheckApiFiles = false
-                            val stableApiFile = stringToExistingFile(arg)
-                            val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                            val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
-                            val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                            mutableCompatibilityChecks.add(
-                                CheckRequest(
-                                    stableApiFile,
-                                    ApiType.PUBLIC_API,
-                                    apiFileToBeTested
-                                )
-                            )
-                            mutableCompatibilityChecks.add(
-                                CheckRequest(
-                                    stableRemovedApiFile,
-                                    ApiType.REMOVED,
-                                    removedApiFileToBeTested
-                                )
-                            )
-                        } else {
-                            // All args that don't start with "-" are taken to be filenames
-                            mutableSources.addAll(stringToExistingFiles(arg))
+                        // All args that don't start with "-" are taken to be filenames
+                        mutableSources.addAll(stringToExistingFiles(arg))
 
-                            // Temporary workaround for
-                            // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
-                            if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
-                                skipGenerateAnnotations = true
-                            }
+                        // Temporary workaround for
+                        // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
+                        if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
+                            skipGenerateAnnotations = true
                         }
                     }
                 }
