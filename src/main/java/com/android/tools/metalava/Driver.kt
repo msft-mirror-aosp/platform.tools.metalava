@@ -547,12 +547,7 @@ fun checkCompatibility(
     // file. If we've only emitted one for the new API, use it directly, if not, generate
     // it first
     val new =
-        if (check.codebase != null) {
-            SignatureFileLoader.load(
-                file = check.codebase,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
-        } else if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
+        if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
             if (options.baseApiForCompatCheck != null) {
                 // This option does not make sense with showAnnotation, as the "base" in that case
                 // is the non-annotated APIs.
