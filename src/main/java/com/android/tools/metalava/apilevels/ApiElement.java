@@ -52,12 +52,12 @@ public class ApiElement implements Comparable<ApiElement> {
 
     /**
      * @param name       the name of the API element
-     * @param version    an API version for which the API element existed, or -1 if the class does
-     *                   not yet exist in the Android SDK (only in extension SDKs)
+     * @param version    an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
     ApiElement(String name, int version, boolean deprecated) {
         assert name != null;
+        assert version > 0;
         mName = name;
         mSince = version;
         mLastPresentIn = version;
