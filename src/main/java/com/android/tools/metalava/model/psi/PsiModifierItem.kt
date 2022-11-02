@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
@@ -37,6 +36,7 @@ import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
+import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
@@ -196,7 +196,7 @@ class PsiModifierItem(
                     // Workaround for b/117565118:
                     val func = sourcePsi as? KtNamedFunction
                     if (func != null &&
-                        (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
+                        (func.typeParameterList?.text ?: "").contains("reified") &&
                         !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
                         !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
                     ) {
@@ -298,6 +298,7 @@ class PsiModifierItem(
                             !it.isKotlinNullabilityAnnotation
                     }
                     .map {
+
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
@@ -315,9 +316,7 @@ class PsiModifierItem(
                 if (!isPrimitiveVariable) {
                     val psiAnnotations = modifierList.annotations
                     if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
-                        val ktNullAnnotation = psiAnnotations.firstOrNull { psiAnnotation ->
-                            psiAnnotation.qualifiedName?.let { isNullnessAnnotation(it) } == true
-                        }
+                        val ktNullAnnotation = psiAnnotations.firstOrNull { it is KtLightNullabilityAnnotation<*> }
                         ktNullAnnotation?.let {
                             annotations.add(PsiAnnotationItem.create(codebase, it))
                         }

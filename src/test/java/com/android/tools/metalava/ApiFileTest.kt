@@ -4401,8 +4401,6 @@ class ApiFileTest : DriverTest() {
                             get() = value && 0x00ff
                         fun doSomething() {}
                     }
-
-                    fun box(val p : Dp) {}
                 """
                 )
             ),
@@ -4418,9 +4416,6 @@ class ApiFileTest : DriverTest() {
                     method public inline operator float plus(float other);
                     property public final boolean someBits;
                     property public final float value;
-                  }
-                  public final class DpKt {
-                    method public static void box(float p);
                   }
                 }
             """
@@ -4558,7 +4553,6 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                         package test.pkg
-                        import androidx.annotation.IntRange
                         @Deprecated(
                             message = "So much regret",
                             level = DeprecationLevel.HIDDEN
@@ -4566,15 +4560,13 @@ class ApiFileTest : DriverTest() {
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
                     """
-                ),
-                androidxIntRangeSource
+                )
             ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
                   }
                 }
             """
@@ -4680,30 +4672,6 @@ class ApiFileTest : DriverTest() {
                     method public int getBar();
                     method public void setBar(int);
                     property public final int bar;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `implements kotlin collection`() {
-        check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        class MyList : List<String> {
-                          override operator fun get(index: Int): String {}
-                        }
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
-                    ctor public MyList();
-                    method public operator String get(int index);
                   }
                 }
             """

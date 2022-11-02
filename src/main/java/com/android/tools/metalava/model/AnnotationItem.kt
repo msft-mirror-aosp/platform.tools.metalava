@@ -18,15 +18,15 @@ package com.android.tools.metalava.model
 
 import com.android.SdkConstants
 import com.android.SdkConstants.ATTR_VALUE
+import com.android.SdkConstants.INT_DEF_ANNOTATION
+import com.android.SdkConstants.LONG_DEF_ANNOTATION
+import com.android.SdkConstants.STRING_DEF_ANNOTATION
 import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_LONG_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
 import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
-import com.android.tools.metalava.ANDROIDX_INT_DEF
-import com.android.tools.metalava.ANDROIDX_LONG_DEF
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
-import com.android.tools.metalava.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
 import com.android.tools.metalava.ApiPredicate
@@ -43,9 +43,6 @@ import com.intellij.psi.PsiReference
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.uast.UElement
 import java.util.function.Predicate
-
-fun isNullnessAnnotation(qualifiedName: String): Boolean =
-    isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
     return qualifiedName.endsWith("Nullable")
@@ -109,9 +106,9 @@ interface AnnotationItem {
             return false
         }
         return (
-            ANDROIDX_INT_DEF == name ||
-                ANDROIDX_STRING_DEF == name ||
-                ANDROIDX_LONG_DEF == name ||
+            INT_DEF_ANNOTATION.isEquals(name) ||
+                STRING_DEF_ANNOTATION.isEquals(name) ||
+                LONG_DEF_ANNOTATION.isEquals(name) ||
                 ANDROID_INT_DEF == name ||
                 ANDROID_STRING_DEF == name ||
                 ANDROID_LONG_DEF == name
@@ -380,6 +377,7 @@ interface AnnotationItem {
                 return ANNOTATION_IN_ALL_STUBS
             }
             when (qualifiedName) {
+
                 // The typedef annotations are special: they should not be in the signature
                 // files, but we want to include them in the external annotations file such that tools
                 // can enforce them.
