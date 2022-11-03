@@ -1396,6 +1396,10 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
+            if (currentApiLevel == -1) {
+                throw DriverException(stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
+            }
+
             // <String> is redundant here but while IDE (with newer type inference engine
             // understands that) the current 1.3.x compiler does not
             @Suppress("RemoveExplicitTypeArguments")
