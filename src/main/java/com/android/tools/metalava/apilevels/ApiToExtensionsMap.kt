@@ -43,12 +43,12 @@ class ApiToExtensionsMap private constructor(
     private val sdkIdentifiers: Set<SdkIdentifier>,
     private val root: Node,
 ) {
-    fun getExtensions(clazz: ApiClass): Set<String> = getExtensions(clazz.name.toDotNotation())
+    fun getExtensions(clazz: ApiClass): List<String> = getExtensions(clazz.name.toDotNotation())
 
-    fun getExtensions(clazz: ApiClass, member: ApiElement): Set<String> =
+    fun getExtensions(clazz: ApiClass, member: ApiElement): List<String> =
         getExtensions(clazz.name.toDotNotation() + "#" + member.name.toDotNotation())
 
-    fun getExtensions(what: String): Set<String> {
+    fun getExtensions(what: String): List<String> {
         val parts = what.split(REGEX_DELIMITERS)
 
         var lastSeenExtensions = root.extensions
@@ -90,19 +90,19 @@ class ApiToExtensionsMap private constructor(
      */
     fun calculateSdksAttr(
         androidSince: Int?,
-        extensions: Set<String>,
+        extensions: List<String>,
         extensionsSince: Int
     ): String {
         val versions = mutableSetOf<String>()
-        if (androidSince != null) {
-            versions.add("$ANDROID_PLATFORM_SDK_ID:$androidSince")
-        }
         for (ext in extensions) {
             val ident = sdkIdentifiers.find {
                 it.name == ext
             } ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
             assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
             versions.add("${ident.id}:$extensionsSince")
+        }
+        if (androidSince != null) {
+            versions.add("$ANDROID_PLATFORM_SDK_ID:$androidSince")
         }
         return versions.joinToString(",")
     }
@@ -164,7 +164,10 @@ class ApiToExtensionsMap private constructor(
                         continue
                     }
                     val pattern = all[1]
-                    val extensions = all[2].split(REGEX_WHITESPACE).toSet()
+                    val extensions = all[2].split(REGEX_WHITESPACE)
+                    if (extensions != extensions.distinct()) {
+                        throw IllegalArgumentException("symbol lists the same SDK multiple times: '$line'")
+                    }
                     allSeenExtensions.addAll(extensions)
 
                     if (pattern == "*") {
@@ -190,7 +193,7 @@ class ApiToExtensionsMap private constructor(
 
             // verify: the predefined Android platform SDK ID is not reused as an extension SDK ID
             if (sdkIdentifiers.any { it.id == ANDROID_PLATFORM_SDK_ID }) {
-                throw java.lang.IllegalArgumentException("bad SDK definition: the ID $ANDROID_PLATFORM_SDK_ID is reserved for the Android platform SDK")
+                throw IllegalArgumentException("bad SDK definition: the ID $ANDROID_PLATFORM_SDK_ID is reserved for the Android platform SDK")
             }
 
             // verify: all rules refer to declared SDKs
@@ -230,6 +233,6 @@ private fun Set<Node>.findNode(breadcrumb: String): Node? = find { it.breadcrumb
 private fun String.toDotNotation(): String = split('(')[0].replace('/', '.')
 
 private class Node(val breadcrumb: String) {
-    var extensions: Set<String> = emptySet()
+    var extensions: List<String> = emptyList()
     val children: MutableSet<Node> = mutableSetOf()
 }
