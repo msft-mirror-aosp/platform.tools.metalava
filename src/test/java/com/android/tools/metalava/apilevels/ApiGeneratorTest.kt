@@ -184,7 +184,9 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_SDK_INFO_FILE,
                 filter.path,
                 ARG_FIRST_VERSION,
-                "21"
+                "21",
+                ARG_CURRENT_VERSION,
+                "33"
             )
         )
 
