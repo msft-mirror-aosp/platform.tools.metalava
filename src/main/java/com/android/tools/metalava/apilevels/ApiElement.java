@@ -44,7 +44,7 @@ public class ApiElement implements Comparable<ApiElement> {
      *
      * This field is a super-set of mSince, and if non-null, should be preferred.
      */
-    private String mFrom = null;
+    private String mSdks = null;
 
     private String mMainlineModule = null;
     private int mDeprecatedIn;
@@ -130,7 +130,7 @@ public class ApiElement implements Comparable<ApiElement> {
         update(version, isDeprecated());
     }
 
-    public void updateFrom(String from) { mFrom = from; }
+    public void updateSdks(String sdks) { mSdks = sdks; }
 
     public void updateMainlineModule(String module) { mMainlineModule = module; }
 
@@ -181,9 +181,9 @@ public class ApiElement implements Comparable<ApiElement> {
             stream.print("\" since=\"");
             stream.print(mSince);
         }
-        if (mFrom != null) {
-            stream.print("\" from=\"");
-            stream.print(mFrom);
+        if (mSdks != null) {
+            stream.print("\" sdks=\"");
+            stream.print(mSdks);
         }
         if (mDeprecatedIn != 0) {
             stream.print("\" deprecated=\"");
