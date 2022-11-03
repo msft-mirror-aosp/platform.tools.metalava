@@ -245,14 +245,14 @@ public class ApiGenerator {
                 }
 
                 Set<String> extensions = extensionsMap.getExtensions(clazz);
-                String clazzFromAttr = extensionsMap.calculateFromAttr(
+                String clazzSdksAttr = extensionsMap.calculateSdksAttr(
                     clazz.getSince() != apiLevelNotInAndroidSdk ? clazz.getSince() : null,
                     extensions,
                     sdkClass.getSince()
                 );
                 if (!extensions.isEmpty()) {
                     clazz.updateMainlineModule(mainlineModule);
-                    clazz.updateFrom(clazzFromAttr);
+                    clazz.updateSdks(clazzSdksAttr);
                 }
 
                 Iterator<ApiElement> iter = clazz.getFieldIterator();
@@ -262,9 +262,9 @@ public class ApiGenerator {
                     if (!extensions.isEmpty()) {
                         ApiElement sdkField = sdkClass.getField(field.getName());
                         if (sdkField != null) {
-                            String from = extensionsMap.calculateFromAttr(field.getSince(), extensions, sdkField.getSince());
-                            if (!clazzFromAttr.equals(from)) {
-                                field.updateFrom(from);
+                            String sdks = extensionsMap.calculateSdksAttr(field.getSince(), extensions, sdkField.getSince());
+                            if (!clazzSdksAttr.equals(sdks)) {
+                                field.updateSdks(sdks);
                             }
                         } else {
                             // TODO: this is a new field that was added in the current REL version. What to do?
@@ -280,9 +280,9 @@ public class ApiGenerator {
                     if (!extensions.isEmpty()) {
                         ApiElement sdkMethod = sdkClass.getMethod(method.getName());
                         if (sdkMethod != null) {
-                            String from = extensionsMap.calculateFromAttr(method.getSince(), extensions, sdkMethod.getSince());
-                            if (!clazzFromAttr.equals(from)) {
-                                method.updateFrom(from);
+                            String sdks = extensionsMap.calculateSdksAttr(method.getSince(), extensions, sdkMethod.getSince());
+                            if (!clazzSdksAttr.equals(sdks)) {
+                                method.updateSdks(sdks);
                             }
                         } else {
                             // TOOD: this is a new method that was added in the current REL version. What to do?
