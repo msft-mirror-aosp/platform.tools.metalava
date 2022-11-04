@@ -162,10 +162,10 @@ class ApiGeneratorTest : DriverTest() {
             service-media-s                    *    R
             service-permission                 *    R
 
-            # framework-connectivity: only getAllExtensionVersions should have the 'from' attribute
+            # framework-connectivity: only getAllExtensionVersions should have the 'sdks' attribute
             framework-connectivity             android.net.CaptivePortal    R
 
-            # framework-media explicitly omitted: nothing in this module should have the 'from' attribute
+            # framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute
             """.trimIndent()
         )
 
@@ -184,7 +184,9 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_SDK_INFO_FILE,
                 filter.path,
                 ARG_FIRST_VERSION,
-                "21"
+                "21",
+                ARG_CURRENT_VERSION,
+                "33"
             )
         )
 
@@ -198,13 +200,13 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
         // top level class marked as since=21 and R=1, implemented in the framework-mediaprovider mainline module
-        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" from=\"0:21,30:1\">"))
+        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" sdks=\"0:21,30:1\">"))
 
-        // method with identical from attribute as containing class: from should be omitted
+        // method with identical sdks attribute as containing class: sdks attribute should be omitted
         assertTrue(xml.contains("<method name=\"getMediaScannerUri()Landroid/net/Uri;\"/>"))
 
-        // method with different from attribute than containing class
-        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" from=\"0:31,33:1\"/>"))
+        // method with different sdks attribute than containing class
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"0:31,33:1\"/>"))
 
         val apiLookup = getApiLookup(output)
         apiLookup.getClassVersion("android.v")
@@ -215,15 +217,15 @@ class ApiGeneratorTest : DriverTest() {
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
 
-        // The filter says 'framework-permission-s             *    R' so RoleManager should exist and should have a module/from attributes
+        // The filter says 'framework-permission-s             *    R' so RoleManager should exist and should have a module/sdks attributes
         assertTrue(apiLookup.containsClass("android/app/role/RoleManager"))
-        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" from=\"0:31,33:1\"/>"))
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"0:31,33:1\"/>"))
 
-        // The filter doesn't mention framework-media, so no class in that module should have a module/from attributes
+        // The filter doesn't mention framework-media, so no class in that module should have a module/sdks attributes
         assertTrue(xml.contains("<class name=\"android/media/MediaFeature\" since=\"31\">"))
 
-        // The filter only defines a single API in framework-connectivity: verify that only that API has the module/from attributes
-        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" from=\"0:23,30:1\">"))
+        // The filter only defines a single API in framework-connectivity: verify that only that API has the module/sdks attributes
+        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" sdks=\"0:23,30:1\">"))
         assertTrue(xml.contains("<class name=\"android/net/ConnectivityDiagnosticsManager\" since=\"30\">"))
     }
 

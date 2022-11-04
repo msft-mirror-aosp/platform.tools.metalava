@@ -229,7 +229,7 @@ class ApiToExtensionsMapTest {
     }
 
     @Test
-    fun `calculate from xml attribute`() {
+    fun `calculate sdks xml attribute`() {
         val rules = """
             R      30
             S      31
@@ -241,32 +241,32 @@ class ApiToExtensionsMapTest {
 
         Assert.assertEquals(
             "",
-            filter.calculateFromAttr(null, setOf(), 4)
+            filter.calculateSdksAttr(null, setOf(), 4)
         )
 
         Assert.assertEquals(
             "30:4",
-            filter.calculateFromAttr(null, setOf("R"), 4)
+            filter.calculateSdksAttr(null, setOf("R"), 4)
         )
 
         Assert.assertEquals(
             setOf("30:4", "31:4"),
-            filter.calculateFromAttr(null, setOf("R", "S"), 4).split(',').toSet()
+            filter.calculateSdksAttr(null, setOf("R", "S"), 4).split(',').toSet()
         )
 
         Assert.assertEquals(
             setOf("0:33", "30:4", "31:4"),
-            filter.calculateFromAttr(33, setOf("R", "S"), 4).split(',').toSet()
+            filter.calculateSdksAttr(33, setOf("R", "S"), 4).split(',').toSet()
         )
 
         Assert.assertEquals(
             setOf("0:33", "30:4", "31:4", "1000:4"),
-            filter.calculateFromAttr(33, setOf("R", "S", "FOO"), 4).split(',').toSet()
+            filter.calculateSdksAttr(33, setOf("R", "S", "FOO"), 4).split(',').toSet()
         )
 
         Assert.assertEquals(
             setOf("0:33", "30:4", "31:4", "1000:4", "1001:4"),
-            filter.calculateFromAttr(33, setOf("R", "S", "FOO", "BAR"), 4).split(',').toSet()
+            filter.calculateSdksAttr(33, setOf("R", "S", "FOO", "BAR"), 4).split(',').toSet()
         )
     }
 
