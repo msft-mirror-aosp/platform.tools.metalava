@@ -145,7 +145,6 @@ class ApiGeneratorTest : DriverTest() {
             T    33
 
             # Rules
-            android.net.ipsec.ike              *    R
             art.module.public.api              *    R
             conscrypt.module.intra.core.api    *    R
             conscrypt.module.platform.api      *    R
@@ -162,7 +161,12 @@ class ApiGeneratorTest : DriverTest() {
             service-media-s                    *    R
             service-permission                 *    R
 
-            # framework-connectivity: only getAllExtensionVersions should have the 'sdks' attribute
+            # use framework-permissions-s to test the order of multiple SDKs is respected
+            android.net.ipsec.ike              android.net.eap.EapAkaInfo    R S T
+            android.net.ipsec.ike              android.net.eap.EapInfo       T S R
+            android.net.ipsec.ike              *    R
+
+            # framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute
             framework-connectivity             android.net.CaptivePortal    R
 
             # framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute
@@ -200,13 +204,13 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
         // top level class marked as since=21 and R=1, implemented in the framework-mediaprovider mainline module
-        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" sdks=\"0:21,30:1\">"))
+        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" sdks=\"30:1,0:21\">"))
 
         // method with identical sdks attribute as containing class: sdks attribute should be omitted
         assertTrue(xml.contains("<method name=\"getMediaScannerUri()Landroid/net/Uri;\"/>"))
 
         // method with different sdks attribute than containing class
-        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"0:31,33:1\"/>"))
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"))
 
         val apiLookup = getApiLookup(output)
         apiLookup.getClassVersion("android.v")
@@ -219,14 +223,20 @@ class ApiGeneratorTest : DriverTest() {
 
         // The filter says 'framework-permission-s             *    R' so RoleManager should exist and should have a module/sdks attributes
         assertTrue(apiLookup.containsClass("android/app/role/RoleManager"))
-        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"0:31,33:1\"/>"))
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"))
 
         // The filter doesn't mention framework-media, so no class in that module should have a module/sdks attributes
         assertTrue(xml.contains("<class name=\"android/media/MediaFeature\" since=\"31\">"))
 
         // The filter only defines a single API in framework-connectivity: verify that only that API has the module/sdks attributes
-        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" sdks=\"0:23,30:1\">"))
+        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" sdks=\"30:1,0:23\">"))
         assertTrue(xml.contains("<class name=\"android/net/ConnectivityDiagnosticsManager\" since=\"30\">"))
+
+        // The order of the SDKs should be respected
+        // android.net.eap.EapAkaInfo    R S T -> 0,30,31,33
+        assertTrue(xml.contains("<class name=\"android/net/eap/EapAkaInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"30:3,31:3,33:3,0:33\">"))
+        // android.net.eap.EapInfo       T S R -> 0,33,31,30
+        assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
     }
 
     @Test
