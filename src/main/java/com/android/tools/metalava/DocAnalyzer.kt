@@ -6,6 +6,7 @@ import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
+import com.android.tools.metalava.apilevels.ApiToExtensionsMap
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -754,8 +755,13 @@ class DocAnalyzer(
                     "manually; it's computed and injected at build time by $PROGRAM_NAME"
             )
         }
-        for (sdkAndVersion in sdkExtInfo) {
-            item.appendDocumentation("${sdkAndVersion.sdk} ${sdkAndVersion.version}", "@sdkExtInfo")
+        // Don't emit an @sdkExtInfo for every item in sdkExtInfo; instead, limit output to the
+        // first non-Android SDK listed for the symbol in sdk-extensions-info.txt (the Android SDK
+        // is already covered by @apiSince and doesn't have to be repeated)
+        sdkExtInfo.find {
+            it.sdk != ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID
+        }?.let {
+            item.appendDocumentation("${it.sdk} ${it.version}", "@sdkExtInfo")
         }
     }
 

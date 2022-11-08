@@ -1538,9 +1538,10 @@ class DocAnalyzerTest : DriverTest() {
                         <sdk id="30" name="R-ext"/>
                         <sdk id="31" name="S-ext"/>
                         <sdk id="33" name="T-ext"/>
+                        <sdk id="1000000" name="standalone-ext"/>
                         <class name="android/pkg/Test" since="1" sdks="0:1,30:2,31:2,33:2">
                             <field name="UNIT_TEST_1"/>
-                            <field name="UNIT_TEST_2" since="2" sdks="0:2,31:3,33:3"/>
+                            <field name="UNIT_TEST_2" since="2" sdks="1000000:3,31:3,33:3,0:2"/>
                         </class>
                     </api>
                     """,
@@ -1552,27 +1553,19 @@ class DocAnalyzerTest : DriverTest() {
                     package android.pkg;
                     /**
                      * @apiSince 1
-                     * @sdkExtInfo 0 1
                      * @sdkExtInfo 30 2
-                     * @sdkExtInfo 31 2
-                     * @sdkExtInfo 33 2
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Test {
                     public Test() { throw new RuntimeException("Stub!"); }
                     /**
                      * @apiSince 1
-                     * @sdkExtInfo 0 1
                      * @sdkExtInfo 30 2
-                     * @sdkExtInfo 31 2
-                     * @sdkExtInfo 33 2
                      */
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
                     /**
                      * @apiSince 2
-                     * @sdkExtInfo 0 2
-                     * @sdkExtInfo 31 3
-                     * @sdkExtInfo 33 3
+                     * @sdkExtInfo 1000000 3
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
