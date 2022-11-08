@@ -1538,9 +1538,9 @@ class DocAnalyzerTest : DriverTest() {
                         <sdk id="30" name="R-ext"/>
                         <sdk id="31" name="S-ext"/>
                         <sdk id="33" name="T-ext"/>
-                        <class name="android/pkg/Test" since="1" from="0:1,30:2,31:2,33:2">
+                        <class name="android/pkg/Test" since="1" sdks="0:1,30:2,31:2,33:2">
                             <field name="UNIT_TEST_1"/>
-                            <field name="UNIT_TEST_2" since="2" from="0:2,31:3,33:3"/>
+                            <field name="UNIT_TEST_2" since="2" sdks="0:2,31:3,33:3"/>
                         </class>
                     </api>
                     """,

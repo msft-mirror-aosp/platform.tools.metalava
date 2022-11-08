@@ -917,16 +917,12 @@ private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndV
         object : DefaultHandler() {
             override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
                 if (qualifiedName == "sdk") {
-                    val attrs = mutableListOf<String>()
-                    for (i in 0..attributes.getLength() - 1) {
-                        attrs.add(attributes.getLocalName(i))
-                    }
                     val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
                     sdkIdentifiers.put(id, SdkIdentifier(id, name))
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
-                    val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("from")?.split(",")?.map {
+                    val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
                         val (sdk, version) = it.split(":")
                         SdkAndVersion(sdk.toInt(), version.toInt())
                     }?.toList()
