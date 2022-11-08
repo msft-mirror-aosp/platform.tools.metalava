@@ -237,14 +237,14 @@ public class ApiGenerator {
             for (ApiClass sdkClass : sdkApi.getClasses()) {
                 ApiClass clazz = api.findClass(sdkClass.getName());
                 if (clazz == null) {
-                    Set<String> extensions = extensionsMap.getExtensions(sdkClass);
+                    List<String> extensions = extensionsMap.getExtensions(sdkClass);
                     if (extensions.isEmpty()) {
                         continue;
                     }
                     clazz = api.addClass(sdkClass.getName(), apiLevelNotInAndroidSdk, sdkClass.isDeprecated());
                 }
 
-                Set<String> extensions = extensionsMap.getExtensions(clazz);
+                List<String> extensions = extensionsMap.getExtensions(clazz);
                 String clazzSdksAttr = extensionsMap.calculateSdksAttr(
                     clazz.getSince() != apiLevelNotInAndroidSdk ? clazz.getSince() : null,
                     extensions,
