@@ -83,6 +83,7 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
+const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
@@ -253,9 +254,9 @@ class Options(
 
     /**
      * Whether metalava is invoked as part of updating the API files. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as --check-compatibility:*.
+     * should *cancel* various other flags that are also being passed in, such as --check-compatibility.
      * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
+     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
      * and this integration is re-used for the update-api facility where we *only* want to generate the
      * signature files. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
@@ -268,7 +269,7 @@ class Options(
      * files.
      *
      * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
+     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
      * and this integration is re-used for the checkapi facility where we *only* want to run compatibility
      * checks. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
@@ -1013,7 +1014,7 @@ class Options(
                     }
                 }
 
-                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
+                ARG_CHECK_COMPATIBILITY, ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
@@ -2138,7 +2139,7 @@ class Options(
             "Whether the signature file being read should be " +
                 "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
                 "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
-            "--check-compatibility:type:released <file>",
+            "$ARG_CHECK_COMPATIBILITY:type:released <file>",
             "Check compatibility. Type is one of 'api' " +
                 "and 'removed', which checks either the public api or the removed api.",
             "$ARG_CHECK_COMPATIBILITY_BASE_API <file>",
