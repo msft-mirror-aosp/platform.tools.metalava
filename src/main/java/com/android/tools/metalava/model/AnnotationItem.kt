@@ -380,7 +380,6 @@ interface AnnotationItem {
                 return ANNOTATION_IN_ALL_STUBS
             }
             when (qualifiedName) {
-
                 // The typedef annotations are special: they should not be in the signature
                 // files, but we want to include them in the external annotations file such that tools
                 // can enforce them.
