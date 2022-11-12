@@ -1534,11 +1534,10 @@ class DocAnalyzerTest : DriverTest() {
             applyApiLevelsXml = """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="3">
-                        <sdk id="0" name="Android"/>
-                        <sdk id="30" name="R-ext"/>
-                        <sdk id="31" name="S-ext"/>
-                        <sdk id="33" name="T-ext"/>
-                        <sdk id="1000000" name="standalone-ext"/>
+                        <sdk id="30" name="R-ext" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                        <sdk id="31" name="S-ext" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                        <sdk id="33" name="T-ext" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+                        <sdk id="1000000" name="standalone-ext" reference="some/other/CONST" />
                         <class name="android/pkg/Test" since="1" sdks="0:1,30:2,31:2,33:2">
                             <field name="UNIT_TEST_1"/>
                             <field name="UNIT_TEST_2" since="2" sdks="1000000:3,31:3,33:3,0:2"/>
