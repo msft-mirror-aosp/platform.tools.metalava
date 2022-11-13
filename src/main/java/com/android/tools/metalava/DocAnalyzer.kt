@@ -925,7 +925,8 @@ private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndV
                 if (qualifiedName == "sdk") {
                     val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
-                    sdkIdentifiers.put(id, SdkIdentifier(id, name))
+                    val reference: String = attributes.getValue("reference") ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
+                    sdkIdentifiers.put(id, SdkIdentifier(id, name, reference))
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
                     val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
