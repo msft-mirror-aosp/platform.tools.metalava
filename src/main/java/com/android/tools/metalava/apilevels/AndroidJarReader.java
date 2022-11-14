@@ -57,7 +57,7 @@ class AndroidJarReader {
         Api api = new Api(mMinApi, max);
         for (int apiLevel = mMinApi; apiLevel < mApiLevels.length; apiLevel++) {
             File jar = getAndroidJarFile(apiLevel);
-            JarReaderUtilsKt.readJar(api, apiLevel, jar);
+            JarReaderUtilsKt.readAndroidJar(api, apiLevel, jar);
         }
         if (mCodebase != null) {
             int apiLevel = mCodebase.getApiLevel();
