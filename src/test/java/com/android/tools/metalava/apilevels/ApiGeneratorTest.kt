@@ -139,37 +139,39 @@ class ApiGeneratorTest : DriverTest() {
         filter.deleteOnExit()
         filter.writeText(
             """
-            # Definitions
-            R    30
-            S    31
-            T    33
+                <sdk-extensions-info>
+                <!-- SDK definitions -->
+                <sdk name="R" id="30" />
+                <sdk name="S" id="31" />
+                <sdk name="T" id="33" />
 
-            # Rules
-            art.module.public.api              *    R
-            conscrypt.module.intra.core.api    *    R
-            conscrypt.module.platform.api      *    R
-            conscrypt.module.public.api        *    R
-            framework-mediaprovider            *    R
-            framework-mediaprovider            android.provider.MediaStore#canManageMedia    T
-            framework-permission-s             *    R
-            framework-permission               *    R
-            framework-sdkextensions            *    R
-            framework-scheduling               *    R
-            framework-statsd                   *    R
-            framework-tethering                *    R
-            legacy.art.module.platform.api     *    R
-            service-media-s                    *    R
-            service-permission                 *    R
+                <!-- Rules -->
+                <symbol jar="art.module.public.api" pattern="*" sdks="R" />
+                <symbol jar="conscrypt.module.intra.core.api " pattern="" sdks="R" />
+                <symbol jar="conscrypt.module.platform.api" pattern="*" sdks="R" />
+                <symbol jar="conscrypt.module.public.api" pattern="*" sdks="R" />
+                <symbol jar="framework-mediaprovider" pattern="*" sdks="R" />
+                <symbol jar="framework-mediaprovider" pattern="android.provider.MediaStore#canManageMedia" sdks="T" />
+                <symbol jar="framework-permission-s" pattern="*" sdks="R" />
+                <symbol jar="framework-permission" pattern="*" sdks="R" />
+                <symbol jar="framework-sdkextensions" pattern="*" sdks="R" />
+                <symbol jar="framework-scheduling" pattern="*" sdks="R" />
+                <symbol jar="framework-statsd" pattern="*" sdks="R" />
+                <symbol jar="framework-tethering" pattern="*" sdks="R" />
+                <symbol jar="legacy.art.module.platform.api" pattern="*" sdks="R" />
+                <symbol jar="service-media-s" pattern="*" sdks="R" />
+                <symbol jar="service-permission" pattern="*" sdks="R" />
 
-            # use framework-permissions-s to test the order of multiple SDKs is respected
-            android.net.ipsec.ike              android.net.eap.EapAkaInfo    R S T
-            android.net.ipsec.ike              android.net.eap.EapInfo       T S R
-            android.net.ipsec.ike              *    R
+                <!-- use framework-permissions-s to test the order of multiple SDKs is respected -->
+                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapAkaInfo" sdks="R,S,T" />
+                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapInfo" sdks="T,S,R" />
+                <symbol jar="android.net.ipsec.ike" pattern="*" sdks="R" />
 
-            # framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute
-            framework-connectivity             android.net.CaptivePortal    R
+                <!-- framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute -->
+                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortal" sdks="R" />
 
-            # framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute
+                <!-- framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute -->
+                </sdk-extensions-info>
             """.trimIndent()
         )
 
