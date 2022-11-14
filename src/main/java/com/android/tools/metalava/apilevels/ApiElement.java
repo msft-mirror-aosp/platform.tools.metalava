@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Represents an API element, e.g. class, method or field.
@@ -42,11 +43,11 @@ public class ApiElement implements Comparable<ApiElement> {
      * &lt;int&gt; is the integer ID of an SDK, and the second &lt;int&gt; the version of that SDK,
      * in which this API first appeared.
      *
-     * This field is a super-set of mSince, and if non-null, should be preferred.
+     * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
      */
-    private String mSdks = null;
+    private String mSdks;
 
-    private String mMainlineModule = null;
+    private String mMainlineModule;
     private int mDeprecatedIn;
     private int mLastPresentIn;
 
@@ -173,7 +174,7 @@ public class ApiElement implements Comparable<ApiElement> {
         stream.print(tag);
         stream.print(" name=\"");
         stream.print(encodeAttribute(mName));
-        if (mMainlineModule != null) {
+        if (!isEmpty(mMainlineModule) && !isEmpty(mSdks)) {
             stream.print("\" module=\"");
             stream.print(encodeAttribute(mMainlineModule));
         }
@@ -181,7 +182,7 @@ public class ApiElement implements Comparable<ApiElement> {
             stream.print("\" since=\"");
             stream.print(mSince);
         }
-        if (mSdks != null) {
+        if (!isEmpty(mSdks) && !Objects.equals(mSdks, parentElement.mSdks)) {
             stream.print("\" sdks=\"");
             stream.print(mSdks);
         }
@@ -198,6 +199,10 @@ public class ApiElement implements Comparable<ApiElement> {
             stream.print('/');
         }
         stream.println('>');
+    }
+
+    private boolean isEmpty(String s) {
+        return s == null || s.isEmpty();
     }
 
     /**
