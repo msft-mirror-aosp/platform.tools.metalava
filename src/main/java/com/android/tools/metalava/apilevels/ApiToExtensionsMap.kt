@@ -104,7 +104,8 @@ class ApiToExtensionsMap private constructor(
             assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
             versions.add("${ident.id}:$extensionsSince")
         }
-        if (androidSince != null) {
+        // Only populate "sdks" if it's different from "since" (i.e. has extension info).
+        if (!extensions.isEmpty() && androidSince != null) {
             versions.add("$ANDROID_PLATFORM_SDK_ID:$androidSince")
         }
         return versions.joinToString(",")
