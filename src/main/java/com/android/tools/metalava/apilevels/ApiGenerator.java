@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -103,50 +104,38 @@ public class ApiGenerator {
                     clazz = api.addClass(sdkClass.getName(), apiLevelNotInAndroidSdk, sdkClass.isDeprecated());
                 }
 
-                List<String> extensions = extensionsMap.getExtensions(clazz);
                 String clazzSdksAttr = extensionsMap.calculateSdksAttr(
                     clazz.getSince() != apiLevelNotInAndroidSdk ? clazz.getSince() : null,
-                    extensions,
-                    sdkClass.getSince()
-                );
-                if (!extensions.isEmpty()) {
-                    clazz.updateMainlineModule(mainlineModule);
-                    clazz.updateSdks(clazzSdksAttr);
-                }
+                    extensionsMap.getExtensions(clazz),
+                    sdkClass.getSince());
+                clazz.updateMainlineModule(mainlineModule);
+                clazz.updateSdks(clazzSdksAttr);
 
                 Iterator<ApiElement> iter = clazz.getFieldIterator();
                 while (iter.hasNext()) {
                     ApiElement field = iter.next();
-                    extensions = extensionsMap.getExtensions(clazz, field);
-                    if (!extensions.isEmpty()) {
-                        ApiElement sdkField = sdkClass.getField(field.getName());
-                        if (sdkField != null) {
-                            String sdks = extensionsMap.calculateSdksAttr(field.getSince(), extensions, sdkField.getSince());
-                            if (!clazzSdksAttr.equals(sdks)) {
-                                field.updateSdks(sdks);
-                            }
-                        } else {
-                            // TODO: this is a new field that was added in the current REL version. What to do?
-                            // Introduce something equivalent to ARG_CURRENT_VERSION?
-                        }
+                    ApiElement sdkField = sdkClass.getField(field.getName());
+                    if (sdkField != null) {
+                        String sdks = extensionsMap.calculateSdksAttr(field.getSince(),
+                            extensionsMap.getExtensions(clazz, field), sdkField.getSince());
+                        field.updateSdks(sdks);
+                    } else {
+                        // TODO: this is a new field that was added in the current REL version. What to do?
+                        // Introduce something equivalent to ARG_CURRENT_VERSION?
                     }
                 }
 
                 iter = clazz.getMethodIterator();
                 while (iter.hasNext()) {
                     ApiElement method = iter.next();
-                    extensions = extensionsMap.getExtensions(clazz, method);
-                    if (!extensions.isEmpty()) {
-                        ApiElement sdkMethod = sdkClass.getMethod(method.getName());
-                        if (sdkMethod != null) {
-                            String sdks = extensionsMap.calculateSdksAttr(method.getSince(), extensions, sdkMethod.getSince());
-                            if (!clazzSdksAttr.equals(sdks)) {
-                                method.updateSdks(sdks);
-                            }
-                        } else {
-                            // TOOD: this is a new method that was added in the current REL version. What to do?
-                            // Introduce something equivalent to ARG_CURRENT_VERSION?
-                        }
+                    ApiElement sdkMethod = sdkClass.getMethod(method.getName());
+                    if (sdkMethod != null) {
+                        String sdks = extensionsMap.calculateSdksAttr(method.getSince(),
+                            extensionsMap.getExtensions(clazz, method), sdkMethod.getSince());
+                        method.updateSdks(sdks);
+                    } else {
+                        // TOOD: this is a new method that was added in the current REL version. What to do?
+                        // Introduce something equivalent to ARG_CURRENT_VERSION?
                     }
                 }
             }
