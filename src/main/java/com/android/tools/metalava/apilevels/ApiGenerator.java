@@ -104,10 +104,10 @@ public class ApiGenerator {
                     clazz = api.addClass(sdkClass.getName(), apiLevelNotInAndroidSdk, sdkClass.isDeprecated());
                 }
 
-                String clazzSdksAttr = extensionsMap.calculateSdksAttr(
-                    clazz.getSince() != apiLevelNotInAndroidSdk ? clazz.getSince() : null,
-                    extensionsMap.getExtensions(clazz),
-                    sdkClass.getSince());
+                Function<ApiElement, Integer> getSince =
+                    e -> e.getSince() != apiLevelNotInAndroidSdk ? e.getSince() : null;
+                String clazzSdksAttr = extensionsMap.calculateSdksAttr(getSince.apply(clazz),
+                    extensionsMap.getExtensions(clazz), sdkClass.getSince());
                 clazz.updateMainlineModule(mainlineModule);
                 clazz.updateSdks(clazzSdksAttr);
 
@@ -116,7 +116,7 @@ public class ApiGenerator {
                     ApiElement field = iter.next();
                     ApiElement sdkField = sdkClass.getField(field.getName());
                     if (sdkField != null) {
-                        String sdks = extensionsMap.calculateSdksAttr(field.getSince(),
+                        String sdks = extensionsMap.calculateSdksAttr(getSince.apply(field),
                             extensionsMap.getExtensions(clazz, field), sdkField.getSince());
                         field.updateSdks(sdks);
                     } else {
@@ -130,7 +130,7 @@ public class ApiGenerator {
                     ApiElement method = iter.next();
                     ApiElement sdkMethod = sdkClass.getMethod(method.getName());
                     if (sdkMethod != null) {
-                        String sdks = extensionsMap.calculateSdksAttr(method.getSince(),
+                        String sdks = extensionsMap.calculateSdksAttr(getSince.apply(method),
                             extensionsMap.getExtensions(clazz, method), sdkMethod.getSince());
                         method.updateSdks(sdks);
                     } else {
