@@ -125,7 +125,7 @@ class ApiToExtensionsMap private constructor(
          *
          *     <?xml version="1.0" encoding="utf-8"?>
          *     <sdk-extensions-info version="1">
-         *         <sdk name="<name>" id="<int>" />
+         *         <sdk name="<name>" id="<int>" reference="<constant>" />
          *         <symbol jar="<jar>" pattern="<pattern>" sdks="<sdks>" />
          *     </sdk-extensions-info>
          *
@@ -138,6 +138,10 @@ class ApiToExtensionsMap private constructor(
          *
          * - <jar> is the jar file symbol belongs to, named after the jar file in
          *   prebuilts/sdk/extensions/<int>/public, e.g. "framework-sdkextensions".
+         *
+         * - <constant> is a Java symbol that can be passed to `SdkExtensions.getExtensionVersion`
+         *   to look up the version of the corresponding SDK, e.g.
+         *   "android/os/Build$VERSION_CODES$R"
          *
          * - <pattern> is either '*', which matches everything, or a 'com.foo.Bar$Inner#member'
          *   string (or prefix thereof terminated before . or $), which matches anything with that
@@ -170,7 +174,8 @@ class ApiToExtensionsMap private constructor(
                                 "sdk" -> {
                                     val name = attributes.getStringOrThrow(qualifiedName, "name")
                                     val id = attributes.getIntOrThrow(qualifiedName, "id")
-                                    sdkIdentifiers.add(SdkIdentifier(id, name))
+                                    val reference = attributes.getStringOrThrow(qualifiedName, "reference")
+                                    sdkIdentifiers.add(SdkIdentifier(id, name, reference))
                                 }
                                 "symbol" -> {
                                     val jar = attributes.getStringOrThrow(qualifiedName, "jar")
@@ -228,6 +233,11 @@ class ApiToExtensionsMap private constructor(
             // verify: no duplicate SDK names
             if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.name }.size) {
                 throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
+            }
+
+            // verify: no duplicate SDK references
+            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.reference }.size) {
+                throw IllegalArgumentException("bad SDK definitions: duplicate SDK references")
             }
 
             return ApiToExtensionsMap(sdkIdentifiers, root)
