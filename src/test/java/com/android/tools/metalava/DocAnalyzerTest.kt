@@ -1552,19 +1552,19 @@ class DocAnalyzerTest : DriverTest() {
                     package android.pkg;
                     /**
                      * @apiSince 1
-                     * @sdkExtInfo 30 2
+                     * @sdkExtSince 30 2
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Test {
                     public Test() { throw new RuntimeException("Stub!"); }
                     /**
                      * @apiSince 1
-                     * @sdkExtInfo 30 2
+                     * @sdkExtSince 30 2
                      */
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
                     /**
                      * @apiSince 2
-                     * @sdkExtInfo 1000000 3
+                     * @sdkExtSince 1000000 3
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
