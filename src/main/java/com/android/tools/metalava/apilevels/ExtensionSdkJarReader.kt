@@ -27,7 +27,7 @@ class ExtensionSdkJarReader(val name: String, val files: List<VersionAndPath>) {
         }
         val api = Api(files.first().version, files.last().version)
         for (f in files) {
-            api.readJar(f.version, f.path)
+            api.readAndroidJar(f.version, f.path)
         }
         return api
     }
