@@ -28,6 +28,8 @@ import java.util.Objects;
  * Represents an API element, e.g. class, method or field.
  */
 public class ApiElement implements Comparable<ApiElement> {
+    public static final int NEVER = Integer.MAX_VALUE;
+
     private final String mName;
 
     /**
@@ -35,6 +37,10 @@ public class ApiElement implements Comparable<ApiElement> {
      */
     private int mSince;
 
+    /**
+     * The Android extension SDK version this API was first introduced in.
+     */
+    private int mSinceExtension = NEVER;
 
     /**
      * The SDKs and their versions this API was first introduced in.
@@ -87,8 +93,18 @@ public class ApiElement implements Comparable<ApiElement> {
         return mName;
     }
 
+    /**
+     * The Android API level of this ApiElement.
+     */
     public int getSince() {
         return mSince;
+    }
+
+    /**
+     * The extension version of this ApiElement.
+     */
+    public int getSinceExtension() {
+        return mSinceExtension;
     }
 
     /**
@@ -131,9 +147,23 @@ public class ApiElement implements Comparable<ApiElement> {
         update(version, isDeprecated());
     }
 
+    /**
+     * Analoguous to update(), but for extensions sdk versions.
+     *
+     * @param version an extension SDK version for which the API element existed
+     */
+    public void updateExtension(int version) {
+        assert version > 0;
+        if (mSinceExtension > version) {
+            mSinceExtension = version;
+        }
+    }
+
     public void updateSdks(String sdks) { mSdks = sdks; }
 
     public void updateMainlineModule(String module) { mMainlineModule = module; }
+
+    public String getMainlineModule() { return mMainlineModule; }
 
     /**
      * Checks whether the API element is deprecated or not.

@@ -30,7 +30,11 @@ fun Api.readAndroidJar(apiLevel: Int, jar: File) {
     readJar(apiLevel, jar)
 }
 
-fun Api.readJar(apiLevel: Int, jar: File) {
+fun Api.readExtensionJar(extensionVersion: Int, module: String, jar: File, nextApiLevel: Int) {
+    readJar(nextApiLevel, jar, extensionVersion, module)
+}
+
+fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module: String? = null) {
     val fis = FileInputStream(jar)
     ZipInputStream(fis).use { zis ->
         var entry = zis.nextEntry
@@ -49,6 +53,8 @@ fun Api.readJar(apiLevel: Int, jar: File) {
                 apiLevel,
                 (classNode.access and Opcodes.ACC_DEPRECATED) != 0
             )
+            extensionVersion?.let { theClass.updateExtension(extensionVersion) }
+            module?.let { theClass.updateMainlineModule(module) }
 
             theClass.updateHidden(
                 apiLevel,
@@ -72,11 +78,12 @@ fun Api.readJar(apiLevel: Int, jar: File) {
                     continue
                 }
                 if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
-                    theClass.addField(
+                    val apiField = theClass.addField(
                         fieldNode.name,
                         apiLevel,
                         (fieldNode.access and Opcodes.ACC_DEPRECATED) != 0
                     )
+                    extensionVersion?.let { apiField.updateExtension(extensionVersion) }
                 }
             }
 
@@ -87,10 +94,11 @@ fun Api.readJar(apiLevel: Int, jar: File) {
                     continue
                 }
                 if (methodNode.name != "<clinit>") {
-                    theClass.addMethod(
+                    val apiMethod = theClass.addMethod(
                         methodNode.name + methodNode.desc, apiLevel,
                         (methodNode.access and Opcodes.ACC_DEPRECATED) != 0
                     )
+                    extensionVersion?.let { apiMethod.updateExtension(extensionVersion) }
                 }
             }
 
