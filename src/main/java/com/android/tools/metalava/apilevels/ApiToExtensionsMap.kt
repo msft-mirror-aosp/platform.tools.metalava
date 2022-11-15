@@ -46,6 +46,8 @@ class ApiToExtensionsMap private constructor(
     private val sdkIdentifiers: Set<SdkIdentifier>,
     private val root: Node,
 ) {
+    fun isEmpty(): Boolean = root.children.isEmpty() && root.extensions.isEmpty()
+
     fun getExtensions(clazz: ApiClass): List<String> = getExtensions(clazz.name.toDotNotation())
 
     fun getExtensions(clazz: ApiClass, member: ApiElement): List<String> =
