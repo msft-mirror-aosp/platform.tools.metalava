@@ -65,13 +65,6 @@ class AndroidJarReader {
                 processCodebase(api, apiLevel);
             }
         }
-
-        api.backfillHistoricalFixes();
-        api.inlineFromHiddenSuperClasses();
-        api.removeImplicitInterfaces();
-        api.removeOverridingMethods();
-        api.prunePackagePrivateClasses();
-
         return api;
     }
 
