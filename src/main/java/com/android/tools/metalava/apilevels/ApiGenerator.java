@@ -99,6 +99,7 @@ public class ApiGenerator {
         for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
             String mainlineModule = entry.getKey();
             ApiToExtensionsMap moduleMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
+            if (moduleMap.isEmpty()) continue; // TODO(b/259115852): remove this (though it is an optimization too).
 
             moduleMaps.put(mainlineModule, moduleMap);
             for (VersionAndPath f : entry.getValue()) {
