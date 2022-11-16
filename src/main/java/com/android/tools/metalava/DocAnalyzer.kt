@@ -665,14 +665,14 @@ class DocAnalyzer(
 
     fun applyApiLevels(applyApiLevelsXml: File) {
         val apiLookup = getApiLookup(applyApiLevelsXml)
-        val elementToSdkExtInfoMap = createSymbolToSdkExtInfoMap(applyApiLevelsXml)
+        val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(object : ApiVisitor(visitConstructorsAsMethods = true) {
             override fun visitMethod(method: MethodItem) {
                 val psiMethod = method.psi() as? PsiMethod ?: return
                 addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
-                elementToSdkExtInfoMap["${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]?.let {
+                elementToSdkExtSinceMap["${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]?.let {
                     addApiExtensionsDocumentation(it, method)
                 }
                 addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
@@ -688,7 +688,7 @@ class DocAnalyzer(
                     val pkg = cls.containingPackage()
                     pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
                 }
-                elementToSdkExtInfoMap["${psiClass.qualifiedName}"]?.let {
+                elementToSdkExtSinceMap["${psiClass.qualifiedName}"]?.let {
                     addApiExtensionsDocumentation(it, cls)
                 }
                 addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(psiClass), cls)
@@ -697,7 +697,7 @@ class DocAnalyzer(
             override fun visitField(field: FieldItem) {
                 val psiField = field.psi() as PsiField
                 addApiLevelDocumentation(apiLookup.getFieldVersion(psiField), field)
-                elementToSdkExtInfoMap["${psiField.containingClass!!.qualifiedName}#${psiField.name}"]?.let {
+                elementToSdkExtSinceMap["${psiField.containingClass!!.qualifiedName}#${psiField.name}"]?.let {
                     addApiExtensionsDocumentation(it, field)
                 }
                 addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(psiField), field)
@@ -747,21 +747,21 @@ class DocAnalyzer(
         }
     }
 
-    private fun addApiExtensionsDocumentation(sdkExtInfo: List<SdkAndVersion>, item: Item) {
-        if (item.documentation.contains("@sdkExtInfo")) {
+    private fun addApiExtensionsDocumentation(sdkExtSince: List<SdkAndVersion>, item: Item) {
+        if (item.documentation.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG, item,
-                "Documentation should not specify @sdkExtInfo " +
+                "Documentation should not specify @sdkExtSince " +
                     "manually; it's computed and injected at build time by $PROGRAM_NAME"
             )
         }
-        // Don't emit an @sdkExtInfo for every item in sdkExtInfo; instead, limit output to the
+        // Don't emit an @sdkExtSince for every item in sdkExtSince; instead, limit output to the
         // first non-Android SDK listed for the symbol in sdk-extensions-info.txt (the Android SDK
         // is already covered by @apiSince and doesn't have to be repeated)
-        sdkExtInfo.find {
+        sdkExtSince.find {
             it.sdk != ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID
         }?.let {
-            item.appendDocumentation("${it.sdk} ${it.version}", "@sdkExtInfo")
+            item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince")
         }
     }
 
@@ -905,17 +905,19 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
 
 /**
  * Generate a map of symbol -> (list of SDKs and corresponding versions the symbol first appeared)
- * in by parsing an api-versions.xml file. This will be used when injecting @sdkExtInfo annotations,
+ * in by parsing an api-versions.xml file. This will be used when injecting @sdkExtSince annotations,
  * which convey the same information, in a format documentation tools can consume.
  *
  * A symbol is either of a class, method or field.
  */
-private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
-    data class OuterClass(val name: String, val sdkExtInfo: List<SdkAndVersion>?)
+private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
+    data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
 
-    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>()
+    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>(
+        ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID to SdkIdentifier(ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID, "Android", "Android", "null")
+    )
     var lastSeenClass: OuterClass? = null
-    val elementToSdkExtInfoMap = mutableMapOf<String, List<SdkAndVersion>>()
+    val elementToIdAndVersionMap = mutableMapOf<String, List<IdAndVersion>>()
     val memberTags = listOf("class", "method", "field")
     val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
     parser.parse(
@@ -924,29 +926,30 @@ private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndV
             override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
                 if (qualifiedName == "sdk") {
                     val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
+                    val shortname: String = attributes.getValue("shortname") ?: throw IllegalArgumentException("<sdk>: missing shortname attribute")
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
                     val reference: String = attributes.getValue("reference") ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkIdentifiers.put(id, SdkIdentifier(id, name, reference))
+                    sdkIdentifiers.put(id, SdkIdentifier(id, shortname, name, reference))
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
-                    val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
+                    val idAndVersionList: List<IdAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
                         val (sdk, version) = it.split(":")
-                        SdkAndVersion(sdk.toInt(), version.toInt())
+                        IdAndVersion(sdk.toInt(), version.toInt())
                     }?.toList()
 
                     when (qualifiedName) {
                         "class" -> {
-                            lastSeenClass = OuterClass(name.replace('/', '.'), sdkExtInfo)
-                            if (sdkExtInfo != null) {
-                                elementToSdkExtInfoMap["${lastSeenClass!!.name}"] = sdkExtInfo
+                            lastSeenClass = OuterClass(name.replace('/', '.'), idAndVersionList)
+                            if (idAndVersionList != null) {
+                                elementToIdAndVersionMap["${lastSeenClass!!.name}"] = idAndVersionList
                             }
                         }
                         "method", "field" -> {
                             val element = "${lastSeenClass!!.name}#$name".split('(')[0]
-                            if (sdkExtInfo != null) {
-                                elementToSdkExtInfoMap[element] = sdkExtInfo
-                            } else if (lastSeenClass!!.sdkExtInfo != null) {
-                                elementToSdkExtInfoMap[element] = lastSeenClass!!.sdkExtInfo!!
+                            if (idAndVersionList != null) {
+                                elementToIdAndVersionMap[element] = idAndVersionList
+                            } else if (lastSeenClass!!.idAndVersionList != null) {
+                                elementToIdAndVersionMap[element] = lastSeenClass!!.idAndVersionList!!
                             }
                         }
                     }
@@ -960,9 +963,19 @@ private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndV
             }
         }
     )
-    return elementToSdkExtInfoMap
+
+    val elementToSdkExtSinceMap = mutableMapOf<String, List<SdkAndVersion>>()
+    for (entry in elementToIdAndVersionMap.entries) {
+        elementToSdkExtSinceMap[entry.key] = entry.value.map {
+            val name = sdkIdentifiers.get(it.first)?.name ?: throw IllegalArgumentException("SDK reference to unknown <sdk> with id ${it.first}")
+            SdkAndVersion(it.first, name, it.second)
+        }
+    }
+    return elementToSdkExtSinceMap
 }
 
 private fun NodeList.firstOrNull(): Node? = if (length > 0) { item(0) } else { null }
 
-private data class SdkAndVersion(val sdk: Int, val version: Int)
+private typealias IdAndVersion = Pair<Int, Int>
+
+private data class SdkAndVersion(val sdk: Int, val name: String, val version: Int)
