@@ -924,9 +924,10 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
             override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
                 if (qualifiedName == "sdk") {
                     val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
+                    val shortname: String = attributes.getValue("shortname") ?: throw IllegalArgumentException("<sdk>: missing shortname attribute")
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
                     val reference: String = attributes.getValue("reference") ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkIdentifiers.put(id, SdkIdentifier(id, name, reference))
+                    sdkIdentifiers.put(id, SdkIdentifier(id, shortname, name, reference))
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
                     val sdkExtSince: List<SdkAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
