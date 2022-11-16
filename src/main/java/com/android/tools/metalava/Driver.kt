@@ -274,7 +274,7 @@ private fun processFlags() {
 
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
         ApiGenerator.generate(
-            apiLevelJars, options.firstApiLevel, codebase.apiLevel, androidApiLevelXml,
+            apiLevelJars, options.firstApiLevel, options.currentApiLevel, androidApiLevelXml,
             // codebase represents the files in the Android source tree (as opposed to the snapshots
             // in prebuilts/sdk): do not include codebase if building api-versions.xml for a
             // finalized SDK

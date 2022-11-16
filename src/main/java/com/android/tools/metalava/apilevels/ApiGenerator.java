@@ -28,6 +28,7 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,10 +53,16 @@ public class ApiGenerator {
 
         AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
         Api api = reader.getApi();
+        api.backfillHistoricalFixes();
+
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
         if (sdkJarRoot != null && sdkFilterFile != null) {
             sdkIdentifiers = processExtensionSdkApis(api, currentApiLevel + 1, sdkJarRoot, sdkFilterFile);
         }
+        api.inlineFromHiddenSuperClasses();
+        api.removeImplicitInterfaces();
+        api.removeOverridingMethods();
+        api.prunePackagePrivateClasses();
         return createApiFile(outputFile, api, sdkIdentifiers);
     }
 
@@ -88,56 +95,41 @@ public class ApiGenerator {
         if (map.isEmpty()) {
             throw new IllegalArgumentException("no extension sdk jar files found in " + sdkJarRoot);
         }
+        Map<String, ApiToExtensionsMap> moduleMaps = new HashMap<>();
         for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
             String mainlineModule = entry.getKey();
-            ApiToExtensionsMap extensionsMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
-            ExtensionSdkJarReader sdkReader = new ExtensionSdkJarReader(mainlineModule, entry.getValue());
-            Api sdkApi = sdkReader.getApi();
+            ApiToExtensionsMap moduleMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
+            if (moduleMap.isEmpty()) continue; // TODO(b/259115852): remove this (though it is an optimization too).
 
-            for (ApiClass sdkClass : sdkApi.getClasses()) {
-                ApiClass clazz = api.findClass(sdkClass.getName());
-                if (clazz == null) {
-                    List<String> extensions = extensionsMap.getExtensions(sdkClass);
-                    if (extensions.isEmpty()) {
-                        continue;
-                    }
-                    clazz = api.addClass(sdkClass.getName(), apiLevelNotInAndroidSdk, sdkClass.isDeprecated());
-                }
+            moduleMaps.put(mainlineModule, moduleMap);
+            for (VersionAndPath f : entry.getValue()) {
+                JarReaderUtilsKt.readExtensionJar(api, f.version, mainlineModule, f.path, apiLevelNotInAndroidSdk);
+            }
+        }
+        Function<ApiElement, Integer> getSince =
+            e -> e.getSince() != apiLevelNotInAndroidSdk ? e.getSince() : null;
+        for (ApiClass clazz : api.getClasses()) {
+            String module = clazz.getMainlineModule();
+            if (module == null) continue;
+            ApiToExtensionsMap extensionsMap = moduleMaps.get(module);
+            String sdks = extensionsMap.calculateSdksAttr(getSince.apply(clazz),
+                extensionsMap.getExtensions(clazz), clazz.getSinceExtension());
+            clazz.updateSdks(sdks);
 
-                Function<ApiElement, Integer> getSince =
-                    e -> e.getSince() != apiLevelNotInAndroidSdk ? e.getSince() : null;
-                String clazzSdksAttr = extensionsMap.calculateSdksAttr(getSince.apply(clazz),
-                    extensionsMap.getExtensions(clazz), sdkClass.getSince());
-                clazz.updateMainlineModule(mainlineModule);
-                clazz.updateSdks(clazzSdksAttr);
+            Iterator<ApiElement> iter = clazz.getFieldIterator();
+            while (iter.hasNext()) {
+                ApiElement field = iter.next();
+                sdks = extensionsMap.calculateSdksAttr(getSince.apply(field),
+                    extensionsMap.getExtensions(clazz, field), field.getSinceExtension());
+                field.updateSdks(sdks);
+            }
 
-                Iterator<ApiElement> iter = clazz.getFieldIterator();
-                while (iter.hasNext()) {
-                    ApiElement field = iter.next();
-                    ApiElement sdkField = sdkClass.getField(field.getName());
-                    if (sdkField != null) {
-                        String sdks = extensionsMap.calculateSdksAttr(getSince.apply(field),
-                            extensionsMap.getExtensions(clazz, field), sdkField.getSince());
-                        field.updateSdks(sdks);
-                    } else {
-                        // TODO: this is a new field that was added in the current REL version. What to do?
-                        // Introduce something equivalent to ARG_CURRENT_VERSION?
-                    }
-                }
-
-                iter = clazz.getMethodIterator();
-                while (iter.hasNext()) {
-                    ApiElement method = iter.next();
-                    ApiElement sdkMethod = sdkClass.getMethod(method.getName());
-                    if (sdkMethod != null) {
-                        String sdks = extensionsMap.calculateSdksAttr(getSince.apply(method),
-                            extensionsMap.getExtensions(clazz, method), sdkMethod.getSince());
-                        method.updateSdks(sdks);
-                    } else {
-                        // TOOD: this is a new method that was added in the current REL version. What to do?
-                        // Introduce something equivalent to ARG_CURRENT_VERSION?
-                    }
-                }
+            iter = clazz.getMethodIterator();
+            while (iter.hasNext()) {
+                ApiElement method = iter.next();
+                sdks = extensionsMap.calculateSdksAttr(getSince.apply(method),
+                    extensionsMap.getExtensions(clazz, method), method.getSinceExtension());
+                method.updateSdks(sdks);
             }
         }
         return ApiToExtensionsMap.Companion.fromXml("", rules).getSdkIdentifiers();
