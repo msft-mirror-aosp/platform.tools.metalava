@@ -761,7 +761,7 @@ class DocAnalyzer(
         sdkExtSince.find {
             it.sdk != ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID
         }?.let {
-            item.appendDocumentation("${it.sdk} ${it.version}", "@sdkExtSince")
+            item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince")
         }
     }
 
@@ -911,11 +911,13 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
  * A symbol is either of a class, method or field.
  */
 private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
-    data class OuterClass(val name: String, val sdkExtSince: List<SdkAndVersion>?)
+    data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
 
-    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>()
+    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>(
+        ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID to SdkIdentifier(ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID, "Android", "Android", "null")
+    )
     var lastSeenClass: OuterClass? = null
-    val elementToSdkExtSinceMap = mutableMapOf<String, List<SdkAndVersion>>()
+    val elementToIdAndVersionMap = mutableMapOf<String, List<IdAndVersion>>()
     val memberTags = listOf("class", "method", "field")
     val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
     parser.parse(
@@ -924,29 +926,30 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
             override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
                 if (qualifiedName == "sdk") {
                     val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
+                    val shortname: String = attributes.getValue("shortname") ?: throw IllegalArgumentException("<sdk>: missing shortname attribute")
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
                     val reference: String = attributes.getValue("reference") ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkIdentifiers.put(id, SdkIdentifier(id, name, reference))
+                    sdkIdentifiers.put(id, SdkIdentifier(id, shortname, name, reference))
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
-                    val sdkExtSince: List<SdkAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
+                    val idAndVersionList: List<IdAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
                         val (sdk, version) = it.split(":")
-                        SdkAndVersion(sdk.toInt(), version.toInt())
+                        IdAndVersion(sdk.toInt(), version.toInt())
                     }?.toList()
 
                     when (qualifiedName) {
                         "class" -> {
-                            lastSeenClass = OuterClass(name.replace('/', '.'), sdkExtSince)
-                            if (sdkExtSince != null) {
-                                elementToSdkExtSinceMap["${lastSeenClass!!.name}"] = sdkExtSince
+                            lastSeenClass = OuterClass(name.replace('/', '.'), idAndVersionList)
+                            if (idAndVersionList != null) {
+                                elementToIdAndVersionMap["${lastSeenClass!!.name}"] = idAndVersionList
                             }
                         }
                         "method", "field" -> {
                             val element = "${lastSeenClass!!.name}#$name".split('(')[0]
-                            if (sdkExtSince != null) {
-                                elementToSdkExtSinceMap[element] = sdkExtSince
-                            } else if (lastSeenClass!!.sdkExtSince != null) {
-                                elementToSdkExtSinceMap[element] = lastSeenClass!!.sdkExtSince!!
+                            if (idAndVersionList != null) {
+                                elementToIdAndVersionMap[element] = idAndVersionList
+                            } else if (lastSeenClass!!.idAndVersionList != null) {
+                                elementToIdAndVersionMap[element] = lastSeenClass!!.idAndVersionList!!
                             }
                         }
                     }
@@ -960,9 +963,19 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
             }
         }
     )
+
+    val elementToSdkExtSinceMap = mutableMapOf<String, List<SdkAndVersion>>()
+    for (entry in elementToIdAndVersionMap.entries) {
+        elementToSdkExtSinceMap[entry.key] = entry.value.map {
+            val name = sdkIdentifiers.get(it.first)?.name ?: throw IllegalArgumentException("SDK reference to unknown <sdk> with id ${it.first}")
+            SdkAndVersion(it.first, name, it.second)
+        }
+    }
     return elementToSdkExtSinceMap
 }
 
 private fun NodeList.firstOrNull(): Node? = if (length > 0) { item(0) } else { null }
 
-private data class SdkAndVersion(val sdk: Int, val version: Int)
+private typealias IdAndVersion = Pair<Int, Int>
+
+private data class SdkAndVersion(val sdk: Int, val name: String, val version: Int)
