@@ -4709,4 +4709,41 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `companion object in annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Dimension(val unit: Int = PX) {
+                            companion object {
+                                const val DP: Int = 0
+                                const val PX: Int = 1
+                                const val SP: Int = 2
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
+                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    property public abstract int unit;
+                    field public static final test.pkg.Dimension.Companion Companion;
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                  public static final class Dimension.Companion {
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                }
+            """
+        )
+    }
 }
