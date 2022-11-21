@@ -1526,7 +1526,12 @@ class DocAnalyzerTest : DriverTest() {
                    public static final String UNIT_TEST_1 = "unit.test.1";
                    public static final String UNIT_TEST_2 = "unit.test.2";
                    public static final String UNIT_TEST_3 = "unit.test.3";
+                   public Test() {}
                    public void foo() {}
+                   public class Inner {
+                       public Inner() {}
+                       public static final boolean UNIT_TEST_4 = true;
+                   }
                 }
                 """
             )
@@ -1541,9 +1546,14 @@ class DocAnalyzerTest : DriverTest() {
                     <sdk id="1000000" shortname="standalone-ext" name="Standalone Extensions" reference="some/other/CONST" />
                     <class name="android/pkg/Test" since="1" sdks="0:1,30:2,31:2,33:2">
                         <method name="foo()V"/>
+                        <method name="&lt;init>()V"/>
                         <field name="UNIT_TEST_1"/>
                         <field name="UNIT_TEST_2" since="2" sdks="1000000:3,31:3,33:3,0:2"/>
                         <field name="UNIT_TEST_3" since="31" sdks="1000000:4"/>
+                    </class>
+                    <class name="android/pkg/Test${'$'}Inner" since="1" sdks="0:1,30:2,31:2,33:2">
+                        <method name="&lt;init>()V"/>
+                        <field name="UNIT_TEST_4"/>
                     </class>
                 </api>
                 """
@@ -1576,6 +1586,10 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Test {
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
                     public Test() { throw new RuntimeException("Stub!"); }
                     /**
                      * @apiSince 1
@@ -1594,6 +1608,23 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     /** @sdkExtSince Standalone Extensions 4 */
                     public static final java.lang.String UNIT_TEST_3 = "unit.test.3";
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Inner {
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    public Inner() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    public static final boolean UNIT_TEST_4 = true;
+                    }
                     }
                     """
                 )
@@ -1619,6 +1650,10 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Test {
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
                     public Test() { throw new RuntimeException("Stub!"); }
                     /**
                      * @apiSince 1
@@ -1640,6 +1675,23 @@ class DocAnalyzerTest : DriverTest() {
                      * @sdkExtSince Standalone Extensions 4
                      */
                     public static final java.lang.String UNIT_TEST_3 = "unit.test.3";
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Inner {
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    public Inner() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    public static final boolean UNIT_TEST_4 = true;
+                    }
                     }
                     """
                 )
