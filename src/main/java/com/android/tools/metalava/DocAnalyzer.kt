@@ -719,6 +719,13 @@ class DocAnalyzer(
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have accurate historical data
                 return
             }
+            if (!options.isDeveloperPreviewBuild() && options.currentApiLevel != -1 && level > options.currentApiLevel) {
+                // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
+                // in a dessert (only in an extension), but for release builds, we don't want to
+                // include a "future" SDK_INT
+                return
+            }
+
             val currentCodeName = options.currentCodeName
             val code: String = if (currentCodeName != null && level > options.currentApiLevel) {
                 currentCodeName
@@ -909,6 +916,8 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
  * which convey the same information, in a format documentation tools can consume.
  *
  * A symbol is either of a class, method or field.
+ *
+ * The symbols are Strings on the format "com.pkg.Foo#MethodOrField", with no method signature.
  */
 private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
     data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
@@ -937,15 +946,34 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                         IdAndVersion(sdk.toInt(), version.toInt())
                     }?.toList()
 
+                    // Populate elementToIdAndVersionMap. The keys constructed here are derived from
+                    // api-versions.xml; when used elsewhere in DocAnalyzer, the keys will be
+                    // derived from PsiItems. The two sources use slightly different nomenclature,
+                    // so change "api-versions.xml nomenclature" to "PsiItems nomenclature" before
+                    // inserting items in the map.
+                    //
+                    // Nomenclature differences:
+                    //   - constructors are named "<init>()V" in api-versions.xml, but
+                    //     "ClassName()V" in PsiItems
+                    //   - inner classes are named "Outer#Inner" in api-versions.xml, but
+                    //     "Outer.Inner" in PsiItems
                     when (qualifiedName) {
                         "class" -> {
-                            lastSeenClass = OuterClass(name.replace('/', '.'), idAndVersionList)
+                            lastSeenClass = OuterClass(name.replace('/', '.').replace('$', '.'), idAndVersionList)
                             if (idAndVersionList != null) {
                                 elementToIdAndVersionMap["${lastSeenClass!!.name}"] = idAndVersionList
                             }
                         }
                         "method", "field" -> {
-                            val element = "${lastSeenClass!!.name}#$name".split('(')[0]
+                            val shortName = if (name.startsWith("<init>")) {
+                                // constructors in api-versions.xml are named '<init>': rename to
+                                // name of class instead, and strip signature: '<init>()V' -> 'Foo'
+                                lastSeenClass!!.name.substringAfterLast('.')
+                            } else {
+                                // strip signature: 'foo()V' -> 'foo'
+                                name.substringBefore('(')
+                            }
+                            val element = "${lastSeenClass!!.name}#$shortName"
                             if (idAndVersionList != null) {
                                 elementToIdAndVersionMap[element] = idAndVersionList
                             } else if (lastSeenClass!!.idAndVersionList != null) {
