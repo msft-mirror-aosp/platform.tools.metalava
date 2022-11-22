@@ -1517,35 +1517,55 @@ class DocAnalyzerTest : DriverTest() {
         )
     }
 
+    object SdkExtSinceConstants {
+        val sourceFiles = arrayOf(
+            java(
+                """
+                package android.pkg;
+                public class Test {
+                   public static final String UNIT_TEST_1 = "unit.test.1";
+                   public static final String UNIT_TEST_2 = "unit.test.2";
+                   public static final String UNIT_TEST_3 = "unit.test.3";
+                   public void foo() {}
+                }
+                """
+            )
+        )
+
+        const val apiVersionsXml = """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3">
+                    <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                    <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                    <sdk id="33" shortname="T-ext" name="T Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+                    <sdk id="1000000" shortname="standalone-ext" name="Standalone Extensions" reference="some/other/CONST" />
+                    <class name="android/pkg/Test" since="1" sdks="0:1,30:2,31:2,33:2">
+                        <method name="foo()V"/>
+                        <field name="UNIT_TEST_1"/>
+                        <field name="UNIT_TEST_2" since="2" sdks="1000000:3,31:3,33:3,0:2"/>
+                        <field name="UNIT_TEST_3" since="31" sdks="1000000:4"/>
+                    </class>
+                </api>
+                """
+
+        const val docStubsSourceList = """
+                TESTROOT/stubs/android/pkg/package-info.java
+                TESTROOT/stubs/android/pkg/Test.java
+            """
+    }
+
     @Test
-    fun `Generate SDK extension API levels javadocs`() {
+    fun `@sdkExtSince (finalized, no codename)`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package android.pkg;
-                    public class Test {
-                       public static final String UNIT_TEST_1 = "unit.test.1";
-                       public static final String UNIT_TEST_2 = "unit.test.2";
-                    }
-                    """
-                )
+            extraArguments = arrayOf(
+                ARG_CURRENT_VERSION,
+                "30",
             ),
-            applyApiLevelsXml = """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="3">
-                        <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
-                        <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
-                        <sdk id="33" shortname="T-ext" name="T Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-                        <sdk id="1000000" shortname="standalone-ext" name="Standalone Extensions" reference="some/other/CONST" />
-                        <class name="android/pkg/Test" since="1" sdks="0:1,30:2,31:2,33:2">
-                            <field name="UNIT_TEST_1"/>
-                            <field name="UNIT_TEST_2" since="2" sdks="1000000:3,31:3,33:3,0:2"/>
-                        </class>
-                    </api>
-                    """,
+            sourceFiles = SdkExtSinceConstants.sourceFiles,
+            applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
+            docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
             stubFiles = arrayOf(
                 java(
                     """
@@ -1561,20 +1581,69 @@ class DocAnalyzerTest : DriverTest() {
                      * @apiSince 1
                      * @sdkExtSince R Extensions 2
                      */
+                    public void foo() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
                     /**
                      * @apiSince 2
                      * @sdkExtSince Standalone Extensions 3
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                    /** @sdkExtSince Standalone Extensions 4 */
+                    public static final java.lang.String UNIT_TEST_3 = "unit.test.3";
                     }
                     """
                 )
-            ),
-            docStubsSourceList = """
-                TESTROOT/stubs/android/pkg/package-info.java
-                TESTROOT/stubs/android/pkg/Test.java
-            """
+            )
+        )
+    }
+
+    @Test
+    fun `@sdkExtSince (not finalized)`() {
+        check(
+            sourceFiles = SdkExtSinceConstants.sourceFiles,
+            applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
+            checkCompilation = true,
+            docStubs = true,
+            docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Test {
+                    public Test() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    public void foo() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @apiSince 1
+                     * @sdkExtSince R Extensions 2
+                     */
+                    public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
+                    /**
+                     * @apiSince 2
+                     * @sdkExtSince Standalone Extensions 3
+                     */
+                    public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                    /**
+                     * @apiSince 31
+                     * @sdkExtSince Standalone Extensions 4
+                     */
+                    public static final java.lang.String UNIT_TEST_3 = "unit.test.3";
+                    }
+                    """
+                )
+            )
         )
     }
 

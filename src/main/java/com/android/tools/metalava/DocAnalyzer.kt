@@ -719,6 +719,13 @@ class DocAnalyzer(
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have accurate historical data
                 return
             }
+            if (!options.isDeveloperPreviewBuild() && options.currentApiLevel != -1 && level > options.currentApiLevel) {
+                // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
+                // in a dessert (only in an extension), but for release builds, we don't want to
+                // include a "future" SDK_INT
+                return
+            }
+
             val currentCodeName = options.currentCodeName
             val code: String = if (currentCodeName != null && level > options.currentApiLevel) {
                 currentCodeName
