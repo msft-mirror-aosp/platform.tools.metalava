@@ -119,7 +119,6 @@ class ApiToExtensionsMap private constructor(
         const val ANDROID_PLATFORM_SDK_ID = 0
 
         private val REGEX_DELIMITERS = Regex("[.#$]")
-        private val REGEX_WHITESPACE = Regex("\\s+")
 
         /*
          * Create an ApiToExtensionsMap from a list of text based rules.
