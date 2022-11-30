@@ -346,8 +346,8 @@ class PsiModifierItem(
             return false
         }
 
-        private val NOT_NULL = NotNull::class.qualifiedName
-        private val NULLABLE = Nullable::class.qualifiedName
+        internal val NOT_NULL = NotNull::class.qualifiedName
+        internal val NULLABLE = Nullable::class.qualifiedName
 
         private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
             get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
