@@ -29,6 +29,7 @@ import com.android.tools.metalava.java
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import kotlin.text.Charsets.UTF_8
@@ -105,6 +106,11 @@ class ApiGeneratorTest : DriverTest() {
 
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
+
+        // Verify historical backfill
+        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
+        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
+        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
     }
 
     @Test
@@ -134,33 +140,39 @@ class ApiGeneratorTest : DriverTest() {
         filter.deleteOnExit()
         filter.writeText(
             """
-            # Definitions
-            R    30
-            S    31
-            T    33
+                <sdk-extensions-info>
+                <!-- SDK definitions -->
+                <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
 
-            # Rules
-            android.net.ipsec.ike              *    R
-            art.module.public.api              *    R
-            conscrypt.module.intra.core.api    *    R
-            conscrypt.module.platform.api      *    R
-            conscrypt.module.public.api        *    R
-            framework-mediaprovider            *    R
-            framework-mediaprovider            android.provider.MediaStore#canManageMedia    T
-            framework-permission-s             *    R
-            framework-permission               *    R
-            framework-sdkextensions            *    R
-            framework-scheduling               *    R
-            framework-statsd                   *    R
-            framework-tethering                *    R
-            legacy.art.module.platform.api     *    R
-            service-media-s                    *    R
-            service-permission                 *    R
+                <!-- Rules -->
+                <symbol jar="art.module.public.api" pattern="*" sdks="R" />
+                <symbol jar="conscrypt.module.intra.core.api " pattern="" sdks="R" />
+                <symbol jar="conscrypt.module.platform.api" pattern="*" sdks="R" />
+                <symbol jar="conscrypt.module.public.api" pattern="*" sdks="R" />
+                <symbol jar="framework-mediaprovider" pattern="*" sdks="R" />
+                <symbol jar="framework-mediaprovider" pattern="android.provider.MediaStore#canManageMedia" sdks="T" />
+                <symbol jar="framework-permission-s" pattern="*" sdks="R" />
+                <symbol jar="framework-permission" pattern="*" sdks="R" />
+                <symbol jar="framework-sdkextensions" pattern="*" sdks="R" />
+                <symbol jar="framework-scheduling" pattern="*" sdks="R" />
+                <symbol jar="framework-statsd" pattern="*" sdks="R" />
+                <symbol jar="framework-tethering" pattern="*" sdks="R" />
+                <symbol jar="legacy.art.module.platform.api" pattern="*" sdks="R" />
+                <symbol jar="service-media-s" pattern="*" sdks="R" />
+                <symbol jar="service-permission" pattern="*" sdks="R" />
 
-            # framework-connectivity: only getAllExtensionVersions should have the 'from' attribute
-            framework-connectivity             android.net.CaptivePortal    R
+                <!-- use framework-permissions-s to test the order of multiple SDKs is respected -->
+                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapAkaInfo" sdks="R,S,T" />
+                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapInfo" sdks="T,S,R" />
+                <symbol jar="android.net.ipsec.ike" pattern="*" sdks="R" />
 
-            # framework-media explicitly omitted: nothing in this module should have the 'from' attribute
+                <!-- framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute -->
+                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortal" sdks="R" />
+
+                <!-- framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute -->
+                </sdk-extensions-info>
             """.trimIndent()
         )
 
@@ -179,24 +191,29 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_SDK_INFO_FILE,
                 filter.path,
                 ARG_FIRST_VERSION,
-                "21"
+                "21",
+                ARG_CURRENT_VERSION,
+                "33"
             )
         )
 
         assertTrue(output.isFile)
         val xml = output.readText(UTF_8)
         assertTrue(xml.contains("<api version=\"3\" min=\"21\">"))
+        assertTrue(xml.contains("<sdk id=\"30\" shortname=\"R\" name=\"R Extensions\" reference=\"android/os/Build\$VERSION_CODES\$R\"/>"))
+        assertTrue(xml.contains("<sdk id=\"31\" shortname=\"S\" name=\"S Extensions\" reference=\"android/os/Build\$VERSION_CODES\$S\"/>"))
+        assertTrue(xml.contains("<sdk id=\"33\" shortname=\"T\" name=\"T Extensions\" reference=\"android/os/Build\$VERSION_CODES\$T\"/>"))
         assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
         // top level class marked as since=21 and R=1, implemented in the framework-mediaprovider mainline module
-        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" from=\"0:21,30:1\">"))
+        assertTrue(xml.contains("<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" sdks=\"30:1,0:21\">"))
 
-        // method with identical from attribute as containing class: from should be omitted
+        // method with identical sdks attribute as containing class: sdks attribute should be omitted
         assertTrue(xml.contains("<method name=\"getMediaScannerUri()Landroid/net/Uri;\"/>"))
 
-        // method with different from attribute than containing class
-        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" from=\"0:31,33:1\"/>"))
+        // method with different sdks attribute than containing class
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"))
 
         val apiLookup = getApiLookup(output)
         apiLookup.getClassVersion("android.v")
@@ -207,16 +224,22 @@ class ApiGeneratorTest : DriverTest() {
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
 
-        // The filter says 'framework-permission-s             *    R' so RoleManager should exist and should have a module/from attributes
+        // The filter says 'framework-permission-s             *    R' so RoleManager should exist and should have a module/sdks attributes
         assertTrue(apiLookup.containsClass("android/app/role/RoleManager"))
-        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" from=\"0:31,33:1\"/>"))
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"))
 
-        // The filter doesn't mention framework-media, so no class in that module should have a module/from attributes
+        // The filter doesn't mention framework-media, so no class in that module should have a module/sdks attributes
         assertTrue(xml.contains("<class name=\"android/media/MediaFeature\" since=\"31\">"))
 
-        // The filter only defines a single API in framework-connectivity: verify that only that API has the module/from attributes
-        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" from=\"0:23,30:1\">"))
+        // The filter only defines a single API in framework-connectivity: verify that only that API has the module/sdks attributes
+        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" sdks=\"30:1,0:23\">"))
         assertTrue(xml.contains("<class name=\"android/net/ConnectivityDiagnosticsManager\" since=\"30\">"))
+
+        // The order of the SDKs should be respected
+        // android.net.eap.EapAkaInfo    R S T -> 0,30,31,33
+        assertTrue(xml.contains("<class name=\"android/net/eap/EapAkaInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"30:3,31:3,33:3,0:33\">"))
+        // android.net.eap.EapInfo       T S R -> 0,33,31,30
+        assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
     }
 
     @Test
@@ -327,5 +350,79 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Generate API for test prebuilts`() {
+        var testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
+        if (!testPrebuiltsRoot.isDirectory) {
+            fail("test prebuilts not found: $testPrebuiltsRoot")
+        }
+
+        val api_versions_xml = File.createTempFile("api-versions", "xml")
+        api_versions_xml.deleteOnExit()
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_LEVELS,
+                api_versions_xml.path,
+                ARG_ANDROID_JAR_PATTERN,
+                "${testPrebuiltsRoot.path}/%/public/android.jar",
+                ARG_SDK_JAR_ROOT,
+                "${testPrebuiltsRoot.path}/extensions",
+                ARG_SDK_INFO_FILE,
+                "${testPrebuiltsRoot.path}/sdk-extensions-info.xml",
+                ARG_FIRST_VERSION,
+                "30",
+                ARG_CURRENT_VERSION,
+                "32"
+            )
+        )
+
+        assertTrue(api_versions_xml.isFile)
+        val xml = api_versions_xml.readText(UTF_8)
+
+        val expected = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <api version="3" min="30">
+                <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
+                <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
+                <class name="android/test/ClassAddedInApi30" since="30">
+                    <extends name="java/lang/Object"/>
+                    <method name="methodAddedInApi30()V"/>
+                    <method name="methodAddedInApi31()V" since="31"/>
+                </class>
+                <class name="android/test/ClassAddedInApi31AndExt2" module="framework-ext" since="31" sdks="30:2,31:2,0:31">
+                    <extends name="java/lang/Object"/>
+                    <method name="methodAddedInApi31AndExt2()V"/>
+                    <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
+                    <field name="FIELD_ADDED_IN_API_31_AND_EXT_2"/>
+                    <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
+                </class>
+                <class name="android/test/ClassAddedInExt1" module="framework-ext" since="31" sdks="30:1,31:1,0:31">
+                    <extends name="java/lang/Object"/>
+                    <method name="methodAddedInApi31AndExt2()V" sdks="30:2,31:2,0:31"/>
+                    <method name="methodAddedInExt1()V"/>
+                    <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
+                    <field name="FIELD_ADDED_IN_API_31_AND_EXT_2" sdks="30:2,31:2,0:31"/>
+                    <field name="FIELD_ADDED_IN_EXT_1"/>
+                    <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
+                </class>
+                <class name="android/test/ClassAddedInExt3" module="framework-ext" since="33" sdks="30:3,31:3">
+                    <extends name="java/lang/Object"/>
+                    <method name="methodAddedInExt3()V"/>
+                    <field name="FIELD_ADDED_IN_EXT_3"/>
+                </class>
+            </api>
+        """
+
+        fun String.trimEachLine(): String =
+            lines().map {
+                it.trim()
+            }.filter {
+                it.isNotEmpty()
+            }.joinToString("\n")
+
+        assertEquals(expected.trimEachLine(), xml.trimEachLine())
     }
 }
