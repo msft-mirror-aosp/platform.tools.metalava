@@ -375,7 +375,24 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_FIRST_VERSION,
                 "30",
                 ARG_CURRENT_VERSION,
-                "32"
+                "32",
+                ARG_CURRENT_CODENAME,
+                "Foo"
+            ),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.test;
+                    public class ClassAddedInApi31AndExt2 {
+                        private ClassAddedInApi31AndExt2() {}
+                        public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1;
+                        public static final int FIELD_ADDED_IN_EXT_3 = 2;
+                        public void methodAddedInApi31AndExt2() { throw new RuntimeException("Stub!"); }
+                        public void methodAddedInExt3() { throw new RuntimeException("Stub!"); };
+                        public void methodNotFinalized() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
 
@@ -396,6 +413,7 @@ class ApiGeneratorTest : DriverTest() {
                     <extends name="java/lang/Object"/>
                     <method name="methodAddedInApi31AndExt2()V"/>
                     <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
+                    <method name="methodNotFinalized()V" since="33" sdks="0:33"/>
                     <field name="FIELD_ADDED_IN_API_31_AND_EXT_2"/>
                     <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
                 </class>
