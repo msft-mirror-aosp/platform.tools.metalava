@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.builtins.isFunctionOrKFunctionTypeWithAnySuspendability
 import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
 import org.jetbrains.kotlin.psi.KtConstantExpression
@@ -246,13 +247,24 @@ class PsiParameterItem(
             // and avoid any divergence from the actual compiler behaviour, if there are changes.
             val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
             val bindingContext = codebase.bindingContext(parameter)
-            val type =
-                parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
-            // True if the type is a SAM type, or a fun interface
-            val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
-            // True if the type is a Kotlin lambda (suspend or not)
-            val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
-            return isSamType || isFunctionalType
+            if (bindingContext != null) { // FE 1.0
+                val type =
+                    parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
+                // True if the type is a SAM type, or a fun interface
+                val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
+                // True if the type is a Kotlin lambda (suspend or not)
+                val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
+                return isSamType || isFunctionalType
+            } else { // Analysis API
+                analyze(parameter) {
+                    val ktType = parameter.getParameterSymbol().returnType
+                    val isSamType = ktType.isFunctionalInterfaceType
+                    val isFunctionalType =
+                        ktType.isFunctionType || ktType.isSuspendFunctionType ||
+                            ktType.isKFunctionType || ktType.isKSuspendFunctionType
+                    return isSamType || isFunctionalType
+                }
+            }
         }
     }
 
