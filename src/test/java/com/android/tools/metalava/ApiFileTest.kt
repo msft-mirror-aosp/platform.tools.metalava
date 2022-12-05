@@ -4553,7 +4553,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4565,16 +4565,30 @@ class ApiFileTest : DriverTest() {
                         )
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNull(): String = "42"
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNullImplicitly() = "42"
                     """
                 ),
                 androidxIntRangeSource
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
-                // Signature format: 3.0
+                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
                     method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @NonNull public static String returnsNonNull();
+                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
