@@ -4760,4 +4760,51 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN)`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                        fun before(
+                            i : Int?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: "42"
+                            }
+                        }
+
+                        fun after(
+                            i : Int?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: "42"
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public interface State<T> {
+                    method public T! getValue();
+                    property public abstract T! value;
+                  }
+                  public final class StateKt {
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, java.lang.Object... vs);
+                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(int i, Object vs);
+                  }
+                }
+            """
+        )
+    }
 }
