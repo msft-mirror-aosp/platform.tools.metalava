@@ -4775,19 +4775,21 @@ class ApiFileTest : DriverTest() {
                         @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
                         fun before(
                             i : Int?,
+                            s : String?,
                             vararg vs : Any,
                         ): State<String> {
                             return object : State<String> {
-                                override val value: String = i?.toString() ?: "42"
+                                override val value: String = i?.toString() ?: s ?: "42"
                             }
                         }
 
                         fun after(
                             i : Int?,
+                            s : String?,
                             vararg vs : Any,
                         ): State<String> {
                             return object : State<String> {
-                                override val value: String = i?.toString() ?: "42"
+                                override val value: String = i?.toString() ?: s ?: "42"
                             }
                         }
                     """
@@ -4800,8 +4802,8 @@ class ApiFileTest : DriverTest() {
                     property public abstract T! value;
                   }
                   public final class StateKt {
-                    method public static test.pkg.State<java.lang.String> after(Integer? i, java.lang.Object... vs);
-                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(int i, Object vs);
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
+                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
                   }
                 }
             """

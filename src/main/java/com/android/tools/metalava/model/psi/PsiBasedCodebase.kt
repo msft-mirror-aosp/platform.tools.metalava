@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -60,6 +61,7 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
+import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 import org.jetbrains.uast.kotlin.KotlinUastResolveProviderService
 import java.io.File
 import java.io.IOException
@@ -776,8 +778,13 @@ open class PsiBasedCodebase(
      *
      * Do not cache returned binding context for longer than the lifetime of this codebase
      */
-    fun bindingContext(element: KtElement): BindingContext? {
+    internal fun bindingContext(element: KtElement): BindingContext? {
         return project.getService(KotlinUastResolveProviderService::class.java)
             ?.getBindingContext(element)
+    }
+
+    internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
+        ApplicationManager.getApplication()
+            .getService(BaseKotlinUastResolveProviderService::class.java)
     }
 }
