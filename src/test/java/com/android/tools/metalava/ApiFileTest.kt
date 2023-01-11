@@ -37,9 +37,9 @@ class ApiFileTest : DriverTest() {
    - BluetoothGattCharacteristic.java#describeContents: Was marked @hide,
      but is unhidden because it extends a public interface method
    - package javadoc (also make sure merging both!, e.g. try having @hide in each)
-   - StopWatchMap -- inner class with @hide marks allh top levels!
+   - StopWatchMap -- inner class with @hide marks all top levels!
    - Test field inlining: should I include fields from an interface, if that
-     inteface was implemented by the parent class (and therefore appears there too?)
+     interface was implemented by the parent class (and therefore appears there too?)
      What if the superclass is abstract?
    - Exposing package private classes. Test that I only do this for package private
      classes, NOT Those marked @hide (is that, having @hide on a used type, illegal?)
@@ -4804,6 +4804,42 @@ class ApiFileTest : DriverTest() {
                   public final class StateKt {
                     method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
                     method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@Repeatable annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    @Repeatable
+                    annotation class RequiresExtension(
+                        @IntRange(from = 1) val extension: Int,
+                        @IntRange(from = 1) val version: Int
+                    )
+                    """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                package test.pkg {
+                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                    method public abstract int extension();
+                    method public abstract int version();
+                    property public abstract int extension;
+                    property public abstract int version;
+                  }
+                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                    method public abstract test.pkg.RequiresExtension[] value();
                   }
                 }
             """

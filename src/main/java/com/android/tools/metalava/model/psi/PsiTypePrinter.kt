@@ -289,7 +289,8 @@ class PsiTypePrinter(
         }
         // [PsiType] created with an irregular owner, e.g., a fake LC in UAST, may end up with
         // a raw format of class reference like [LightClassReference].
-        if (reference is LightClassReference) {
+        // But, only if we have an extra nullability hint.
+        if (elementAnnotations != null && reference is LightClassReference) {
             return buildString {
                 append(reference.canonicalText)
                 appendNullnessSuffix(getNullable(emptyList(), elementAnnotations), this)
