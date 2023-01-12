@@ -37,9 +37,9 @@ class ApiFileTest : DriverTest() {
    - BluetoothGattCharacteristic.java#describeContents: Was marked @hide,
      but is unhidden because it extends a public interface method
    - package javadoc (also make sure merging both!, e.g. try having @hide in each)
-   - StopWatchMap -- inner class with @hide marks allh top levels!
+   - StopWatchMap -- inner class with @hide marks all top levels!
    - Test field inlining: should I include fields from an interface, if that
-     inteface was implemented by the parent class (and therefore appears there too?)
+     interface was implemented by the parent class (and therefore appears there too?)
      What if the superclass is abstract?
    - Exposing package private classes. Test that I only do this for package private
      classes, NOT Those marked @hide (is that, having @hide on a used type, illegal?)
@@ -4401,6 +4401,8 @@ class ApiFileTest : DriverTest() {
                             get() = value && 0x00ff
                         fun doSomething() {}
                     }
+
+                    fun box(val p : Dp) {}
                 """
                 )
             ),
@@ -4416,6 +4418,9 @@ class ApiFileTest : DriverTest() {
                     method public inline operator float plus(float other);
                     property public final boolean someBits;
                     property public final float value;
+                  }
+                  public final class DpKt {
+                    method public static void box(float p);
                   }
                 }
             """
@@ -4548,7 +4553,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4560,16 +4565,30 @@ class ApiFileTest : DriverTest() {
                         )
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNull(): String = "42"
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNullImplicitly() = "42"
                     """
                 ),
                 androidxIntRangeSource
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
-                // Signature format: 3.0
+                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
                     method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @NonNull public static String returnsNonNull();
+                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4675,6 +4694,152 @@ class ApiFileTest : DriverTest() {
                     method public int getBar();
                     method public void setBar(int);
                     property public final int bar;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `implements kotlin collection`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class MyList : List<String> {
+                          override operator fun get(index: Int): String {}
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
+                    ctor public MyList();
+                    method public operator String get(int index);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `companion object in annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Dimension(val unit: Int = PX) {
+                            companion object {
+                                const val DP: Int = 0
+                                const val PX: Int = 1
+                                const val SP: Int = 2
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
+                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    property public abstract int unit;
+                    field public static final test.pkg.Dimension.Companion Companion;
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                  public static final class Dimension.Companion {
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN)`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                        fun before(
+                            i : Int?,
+                            s : String?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: s ?: "42"
+                            }
+                        }
+
+                        fun after(
+                            i : Int?,
+                            s : String?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: s ?: "42"
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public interface State<T> {
+                    method public T! getValue();
+                    property public abstract T! value;
+                  }
+                  public final class StateKt {
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
+                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@Repeatable annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    @Repeatable
+                    annotation class RequiresExtension(
+                        @IntRange(from = 1) val extension: Int,
+                        @IntRange(from = 1) val version: Int
+                    )
+                    """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                package test.pkg {
+                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                    method public abstract int extension();
+                    method public abstract int version();
+                    property public abstract int extension;
+                    property public abstract int version;
+                  }
+                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                    method public abstract test.pkg.RequiresExtension[] value();
                   }
                 }
             """
