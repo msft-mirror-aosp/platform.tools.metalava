@@ -3600,7 +3600,6 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
-
         check(
             expectedIssues = """
                 src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
@@ -4107,6 +4106,27 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                             default: Int = 0,
                             trailing: JavaInterface
                         )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `members in sealed class are not hidden abstract`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        sealed class ModifierLocalMap() {
+                            internal abstract operator fun <T> set(key: ModifierLocal<T>, value: T)
+                            internal abstract operator fun <T> get(key: ModifierLocal<T>): T?
+                            internal abstract operator fun contains(key: ModifierLocal<*>): Boolean
+                        }
                     """
                 )
             )
