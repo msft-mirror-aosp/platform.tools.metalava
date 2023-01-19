@@ -51,8 +51,10 @@ public class ApiGenerator {
             throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
         }
 
-        AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
-        Api api = reader.getApi();
+        Api api = readAndroidJars(apiLevels, firstApiLevel);
+        if (codebase != null) {
+            AddApisFromCodebaseKt.addApisFromCodebase(api, codebase.getApiLevel(), codebase);
+        }
         api.backfillHistoricalFixes();
 
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
@@ -64,6 +66,15 @@ public class ApiGenerator {
         api.removeOverridingMethods();
         api.prunePackagePrivateClasses();
         return createApiFile(outputFile, api, sdkIdentifiers);
+    }
+
+    private static Api readAndroidJars(File[] apiLevels, int firstApiLevel) {
+        Api api = new Api(firstApiLevel);
+        for (int apiLevel = firstApiLevel; apiLevel < apiLevels.length; apiLevel++) {
+            File jar = apiLevels[apiLevel];
+            JarReaderUtilsKt.readAndroidJar(api, apiLevel, jar);
+        }
+        return api;
     }
 
     /**
