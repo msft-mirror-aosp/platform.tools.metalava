@@ -17,6 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
@@ -28,18 +29,25 @@ import com.android.tools.metalava.java
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.BeforeClass
 import org.junit.Test
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 
 class ApiGeneratorTest : DriverTest() {
     companion object {
-        // As per ApiConstraint that uses a bit vector, API has to be between 1..63.
-        private const val MAGIC_VERSION_INT = 62
+        // As per ApiConstraint that uses a bit vector, API has to be between 1..61.
+        private const val MAGIC_VERSION_INT = 57 // [SdkVersionInfo.MAX_LEVEL] - 4
         private const val MAGIC_VERSION_STR = MAGIC_VERSION_INT.toString()
 
-        init {
+        @JvmStatic
+        @BeforeClass
+        fun beforeClass() {
             assert(MAGIC_VERSION_INT > SdkVersionInfo.HIGHEST_KNOWN_API)
+            // Trigger <clinit> of [SdkApiConstraint] to call `isValidApiLevel` in its companion
+            ApiConstraint.UNKNOWN
+            // This checks if MAGIC_VERSION_INT is not bigger than [SdkVersionInfo.MAX_LEVEL]
+            assert(ApiConstraint.SdkApiConstraint.isValidApiLevel(MAGIC_VERSION_INT))
         }
     }
 
