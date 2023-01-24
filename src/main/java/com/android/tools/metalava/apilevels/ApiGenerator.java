@@ -43,23 +43,27 @@ public class ApiGenerator {
     public static boolean generate(@NotNull File[] apiLevels,
                                    int firstApiLevel,
                                    int currentApiLevel,
+                                   boolean isDeveloperPreviewBuild,
                                    @NotNull File outputFile,
-                                   @Nullable Codebase codebase,
+                                   @NotNull Codebase codebase,
                                    @Nullable File sdkJarRoot,
                                    @Nullable File sdkFilterFile) throws IOException, IllegalArgumentException {
         if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
             throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
         }
 
+        int notFinalizedApiLevel = currentApiLevel + 1;
         Api api = readAndroidJars(apiLevels, firstApiLevel);
-        if (codebase != null) {
-            AddApisFromCodebaseKt.addApisFromCodebase(api, codebase.getApiLevel(), codebase);
+        if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
+            // Only include codebase if we don't have a prebuilt, finalized jar for it.
+            int apiLevel = isDeveloperPreviewBuild ? notFinalizedApiLevel : currentApiLevel;
+            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase);
         }
         api.backfillHistoricalFixes();
 
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
         if (sdkJarRoot != null && sdkFilterFile != null) {
-            sdkIdentifiers = processExtensionSdkApis(api, currentApiLevel + 1, sdkJarRoot, sdkFilterFile);
+            sdkIdentifiers = processExtensionSdkApis(api, notFinalizedApiLevel, sdkJarRoot, sdkFilterFile);
         }
         api.inlineFromHiddenSuperClasses();
         api.removeImplicitInterfaces();
