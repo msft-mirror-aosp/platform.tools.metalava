@@ -359,7 +359,6 @@ class AnnotationsMerger(
     )
 
     private fun mergeDocument(document: Document) {
-
         val root = document.documentElement
         val rootTag = root.tagName
         assert(rootTag == "root") { rootTag }
@@ -496,7 +495,6 @@ class AnnotationsMerger(
     }
 
     private fun mergeField(item: Element, containingClass: String, classItem: ClassItem, fieldName: String) {
-
         val fieldItem = classItem.findField(fieldName)
         if (fieldItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {
@@ -676,7 +674,6 @@ class AnnotationsMerger(
                 name == ANDROID_STRING_DEF ||
                 name == ANDROIDX_INT_DEF ||
                 name == ANDROID_INT_DEF -> {
-
                 val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
                 val parseChild: (Element) -> Unit = { child: Element ->
                     val elementName = child.getAttribute(ATTR_NAME)
