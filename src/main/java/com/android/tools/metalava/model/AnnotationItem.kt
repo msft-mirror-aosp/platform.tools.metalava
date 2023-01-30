@@ -181,7 +181,10 @@ interface AnnotationItem {
             target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
         ): String? {
             qualifiedName ?: return null
-            if (options.passThroughAnnotations.contains(qualifiedName)) {
+            if (options.passThroughAnnotations.contains(qualifiedName) ||
+                options.showAnnotations.matches(qualifiedName) ||
+                options.hideAnnotations.matches(qualifiedName)
+            ) {
                 return qualifiedName
             }
             if (options.excludeAnnotations.contains(qualifiedName)) {
@@ -283,10 +286,7 @@ interface AnnotationItem {
                 "android.annotation.Hide",
 
                 "android.annotation.Widget" -> {
-                    // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                    return if (options.showAnnotations.matches(qualifiedName)) {
-                        qualifiedName
-                    } else if (filter != null) {
+                    return if (filter != null) {
                         val cls = codebase.findClass(qualifiedName)
                         if (cls != null && filter.test(cls)) {
                             qualifiedName
@@ -325,19 +325,11 @@ interface AnnotationItem {
 
                         // Unknown Android platform annotations
                         qualifiedName.startsWith("android.annotation.") -> {
-                            // Remove, unless specifically included in --showAnnotations
-                            return if (options.showAnnotations.matches(qualifiedName)) {
-                                qualifiedName
-                            } else {
-                                null
-                            }
+                            return null
                         }
 
                         else -> {
-                            // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                            return if (options.showAnnotations.matches(qualifiedName)) {
-                                qualifiedName
-                            } else if (filter != null) {
+                            return if (filter != null) {
                                 val cls = codebase.findClass(qualifiedName)
                                 if (cls != null && filter.test(cls)) {
                                     qualifiedName
