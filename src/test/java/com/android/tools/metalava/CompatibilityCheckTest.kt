@@ -1200,6 +1200,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/Outer.java:7: error: Method test.pkg.Outer.Class1.method1 has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinal]
                 """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
@@ -1772,6 +1773,94 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Incompatible Changes in Released System API `() {
+        // Incompatible changes to a released System API should be detected
+        // In this case removing final and changing value of constant
+        check(
+            includeSystemApiAnnotations = true,
+            expectedIssues = """
+                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinal]
+                src/android/rolecontrollerservice/RoleControllerService.java:9: error: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.rolecontrollerservice;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    @SystemApi
+                    public abstract class RoleControllerService {
+                        public abstract void onGrantDefaultRoles();
+                        public void sendNetworkScore();
+                        public static final int APP_RETURN_UNWANTED = 0;
+                    }
+                    """
+                ),
+                systemApiSource
+            ),
+
+            extraArguments = arrayOf(
+                ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
+                ARG_HIDE_PACKAGE, "android.annotation",
+            ),
+
+            checkCompatibilityApiReleased =
+            """
+                package android.rolecontrollerservice {
+                  public abstract class RoleControllerService {
+                    ctor public RoleControllerService();
+                    method public abstract void onGrantDefaultRoles();
+                    method public final void sendNetworkScore();
+                    field public static final int APP_RETURN_UNWANTED = 1;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Incompatible changes to released API signature codebase`() {
+        // Incompatible changes to a released System API should be detected
+        // in case of partial files
+        check(
+            expectedIssues = """
+                TESTROOT/released-api.txt:5: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
+                """,
+            signatureSource = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void method1();
+                  }
+                }
+                """,
+
+            checkCompatibilityApiReleased =
+            """
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void method1();
+                    method public void method2();
+                    method public void method3();
+                  }
+                }
+                """,
+            checkCompatibilityBaseApi =
+            """
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void method3();
+                  }
+                }
+                """,
         )
     }
 
