@@ -21,11 +21,13 @@ import org.jetbrains.annotations.NotNull;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents a class or an interface and its methods/fields.
@@ -43,23 +45,23 @@ public class ApiClass extends ApiElement {
      */
     private int mPrivateUntil; // Package private class?
 
-    private final Map<String, ApiElement> mFields = new HashMap<>();
-    private final Map<String, ApiElement> mMethods = new HashMap<>();
+    private final Map<String, ApiElement> mFields = new ConcurrentHashMap<>();
+    private final Map<String, ApiElement> mMethods = new ConcurrentHashMap<>();
 
     public ApiClass(String name, int version, boolean deprecated) {
         super(name, version, deprecated);
     }
 
-    public void addField(String name, int version, boolean deprecated) {
-        addToMap(mFields, name, version, deprecated);
+    public ApiElement addField(String name, int version, boolean deprecated) {
+        return addToMap(mFields, name, version, deprecated);
     }
 
-    public void addMethod(String name, int version, boolean deprecated) {
+    public ApiElement addMethod(String name, int version, boolean deprecated) {
         // Correct historical mistake in android.jar files
         if (name.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
             name = name.substring(0, name.length() - ")Ljava/lang/AbstractStringBuilder;".length()) + ")L" + getName() + ";";
         }
-        addToMap(mMethods, name, version, deprecated);
+        return addToMap(mMethods, name, version, deprecated);
     }
 
     public ApiElement addSuperClass(String superClass, int since) {
@@ -107,7 +109,7 @@ public class ApiClass extends ApiElement {
         return mInterfaces;
     }
 
-    private void addToMap(Map<String, ApiElement> elements, String name, int version, boolean deprecated) {
+    private ApiElement addToMap(Map<String, ApiElement> elements, String name, int version, boolean deprecated) {
         ApiElement element = elements.get(name);
         if (element == null) {
             element = new ApiElement(name, version, deprecated);
@@ -115,6 +117,7 @@ public class ApiClass extends ApiElement {
         } else {
             element.update(version, deprecated);
         }
+        return element;
     }
 
     private ApiElement addToArray(Collection<ApiElement> elements, String name, int version) {
@@ -310,5 +313,21 @@ public class ApiClass extends ApiElement {
                 break;
             }
         }
+    }
+
+    public Iterator<ApiElement> getFieldIterator() {
+        return mFields.values().iterator();
+    }
+
+    public Iterator<ApiElement> getMethodIterator() {
+        return mMethods.values().iterator();
+    }
+
+    public ApiElement getField(String name) {
+        return mFields.get(name);
+    }
+
+    public ApiElement getMethod(String name) {
+        return mMethods.get(name);
     }
 }

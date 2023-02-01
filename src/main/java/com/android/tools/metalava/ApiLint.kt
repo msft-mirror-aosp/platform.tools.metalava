@@ -622,7 +622,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val prefix = when (className) {
             "android.content.Intent" -> "android.intent.action"
             "android.provider.Settings" -> "android.settings"
-            "android.app.admin.DevicePolicyManager", "android.app.admin.DeviceAdminReceiver" -> "android.app.action"
             else -> field.containingClass().containingPackage().qualifiedName() + ".action"
         }
         val expected = prefix + "." + name.substring(7)
@@ -659,7 +658,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val packageName = field.containingClass().containingPackage().qualifiedName()
         val prefix = when {
             className == "android.content.Intent" -> "android.intent.extra"
-            packageName == "android.app.admin" -> "android.app.extra"
             else -> "$packageName.extra"
         }
         val expected = prefix + "." + name.substring(6)
@@ -2171,12 +2169,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val name = method.name()
         if (type == "int" || type == "long" || type == "short") {
             if (badUnits.any { name.endsWith(it.key) }) {
-                val badUnit = badUnits.keys.find { name.endsWith(it) }
-                val value = badUnits[badUnit]
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Expected method name units to be `$value`, was `$badUnit` in `$name`"
-                )
+                val typeIsTypeDef = method.modifiers.annotations().any { annotation ->
+                    val annotationClass = annotation.resolve() ?: return@any false
+                    annotationClass.modifiers.annotations().any { it.isTypeDefAnnotation() }
+                }
+                if (!typeIsTypeDef) {
+                    val badUnit = badUnits.keys.find { name.endsWith(it) }
+                    val value = badUnits[badUnit]
+                    report(
+                        METHOD_NAME_UNITS, method,
+                        "Expected method name units to be `$value`, was `$badUnit` in `$name`"
+                    )
+                }
             }
         } else if (type == "void") {
             if (method.parameters().size != 1) {
@@ -2198,7 +2202,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkCloseable(cls: ClassItem, methods: Sequence<MethodItem>) {
-        // AutoClosable has been added in API 19, so libraries with minSdkVersion <19 cannot use it. If the version
+        // AutoCloseable has been added in API 19, so libraries with minSdkVersion <19 cannot use it. If the version
         // is not set, then keep the check enabled.
         val minSdkVersion = codebase.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 19) {
@@ -2215,7 +2219,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             val foundMethodsDescriptions = foundMethods.joinToString { method -> "${method.name()}()" }
             report(
                 NOT_CLOSEABLE, cls,
-                "Classes that release resources ($foundMethodsDescriptions) should implement AutoClosable and CloseGuard: ${cls.describe()}"
+                "Classes that release resources ($foundMethodsDescriptions) should implement AutoCloseable and CloseGuard: ${cls.describe()}"
             )
         }
     }
@@ -2364,8 +2368,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkUserHandle(cls: ClassItem, methods: Sequence<MethodItem>) {
         val qualifiedName = cls.qualifiedName()
-        if (qualifiedName == "android.app.admin.DeviceAdminReceiver" ||
-            qualifiedName == "android.content.pm.LauncherApps" ||
+        if (qualifiedName == "android.content.pm.LauncherApps" ||
             qualifiedName == "android.os.UserHandle" ||
             qualifiedName == "android.os.UserManager"
         ) {
