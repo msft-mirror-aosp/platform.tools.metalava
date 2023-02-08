@@ -4847,6 +4847,7 @@ class ApiFileTest : DriverTest() {
         check(
             sourceFiles = arrayOf(
                 kotlin(
+                    "test/pkg/Toast.kt",
                     """
                         package test.pkg
                         internal fun bar() {}
@@ -4859,28 +4860,65 @@ class ApiFileTest : DriverTest() {
                     """
                 ),
                 kotlin(
+                    "test/pkg/Bar.kt",
                     """
                         package test.pkg
                         class Bar
                     """
                 ),
                 kotlin(
+                    "test/pkg/test.kt",
                     """
                         package test.pkg
 
                         /**
-                        * @suppress
-                        */
+                         * @suppress
+                         */
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
                         private val buzz
                     """
                 ),
+                kotlin(
+                    "test/pkg/ConfigurationError.kt",
+                    """
+                        package test.pkg
+                        import androidx.annotation.RestrictTo
+
+                        /**
+                         * @hide
+                         */
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        data class ConfigurationError(val id: String)
+
+                        /**
+                         * @hide
+                         */
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        fun conditionalError(): ConfigurationError? = null
+                    """
+                ),
+                kotlin(
+                    "test/pkg/test2.kt",
+                    """
+                        package test.pkg
+                        import androidx.annotation.VisibleForTesting
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        fun shouldBePackagePrivate() {}
+
+                        private fun shouldBePrivate() {}
+                    """
+                ),
+                restrictToSource,
+                visibleForTestingSource,
             ),
             extraArguments = arrayOf(
                 ARG_SHOW_UNANNOTATED,
                 ARG_SHOW_ANNOTATION, "kotlin.PublishedApi",
+                ARG_HIDE_ANNOTATION, "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
+                ARG_HIDE_PACKAGE, "androidx.annotation"
             ),
             api = """
                 // Signature format: 4.0

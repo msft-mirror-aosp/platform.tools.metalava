@@ -527,8 +527,13 @@ class ApiAnalyzer(
             if (isKotlin(psi) &&
                 psi is UClass &&
                 psi.javaPsi is KtLightClassForFacade &&
+                // a facade class needs to be emitted if it has any top-level fun/prop to emit
                 cls.members().none { member ->
-                    member.isPublic || member.hasShowAnnotation()
+                    // a member needs to be emitted if
+                    //  1) it doesn't have a hide annotation and
+                    //  2) it is either public or has a show annotation
+                    !member.hasHideAnnotation() &&
+                        (member.isPublic || member.hasShowAnnotation())
                 }
             ) {
                 cls.emit = false
