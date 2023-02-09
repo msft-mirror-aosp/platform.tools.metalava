@@ -319,7 +319,8 @@ class StubsTest : DriverTest() {
                 public interface Foo {
                 public void foo();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -473,7 +474,8 @@ class StubsTest : DriverTest() {
                 public static final double field10 = (0.0/0.0);
                 public static final double field11 = (1.0/0.0);
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -715,7 +717,7 @@ class StubsTest : DriverTest() {
 
                     @SuppressWarnings("ALL")
                     public class MoreAsserts {
-                        public static void assertEquals(String arg0, Set<? extends Object> arg1, Set<? extends Object> arg2) { }
+                        public static void assertEquals(String arg1, Set<? extends Object> arg2, Set<? extends Object> arg3) { }
                         public static void assertEquals(Set<? extends Object> arg1, Set<? extends Object> arg2) { }
                     }
                     """
@@ -727,10 +729,11 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MoreAsserts {
                 public MoreAsserts() { throw new RuntimeException("Stub!"); }
-                public static void assertEquals(java.lang.String arg0, java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
+                public static void assertEquals(java.lang.String arg1, java.util.Set<?> arg2, java.util.Set<?> arg3) { throw new RuntimeException("Stub!"); }
                 public static void assertEquals(java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -893,7 +896,8 @@ class StubsTest : DriverTest() {
                     public void method2() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String CONSTANT = "MyConstant";
                     }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -941,7 +945,8 @@ class StubsTest : DriverTest() {
                 public void other() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -971,7 +976,8 @@ class StubsTest : DriverTest() {
                 protected void finalize1() throws java.lang.Throwable { throw new RuntimeException("Stub!"); }
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -1001,7 +1007,8 @@ class StubsTest : DriverTest() {
                 public static final int CONSTANT3 = 0; // 0x0
                 public static final java.lang.String CONSTANT4 = null;
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -2515,7 +2522,8 @@ class StubsTest : DriverTest() {
                     public static interface TypeEvaluator<T> {
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3325,7 +3333,8 @@ class StubsTest : DriverTest() {
                 public interface MyInterface {
                 public void run();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
