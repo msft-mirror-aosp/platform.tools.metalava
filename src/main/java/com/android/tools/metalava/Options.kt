@@ -415,12 +415,6 @@ class Options(
     /** For [ARG_COPY_ANNOTATIONS], the target directory to write converted stub annotations from */
     var privateAnnotationsTarget: File? = null
 
-    /**
-     * For [ARG_INCLUDE_SOURCE_RETENTION], true if we want to include source-retention annotations
-     * into the stubs themselves
-     */
-    var includeSourceRetentionAnnotations = false
-
     /** A manifest file to read to for example look up available permissions */
     var manifest: File? = null
 
@@ -977,7 +971,6 @@ class Options(
                     privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
                     privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
                 }
-                ARG_INCLUDE_SOURCE_RETENTION -> includeSourceRetentionAnnotations = true
 
                 "--previous-api" -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))

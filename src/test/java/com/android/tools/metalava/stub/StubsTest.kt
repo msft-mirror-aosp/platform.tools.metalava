@@ -61,7 +61,6 @@ class StubsTest : DriverTest() {
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        includeSourceRetentionAnnotations: Boolean = false,
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         format: FileFormat = FileFormat.latest,
         sourceFiles: Array<TestFile>
@@ -75,7 +74,6 @@ class StubsTest : DriverTest() {
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
-            includeSourceRetentionAnnotations = includeSourceRetentionAnnotations,
             skipEmitPackages = skipEmitPackages,
             format = format
         )
@@ -3244,7 +3242,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Annotation metadata in stubs`() {
         checkStubs(
-            includeSourceRetentionAnnotations = false,
             skipEmitPackages = emptyList(),
             sourceFiles = arrayOf(
                 java(
