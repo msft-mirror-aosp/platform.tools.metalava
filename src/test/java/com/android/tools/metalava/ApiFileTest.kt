@@ -4391,11 +4391,14 @@ class ApiFileTest : DriverTest() {
                         inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         val someBits
-                            get() = value && 0x00ff
+                            get() = value.toInt() and 0x00ff
                         fun doSomething() {}
+                        override fun compareTo(other: Dp): Int = value.compareTo(other.value)
                     }
 
-                    fun box(val p : Dp) {}
+                    fun box(p : Dp) {
+                        println(p)
+                    }
                 """
                 )
             ),
@@ -4404,12 +4407,13 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp(float value);
+                    method public int compareTo(float other);
                     method public void doSomething();
-                    method public boolean getSomeBits();
+                    method public int getSomeBits();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
-                    property public final boolean someBits;
+                    property public final int someBits;
                     property public final float value;
                   }
                   public final class DpKt {
