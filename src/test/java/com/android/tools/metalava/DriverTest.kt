@@ -349,7 +349,7 @@ abstract class DriverTest {
          * Whether to include source retention annotations in the stubs (in that case they do not
          * go into the extracted annotations zip file)
          */
-        includeSourceRetentionAnnotations: Boolean = true,
+        includeSourceRetentionAnnotations: Boolean = false,
         /**
          * Whether to include the signature version in signatures
          */
