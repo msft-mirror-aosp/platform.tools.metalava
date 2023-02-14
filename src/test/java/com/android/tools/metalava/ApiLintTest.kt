@@ -4113,26 +4113,6 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
     }
 
     @Test
-    fun `No parameter ordering for sealed class constructor`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-
-                    sealed class Foo(
-                        default: Int = 0,
-                        required: () -> Unit,
-                    )
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `members in sealed class are not hidden abstract`() {
         check(
             expectedIssues = "",
