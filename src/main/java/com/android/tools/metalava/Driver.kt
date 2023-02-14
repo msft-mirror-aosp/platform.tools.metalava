@@ -269,7 +269,7 @@ private fun processFlags() {
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
         ApiGenerator.generate(
             apiLevelJars, options.firstApiLevel, options.currentApiLevel, options.isDeveloperPreviewBuild(),
-            androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile
+            androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile, options.removeMissingClassesInApiLevels
         )
     }
 
