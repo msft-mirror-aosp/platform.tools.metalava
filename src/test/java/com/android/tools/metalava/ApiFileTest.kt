@@ -4942,4 +4942,47 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `renamed via @JvmName`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class ColorRamp(
+                            val colors: IntArray,
+                            @get:JvmName("isInterpolated")
+                            val interpolated: Boolean,
+                        ) {
+                            @get:JvmName("isInitiallyEnabled")
+                            val initiallyEnabled: Boolean
+
+                            @set:JvmName("updateOtherColors")
+                            var otherColors: IntArray
+                        }
+                    """
+                )
+            ),
+            // TODO(b/257444932): s/getInterpolated/isInterpolated/g
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class ColorRamp {
+                    ctor public ColorRamp(int[] colors, boolean interpolated);
+                    method public int[] getColors();
+                    method public boolean getInterpolated();
+                    method public int[] getOtherColors();
+                    method public boolean isInitiallyEnabled();
+                    method public void updateOtherColors(int[]);
+                    property public final int[] colors;
+                    property public final boolean initiallyEnabled;
+                    property public final boolean interpolated;
+                    property public final int[] otherColors;
+                  }
+                }
+            """
+        )
+    }
 }
