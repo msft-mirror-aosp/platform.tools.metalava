@@ -107,6 +107,7 @@ const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
+const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS = "--remove-missing-class-references-in-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
@@ -507,6 +508,9 @@ class Options(
 
     /** API level XML file to generate */
     var generateApiLevelXml: File? = null
+
+    /** Whether references to missing classes should be removed from the api levels file. */
+    var removeMissingClassesInApiLevels: Boolean = false
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
@@ -1121,6 +1125,7 @@ class Options(
                         stringToExistingFile(getValue(args, ++index))
                     }
                 }
+                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS -> removeMissingClassesInApiLevels = true
 
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
@@ -2234,6 +2239,11 @@ class Options(
             "$ARG_GENERATE_API_LEVELS <xmlfile>",
             "Reads android.jar SDK files and generates an XML file recording " +
                 "the API level for each class, method and field",
+            "$ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS",
+            "Removes references to missing classes when generating the API levels XML file. " +
+                "This can happen when generating the XML file for the non-updatable portions of " +
+                "the module-lib sdk, as those non-updatable portions can reference classes that are " +
+                "part of an updatable apex.",
             "$ARG_ANDROID_JAR_PATTERN <pattern>",
             "Patterns to use to locate Android JAR files. The default " +
                 "is \$ANDROID_HOME/platforms/android-%/android.jar.",
