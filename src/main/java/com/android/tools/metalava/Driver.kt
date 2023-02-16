@@ -388,16 +388,6 @@ private fun processFlags() {
             it, codebase, docStubs = false,
             writeStubList = options.stubsSourceList != null
         )
-
-        val stubAnnotations = options.copyStubAnnotationsFrom
-        if (stubAnnotations != null) {
-            // Support pointing to both stub-annotations and stub-annotations/src/main/java
-            val src = File(stubAnnotations, "src${File.separator}main${File.separator}java")
-            val source = if (src.isDirectory) src else stubAnnotations
-            source.listFiles()?.forEach { file ->
-                RewriteAnnotations().copyAnnotations(codebase, file, File(it, file.name))
-            }
-        }
     }
 
     if (options.docStubsDir == null && options.stubsDir == null) {
@@ -457,9 +447,6 @@ fun processNonCodebaseFlags() {
             rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
         }
     }
-
-    // --rewrite-annotations?
-    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
 
     // Convert android.jar files?
     options.androidJarSignatureFiles?.let { root ->
