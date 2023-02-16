@@ -186,7 +186,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Check including only class retention annotations other than typedefs`() {
         check(
-            includeSourceRetentionAnnotations = true,
+            includeSourceRetentionAnnotations = false,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -333,7 +333,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Include merged annotations in exported source annotations`() {
         check(
-            includeSourceRetentionAnnotations = true,
+            includeSourceRetentionAnnotations = false,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
