@@ -35,12 +35,9 @@ class RewriteAnnotations {
         val fileName = source.name
         if (fileName.endsWith(SdkConstants.DOT_JAVA)) {
             // Only copy non-source retention annotation classes
-            if (!options.includeSourceRetentionAnnotations) {
-                // Only copy non-source retention annotation classes
-                val qualifiedName = pkg + "." + fileName.substring(0, fileName.indexOf('.'))
-                if (hasSourceRetention(codebase, qualifiedName)) {
-                    return
-                }
+            val qualifiedName = pkg + "." + fileName.substring(0, fileName.indexOf('.'))
+            if (hasSourceRetention(codebase, qualifiedName)) {
+                return
             }
 
             // Copy and convert
