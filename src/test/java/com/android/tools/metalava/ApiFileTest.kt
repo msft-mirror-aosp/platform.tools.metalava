@@ -4301,7 +4301,7 @@ class ApiFileTest : DriverTest() {
                   }
 
                 }
-"""
+                """
             ),
             dexApi = """
             Landroid/widget/ListView;
@@ -4804,6 +4804,61 @@ class ApiFileTest : DriverTest() {
                   public final class StateKt {
                     method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
                     method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN) on constructors`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        class AsyncPagingDataDiffer<T : Any>
+                        @JvmOverloads
+                        constructor(
+                            private val initState: State<T>,
+                            private val nextState: State<T>,
+                            private val updateCallback: Runnable,
+                        ) {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                            constructor(
+                                state: State<T>,
+                            ) : this(
+                                initState = state,
+                                nextState = state,
+                                updateCallback = { }
+                            )
+
+                            constructor(
+                                initState: State<T>,
+                                nextState: State<T>,
+                            ) : this(
+                                initState = initState,
+                                nextState = nextState,
+                                updateCallback = { }
+                            )
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class AsyncPagingDataDiffer<T> {
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
+                    ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                  }
+                  public interface State<T> {
+                    method public T! getValue();
+                    property public abstract T! value;
                   }
                 }
             """
