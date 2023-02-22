@@ -56,4 +56,19 @@ class UastTestK1 : UastTestBase() {
             """
         )
     }
+
+    @Test
+    fun `Kotlin Reified Methods -- K1`() {
+        `Kotlin Reified Methods`(isK2 = false)
+    }
+
+    @Test
+    fun `Nullness in reified signatures -- K1`() {
+        `Nullness in reified signatures`(isK2 = false)
+    }
+
+    @Test
+    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN -- K1`() {
+        `Annotations aren't dropped when DeprecationLevel is HIDDEN`(isK2 = false)
+    }
 }

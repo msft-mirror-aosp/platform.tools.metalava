@@ -363,47 +363,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Kotlin Reified Methods`() {
-        check(
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Kotlin Reified Methods 2`() {
         check(
             format = FileFormat.V2,
@@ -524,74 +483,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
-        )
-    }
-
-    @Test
-    fun `Nullness in reified signatures`() {
-        check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    "src/test/pkg/test.kt",
-                    """
-                    package test.pkg
-
-                    import androidx.annotation.UiThread
-                    import test.pkg2.NavArgs
-                    import test.pkg2.NavArgsLazy
-                    import test.pkg2.Fragment
-                    import test.pkg2.Bundle
-
-                    @UiThread
-                    inline fun <reified Args : NavArgs> Fragment.navArgs() = NavArgsLazy(Args::class) {
-                        throw IllegalStateException("Fragment $this has null arguments")
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg2
-
-                    import kotlin.reflect.KClass
-
-                    interface NavArgs
-                    class Fragment
-                    class Bundle
-                    class NavArgsLazy<Args : NavArgs>(
-                        private val navArgsClass: KClass<Args>,
-                        private val argumentProducer: () -> Bundle
-                    )
-                    """
-                ),
-                uiThreadSource
-            ),
-            api = """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
-                  }
-                }
-                """,
-//            Actual expected API is below. However, due to KT-39209 the nullability information is
-//              missing
-//            api = """
-//                // Signature format: 3.0
-//                package test.pkg {
-//                  public final class TestKt {
-//                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
-//                  }
-//                }
-//                """,
-            format = FileFormat.V3,
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "androidx.annotation",
-                ARG_HIDE_PACKAGE, "test.pkg2",
-                ARG_HIDE, "ReferencesHidden",
-                ARG_HIDE, "UnavailableSymbol",
-                ARG_HIDE, "HiddenTypeParameter",
-                ARG_HIDE, "HiddenSuperclass"
-            )
         )
     }
 
@@ -4452,51 +4343,6 @@ class ApiFileTest : DriverTest() {
                   public final class TestKt {
                     method @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
-        check(
-            format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        import androidx.annotation.IntRange
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        @IntRange(from=0)
-                        fun myMethod() { TODO() }
-
-                        @Deprecated(
-                            message = "Not supported anymore",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun returnsNonNull(): String = "42"
-
-                        @Deprecated(
-                            message = "Not supported anymore",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun returnsNonNullImplicitly() = "42"
-                    """
-                ),
-                androidxIntRangeSource
-            ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            api = """
-                // Signature format: 2.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
