@@ -45,6 +45,16 @@ class UastTestK2 : UastTestBase() {
     }
 
     @Test
+    fun `Kotlin language level -- K2`() {
+        `Kotlin language level`(isK2 = true)
+    }
+
+    @Test
+    fun `Known nullness -- K2`() {
+        `Known nullness`(isK2 = true)
+    }
+
+    @Test
     fun `Test Experimental and UseExperimental -- K2`() {
         `Test Experimental and UseExperimental`(isK2 = true)
     }

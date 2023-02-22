@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
@@ -521,11 +522,23 @@ class PsiTypeItem private constructor(
 
         /**
          * Determine if this item implies that its associated type is a non-null array with
-         * non-null components.
+         * non-null components. This is true for the synthetic `Enum.values()` method and any
+         * annotation properties or accessors.
          */
         private fun Item.impliesNonNullArrayComponents(): Boolean {
+            fun MemberItem.isAnnotationPropertiesOrAccessors(): Boolean =
+                containingClass().isAnnotationType() && !modifiers.isStatic()
+
+            // TODO: K2 UAST regression, KTIJ-24754
+            fun MethodItem.isEnumValues(): Boolean =
+                containingClass().isEnum() && modifiers.isStatic() &&
+                    name() == "values" && parameters().isEmpty()
+
             return when (this) {
-                is MemberItem -> containingClass().isAnnotationType() && !modifiers.isStatic()
+                is MemberItem -> {
+                    isAnnotationPropertiesOrAccessors() ||
+                        (this is MethodItem && isEnumValues())
+                }
                 else -> false
             }
         }

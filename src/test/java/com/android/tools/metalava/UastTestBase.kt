@@ -19,6 +19,208 @@ package com.android.tools.metalava
 // Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
 abstract class UastTestBase : DriverTest() {
 
+    protected fun `Kotlin language level`(isK2: Boolean) {
+        // static method in interface is not overridable.
+        // TODO: SLC in 1.9 will not put `final` on @JvmStatic method in interface
+        //  Put this back to Java9LanguageFeaturesTest, before `Basic class signature extraction`
+        val f = if (isK2) " final" else ""
+        // See https://kotlinlang.org/docs/reference/whatsnew13.html
+        check(
+            format = FileFormat.V1,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    interface Foo {
+                        companion object {
+                            @JvmField
+                            const val answer: Int = 42
+                            @JvmStatic
+                            fun sayHello() {
+                                println("Hello, world!")
+                            }
+                        }
+                    }
+                    """
+                )
+            ),
+            api =
+            """
+                package test.pkg {
+                  public interface Foo {
+                    method public default static$f void sayHello();
+                    field @NonNull public static final test.pkg.Foo.Companion Companion;
+                    field public static final int answer = 42; // 0x2a
+                  }
+                  public static final class Foo.Companion {
+                    method public void sayHello();
+                  }
+                }
+                """,
+            // The above source uses 1.3 features, though UAST currently
+            // seems to still treat it as 1.3 despite being passed 1.2
+            extraArguments = arrayOf(ARG_KOTLIN_SOURCE, "1.2")
+        )
+    }
+
+    protected fun `Known nullness`(isK2: Boolean) {
+        // TODO: ULC in 1.9 will match what compiler generates: value
+        //  Put this back to ApiFileTest, before `JvmOverloads`
+        val p = if (isK2) "value" else "name"
+        // Don't emit platform types for some unannotated elements that we know the
+        // nullness for: annotation type members, equals-parameters, initialized constants, etc.
+        check(
+            format = FileFormat.V3,
+            outputKotlinStyleNulls = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    // Platform nullability Pair in Java
+                    package test;
+
+                    import androidx.annotation.NonNull;
+
+                    public class MyClass {
+                        public static final String MY_CONSTANT1 = "constant"; // Not nullable
+                        public final String MY_CONSTANT2 = "constant"; // Not nullable
+                        public String MY_CONSTANT3 = "constant"; // Unknown
+
+                        /** @deprecated */
+                        @Deprecated
+                        @Override
+                        public boolean equals(
+                            Object parameter  // nullable
+                        ) {
+                            return super.equals(parameter);
+                        }
+
+                        /** @deprecated */
+                        @Deprecated
+                        @Override // Not nullable
+                        public String toString() {
+                            return super.toString();
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    import static java.lang.annotation.ElementType.*;
+                    import java.lang.annotation.*;
+                    public @interface MyAnnotation {
+                        String[] value(); // Not nullable
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public enum Foo {
+                        A, B;
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Language {
+                        KOTLIN,
+                        JAVA
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    class Issue {
+                        fun setAndroidSpecific(value: Boolean): Issue { return this }
+                        companion object {
+                            @JvmStatic
+                            fun create(
+                                id: String,
+                                briefDescription: String,
+                                explanation: String
+                            ): Issue {
+                                return Issue()
+                            }
+                        }
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    object MySingleton {
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.pkg;
+                    public class WrongCallDetector {
+                        public static final Issue ISSUE =
+                                Issue.create(
+                                                "WrongCall",
+                                                "Using wrong draw/layout method",
+                                                "Custom views typically need to call `measure()`)
+                                        .setAndroidSpecific(true));
+                    }
+                    """
+                ).indented(),
+                androidxNonNullSource,
+                androidxNullableSource
+            ),
+            api = """
+                // Signature format: 3.0
+                package test {
+                  public class MyClass {
+                    ctor public MyClass();
+                    method @Deprecated public boolean equals(Object?);
+                    method @Deprecated public String toString();
+                    field public static final String MY_CONSTANT1 = "constant";
+                    field public final String MY_CONSTANT2 = "constant";
+                    field public String! MY_CONSTANT3;
+                  }
+                }
+                package test.pkg {
+                  public enum Foo {
+                    enum_constant public static final test.pkg.Foo A;
+                    enum_constant public static final test.pkg.Foo B;
+                  }
+                  public final class Issue {
+                    ctor public Issue();
+                    method public static test.pkg.Issue create(String id, String briefDescription, String explanation);
+                    method public test.pkg.Issue setAndroidSpecific(boolean value);
+                    field public static final test.pkg.Issue.Companion Companion;
+                  }
+                  public static final class Issue.Companion {
+                    method public test.pkg.Issue create(String id, String briefDescription, String explanation);
+                  }
+                  public enum Language {
+                    method public static test.pkg.Language valueOf(String $p) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
+                    method public static test.pkg.Language[] values();
+                    enum_constant public static final test.pkg.Language JAVA;
+                    enum_constant public static final test.pkg.Language KOTLIN;
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
+                    method public abstract String[] value();
+                  }
+                  public final class MySingleton {
+                    field public static final test.pkg.MySingleton INSTANCE;
+                  }
+                  public class WrongCallDetector {
+                    ctor public WrongCallDetector();
+                    field public static final test.pkg.Issue ISSUE;
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
     protected fun `Test Experimental and UseExperimental`(isK2: Boolean) {
         // See b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
