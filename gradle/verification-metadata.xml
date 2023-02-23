@@ -12,6 +12,7 @@
          <trust file=".*-sources[.]jar" regex="true"/>
       </trusted-artifacts>
       <trusted-keys>
+         <trusted-key id="02216ed811210daa" group="io.github.detekt.sarif4k"/>
          <trusted-key id="04543577d6a9cc626239c50c7ecbd740ff06aeb5">
             <trusting group="com.sun.xml.fastinfoset"/>
             <trusting group="com.sun.istack"/>
@@ -45,6 +46,7 @@
          <trusted-key id="2e92113263fc31c74ccbaab20e91c2de43b72bb1" group="org.ec4j.core"/>
          <trusted-key id="31fae244a81d64507b47182e1b2718089ce964b8" group="com.thoughtworks.qdox"/>
          <trusted-key id="34918b7d3969d2f5" group="com.google.dagger"/>
+         <trusted-key id="47eb6836245d2d40e89dfb4136d4e9618f3adab5" group="io.github.microutils" name="kotlin-logging-jvm"/>
          <trusted-key id="3ad93c3c677a106e" group="io.perfmark"/>
          <trusted-key id="3d11126ea77e4e07fbabb38614a84c976d265b25" group="com.google.protobuf"/>
          <trusted-key id="3d5839a2262cbbfb" group="org.jetbrains.kotlinx"/>
@@ -52,6 +54,7 @@
          <trusted-key id="40a3c4432bd7308c" group="com.googlecode.juniversalchardet"/>
          <trusted-key id="44fbdbbc1a00fe414f1c1873586654072ead6677" group="org.sonatype.oss"/>
          <trusted-key id="476634a4694e716a" group="com.googlecode.java-diff-utils"/>
+         <trusted-key id="4b1e11d5a4b91e89" group="com.google.protobuf"/>
          <trusted-key id="4db1a49729b053caf015cee9a6adfc93ef34893e" group="org.hamcrest"/>
          <trusted-key id="4f7e32d440ef90a83011a8fc6425559c47cc79c4">
             <trusting group="com.sun.activation"/>
@@ -67,6 +70,12 @@
             <trusting group="com.fasterxml.jackson.module"/>
             <trusting group="com.fasterxml.jackson.dataformat"/>
          </trusted-key>
+         <trusted-key id="66d68daa073be985">
+            <trusting group="ch.qos.logback"/>
+            <trusting group="org.slf4j"/>
+         </trusted-key>
+         <trusted-key id="6601e5c08dccbb96" group="info.picocli"/>
+         <trusted-key id="689cbe64f4bc997f" group="org.mockito"/>
          <trusted-key id="694621a7227d8d5289699830abe9f3126bb741c1">
             <trusting group="com.google.guava"/>
             <trusting group="com.google.jimfs"/>
@@ -150,6 +159,7 @@
             <trusting group="org.apache"/>
             <trusting group="org.codehaus.mojo"/>
          </trusted-key>
+         <trusted-key id="f3d1600878e85a3d" group="io.netty"/>
          <trusted-key id="f42e87f9665015c9" group="org.jsoup"/>
          <trusted-key id="fa77dcfef2ee6eb2debedd2c012579464d01c06a" group="org.apache"/>
          <trusted-key id="fa7929f83ad44c4590f6cc6815c71c0a4e0b8edd" group="net.java.dev.jna"/>
