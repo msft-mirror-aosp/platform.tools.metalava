@@ -363,47 +363,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Kotlin Reified Methods`() {
-        check(
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Kotlin Reified Methods 2`() {
         check(
             format = FileFormat.V2,
@@ -524,74 +483,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
-        )
-    }
-
-    @Test
-    fun `Nullness in reified signatures`() {
-        check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    "src/test/pkg/test.kt",
-                    """
-                    package test.pkg
-
-                    import androidx.annotation.UiThread
-                    import test.pkg2.NavArgs
-                    import test.pkg2.NavArgsLazy
-                    import test.pkg2.Fragment
-                    import test.pkg2.Bundle
-
-                    @UiThread
-                    inline fun <reified Args : NavArgs> Fragment.navArgs() = NavArgsLazy(Args::class) {
-                        throw IllegalStateException("Fragment $this has null arguments")
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg2
-
-                    import kotlin.reflect.KClass
-
-                    interface NavArgs
-                    class Fragment
-                    class Bundle
-                    class NavArgsLazy<Args : NavArgs>(
-                        private val navArgsClass: KClass<Args>,
-                        private val argumentProducer: () -> Bundle
-                    )
-                    """
-                ),
-                uiThreadSource
-            ),
-            api = """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
-                  }
-                }
-                """,
-//            Actual expected API is below. However, due to KT-39209 the nullability information is
-//              missing
-//            api = """
-//                // Signature format: 3.0
-//                package test.pkg {
-//                  public final class TestKt {
-//                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
-//                  }
-//                }
-//                """,
-            format = FileFormat.V3,
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "androidx.annotation",
-                ARG_HIDE_PACKAGE, "test.pkg2",
-                ARG_HIDE, "ReferencesHidden",
-                ARG_HIDE, "UnavailableSymbol",
-                ARG_HIDE, "HiddenTypeParameter",
-                ARG_HIDE, "HiddenSuperclass"
-            )
         )
     }
 
@@ -809,162 +700,6 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class TestKt {
                     method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
-                  }
-                }
-                """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
-        )
-    }
-
-    @Test
-    fun `Known nullness`() {
-        // Don't emit platform types for some unannotated elements that we know the
-        // nullness for: annotation type members, equals-parameters, initialized constants, etc.
-        check(
-            format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    // Platform nullability Pair in Java
-                    package test;
-
-                    import androidx.annotation.NonNull;
-
-                    public class MyClass {
-                        public static final String MY_CONSTANT1 = "constant"; // Not nullable
-                        public final String MY_CONSTANT2 = "constant"; // Not nullable
-                        public String MY_CONSTANT3 = "constant"; // Unknown
-
-                        /** @deprecated */
-                        @Deprecated
-                        @Override
-                        public boolean equals(
-                            Object parameter  // nullable
-                        ) {
-                            return super.equals(parameter);
-                        }
-
-                        /** @deprecated */
-                        @Deprecated
-                        @Override // Not nullable
-                        public String toString() {
-                            return super.toString();
-                        }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-
-                    import static java.lang.annotation.ElementType.*;
-                    import java.lang.annotation.*;
-                    public @interface MyAnnotation {
-                        String[] value(); // Not nullable
-                    }
-                    """
-                ).indented(),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    public enum Foo {
-                        A, B;
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg
-                    enum class Language {
-                        KOTLIN,
-                        JAVA
-                    }
-                    """
-                ).indented(),
-                kotlin(
-                    """
-                    package test.pkg
-                    class Issue {
-                        fun setAndroidSpecific(value: Boolean): Issue { return this }
-                        companion object {
-                            @JvmStatic
-                            fun create(
-                                id: String,
-                                briefDescription: String,
-                                explanation: String
-                            ): Issue {
-                                return Issue()
-                            }
-                        }
-                    }
-                    """
-                ).indented(),
-                kotlin(
-                    """
-                    package test.pkg
-                    object MySingleton {
-                    }
-                    """
-                ).indented(),
-                java(
-                    """
-                    package test.pkg;
-                    public class WrongCallDetector {
-                        public static final Issue ISSUE =
-                                Issue.create(
-                                                "WrongCall",
-                                                "Using wrong draw/layout method",
-                                                "Custom views typically need to call `measure()`)
-                                        .setAndroidSpecific(true));
-                    }
-                    """
-                ).indented(),
-                androidxNonNullSource,
-                androidxNullableSource
-            ),
-            api = """
-                // Signature format: 3.0
-                package test {
-                  public class MyClass {
-                    ctor public MyClass();
-                    method @Deprecated public boolean equals(Object?);
-                    method @Deprecated public String toString();
-                    field public static final String MY_CONSTANT1 = "constant";
-                    field public final String MY_CONSTANT2 = "constant";
-                    field public String! MY_CONSTANT3;
-                  }
-                }
-                package test.pkg {
-                  public enum Foo {
-                    enum_constant public static final test.pkg.Foo A;
-                    enum_constant public static final test.pkg.Foo B;
-                  }
-                  public final class Issue {
-                    ctor public Issue();
-                    method public static test.pkg.Issue create(String id, String briefDescription, String explanation);
-                    method public test.pkg.Issue setAndroidSpecific(boolean value);
-                    field public static final test.pkg.Issue.Companion Companion;
-                  }
-                  public static final class Issue.Companion {
-                    method public test.pkg.Issue create(String id, String briefDescription, String explanation);
-                  }
-                  public enum Language {
-                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
-                    method public static test.pkg.Language[] values();
-                    enum_constant public static final test.pkg.Language JAVA;
-                    enum_constant public static final test.pkg.Language KOTLIN;
-                  }
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
-                    method public abstract String[] value();
-                  }
-                  public final class MySingleton {
-                    field public static final test.pkg.MySingleton INSTANCE;
-                  }
-                  public class WrongCallDetector {
-                    ctor public WrongCallDetector();
-                    field public static final test.pkg.Issue ISSUE;
                   }
                 }
                 """,
@@ -4267,8 +4002,7 @@ class ApiFileTest : DriverTest() {
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
                         val someBits
-                            get() = value && 0x00ff
-                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                            get() = value.toInt() and 0x00ff
                         fun doSomething() {}
                     }
                 """
@@ -4279,6 +4013,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp();
+                    method public void doSomething();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
@@ -4452,51 +4187,6 @@ class ApiFileTest : DriverTest() {
                   public final class TestKt {
                     method @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
-        check(
-            format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        import androidx.annotation.IntRange
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        @IntRange(from=0)
-                        fun myMethod() { TODO() }
-
-                        @Deprecated(
-                            message = "Not supported anymore",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun returnsNonNull(): String = "42"
-
-                        @Deprecated(
-                            message = "Not supported anymore",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun returnsNonNullImplicitly() = "42"
-                    """
-                ),
-                androidxIntRangeSource
-            ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            api = """
-                // Signature format: 2.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """

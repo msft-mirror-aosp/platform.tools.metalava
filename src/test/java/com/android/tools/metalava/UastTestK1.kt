@@ -30,6 +30,16 @@ class UastTestK1 : UastTestBase() {
     }
 
     @Test
+    fun `Kotlin language level -- K1`() {
+        `Kotlin language level`(isK2 = false)
+    }
+
+    @Test
+    fun `Known nullness -- K1`() {
+        `Known nullness`(isK2 = false)
+    }
+
+    @Test
     fun `Test Experimental and UseExperimental -- K1`() {
         `Test Experimental and UseExperimental`(isK2 = false)
     }
@@ -55,5 +65,20 @@ class UastTestK1 : UastTestBase() {
                 }
             """
         )
+    }
+
+    @Test
+    fun `Kotlin Reified Methods -- K1`() {
+        `Kotlin Reified Methods`(isK2 = false)
+    }
+
+    @Test
+    fun `Nullness in reified signatures -- K1`() {
+        `Nullness in reified signatures`(isK2 = false)
+    }
+
+    @Test
+    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN -- K1`() {
+        `Annotations aren't dropped when DeprecationLevel is HIDDEN`(isK2 = false)
     }
 }
