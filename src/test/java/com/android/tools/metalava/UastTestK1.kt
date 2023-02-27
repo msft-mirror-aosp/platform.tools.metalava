@@ -35,11 +35,6 @@ class UastTestK1 : UastTestBase() {
     }
 
     @Test
-    fun `Known nullness -- K1`() {
-        `Known nullness`(isK2 = false)
-    }
-
-    @Test
     fun `Test Experimental and UseExperimental -- K1`() {
         `Test Experimental and UseExperimental`(isK2 = false)
     }

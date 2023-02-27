@@ -708,6 +708,162 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Known nullness`() {
+        // Don't emit platform types for some unannotated elements that we know the
+        // nullness for: annotation type members, equals-parameters, initialized constants, etc.
+        check(
+            format = FileFormat.V3,
+            outputKotlinStyleNulls = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    // Platform nullability Pair in Java
+                    package test;
+
+                    import androidx.annotation.NonNull;
+
+                    public class MyClass {
+                        public static final String MY_CONSTANT1 = "constant"; // Not nullable
+                        public final String MY_CONSTANT2 = "constant"; // Not nullable
+                        public String MY_CONSTANT3 = "constant"; // Unknown
+
+                        /** @deprecated */
+                        @Deprecated
+                        @Override
+                        public boolean equals(
+                            Object parameter  // nullable
+                        ) {
+                            return super.equals(parameter);
+                        }
+
+                        /** @deprecated */
+                        @Deprecated
+                        @Override // Not nullable
+                        public String toString() {
+                            return super.toString();
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    import static java.lang.annotation.ElementType.*;
+                    import java.lang.annotation.*;
+                    public @interface MyAnnotation {
+                        String[] value(); // Not nullable
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public enum Foo {
+                        A, B;
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Language {
+                        KOTLIN,
+                        JAVA
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    class Issue {
+                        fun setAndroidSpecific(value: Boolean): Issue { return this }
+                        companion object {
+                            @JvmStatic
+                            fun create(
+                                id: String,
+                                briefDescription: String,
+                                explanation: String
+                            ): Issue {
+                                return Issue()
+                            }
+                        }
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    object MySingleton {
+                    }
+                    """
+                ).indented(),
+                java(
+                    """
+                    package test.pkg;
+                    public class WrongCallDetector {
+                        public static final Issue ISSUE =
+                                Issue.create(
+                                                "WrongCall",
+                                                "Using wrong draw/layout method",
+                                                "Custom views typically need to call `measure()`)
+                                        .setAndroidSpecific(true));
+                    }
+                    """
+                ).indented(),
+                androidxNonNullSource,
+                androidxNullableSource
+            ),
+            api = """
+                // Signature format: 3.0
+                package test {
+                  public class MyClass {
+                    ctor public MyClass();
+                    method @Deprecated public boolean equals(Object?);
+                    method @Deprecated public String toString();
+                    field public static final String MY_CONSTANT1 = "constant";
+                    field public final String MY_CONSTANT2 = "constant";
+                    field public String! MY_CONSTANT3;
+                  }
+                }
+                package test.pkg {
+                  public enum Foo {
+                    enum_constant public static final test.pkg.Foo A;
+                    enum_constant public static final test.pkg.Foo B;
+                  }
+                  public final class Issue {
+                    ctor public Issue();
+                    method public static test.pkg.Issue create(String id, String briefDescription, String explanation);
+                    method public test.pkg.Issue setAndroidSpecific(boolean value);
+                    field public static final test.pkg.Issue.Companion Companion;
+                  }
+                  public static final class Issue.Companion {
+                    method public test.pkg.Issue create(String id, String briefDescription, String explanation);
+                  }
+                  public enum Language {
+                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
+                    method public static test.pkg.Language[] values();
+                    enum_constant public static final test.pkg.Language JAVA;
+                    enum_constant public static final test.pkg.Language KOTLIN;
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
+                    method public abstract String[] value();
+                  }
+                  public final class MySingleton {
+                    field public static final test.pkg.MySingleton INSTANCE;
+                  }
+                  public class WrongCallDetector {
+                    ctor public WrongCallDetector();
+                    field public static final test.pkg.Issue ISSUE;
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
@@ -1106,7 +1262,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Enum class`() {
+    fun `Enum class -- java`() {
         check(
             sourceFiles = arrayOf(
                 java(
@@ -1122,6 +1278,32 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public enum Foo {
+                    enum_constant public static final test.pkg.Foo A;
+                    enum_constant public static final test.pkg.Foo B;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Enum class -- kt`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Foo {
+                        A, B;
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public enum Foo {
+                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
+                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
