@@ -36,12 +36,16 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolWithVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
@@ -55,6 +59,7 @@ import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -148,6 +153,14 @@ class PsiModifierItem(
                     ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
                     else -> PUBLIC
                 }
+                // UAST workaround: fake light method for inline/hidden function may not have a
+                // concrete modifier list, but overrides `hasModifierProperty` to mimic modifiers.
+                element is KotlinUMethodWithFakeLightDelegate -> when {
+                    element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
+                    element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
+                    element.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
+                    else -> PUBLIC
+                }
                 else -> PACKAGE_PRIVATE
             }
             if (ktModifierList != null) {
@@ -164,14 +177,24 @@ class PsiModifierItem(
                     // modifier, but overrides an internal declaration. Adapted from
                     // org.jetbrains.kotlin.asJava.classes.UltraLightMembersCreator.isInternal
                     val descriptor = codebase.bindingContext(sourcePsi)
-                        .get(BindingContext.DECLARATION_TO_DESCRIPTOR, sourcePsi)
+                        ?.get(BindingContext.DECLARATION_TO_DESCRIPTOR, sourcePsi)
 
-                    if (descriptor is DeclarationDescriptorWithVisibility) {
-                        val effectiveVisibility =
-                            descriptor.visibility.effectiveVisibility(descriptor, false)
+                    if (descriptor != null) { // FE 1.0
+                        if (descriptor is DeclarationDescriptorWithVisibility) {
+                            val effectiveVisibility =
+                                descriptor.visibility.effectiveVisibility(descriptor, false)
 
-                        if (effectiveVisibility == EffectiveVisibility.Internal) {
-                            visibilityFlags = INTERNAL
+                            if (effectiveVisibility == EffectiveVisibility.Internal) {
+                                visibilityFlags = INTERNAL
+                            }
+                        }
+                    } else { // Analysis API
+                        analyze(sourcePsi) {
+                            val symbol = (sourcePsi as? KtDeclaration)?.getSymbol()
+                            val visibility = (symbol as? KtSymbolWithVisibility)?.visibility
+                            if (visibility == Visibilities.Internal) {
+                                visibilityFlags = INTERNAL
+                            }
                         }
                     }
                 }
@@ -298,7 +321,6 @@ class PsiModifierItem(
                             !it.isKotlinNullabilityAnnotation
                     }
                     .map {
-
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
@@ -347,8 +369,8 @@ class PsiModifierItem(
             return false
         }
 
-        private val NOT_NULL = NotNull::class.qualifiedName
-        private val NULLABLE = Nullable::class.qualifiedName
+        internal val NOT_NULL = NotNull::class.qualifiedName
+        internal val NULLABLE = Nullable::class.qualifiedName
 
         private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
             get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE

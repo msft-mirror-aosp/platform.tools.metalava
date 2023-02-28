@@ -33,7 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
-    id("com.android.lint") version "7.4.0-alpha05"
+    id("com.android.lint") version "8.1.0-alpha06"
     id("application")
     id("java")
     id("maven-publish")
@@ -48,15 +48,15 @@ application {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.withType(KotlinCompile::class.java) {
     kotlinOptions {
-        jvmTarget = "11"
-        apiVersion = "1.6"
-        languageVersion = "1.6"
+        jvmTarget = "17"
+        apiVersion = "1.7"
+        languageVersion = "1.7"
         allWarningsAsErrors = true
     }
 }
@@ -66,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.4.0-alpha08"
+    "31.1.0-alpha06"
 }
 
 dependencies {
@@ -84,7 +84,7 @@ dependencies {
     implementation(libs.kotlinReflect)
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
-    implementation("com.google.guava:guava:30.1.1-jre")
+    implementation("com.google.guava:guava:31.0.1-jre")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
@@ -101,6 +101,7 @@ val zipTask: TaskProvider<Zip> = project.tasks.register(
 
 val testTask = tasks.named("test", Test::class.java)
 testTask.configure {
+    jvmArgs = listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
@@ -172,7 +173,7 @@ fun getBuildId(): String {
 
 fun Project.getKtlintConfiguration(): Configuration {
     return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.41.0")
+        val dependency = project.dependencies.create("com.pinterest:ktlint:0.47.1")
         dependencies.add(dependency)
     }
 }
@@ -225,23 +226,6 @@ publishing {
             name = repositoryName
             url = uri("file://${getDistributionDirectory().canonicalPath}/repo/m2repository")
         }
-    }
-}
-
-// Workaround for https://github.com/gradle/gradle/issues/11717
-tasks.withType(GenerateModuleMetadata::class.java).configureEach {
-    val outDirProvider = project.providers.environmentVariable("DIST_DIR")
-    inputs.property("buildOutputDirectory", outDirProvider).optional(true)
-    doLast {
-        val metadata = outputFile.asFile.get()
-        val text = metadata.readText()
-        val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
-        metadata.writeText(
-            text.replace(
-                "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${buildId}\""
-            )
-        )
     }
 }
 

@@ -380,7 +380,6 @@ interface AnnotationItem {
                 return ANNOTATION_IN_ALL_STUBS
             }
             when (qualifiedName) {
-
                 // The typedef annotations are special: they should not be in the signature
                 // files, but we want to include them in the external annotations file such that tools
                 // can enforce them.
@@ -637,6 +636,11 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
     override val targets: Set<AnnotationTarget> by lazy {
         AnnotationItem.computeTargets(this, codebase::findClass)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationItem) return false
+        return qualifiedName == other.qualifiedName && attributes == other.attributes
+    }
 }
 
 /** An attribute of an annotation, such as "value" */
@@ -782,6 +786,11 @@ class DefaultAnnotationAttribute(
     override fun toString(): String {
         return "DefaultAnnotationAttribute(name='$name', value=$value)"
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationAttribute) return false
+        return name == other.name && value == other.value
+    }
 }
 
 abstract class DefaultAnnotationValue : AnnotationAttributeValue {
@@ -821,6 +830,11 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
     override fun resolve(): Item? = null
 
     override fun toSource() = valueSource
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationSingleAttributeValue) return false
+        return value == other.value
+    }
 }
 
 class DefaultAnnotationArrayAttributeValue(val value: String) :
@@ -835,4 +849,9 @@ class DefaultAnnotationArrayAttributeValue(val value: String) :
     }.toList()
 
     override fun toSource() = value
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationArrayAttributeValue) return false
+        return values.containsAll(other.values)
+    }
 }

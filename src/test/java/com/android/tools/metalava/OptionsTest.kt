@@ -127,7 +127,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.7.
+                                             Sets the source level for Kotlin source files; default is 1.8.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -241,13 +241,9 @@ Diffs and Checks:
                                              encoded its types using Kotlin style types: a suffix of "?" for nullable
                                              types, no suffix for non nullable types, and "!" for unknown. The default
                                              is no.
---check-compatibility:type:state <file>
+--check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
-                                             either the public api or the removed api. State is one of 'current' and
-                                             'released', to check either the currently in development API or the last
-                                             publicly released API, respectively. Different compatibility checks apply
-                                             in the two scenarios. For example, to check the code base against the
-                                             current public API, use --check-compatibility:api:current.
+                                             either the public api or the removed api.
 --check-compatibility:base <file>
                                              When performing a compat check, use the provided signature file as a base
                                              api, which is treated as part of the API being checked. This allows us to
@@ -331,12 +327,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---include-annotation-classes <dir>
-                                             Copies the given stub annotation source files into the generated stub
-                                             sources; <dir> is typically metalava/stub-annotations/src/main/java/.
---rewrite-annotations <dir/jar>
-                                             For a bytecode folder or output jar, rewrites the androidx annotations to
-                                             be package private
 --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by

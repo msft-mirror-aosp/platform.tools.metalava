@@ -1943,6 +1943,38 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Check listener last for suspend functions`() {
+        check(
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
+            expectedIssues = """
+                src/android/pkg/MyClass.kt:6: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    @SuppressWarnings("WeakerAccess")
+                    public abstract class MyCallback {
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package android.pkg
+                    import android.pkg.MyCallback
+
+                    class MyClass {
+                        suspend fun ok(i: Int, callback: MyCallback) {}
+                        suspend fun wrong(callback: MyCallback, i: Int) {}
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Check overloaded arguments`() {
         // TODO: This check is not yet hooked up
         check(
@@ -3600,7 +3632,6 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
-
         check(
             expectedIssues = """
                 src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
@@ -4107,6 +4138,47 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                             default: Int = 0,
                             trailing: JavaInterface
                         )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `No parameter ordering for sealed class constructor`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    sealed class Foo(
+                        default: Int = 0,
+                        required: () -> Unit,
+                    )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `members in sealed class are not hidden abstract`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        sealed class ModifierLocalMap() {
+                            internal abstract operator fun <T> set(key: ModifierLocal<T>, value: T)
+                            internal abstract operator fun <T> get(key: ModifierLocal<T>): T?
+                            internal abstract operator fun contains(key: ModifierLocal<*>): Boolean
+                        }
                     """
                 )
             )
