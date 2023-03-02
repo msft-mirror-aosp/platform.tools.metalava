@@ -35,8 +35,8 @@ class UastTestK1 : UastTestBase() {
     }
 
     @Test
-    fun `Test Experimental and UseExperimental -- K1`() {
-        `Test Experimental and UseExperimental`(isK2 = false)
+    fun `Test RequiresOptIn and OptIn -- K1`() {
+        `Test RequiresOptIn and OptIn`(isK2 = false)
     }
 
     @Test

@@ -63,7 +63,7 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Test Experimental and UseExperimental`(isK2: Boolean) {
+    protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
         // See b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
         check(
@@ -72,7 +72,7 @@ abstract class UastTestBase : DriverTest() {
                     """
                     package test.pkg
 
-                    @Experimental
+                    @RequiresOptIn
                     @Retention(AnnotationRetention.BINARY)
                     @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
                     annotation class ExperimentalBar
@@ -80,7 +80,7 @@ abstract class UastTestBase : DriverTest() {
                     @ExperimentalBar
                     class FancyBar
 
-                    @UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
+                    @OptIn(FancyBar::class) // @OptIn should not be tracked as it is not API
                     class SimpleClass {
                         fun methodUsingFancyBar() {
                             val fancyBar = FancyBar()
@@ -139,7 +139,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public AnotherSimpleClass();
                     method public void methodUsingFancyBar();
                   }
-                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
