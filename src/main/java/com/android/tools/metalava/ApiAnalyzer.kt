@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -887,6 +888,15 @@ class ApiAnalyzer(
                 }
 
                 checkTypeReferencesHidden(field, field.type())
+            }
+
+            override fun visitProperty(property: PropertyItem) {
+                val containingClass = property.containingClass()
+                if (containingClass.deprecated) {
+                    property.deprecated = true
+                }
+
+                checkTypeReferencesHidden(property, property.type())
             }
 
             override fun visitMethod(method: MethodItem) {
