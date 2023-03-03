@@ -4676,6 +4676,35 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `@Deprecated sealed interface and its members`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        @Deprecated("moved to somewhere else")
+                        sealed interface LazyInfo {
+                          val index : Int
+                          val key: Int
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @Deprecated public sealed interface LazyInfo {
+                    method @Deprecated public int getIndex();
+                    method @Deprecated public int getKey();
+                    property @Deprecated public abstract int index;
+                    property @Deprecated public abstract int key;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `@Repeatable annotation`() {
         check(
             sourceFiles = arrayOf(
