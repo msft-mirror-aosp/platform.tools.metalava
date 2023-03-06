@@ -237,7 +237,7 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     "gradle": {""",
                 """"createdBy": {
     "gradle": {
-      "buildId:": "$buildId",""",
+      "buildId:": "$buildId"""",
             )
         )
     }
