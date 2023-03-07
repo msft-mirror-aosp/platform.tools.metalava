@@ -448,6 +448,15 @@ class StubsTest : DriverTest() {
                         public static final double field10 = Double.NaN;
                         public static final double field11 = Double.POSITIVE_INFINITY;
 
+                        public static final boolean field12;
+                        public static final byte field13;
+                        public static final char field14;
+                        public static final short field15;
+                        public static final int field16;
+                        public static final long field17;
+                        public static final float field18;
+                        public static final double field19;
+
                         public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
                         public static final char HEX_INPUT = 61184;
                     }
@@ -473,6 +482,22 @@ class StubsTest : DriverTest() {
                 public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
                 public static final double field10 = (0.0/0.0);
                 public static final double field11 = (1.0/0.0);
+                public static final boolean field12;
+                static { field12 = false; }
+                public static final byte field13;
+                static { field13 = 0; }
+                public static final char field14;
+                static { field14 = 0; }
+                public static final short field15;
+                static { field15 = 0; }
+                public static final int field16;
+                static { field16 = 0; }
+                public static final long field17;
+                static { field17 = 0; }
+                public static final float field18;
+                static { field18 = 0; }
+                public static final double field19;
+                static { field19 = 0; }
                 }
                 """,
             checkTextStubEquivalence = true
