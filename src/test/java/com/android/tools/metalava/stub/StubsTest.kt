@@ -1429,35 +1429,35 @@ class StubsTest : DriverTest() {
                     @SuppressWarnings("WeakerAccess")
                     public class Constructors {
                         public class Parent {
-                            public Parent(String s, int i, long l, boolean b, short sh) {
+                            public Parent(String arg1, int arg2, long arg3, boolean arg4, short arg5) {
                             }
                         }
 
                         public class Child extends Parent {
-                            public Child(String s, int i, long l, boolean b, short sh) {
-                                super(s, i, l, b, sh);
+                            public Child(String arg1, int arg2, long arg3, boolean arg4, short arg5) {
+                                super(arg1, arg2, arg3, arg4, arg5);
                             }
 
-                            private Child(String s) {
-                                super(s, 0, 0, false, 0);
+                            private Child(String arg1) {
+                                super(arg1, 0, 0, false, 0);
                             }
                         }
 
                         public class Child2 extends Parent {
-                            Child2(String s) {
-                                super(s, 0, 0, false, 0);
+                            Child2(String arg1) {
+                                super(arg1, 0, 0, false, 0);
                             }
                         }
 
                         public class Child3 extends Child2 {
-                            private Child3(String s) {
+                            private Child3(String arg1) {
                                 super("something");
                             }
                         }
 
                         public class Child4 extends Parent {
-                            Child4(String s, HiddenClass hidden) {
-                                super(s, 0, 0, true, 0);
+                            Child4(String arg1, HiddenClass arg2) {
+                                super(arg1, 0, 0, true, 0);
                             }
                         }
                         /** @hide */
@@ -1474,7 +1474,7 @@ class StubsTest : DriverTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
@@ -1490,10 +1490,11 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
-                    public Parent(java.lang.String s, int i, long l, boolean b, short sh) { throw new RuntimeException("Stub!"); }
+                    public Parent(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { throw new RuntimeException("Stub!"); }
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
