@@ -21,6 +21,7 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
+import com.android.tools.lint.FIR_UAST_KEY
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -41,7 +42,6 @@ import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
-import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
@@ -386,16 +386,6 @@ private fun processFlags() {
             it, codebase, docStubs = false,
             writeStubList = options.stubsSourceList != null
         )
-
-        val stubAnnotations = options.copyStubAnnotationsFrom
-        if (stubAnnotations != null) {
-            // Support pointing to both stub-annotations and stub-annotations/src/main/java
-            val src = File(stubAnnotations, "src${File.separator}main${File.separator}java")
-            val source = if (src.isDirectory) src else stubAnnotations
-            source.listFiles()?.forEach { file ->
-                RewriteAnnotations().copyAnnotations(codebase, file, File(it, file.name))
-            }
-        }
     }
 
     if (options.docStubsDir == null && options.stubsDir == null) {
@@ -456,9 +446,6 @@ fun processNonCodebaseFlags() {
         }
     }
 
-    // --rewrite-annotations?
-    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
-
     // Convert android.jar files?
     options.androidJarSignatureFiles?.let { root ->
         // Generate API signature files for all the historical JAR files
@@ -508,7 +495,7 @@ fun checkCompatibility(
     progress("Checking API compatibility ($check): ")
     val signatureFile = check.file
 
-    val current =
+    val old =
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
@@ -518,8 +505,8 @@ fun checkCompatibility(
             )
         }
 
-    if (current is TextCodebase && current.format > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
-        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${current.format} without analyzing current codebase with $ARG_FORMAT=${current.format}")
+    if (old is TextCodebase && old.format > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
+        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${old.format} without analyzing current codebase with $ARG_FORMAT=${old.format}")
     }
 
     var newBase: Codebase? = null
@@ -575,7 +562,7 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, apiType, oldBase, newBase)
+    CompatibilityCheck.checkCompatibility(new, old, apiType, oldBase, newBase)
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
@@ -675,6 +662,9 @@ private fun loadFromSources(): Codebase {
     return codebase
 }
 
+private fun useFirUast(): Boolean =
+    System.getProperty(FIR_UAST_KEY, "false").toBoolean()
+
 /**
  * Returns a codebase initialized from the given Java or Kotlin source files, with the given
  * description. The codebase will use a project environment initialized according to the current
@@ -696,7 +686,7 @@ internal fun parseSources(
         extractRoots(sources, sourceRoots)
     }
 
-    val config = UastEnvironment.Configuration.create()
+    val config = UastEnvironment.Configuration.create(useFirUast = useFirUast())
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
@@ -727,7 +717,7 @@ internal fun parseSources(
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
-    val config = UastEnvironment.Configuration.create()
+    val config = UastEnvironment.Configuration.create(useFirUast = useFirUast())
     config.addClasspathRoots(listOf(apiJar))
 
     val environment = createProjectEnvironment(config)
@@ -788,7 +778,7 @@ private val uastEnvironments = mutableListOf<UastEnvironment>()
 private fun disposeUastEnvironment() {
     // Codebase.dispose() is not consistently called, so we dispose the environments here too.
     for (env in uastEnvironments) {
-        if (!Disposer.isDisposed(env.ideaProject)) {
+        if (!env.ideaProject.isDisposed) {
             env.dispose()
         }
     }

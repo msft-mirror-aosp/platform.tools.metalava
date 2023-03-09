@@ -32,9 +32,11 @@ import com.android.resources.ResourceType.ID
 import com.android.resources.ResourceType.INTEGER
 import com.android.resources.ResourceType.INTERPOLATOR
 import com.android.resources.ResourceType.LAYOUT
+import com.android.resources.ResourceType.MACRO
 import com.android.resources.ResourceType.MENU
 import com.android.resources.ResourceType.MIPMAP
 import com.android.resources.ResourceType.NAVIGATION
+import com.android.resources.ResourceType.OVERLAYABLE
 import com.android.resources.ResourceType.PLURALS
 import com.android.resources.ResourceType.PUBLIC
 import com.android.resources.ResourceType.RAW
@@ -87,6 +89,7 @@ import com.android.tools.metalava.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.Issues.INTERNAL_FIELD
 import com.android.tools.metalava.Issues.INVALID_NULLABILITY_OVERRIDE
 import com.android.tools.metalava.Issues.Issue
+import com.android.tools.metalava.Issues.KOTLIN_DEFAULT_PARAMETER_ORDER
 import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.Issues.LISTENER_INTERFACE
 import com.android.tools.metalava.Issues.LISTENER_LAST
@@ -249,6 +252,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
         }
+        checkParameterOrder(method)
         kotlinInterop.checkMethod(method)
     }
 
@@ -1454,6 +1458,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (exception in method.filteredThrowsTypes(filterReference)) {
+            if (method.isEnumSyntheticMethod()) continue
             if (isUncheckedException(exception)) {
                 report(
                     BANNED_THROW, method,
@@ -1961,7 +1966,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
-        val parameters = method.parameters()
+        // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
+        // to Kotlin callers so just ignore it.
+        val parameters = if (method.modifiers.isSuspend()) {
+            method.parameters().dropLast(1)
+        } else {
+            method.parameters()
+        }
         if (parameters.size > 1) {
             var found = false
             for (parameter in parameters) {
@@ -2071,6 +2082,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             STYLE_ITEM,
             PUBLIC,
             SAMPLE_DATA,
+            OVERLAYABLE,
+            MACRO,
             AAPT -> {
                 // no-op; these are resource "types" in XML but not present as R classes
                 // Listed here explicitly to force compiler error as new resource types
@@ -2171,12 +2184,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val name = method.name()
         if (type == "int" || type == "long" || type == "short") {
             if (badUnits.any { name.endsWith(it.key) }) {
-                val badUnit = badUnits.keys.find { name.endsWith(it) }
-                val value = badUnits[badUnit]
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Expected method name units to be `$value`, was `$badUnit` in `$name`"
-                )
+                val typeIsTypeDef = method.modifiers.annotations().any { annotation ->
+                    val annotationClass = annotation.resolve() ?: return@any false
+                    annotationClass.modifiers.annotations().any { it.isTypeDefAnnotation() }
+                }
+                if (!typeIsTypeDef) {
+                    val badUnit = badUnits.keys.find { name.endsWith(it) }
+                    val value = badUnits[badUnit]
+                    report(
+                        METHOD_NAME_UNITS, method,
+                        "Expected method name units to be `$value`, was `$badUnit` in `$name`"
+                    )
+                }
             }
         } else if (type == "void") {
             if (method.parameters().size != 1) {
@@ -2198,7 +2217,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkCloseable(cls: ClassItem, methods: Sequence<MethodItem>) {
-        // AutoClosable has been added in API 19, so libraries with minSdkVersion <19 cannot use it. If the version
+        // AutoCloseable has been added in API 19, so libraries with minSdkVersion <19 cannot use it. If the version
         // is not set, then keep the check enabled.
         val minSdkVersion = codebase.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 19) {
@@ -2215,7 +2234,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             val foundMethodsDescriptions = foundMethods.joinToString { method -> "${method.name()}()" }
             report(
                 NOT_CLOSEABLE, cls,
-                "Classes that release resources ($foundMethodsDescriptions) should implement AutoClosable and CloseGuard: ${cls.describe()}"
+                "Classes that release resources ($foundMethodsDescriptions) should implement AutoCloseable and CloseGuard: ${cls.describe()}"
             )
         }
     }
@@ -2644,6 +2663,47 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "Methods returning $listenableFuture should have a suffix *Async to " +
                     "reserve unmodified name for a suspend function"
             )
+        }
+    }
+
+    /**
+     * Make sure that any parameters with default values (in Kotlin) come after all required,
+     * non-trailing-lambda parameters.
+     */
+    private fun checkParameterOrder(method: MethodItem) {
+        // Ignore Java / non-PSI backed MethodItems
+        if (!method.isKotlin() || method !is PsiMethodItem) {
+            return
+        }
+        // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
+        // to Kotlin callers so just ignore it.
+        val parameters = if (method.modifiers.isSuspend()) {
+            method.parameters().dropLast(1)
+        } else {
+            method.parameters()
+        }
+        val (optionalParameters, requiredParameters) = parameters.partition {
+            it.hasDefaultValue()
+        }
+        if (requiredParameters.isEmpty() || optionalParameters.isEmpty()) return
+        val lastRequiredParameter = requiredParameters.last()
+        val hasTrailingLambda = lastRequiredParameter.parameterIndex == parameters.lastIndex &&
+            lastRequiredParameter.isSamCompatibleOrKotlinLambda()
+        val lastRequiredParameterIndex = if (hasTrailingLambda) {
+            requiredParameters.dropLast(1).lastOrNull()
+        } else {
+            requiredParameters.last()
+        }?.parameterIndex ?: return
+        optionalParameters.forEach { parameter ->
+            if (parameter.parameterIndex < lastRequiredParameterIndex) {
+                report(
+                    KOTLIN_DEFAULT_PARAMETER_ORDER,
+                    parameter,
+                    "Parameter `${parameter.name()}` has a default value and should come " +
+                        "after all parameters without default values (except for a trailing " +
+                        "lambda parameter)"
+                )
+            }
         }
     }
 
