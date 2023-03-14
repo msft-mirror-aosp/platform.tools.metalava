@@ -63,165 +63,7 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Known nullness`(isK2: Boolean) {
-        // TODO: ULC in 1.9 will match what compiler generates: value
-        //  Put this back to ApiFileTest, before `JvmOverloads`
-        val p = if (isK2) "value" else "name"
-        // Don't emit platform types for some unannotated elements that we know the
-        // nullness for: annotation type members, equals-parameters, initialized constants, etc.
-        check(
-            format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    // Platform nullability Pair in Java
-                    package test;
-
-                    import androidx.annotation.NonNull;
-
-                    public class MyClass {
-                        public static final String MY_CONSTANT1 = "constant"; // Not nullable
-                        public final String MY_CONSTANT2 = "constant"; // Not nullable
-                        public String MY_CONSTANT3 = "constant"; // Unknown
-
-                        /** @deprecated */
-                        @Deprecated
-                        @Override
-                        public boolean equals(
-                            Object parameter  // nullable
-                        ) {
-                            return super.equals(parameter);
-                        }
-
-                        /** @deprecated */
-                        @Deprecated
-                        @Override // Not nullable
-                        public String toString() {
-                            return super.toString();
-                        }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg;
-
-                    import static java.lang.annotation.ElementType.*;
-                    import java.lang.annotation.*;
-                    public @interface MyAnnotation {
-                        String[] value(); // Not nullable
-                    }
-                    """
-                ).indented(),
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("ALL")
-                    public enum Foo {
-                        A, B;
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg
-                    enum class Language {
-                        KOTLIN,
-                        JAVA
-                    }
-                    """
-                ).indented(),
-                kotlin(
-                    """
-                    package test.pkg
-                    class Issue {
-                        fun setAndroidSpecific(value: Boolean): Issue { return this }
-                        companion object {
-                            @JvmStatic
-                            fun create(
-                                id: String,
-                                briefDescription: String,
-                                explanation: String
-                            ): Issue {
-                                return Issue()
-                            }
-                        }
-                    }
-                    """
-                ).indented(),
-                kotlin(
-                    """
-                    package test.pkg
-                    object MySingleton {
-                    }
-                    """
-                ).indented(),
-                java(
-                    """
-                    package test.pkg;
-                    public class WrongCallDetector {
-                        public static final Issue ISSUE =
-                                Issue.create(
-                                                "WrongCall",
-                                                "Using wrong draw/layout method",
-                                                "Custom views typically need to call `measure()`)
-                                        .setAndroidSpecific(true));
-                    }
-                    """
-                ).indented(),
-                androidxNonNullSource,
-                androidxNullableSource
-            ),
-            api = """
-                // Signature format: 3.0
-                package test {
-                  public class MyClass {
-                    ctor public MyClass();
-                    method @Deprecated public boolean equals(Object?);
-                    method @Deprecated public String toString();
-                    field public static final String MY_CONSTANT1 = "constant";
-                    field public final String MY_CONSTANT2 = "constant";
-                    field public String! MY_CONSTANT3;
-                  }
-                }
-                package test.pkg {
-                  public enum Foo {
-                    enum_constant public static final test.pkg.Foo A;
-                    enum_constant public static final test.pkg.Foo B;
-                  }
-                  public final class Issue {
-                    ctor public Issue();
-                    method public static test.pkg.Issue create(String id, String briefDescription, String explanation);
-                    method public test.pkg.Issue setAndroidSpecific(boolean value);
-                    field public static final test.pkg.Issue.Companion Companion;
-                  }
-                  public static final class Issue.Companion {
-                    method public test.pkg.Issue create(String id, String briefDescription, String explanation);
-                  }
-                  public enum Language {
-                    method public static test.pkg.Language valueOf(String $p) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Language[] values();
-                    enum_constant public static final test.pkg.Language JAVA;
-                    enum_constant public static final test.pkg.Language KOTLIN;
-                  }
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MyAnnotation {
-                    method public abstract String[] value();
-                  }
-                  public final class MySingleton {
-                    field public static final test.pkg.MySingleton INSTANCE;
-                  }
-                  public class WrongCallDetector {
-                    ctor public WrongCallDetector();
-                    field public static final test.pkg.Issue ISSUE;
-                  }
-                }
-                """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
-        )
-    }
-
-    protected fun `Test Experimental and UseExperimental`(isK2: Boolean) {
+    protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
         // See b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
         check(
@@ -230,7 +72,7 @@ abstract class UastTestBase : DriverTest() {
                     """
                     package test.pkg
 
-                    @Experimental
+                    @RequiresOptIn
                     @Retention(AnnotationRetention.BINARY)
                     @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
                     annotation class ExperimentalBar
@@ -238,7 +80,7 @@ abstract class UastTestBase : DriverTest() {
                     @ExperimentalBar
                     class FancyBar
 
-                    @UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
+                    @OptIn(FancyBar::class) // @OptIn should not be tracked as it is not API
                     class SimpleClass {
                         fun methodUsingFancyBar() {
                             val fancyBar = FancyBar()
@@ -297,7 +139,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public AnotherSimpleClass();
                     method public void methodUsingFancyBar();
                   }
-                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
