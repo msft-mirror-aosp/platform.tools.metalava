@@ -57,8 +57,11 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacadeBase
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
@@ -167,6 +170,9 @@ open class PsiBasedCodebase(
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
+        // A set to track @JvmMultifileClasses that have already been added to [topLevelClassesFromSource]
+        val multifileClassNames = HashSet<FqName>()
+
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
             tick() // show progress
@@ -231,6 +237,15 @@ open class PsiBasedCodebase(
                             }
                         })
 
+                        // Multifile classes appear identically from each file they're defined in, don't add duplicates
+                        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacadeBase
+                        if (ktLightClass?.isMultiFileClass == true) {
+                            if (multifileClassNames.contains(ktLightClass.fqName)) {
+                                continue
+                            } else {
+                                multifileClassNames.add(ktLightClass.fqName)
+                            }
+                        }
                         topLevelClassesFromSource += createClass(psiClass)
                     }
                 }

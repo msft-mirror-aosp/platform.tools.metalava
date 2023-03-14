@@ -4836,4 +4836,43 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Test @JvmMultifileClass appears only once`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "test/pkg/A.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.bar(): Unit {}
+                    """
+                ),
+                kotlin(
+                    "test/pkg/B.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.baz(): Unit {}
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void bar(String);
+                    method public static void baz(String);
+                  }
+                }
+            """
+        )
+    }
 }
