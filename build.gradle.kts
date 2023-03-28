@@ -223,6 +223,14 @@ publishing {
     }
 }
 
+lint {
+    fatal.add("UastImplementation")
+    disable.add("UseTomlInstead") // not useful for this project
+    disable.add("GradleDependency") // not useful for this project
+    abortOnError = true
+    baseline = File("lint-baseline.xml")
+}
+
 // Add a buildId into Gradle Metadata file so we can tell which build it is from.
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     val outDirProvider = project.providers.environmentVariable("DIST_DIR")
