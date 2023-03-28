@@ -57,7 +57,8 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacadeBase
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
+import org.jetbrains.kotlin.fileClasses.isJvmMultifileClassFile
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -238,12 +239,12 @@ open class PsiBasedCodebase(
                         })
 
                         // Multifile classes appear identically from each file they're defined in, don't add duplicates
-                        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacadeBase
-                        if (ktLightClass?.isMultiFileClass == true) {
-                            if (multifileClassNames.contains(ktLightClass.fqName)) {
+                        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacade
+                        if (ktLightClass?.multiFileClass == true) {
+                            if (multifileClassNames.contains(ktLightClass.facadeClassFqName)) {
                                 continue
                             } else {
-                                multifileClassNames.add(ktLightClass.fqName)
+                                multifileClassNames.add(ktLightClass.facadeClassFqName)
                             }
                         }
                         topLevelClassesFromSource += createClass(psiClass)
@@ -291,6 +292,10 @@ open class PsiBasedCodebase(
 
         packageClasses.clear() // Not used after this point
     }
+
+    // TODO(jsjeon): remove this when the upstream has this commonized property (ETA: 1.9)
+    private val KtLightClassForFacade.multiFileClass: Boolean
+        get() = files.size > 1 && files.first().isJvmMultifileClassFile
 
     override fun dispose() {
         uastEnvironment.dispose()
