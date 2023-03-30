@@ -116,9 +116,7 @@ class StubWriter(
 
     private fun writePackageInfo(pkg: PackageItem) {
         val annotations = pkg.modifiers.annotations()
-        val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
-        val writeDocumentation = docStubs && pkg.documentation.isNotBlank()
-        if (writeAnnotations || writeDocumentation) {
+        if (annotations.isNotEmpty() && generateAnnotations || !pkg.documentation.isBlank()) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter = try {
                 PrintWriter(BufferedWriter(FileWriter(sourceFile)))

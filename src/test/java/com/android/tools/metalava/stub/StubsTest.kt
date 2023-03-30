@@ -3444,8 +3444,7 @@ class StubsTest : DriverTest() {
                     }
                     """
                 )
-            ),
-            docStubs = true
+            )
         )
     }
 
