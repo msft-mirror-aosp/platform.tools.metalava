@@ -158,6 +158,7 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
     private val args: Array<String>,
@@ -667,6 +668,8 @@ class Options(
 
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
     var repeatErrorsMax = 0
+
+    var useK2Uast = false
 
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
@@ -1212,6 +1215,8 @@ class Options(
                 ARG_REPEAT_ERRORS_MAX -> {
                     repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
+
+                ARG_USE_K2_UAST -> useK2Uast = true
 
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
