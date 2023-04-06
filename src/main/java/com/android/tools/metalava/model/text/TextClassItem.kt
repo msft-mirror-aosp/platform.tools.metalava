@@ -377,6 +377,29 @@ open class TextClassItem(
             }
         }
 
+        private fun hasEqualTypeBounds(method1: MethodItem, method2: MethodItem): Boolean {
+            val typeInTypeParams = {
+                t: TypeItem, m: MethodItem ->
+                t in m.typeParameterList().typeParameters().map { it.toType() }
+            }
+
+            val getTypeBounds = {
+                t: TypeItem, m: MethodItem ->
+                m.typeParameterList().typeParameters().single { it.toType() == t }.typeBounds().toSet()
+            }
+
+            val returnType1 = method1.returnType()
+            val returnType2 = method2.returnType()
+
+            // The following two methods are considered equal:
+            // method public <A extends some.package.SomeClass> A foo (Class<A>);
+            // method public <T extends some.package.SomeClass> T foo (Class<T>);
+            // This can be verified by converting return types to bounds ([some.package.SomeClass])
+            // and compare equivalence.
+            return typeInTypeParams(returnType1, method1) && typeInTypeParams(returnType2, method2) &&
+                getTypeBounds(returnType1, method1) == getTypeBounds(returnType2, method2)
+        }
+
         /**
          * Compares two [MethodItem]s and determines if the two methods have equal return types.
          * The two methods' return types are considered equal even if the two are not identical,
@@ -396,6 +419,8 @@ open class TextClassItem(
             if (returnType1 == returnType2) return true
 
             if (hasEqualTypeVar(returnType1, class1, returnType2, class2)) return true
+
+            if (hasEqualTypeBounds(method1, method2)) return true
 
             return false
         }

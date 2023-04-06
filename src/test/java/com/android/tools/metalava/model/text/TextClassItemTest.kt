@@ -108,4 +108,27 @@ class TextClassItemTest {
         assertTrue(TextClassItem.hasEqualReturnType(next1, next2))
         assertTrue(TextClassItem.hasEqualReturnType(changeParameterType1, changeParameterType2))
     }
+
+    @Test
+    fun `test hasEqualReturnType() with equal bounds return types`() {
+        val codebase = ApiFile.parseApi(
+            "test",
+            """
+            package java.lang {
+              public final class Class<T> implements java.lang.reflect.AnnotatedElement {
+                method @Nullable public <A extends java.lang.annotation.Annotation> A getAnnotation(@NonNull Class<A>);
+              }
+              public interface AnnotatedElement {
+                method @Nullable public <T extends java.lang.annotation.Annotation> T getAnnotation(@NonNull Class<T>);
+              }
+            }
+            """.trimIndent(),
+            false
+        )
+
+        val getAnnotation1 = codebase.getOrCreateClass("java.lang.Class<T>").findMethod("getAnnotation", "java.lang.Class")!!
+        val getAnnotation2 = codebase.getOrCreateClass("java.lang.AnnotatedElement").findMethod("getAnnotation", "java.lang.Class")!!
+
+        assertTrue(TextClassItem.hasEqualReturnType(getAnnotation1, getAnnotation2))
+    }
 }
