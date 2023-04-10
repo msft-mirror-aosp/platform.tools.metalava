@@ -1966,7 +1966,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
-        val parameters = method.parameters()
+        // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
+        // to Kotlin callers so just ignore it.
+        val parameters = if (method.modifiers.isSuspend()) {
+            method.parameters().dropLast(1)
+        } else {
+            method.parameters()
+        }
         if (parameters.size > 1) {
             var found = false
             for (parameter in parameters) {
@@ -2211,7 +2217,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkCloseable(cls: ClassItem, methods: Sequence<MethodItem>) {
-        // AutoClosable has been added in API 19, so libraries with minSdkVersion <19 cannot use it. If the version
+        // AutoCloseable has been added in API 19, so libraries with minSdkVersion <19 cannot use it. If the version
         // is not set, then keep the check enabled.
         val minSdkVersion = codebase.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 19) {
@@ -2228,7 +2234,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             val foundMethodsDescriptions = foundMethods.joinToString { method -> "${method.name()}()" }
             report(
                 NOT_CLOSEABLE, cls,
-                "Classes that release resources ($foundMethodsDescriptions) should implement AutoClosable and CloseGuard: ${cls.describe()}"
+                "Classes that release resources ($foundMethodsDescriptions) should implement AutoCloseable and CloseGuard: ${cls.describe()}"
             )
         }
     }
