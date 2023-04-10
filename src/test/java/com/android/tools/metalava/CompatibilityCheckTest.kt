@@ -1323,8 +1323,6 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
                 src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
             """,
             checkCompatibilityApiReleased = """
@@ -3919,32 +3917,6 @@ CompatibilityCheckTest : DriverTest() {
                     """
                 ),
                 nonNullSource
-            )
-        )
-    }
-
-    @Test
-    fun `adding a method to an abstract class with hidden constructor`() {
-        check(
-            checkCompatibilityApiReleased = """
-                package test.pkg {
-                    public abstract class Foo {
-                    }
-                }
-            """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public abstract class Foo {
-                        /**
-                        * @hide
-                        */
-                        public Foo() {}
-                        public abstract void newAbstractMethod();
-                    }
-                    """
-                ),
             )
         )
     }

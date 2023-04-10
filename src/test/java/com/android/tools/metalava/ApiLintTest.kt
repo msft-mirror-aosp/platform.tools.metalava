@@ -1943,38 +1943,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check listener last for suspend functions`() {
-        check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
-            expectedIssues = """
-                src/android/pkg/MyClass.kt:6: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
-            """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package android.pkg;
-
-                    @SuppressWarnings("WeakerAccess")
-                    public abstract class MyCallback {
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package android.pkg
-                    import android.pkg.MyCallback
-
-                    class MyClass {
-                        suspend fun ok(i: Int, callback: MyCallback) {}
-                        suspend fun wrong(callback: MyCallback, i: Int) {}
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `Check overloaded arguments`() {
         // TODO: This check is not yet hooked up
         check(
@@ -2325,8 +2293,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2385,8 +2353,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
             """,
             manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -4138,26 +4106,6 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                             default: Int = 0,
                             trailing: JavaInterface
                         )
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `No parameter ordering for sealed class constructor`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-
-                    sealed class Foo(
-                        default: Int = 0,
-                        required: () -> Unit,
-                    )
                     """
                 )
             )

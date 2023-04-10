@@ -193,7 +193,9 @@ class ExtractAnnotations(
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
                     addItem(item, AnnotationHolder(null, annotation, null))
-                } else if (annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)) {
+                } else if (annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE) &&
+                    !options.includeSourceRetentionAnnotations
+                ) {
                     addItem(item, AnnotationHolder(null, annotation, null))
                 }
 

@@ -385,6 +385,16 @@ private fun processFlags() {
             it, codebase, docStubs = false,
             writeStubList = options.stubsSourceList != null
         )
+
+        val stubAnnotations = options.copyStubAnnotationsFrom
+        if (stubAnnotations != null) {
+            // Support pointing to both stub-annotations and stub-annotations/src/main/java
+            val src = File(stubAnnotations, "src${File.separator}main${File.separator}java")
+            val source = if (src.isDirectory) src else stubAnnotations
+            source.listFiles()?.forEach { file ->
+                RewriteAnnotations().copyAnnotations(codebase, file, File(it, file.name))
+            }
+        }
     }
 
     if (options.docStubsDir == null && options.stubsDir == null) {
@@ -444,6 +454,9 @@ fun processNonCodebaseFlags() {
             rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
         }
     }
+
+    // --rewrite-annotations?
+    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
 
     // Convert android.jar files?
     options.androidJarSignatureFiles?.let { root ->
@@ -682,7 +695,7 @@ internal fun parseSources(
         extractRoots(sources, sourceRoots)
     }
 
-    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+    val config = UastEnvironment.Configuration.create()
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
@@ -713,7 +726,7 @@ internal fun parseSources(
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
-    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+    val config = UastEnvironment.Configuration.create()
     config.addClasspathRoots(listOf(apiJar))
 
     val environment = createProjectEnvironment(config)
