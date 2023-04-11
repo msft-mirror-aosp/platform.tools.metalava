@@ -831,6 +831,14 @@ class CompatibilityCheck(
             return
         }
 
+        // It is ok to add a new abstract method to a class that has no public constructors
+        if (new.containingClass().isClass() &&
+            !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
+            new.modifiers.isAbstract()
+        ) {
+            return
+        }
+
         if (inherited == null || inherited == new || !inherited.modifiers.isAbstract()) {
             val error = when {
                 new.modifiers.isAbstract() -> Issues.ADDED_ABSTRACT_METHOD
