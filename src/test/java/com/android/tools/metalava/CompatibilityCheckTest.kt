@@ -3923,6 +3923,32 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `adding a method to an abstract class with hidden constructor`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo {
+                    }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public abstract class Foo {
+                        /**
+                        * @hide
+                        */
+                        public Foo() {}
+                        public abstract void newAbstractMethod();
+                    }
+                    """
+                ),
+            )
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
