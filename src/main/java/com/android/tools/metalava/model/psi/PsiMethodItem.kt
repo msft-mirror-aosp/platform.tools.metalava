@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiModifierItem.Companion.NOT_NULL
 import com.android.tools.metalava.model.psi.PsiModifierItem.Companion.NULLABLE
 import com.intellij.psi.PsiAnnotationMethod
-import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiType
@@ -36,6 +35,7 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.types.typeUtil.TypeNullability
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
@@ -44,6 +44,7 @@ import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
+import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import java.io.StringWriter
 
@@ -377,7 +378,25 @@ open class PsiMethodItem(
             psiMethod: PsiMethod
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
-            val name = psiMethod.name
+            // UAST workaround: @JvmName for UMethod with fake LC PSI
+            // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
+            val name = if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
+                psiMethod.sourcePsi?.annotationEntries?.find { annoEntry ->
+                    val text = annoEntry.typeReference?.text ?: return@find false
+                    JvmName::class.qualifiedName?.contains(text) == true
+                }?.toUElement(UAnnotation::class.java)
+                    ?.takeIf {
+                        // Above `find` deliberately avoids resolution and uses verbatim text.
+                        // Below, we need annotation value anyway, but just double-check
+                        // if the converted annotation is indeed the resolved @JvmName
+                        it.qualifiedName == JvmName::class.qualifiedName
+                    }
+                    ?.findAttributeValue("name")
+                    ?.evaluate() as? String
+                    ?: psiMethod.name
+            } else {
+                psiMethod.name
+            }
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
@@ -388,18 +407,7 @@ open class PsiMethodItem(
                 modifiers.setFinal(false)
             }
             val parameters = parameterList(codebase, psiMethod)
-            var psiReturnType = psiMethod.returnType
-
-            // UAST workaround: the enum synthetic methods are sometimes missing return types,
-            // see https://youtrack.jetbrains.com/issue/KT-39560
-            if (psiReturnType == null && containingClass.isEnum()) {
-                if (name == "valueOf") {
-                    psiReturnType = codebase.getClassType(containingClass.psiClass)
-                } else if (name == "values") {
-                    psiReturnType = PsiArrayType(codebase.getClassType(containingClass.psiClass))
-                }
-            }
-
+            val psiReturnType = psiMethod.returnType
             val returnType = codebase.getType(psiReturnType!!)
             val method = PsiMethodItem(
                 codebase = codebase,
