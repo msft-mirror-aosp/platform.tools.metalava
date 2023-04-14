@@ -127,7 +127,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.8.
+                                             Sets the source level for Kotlin source files; default is 1.7.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -327,6 +327,12 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
+--include-annotation-classes <dir>
+                                             Copies the given stub annotation source files into the generated stub
+                                             sources; <dir> is typically metalava/stub-annotations/src/main/java/.
+--rewrite-annotations <dir/jar>
+                                             For a bytecode folder or output jar, rewrites the androidx annotations to
+                                             be package private
 --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by

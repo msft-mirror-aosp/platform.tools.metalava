@@ -28,7 +28,6 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiPrimitiveType
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.isFunctionOrKFunctionTypeWithAnySuspendability
 import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
 import org.jetbrains.kotlin.psi.KtConstantExpression
@@ -84,11 +83,6 @@ class PsiParameterItem(
                 containingMethod.parameters().size - 1 == parameterIndex
             ) {
                 return null
-            }
-            // UAST workaround: value parameter name for enum synthetic valueOf
-            // TODO: won't need this after kotlinc 1.9
-            if (containingMethod.isEnumSyntheticValueOf()) {
-                return StandardNames.DEFAULT_VALUE_PARAMETER.identifier
             }
             return name
         } else {
