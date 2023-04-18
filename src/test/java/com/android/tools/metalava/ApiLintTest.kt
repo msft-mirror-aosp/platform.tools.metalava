@@ -1534,6 +1534,72 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
+        check(
+            apiLint = "", // enabled
+            // TODO (b/278505954): missing errors for `isVisibleSetterBad`, `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
+            expectedIssues = """
+                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                              """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package android.pkg
+
+                    class MyClass(
+                        // Correct
+                        var isVisible: Boolean,
+
+                        @get:JvmName("hasTransientState")
+                        var hasTransientState: Boolean,
+
+                        @get:JvmName("canRecord")
+                        var canRecord: Boolean,
+
+                        @get:JvmName("shouldFitWidth")
+                        var shouldFitWidth: Boolean,
+
+                        var isWiFiRoamingSettingEnabled: Boolean,
+
+                        // Bad
+                        var visibleBad: Boolean,
+
+                        @set:JvmName("setIsVisibleBad")
+                        var isVisibleSetterBad: Boolean,
+
+                        @get:JvmName("hasTransientStateBad")
+                        var transientStateBad: Boolean,
+
+                        var isHasTransientStateAlsoBad: Boolean,
+
+                        var isCanRecordBad: Boolean,
+
+                        var isShouldFitWidthBad: Boolean,
+
+                        var wiFiRoamingSettingEnabledBad: Boolean,
+
+                        var enabledBad: Boolean,
+
+                        var hasTransientStateGetterBad: Boolean,
+
+                        var canRecordGetterBad: Boolean,
+
+                        var shouldFitWidthGetterBad: Boolean
+                    )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Check banned collections`() {
         check(
             apiLint = "", // enabled
