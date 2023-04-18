@@ -23,9 +23,16 @@ import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
+import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.types.KtType
+import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
+import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
 import kotlin.properties.ReadWriteProperty
@@ -90,6 +97,41 @@ abstract class PsiItem(
     }
 
     override fun isCloned(): Boolean = false
+
+    override fun hasInheritedGenericType(): Boolean = _hasInheritedGenericType
+
+    private val _hasInheritedGenericType by lazy {
+        when (val sourcePsi = (element as? UElement)?.sourcePsi) {
+            is KtCallableDeclaration -> {
+                analyze(sourcePsi) {
+                    isInheritedGenericType(sourcePsi.getReturnKtType())
+                }
+            }
+            is KtTypeReference -> {
+                analyze(sourcePsi) {
+                    isInheritedGenericType(sourcePsi.getKtType())
+                }
+            }
+            else -> false
+        }
+    }
+
+    // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
+    private fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {
+        return ktType is KtTypeParameterType &&
+            // explicitly nullable, e.g., T?
+            !ktType.isMarkedNullable &&
+            // non-null upper bound, e.g., T : Any
+            nullability(ktType) != KtTypeNullability.NON_NULLABLE
+    }
+
+    // Mimic `nullability` in `...uast.kotlin.internal.firKotlinInternalUastUtils`
+    private fun KtAnalysisSession.nullability(ktType: KtType): KtTypeNullability {
+        return if (ktType.canBeNull)
+            KtTypeNullability.NULLABLE
+        else
+            KtTypeNullability.NON_NULLABLE
+    }
 
     /** Get a mutable version of modifiers for this item */
     override fun mutableModifiers(): MutableModifierList = modifiers
