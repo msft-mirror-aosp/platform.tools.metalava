@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.intellij.psi.PsiCompiledElement
@@ -101,6 +102,10 @@ abstract class PsiItem(
     override fun hasInheritedGenericType(): Boolean = _hasInheritedGenericType
 
     private val _hasInheritedGenericType by lazy {
+        // suspend function's return type is always Any?, i.e., nullable.
+        // That is, we should keep the nullable annotation for that return type.
+        if (this is MethodItem && modifiers.isSuspend()) return@lazy false
+
         when (val sourcePsi = (element as? UElement)?.sourcePsi) {
             is KtCallableDeclaration -> {
                 analyze(sourcePsi) {

@@ -644,6 +644,42 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Nullness in type parameter -- suspend fun`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.util.concurrent;
+
+                        public interface MyFuture<V extends @Nullable Object> {
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import test.util.concurrent.MyFuture
+
+                        suspend fun <T> MyFuture<T>.await(t: T): T = TODO()
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class TestKt {
+                    method public static suspend <T> Object? await(test.util.concurrent.MyFuture<T>, T t, kotlin.coroutines.Continuation<? super T>);
+                  }
+                }
+                package test.util.concurrent {
+                  public interface MyFuture<V> {
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
             format = FileFormat.V3,
