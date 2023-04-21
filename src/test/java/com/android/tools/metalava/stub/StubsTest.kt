@@ -20,6 +20,7 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
@@ -55,7 +56,10 @@ class StubsTest : DriverTest() {
     // TODO: test @DocOnly handling
 
     private fun checkStubs(
-        @Language("JAVA") source: String,
+        // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
+        // use stubFiles.
+        @Language("JAVA") source: String = "",
+        stubFiles: Array<TestFile> = emptyArray(),
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -63,12 +67,16 @@ class StubsTest : DriverTest() {
         showAnnotations: Array<String> = emptyArray(),
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         format: FileFormat = FileFormat.latest,
-        sourceFiles: Array<TestFile>
+        sourceFiles: Array<TestFile> = emptyArray(),
+        signatureSources: Array<String> = emptyArray(),
+        checkTextStubEquivalence: Boolean = false
     ) {
+        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
             sourceFiles = sourceFiles,
+            signatureSources = signatureSources,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
+            stubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = true,
             api = api,
@@ -77,6 +85,30 @@ class StubsTest : DriverTest() {
             skipEmitPackages = skipEmitPackages,
             format = format
         )
+        if (checkTextStubEquivalence) {
+            if (stubFilesArr.isEmpty()) {
+                addError("Stub files may not be empty when checkTextStubEquivalence is set to true.")
+                return
+            }
+            if (docStubs) {
+                addError("From-text stub generation is not supported for documentation stub.")
+                return
+            }
+            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
+                addError("From-text stub generation is only supported for Java stubs.")
+                return
+            }
+            check(
+                signatureSources = arrayOf(readFile(getApiFile())),
+                showAnnotations = showAnnotations,
+                stubFiles = stubFilesArr,
+                expectedIssues = warnings,
+                checkCompilation = true,
+                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
+                skipEmitPackages = skipEmitPackages,
+                format = format
+            )
+        }
     }
 
     @Test
@@ -287,7 +319,8 @@ class StubsTest : DriverTest() {
                 public interface Foo {
                 public void foo();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -415,6 +448,15 @@ class StubsTest : DriverTest() {
                         public static final double field10 = Double.NaN;
                         public static final double field11 = Double.POSITIVE_INFINITY;
 
+                        public static final boolean field12;
+                        public static final byte field13;
+                        public static final char field14;
+                        public static final short field15;
+                        public static final int field16;
+                        public static final long field17;
+                        public static final float field18;
+                        public static final double field19;
+
                         public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
                         public static final char HEX_INPUT = 61184;
                     }
@@ -440,8 +482,25 @@ class StubsTest : DriverTest() {
                 public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
                 public static final double field10 = (0.0/0.0);
                 public static final double field11 = (1.0/0.0);
+                public static final boolean field12;
+                static { field12 = false; }
+                public static final byte field13;
+                static { field13 = 0; }
+                public static final char field14;
+                static { field14 = 0; }
+                public static final short field15;
+                static { field15 = 0; }
+                public static final int field16;
+                static { field16 = 0; }
+                public static final long field17;
+                static { field17 = 0; }
+                public static final float field18;
+                static { field18 = 0; }
+                public static final double field19;
+                static { field19 = 0; }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -683,7 +742,7 @@ class StubsTest : DriverTest() {
 
                     @SuppressWarnings("ALL")
                     public class MoreAsserts {
-                        public static void assertEquals(String arg0, Set<? extends Object> arg1, Set<? extends Object> arg2) { }
+                        public static void assertEquals(String arg1, Set<? extends Object> arg2, Set<? extends Object> arg3) { }
                         public static void assertEquals(Set<? extends Object> arg1, Set<? extends Object> arg2) { }
                     }
                     """
@@ -695,10 +754,11 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MoreAsserts {
                 public MoreAsserts() { throw new RuntimeException("Stub!"); }
-                public static void assertEquals(java.lang.String arg0, java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
+                public static void assertEquals(java.lang.String arg1, java.util.Set<?> arg2, java.util.Set<?> arg3) { throw new RuntimeException("Stub!"); }
                 public static void assertEquals(java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -861,7 +921,8 @@ class StubsTest : DriverTest() {
                     public void method2() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String CONSTANT = "MyConstant";
                     }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -909,7 +970,8 @@ class StubsTest : DriverTest() {
                 public void other() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -939,7 +1001,8 @@ class StubsTest : DriverTest() {
                 protected void finalize1() throws java.lang.Throwable { throw new RuntimeException("Stub!"); }
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -969,7 +1032,8 @@ class StubsTest : DriverTest() {
                 public static final int CONSTANT3 = 0; // 0x0
                 public static final java.lang.String CONSTANT4 = null;
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -1390,35 +1454,35 @@ class StubsTest : DriverTest() {
                     @SuppressWarnings("WeakerAccess")
                     public class Constructors {
                         public class Parent {
-                            public Parent(String s, int i, long l, boolean b, short sh) {
+                            public Parent(String arg1, int arg2, long arg3, boolean arg4, short arg5) {
                             }
                         }
 
                         public class Child extends Parent {
-                            public Child(String s, int i, long l, boolean b, short sh) {
-                                super(s, i, l, b, sh);
+                            public Child(String arg1, int arg2, long arg3, boolean arg4, short arg5) {
+                                super(arg1, arg2, arg3, arg4, arg5);
                             }
 
-                            private Child(String s) {
-                                super(s, 0, 0, false, 0);
+                            private Child(String arg1) {
+                                super(arg1, 0, 0, false, 0);
                             }
                         }
 
                         public class Child2 extends Parent {
-                            Child2(String s) {
-                                super(s, 0, 0, false, 0);
+                            Child2(String arg1) {
+                                super(arg1, 0, 0, false, 0);
                             }
                         }
 
                         public class Child3 extends Child2 {
-                            private Child3(String s) {
+                            private Child3(String arg1) {
                                 super("something");
                             }
                         }
 
                         public class Child4 extends Parent {
-                            Child4(String s, HiddenClass hidden) {
-                                super(s, 0, 0, true, 0);
+                            Child4(String arg1, HiddenClass arg2) {
+                                super(arg1, 0, 0, true, 0);
                             }
                         }
                         /** @hide */
@@ -1435,7 +1499,7 @@ class StubsTest : DriverTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
@@ -1451,10 +1515,11 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
-                    public Parent(java.lang.String s, int i, long l, boolean b, short sh) { throw new RuntimeException("Stub!"); }
+                    public Parent(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { throw new RuntimeException("Stub!"); }
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -2483,7 +2548,8 @@ class StubsTest : DriverTest() {
                     public static interface TypeEvaluator<T> {
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3293,7 +3359,8 @@ class StubsTest : DriverTest() {
                 public interface MyInterface {
                 public void run();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3377,7 +3444,8 @@ class StubsTest : DriverTest() {
                     }
                     """
                 )
-            )
+            ),
+            docStubs = true
         )
     }
 
