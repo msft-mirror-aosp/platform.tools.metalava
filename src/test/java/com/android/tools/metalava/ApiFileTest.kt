@@ -680,6 +680,33 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Nullness in type parameter -- property and accessor`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class CircularArray<E> {
+                            val first: E
+                                get() = TODO()
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class CircularArray<E> {
+                    ctor public CircularArray();
+                    method public E getFirst();
+                    property public final E first;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
             format = FileFormat.V3,

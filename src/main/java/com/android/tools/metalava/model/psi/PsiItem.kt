@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
@@ -110,6 +111,12 @@ abstract class PsiItem(
             is KtCallableDeclaration -> {
                 analyze(sourcePsi) {
                     isInheritedGenericType(sourcePsi.getReturnKtType())
+                }
+            }
+            is KtPropertyAccessor -> {
+                val property = sourcePsi.property
+                analyze(property) {
+                    isInheritedGenericType(property.getReturnKtType())
                 }
             }
             is KtTypeReference -> {
