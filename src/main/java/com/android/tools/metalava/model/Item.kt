@@ -50,6 +50,7 @@ interface Item {
     /** Whether this element has been hidden with @hide/@Hide (or after propagation, in some containing class/pkg) */
     var hidden: Boolean
 
+    /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
     fun parent(): Item?
@@ -151,6 +152,12 @@ interface Item {
      * still return false)
      */
     fun hasNullnessInfo(): Boolean = false
+
+    /**
+     * Returns true if this item has generic type
+     * whose nullability is determined at subclass declaration site.
+     */
+    fun hasInheritedGenericType(): Boolean = false
 
     /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies)
