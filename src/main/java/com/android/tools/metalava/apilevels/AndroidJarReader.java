@@ -105,10 +105,7 @@ class AndroidJarReader {
             }
         }
 
-        api.inlineFromHiddenSuperClasses();
-        api.removeImplicitInterfaces();
-        api.removeOverridingMethods();
-        api.prunePackagePrivateClasses();
+        api.clean();
 
         return api;
     }

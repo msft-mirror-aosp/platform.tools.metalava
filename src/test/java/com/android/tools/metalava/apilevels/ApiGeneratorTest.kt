@@ -19,10 +19,12 @@ package com.android.tools.metalava.apilevels
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
@@ -288,5 +290,95 @@ class ApiGeneratorTest : DriverTest() {
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
         assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Create API levels from signature files`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val versions = listOf(
+            createTextFile(
+                "1.1.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void methodV1();
+                        field public int fieldV1;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.2.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void methodV1();
+                        method @Deprecated public void methodV2();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.3.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method @Deprecated public void methodV1();
+                        method public void methodV3();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      @Deprecated public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                versions.joinToString(":") { it.absolutePath }
+            )
+        )
+
+        assertTrue(output.isFile)
+        assertEquals(
+            output.readText().trim(),
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="2">
+                	<class name="test/pkg/Foo" since="1">
+                		<extends name="java/lang/Object"/>
+                		<method name="methodV1()V" deprecated="3"/>
+                		<method name="methodV2()V" since="2" deprecated="2" removed="3"/>
+                		<method name="methodV3()V" since="3"/>
+                		<field name="fieldV1"/>
+                		<field name="fieldV2" since="2"/>
+                	</class>
+                	<class name="test/pkg/Foo${"$"}Bar" since="1" deprecated="3">
+                		<extends name="java/lang/Object"/>
+                	</class>
+                </api>
+            """.trimIndent()
+        )
+    }
+
+    private fun createTextFile(name: String, contents: String): File {
+        val file = File.createTempFile(name, ".txt")
+        file.deleteOnExit()
+        file.writeText(contents)
+        return file
     }
 }
