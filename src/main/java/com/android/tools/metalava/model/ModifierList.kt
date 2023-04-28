@@ -166,10 +166,10 @@ interface ModifierList {
      * Returns true if this modifier list contains any meta-annotations explicitly passed in
      * via [Options.hideMetaAnnotations].
      *
-     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [Experimental],
+     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn],
      * which allows developers to create annotations that describe experimental features -- sets
      * of distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [Experimental] as a
+     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
      * hidden meta-annotation.
      */
     fun hasHideMetaAnnotations(): Boolean {
@@ -178,6 +178,27 @@ interface ModifierList {
         }
         return annotations().any { annotation ->
             options.hideMetaAnnotations.contains(annotation.qualifiedName)
+        }
+    }
+
+    /**
+     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
+     * [Options.noCompatCheckMetaAnnotations].
+     *
+     * APIs which are meta-annotated as "No compat check" will not be checked for API compatibility,
+     * but may still be written to API files or stub JARs.
+     *
+     * "No compat check" meta-annotations allow Metalava to handle concepts like Jetpack's policy on
+     * [RequiresOptIn], which allows developers to create annotations that describe experimental
+     * features -- sets of distinct and potentially overlapping unstable API surfaces.
+     */
+    fun hasNoCompatCheckMetaAnnotations(): Boolean {
+        if (options.noCompatCheckMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any { annotation ->
+            options.noCompatCheckMetaAnnotations.contains(annotation.qualifiedName) ||
+                annotation.resolve()?.hasNoCompatCheckMetaAnnotation() ?: false
         }
     }
 

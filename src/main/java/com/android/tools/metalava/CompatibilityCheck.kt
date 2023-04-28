@@ -172,6 +172,14 @@ class CompatibilityCheck(
             )
         }
 
+        if (!old.unchecked() && new.unchecked()) {
+            report(
+                Issues.BECAME_UNCHECKED,
+                old,
+                "Removed ${describe(old)} from compatibility checked API surface"
+            )
+        }
+
         compareNullability(old, new)
     }
 
@@ -921,6 +929,12 @@ class CompatibilityCheck(
         item: Item,
         message: String
     ) {
+        if (item.unchecked()) {
+            // Long-term, we should consider allowing meta-annotations to specify a different
+            // `configuration` so it can use a separate set of severities. For now, though, we'll
+            // treat all issues for all unchecked items as `Severity.IGNORE`.
+            return
+        }
         if (reporter.report(issue, item, message) && configuration.getSeverity(issue) == Severity.ERROR) {
             foundProblems = true
         }
