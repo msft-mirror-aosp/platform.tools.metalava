@@ -16,6 +16,7 @@
 package com.android.tools.metalava.apilevels;
 
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -72,6 +73,10 @@ public class Api extends ApiElement {
             return null;
         }
         return mClasses.get(name);
+    }
+
+    public Collection<ApiClass> getClasses() {
+        return mClasses.values();
     }
 
     /**

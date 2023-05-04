@@ -175,8 +175,8 @@ public class ApiGenerator {
                                 @NotNull File outputFile) {
         AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
         Api api = reader.getApi();
-        // Generating an XML instead of a JSON -- will be changed in following CL
-        createApiLevelsXml(outputFile, api);
+        ApiJsonPrinter printer = new ApiJsonPrinter();
+        printer.print(api, outputFile);
     }
 
     private static void printUsage() {
