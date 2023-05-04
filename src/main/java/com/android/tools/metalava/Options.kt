@@ -116,6 +116,7 @@ const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
+const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_PUBLIC = "--public"
@@ -503,6 +504,9 @@ class Options(
 
     /** Ordered list of signatures for each API version, if generating an API version JSON */
     var apiVersionSignatureFiles: List<File>? = null
+
+    /** The names of the API versions in [apiVersionSignatureFiles], in the same order */
+    var apiVersionNames: List<String>? = null
 
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
@@ -1141,6 +1145,9 @@ class Options(
                 ARG_API_VERSION_SIGNATURE_FILES -> {
                     apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
                 }
+                ARG_API_VERSION_NAMES -> {
+                    apiVersionNames = getValue(args, ++index).split(' ')
+                }
 
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
@@ -1452,6 +1459,12 @@ class Options(
                 currentApiLevel,
                 currentCodeName,
                 currentJar
+            )
+        }
+
+        if (apiVersionSignatureFiles?.size != apiVersionNames?.size) {
+            throw DriverException(
+                "$ARG_API_VERSION_SIGNATURE_FILES and $ARG_API_VERSION_NAMES must have equal length"
             )
         }
 
@@ -2278,6 +2291,9 @@ class Options(
             "$ARG_API_VERSION_SIGNATURE_FILES <files>",
             "An ordered list of text API signature files. The oldest API version should be " +
                 "first, the newest last. Required to generate API version JSON.",
+            "$ARG_API_VERSION_NAMES <strings>",
+            "An ordered list of strings with the names to use for the API versions from " +
+                "$ARG_API_VERSION_SIGNATURE_FILES. Required to generate API version JSON.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,
