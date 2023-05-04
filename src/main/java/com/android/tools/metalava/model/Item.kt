@@ -61,11 +61,12 @@ interface Item {
     }
 
     /**
-     * Recursive check to see if this item or any of its parents (containing class, containing
-     * package) should not be checked for compatibility.
+     * Recursive check to see if compatibility checks should be suppressed for this item or any of
+     * its parents (containing class, containing package).
      */
-    fun unchecked(): Boolean {
-        return hasNoCompatCheckMetaAnnotation() || parent()?.unchecked() ?: false
+    fun isCompatibilitySuppressed(): Boolean {
+        return hasSuppressCompatibilityMetaAnnotation() ||
+            parent()?.isCompatibilitySuppressed() ?: false
     }
 
     /** Whether this element has been removed with @removed/@Remove (or after propagation, in some containing class) */
@@ -183,7 +184,7 @@ interface Item {
     fun onlyShowForStubPurposes(): Boolean = modifiers.onlyShowForStubPurposes()
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
     fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
-    fun hasNoCompatCheckMetaAnnotation(): Boolean = modifiers.hasNoCompatCheckMetaAnnotations()
+    fun hasSuppressCompatibilityMetaAnnotation(): Boolean = modifiers.hasSuppressCompatibilityMetaAnnotations()
 
     /**
      * Same as [hasShowAnnotation], except if it's a method, take into account super methods'

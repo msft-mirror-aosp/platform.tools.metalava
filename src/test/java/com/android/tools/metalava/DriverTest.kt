@@ -299,7 +299,7 @@ abstract class DriverTest {
         /** Hide meta-annotations (--hide-meta-annotation arguments) */
         hideMetaAnnotations: Array<String> = emptyArray(),
         /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
-        noCompatCheckMetaAnnotations: Array<String> = emptyArray(),
+        suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
@@ -692,16 +692,17 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val noCompatCheckMetaAnnotationArguments = if (noCompatCheckMetaAnnotations.isNotEmpty()) {
-            val args = mutableListOf<String>()
-            for (annotation in noCompatCheckMetaAnnotations) {
-                args.add(ARG_NO_COMPAT_CHECK_META_ANNOTATION)
-                args.add(annotation)
+        val suppressCompatMetaAnnotationArguments =
+            if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
+                val args = mutableListOf<String>()
+                for (annotation in suppressCompatibilityMetaAnnotations) {
+                    args.add(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION)
+                    args.add(annotation)
+                }
+                args.toTypedArray()
+            } else {
+                emptyArray()
             }
-            args.toTypedArray()
-        } else {
-            emptyArray()
-        }
 
         val showUnannotatedArgs =
             if (showUnannotated) {
@@ -1005,7 +1006,7 @@ abstract class DriverTest {
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *hideMetaAnnotationArguments,
-            *noCompatCheckMetaAnnotationArguments,
+            *suppressCompatMetaAnnotationArguments,
             *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
             *apiLintArgs,

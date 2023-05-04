@@ -172,7 +172,7 @@ class CompatibilityCheck(
             )
         }
 
-        if (!old.unchecked() && new.unchecked()) {
+        if (!old.isCompatibilitySuppressed() && new.isCompatibilitySuppressed()) {
             report(
                 Issues.BECAME_UNCHECKED,
                 old,
@@ -929,7 +929,7 @@ class CompatibilityCheck(
         item: Item,
         message: String
     ) {
-        if (item.unchecked()) {
+        if (item.isCompatibilitySuppressed()) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
             // treat all issues for all unchecked items as `Severity.IGNORE`.

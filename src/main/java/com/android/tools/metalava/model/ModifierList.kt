@@ -183,22 +183,23 @@ interface ModifierList {
 
     /**
      * Returns true if this modifier list contains any meta-annotations explicitly passed in via
-     * [Options.noCompatCheckMetaAnnotations].
+     * [Options.suppressCompatibilityMetaAnnotations].
      *
-     * APIs which are meta-annotated as "No compat check" will not be checked for API compatibility,
-     * but may still be written to API files or stub JARs.
+     * Metalava will suppress compatibility checks for APIs which are within the scope of a
+     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
+     * JARs.
      *
-     * "No compat check" meta-annotations allow Metalava to handle concepts like Jetpack's policy on
-     * [RequiresOptIn], which allows developers to create annotations that describe experimental
-     * features -- sets of distinct and potentially overlapping unstable API surfaces.
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
      */
-    fun hasNoCompatCheckMetaAnnotations(): Boolean {
-        if (options.noCompatCheckMetaAnnotations.isEmpty()) {
+    fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
+        if (options.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false
         }
         return annotations().any { annotation ->
-            options.noCompatCheckMetaAnnotations.contains(annotation.qualifiedName) ||
-                annotation.resolve()?.hasNoCompatCheckMetaAnnotation() ?: false
+            options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
+                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
         }
     }
 

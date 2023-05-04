@@ -97,7 +97,7 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
-const val ARG_NO_COMPAT_CHECK_META_ANNOTATION = "--no-compat-check-meta-annotation"
+const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
@@ -183,7 +183,7 @@ class Options(
     private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
-    /** Internal list backing [noCompatCheckMetaAnnotations] */
+    /** Internal list backing [suppressCompatibilityMetaAnnotations] */
     private val mutableNoCompatCheckMetaAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [showForStubPurposesAnnotations] */
     private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
@@ -357,7 +357,7 @@ class Options(
     var hideMetaAnnotations = mutableHideMetaAnnotations
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
-    var noCompatCheckMetaAnnotations = mutableNoCompatCheckMetaAnnotations
+    var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
 
     /**
      * Annotations that defines APIs that are implicitly included in the API surface. These APIs
@@ -844,7 +844,7 @@ class Options(
                 ARG_HIDE_META_ANNOTATION, "--hideMetaAnnotations", "-hideMetaAnnotation" ->
                     mutableHideMetaAnnotations.add(getValue(args, ++index))
 
-                ARG_NO_COMPAT_CHECK_META_ANNOTATION ->
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION ->
                     mutableNoCompatCheckMetaAnnotations.add(getValue(args, ++index))
 
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
@@ -2057,9 +2057,9 @@ class Options(
             "$ARG_HIDE_META_ANNOTATION <meta-annotation class>",
             "Treat as hidden any elements annotated with an " +
                 "annotation which is itself annotated with the given meta-annotation",
-            "$ARG_NO_COMPAT_CHECK_META_ANNOTATION <meta-annotation class>",
-            "Do not check compatibility for any elements annotated with an annotation which is " +
-                "itself annotated with the given meta-annotation",
+            "$ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION <meta-annotation class>",
+            "Suppress compatibility checks for any elements within the scope of an annotation " +
+                "which is itself annotated with the given meta-annotation",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
             "$ARG_KOTLIN_SOURCE <level>", "Sets the source level for Kotlin source files; default is ${LanguageVersionSettingsImpl.DEFAULT.languageVersion}.",

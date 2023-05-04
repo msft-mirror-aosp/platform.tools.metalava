@@ -3974,7 +3974,7 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            noCompatCheckMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
         )
     }
 
@@ -4008,7 +4008,7 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            noCompatCheckMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
         )
     }
 
@@ -4045,7 +4045,7 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            noCompatCheckMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
         )
     }
 
