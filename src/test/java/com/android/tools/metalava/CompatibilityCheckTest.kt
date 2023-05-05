@@ -4251,6 +4251,25 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Avoid stack overflow for self-referential and cyclical annotation usage`() {
+        val signature = """
+            package test.pkg {
+              @test.pkg.SelfReferenceAnnotation public @interface SelfReferenceAnnotation {}
+              @test.pkg.CyclicalReferenceAnnotationB public @interface CyclicalReferenceAnnotationA {}
+              @test.pkg.CyclicalReferenceAnnotationA public @interface CyclicalReferenceAnnotationB {}
+              public @interface MetaSuppressCompatibility {}
+              public @interface MetaHide {}
+            }
+            """
+        check(
+            checkCompatibilityApiReleased = signature,
+            signatureSource = signature,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaSuppressCompatibility"),
+            hideMetaAnnotations = arrayOf("test.pkg.MetaHide")
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
