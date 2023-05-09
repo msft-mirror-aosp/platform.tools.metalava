@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_VERSION_NAMES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
@@ -351,7 +352,9 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_GENERATE_API_VERSION_HISTORY,
                 outputPath,
                 ARG_API_VERSION_SIGNATURE_FILES,
-                versions.joinToString(":") { it.absolutePath }
+                versions.joinToString(":") { it.absolutePath },
+                ARG_API_VERSION_NAMES,
+                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" ")
             )
         )
 
@@ -366,44 +369,69 @@ class ApiGeneratorTest : DriverTest() {
                 [
                   {
                     "class": "test/pkg/Foo",
-                    "addedIn": "1",
+                    "addedIn": "1.1.0",
                     "methods": [
                       {
                         "method": "methodV3()V",
-                        "addedIn": "3"
+                        "addedIn": "1.3.0"
                       },
                       {
                         "method": "methodV1()V",
-                        "addedIn": "1",
-                        "deprecatedIn": "3"
+                        "addedIn": "1.1.0",
+                        "deprecatedIn": "1.3.0"
                       },
                       {
                         "method": "methodV2()V",
-                        "addedIn": "2",
-                        "deprecatedIn": "2"
+                        "addedIn": "1.2.0",
+                        "deprecatedIn": "1.2.0"
                       }
                     ],
                     "fields": [
                       {
                         "field": "fieldV2",
-                        "addedIn": "2"
+                        "addedIn": "1.2.0"
                       },
                       {
                         "field": "fieldV1",
-                        "addedIn": "1"
+                        "addedIn": "1.1.0"
                       }
                     ]
                   },
                   {
                     "class": "test/pkg/Foo${"$"}Bar",
-                    "addedIn": "1",
-                    "deprecatedIn": "3",
+                    "addedIn": "1.1.0",
+                    "deprecatedIn": "1.3.0",
                     "methods": [],
                     "fields": []
                   }
                 ]
             """.trimIndent(),
             prettyOutput
+        )
+    }
+
+    @Test
+    fun `Correct error with different number of API signature files and API version names`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val filePaths = listOf("1.1.0", "1.2.0", "1.3.0").map { name ->
+            val file = File.createTempFile(name, ".txt")
+            file.deleteOnExit()
+            file.path
+        }
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                filePaths.joinToString(":"),
+                ARG_API_VERSION_NAMES,
+                listOf("1.1.0", "1.2.0").joinToString(" ")
+            ),
+            expectedFail = "Aborting: --api-version-signature-files and --api-version-names must have equal length"
         )
     }
 
