@@ -281,6 +281,10 @@ open class TextClassItem(
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
     }
 
+    fun containsMethodInClassContext(method: MethodItem): Boolean {
+        return methods.any { equalMethodInClassContext(it, method) }
+    }
+
     fun getParentAndInterfaces(): List<TextClassItem> {
         val classes = interfaceTypes().map { it.asClass() as TextClassItem }.toMutableList()
         superClass()?.let { classes.add(0, it as TextClassItem) }
