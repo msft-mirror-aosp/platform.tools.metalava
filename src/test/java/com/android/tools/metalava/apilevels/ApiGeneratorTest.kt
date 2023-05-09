@@ -307,7 +307,7 @@ class ApiGeneratorTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method public void methodV1();
+                        method public <T extends java.lang.String> void methodV1(T);
                         field public int fieldV1;
                       }
                       public class Foo.Bar {
@@ -320,8 +320,8 @@ class ApiGeneratorTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method public void methodV1();
-                        method @Deprecated public void methodV2();
+                        method public <T extends java.lang.String> void methodV1(T);
+                        method @Deprecated public <T> void methodV2(String, int);
                         field public int fieldV1;
                         field public int fieldV2;
                       }
@@ -335,7 +335,7 @@ class ApiGeneratorTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method @Deprecated public void methodV1();
+                        method @Deprecated public <T extends java.lang.String> void methodV1(T);
                         method public void methodV3();
                         field public int fieldV1;
                         field public int fieldV2;
@@ -361,29 +361,36 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
 
         // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().setPrettyPrinting().create()
+        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
         val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
         val prettyOutput = gson.toJson(outputJson)
         assertEquals(
             """
                 [
                   {
-                    "class": "test/pkg/Foo",
+                    "class": "test.pkg.Foo.Bar",
+                    "addedIn": "1.1.0",
+                    "deprecatedIn": "1.3.0",
+                    "methods": [],
+                    "fields": []
+                  },
+                  {
+                    "class": "test.pkg.Foo",
                     "addedIn": "1.1.0",
                     "methods": [
                       {
-                        "method": "methodV3()V",
-                        "addedIn": "1.3.0"
-                      },
-                      {
-                        "method": "methodV1()V",
+                        "method": "methodV1<T extends java.lang.String>(T)",
                         "addedIn": "1.1.0",
                         "deprecatedIn": "1.3.0"
                       },
                       {
-                        "method": "methodV2()V",
+                        "method": "methodV2<T>(java.lang.String,int)",
                         "addedIn": "1.2.0",
                         "deprecatedIn": "1.2.0"
+                      },
+                      {
+                        "method": "methodV3()",
+                        "addedIn": "1.3.0"
                       }
                     ],
                     "fields": [
@@ -396,13 +403,6 @@ class ApiGeneratorTest : DriverTest() {
                         "addedIn": "1.1.0"
                       }
                     ]
-                  },
-                  {
-                    "class": "test/pkg/Foo${"$"}Bar",
-                    "addedIn": "1.1.0",
-                    "deprecatedIn": "1.3.0",
-                    "methods": [],
-                    "fields": []
                   }
                 ]
             """.trimIndent(),
