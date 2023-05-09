@@ -1170,6 +1170,88 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    fun `Check overridden method added for complex hierarchy`() {
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                public final class A extends C implements B<String> {
+                    @Override public void method2() { }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public interface B<T> {
+                    void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class C extends D {
+                    public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class D implements B<String> {
+                    @Override public void method1(String arg1) { }
+                }
+                """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public final class A extends test.pkg.C implements test.pkg.B<java.lang.String> {
+                public A() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public interface B<T> {
+                public void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class C extends test.pkg.D {
+                public C() { throw new RuntimeException("Stub!"); }
+                public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class D implements test.pkg.B<java.lang.String> {
+                public D() { throw new RuntimeException("Stub!"); }
+                public void method1(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                }
+                """
+                )
+            ),
+            checkTextStubEquivalence = true
+        )
+    }
+
+    @Test
     fun `Check generating classes with generics`() {
         checkStubs(
             sourceFiles = arrayOf(

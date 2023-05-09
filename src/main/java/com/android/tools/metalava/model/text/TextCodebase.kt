@@ -258,6 +258,37 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                     }
                 }
             }
+
+            // If class is a concrete class, iterate through all hierarchy and
+            // find all missing abstract methods.
+            // Only add methods that are not implemented in the hierarchy and not included
+            else if (!cl.isAbstractClass() && !cl.isEnum()) {
+                val superMethodsToBeOverridden = mutableListOf<TextMethodItem>()
+                val hierarchyClassesList = cl.getAllSuperClassesAndInterfaces().toMutableList()
+                while (hierarchyClassesList.isNotEmpty()) {
+                    val ancestorClass = hierarchyClassesList.removeLast()
+                    val abstractMethods = ancestorClass.methods().filter { it.modifiers.isAbstract() }
+                    for (method in abstractMethods) {
+                        // We do not compare this against all ancestors of cl,
+                        // because an abstract method cannot be overridden at its ancestor class.
+                        // Thus, we compare against hierarchyClassesList.
+                        if (hierarchyClassesList.all { !it.containsMethodInClassContext(method) } &&
+                            !cl.containsMethodInClassContext(method)
+                        ) {
+                            superMethodsToBeOverridden.add(method as TextMethodItem)
+                        }
+                    }
+                }
+                for (superMethod in superMethodsToBeOverridden) {
+                    // MethodItem.duplicate() sets the containing class of
+                    // the duplicated method item as the input parameter.
+                    // Thus, the method items to be overridden are duplicated here after the
+                    // ancestor classes iteration so that the method items are correctly compared.
+                    val m = superMethod.duplicate(cl) as TextMethodItem
+                    m.modifiers.setAbstract(false)
+                    cl.addMethod(m)
+                }
+            }
         }
     }
 
