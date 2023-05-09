@@ -1815,6 +1815,53 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    fun `Check resolving override equivalent signatures`() {
+        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file created.
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser, test.pkg.AttributeSet {
+                        public void close();
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlPullParser {
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface AttributeSet {
+                        default String getAttributeNamespace (int arg1) { }
+                    }
+                    """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser,  test.pkg.AttributeSet {
+                    public void close();
+                    public java.lang.String getAttributeNamespace(int arg1);
+                    }
+                    """
+                )
+            ),
+            checkTextStubEquivalence = true
+        )
+    }
+
+    @Test
     fun `Rewrite unknown nullability annotations as sdk stubs`() {
         check(
             format = FileFormat.V2,
