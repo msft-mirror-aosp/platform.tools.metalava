@@ -298,7 +298,6 @@ class PsiModifierItem(
                             !it.isKotlinNullabilityAnnotation
                     }
                     .map {
-
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)

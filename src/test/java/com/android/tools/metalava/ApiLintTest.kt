@@ -3604,7 +3604,6 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
-
         check(
             expectedIssues = """
                 src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
