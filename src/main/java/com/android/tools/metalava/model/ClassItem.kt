@@ -379,6 +379,7 @@ interface ClassItem : Item {
             val source = value?.value?.toSource()
             return when {
                 source == null -> AnnotationRetention.getDefault(cls)
+                source.contains("CLASS") -> AnnotationRetention.CLASS
                 source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
                 source.contains("SOURCE") -> AnnotationRetention.SOURCE
                 else -> AnnotationRetention.getDefault(cls)
