@@ -32,9 +32,11 @@ import com.android.resources.ResourceType.ID
 import com.android.resources.ResourceType.INTEGER
 import com.android.resources.ResourceType.INTERPOLATOR
 import com.android.resources.ResourceType.LAYOUT
+import com.android.resources.ResourceType.MACRO
 import com.android.resources.ResourceType.MENU
 import com.android.resources.ResourceType.MIPMAP
 import com.android.resources.ResourceType.NAVIGATION
+import com.android.resources.ResourceType.OVERLAYABLE
 import com.android.resources.ResourceType.PLURALS
 import com.android.resources.ResourceType.PUBLIC
 import com.android.resources.ResourceType.RAW
@@ -1446,6 +1448,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (exception in method.filteredThrowsTypes(filterReference)) {
+            if (method.isEnumSyntheticMethod()) continue
             if (isUncheckedException(exception)) {
                 report(
                     BANNED_THROW, method,
@@ -2061,6 +2064,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             STYLE_ITEM,
             PUBLIC,
             SAMPLE_DATA,
+            OVERLAYABLE,
+            MACRO,
             AAPT -> {
                 // no-op; these are resource "types" in XML but not present as R classes
                 // Listed here explicitly to force compiler error as new resource types
