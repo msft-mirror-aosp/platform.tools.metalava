@@ -318,7 +318,6 @@ interface ClassItem : Item {
     }
 
     fun accept(visitor: ApiVisitor) {
-
         if (!visitor.include(this)) {
             return
         }
