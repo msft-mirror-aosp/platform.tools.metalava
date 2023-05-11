@@ -4650,6 +4650,7 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                         package test.pkg
+                        import androidx.annotation.IntRange
                         @Deprecated(
                             message = "So much regret",
                             level = DeprecationLevel.HIDDEN
@@ -4657,13 +4658,15 @@ class ApiFileTest : DriverTest() {
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
                     """
-                )
+                ),
+                androidxIntRangeSource
             ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
+                    method @Deprecated @IntRange(from=0L) public static void myMethod();
                   }
                 }
             """
