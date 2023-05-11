@@ -221,7 +221,7 @@ fun getBuildId(): String {
 
 fun Project.getKtlintConfiguration(): Configuration {
     return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.41.0")
+        val dependency = project.dependencies.create("com.pinterest:ktlint:0.47.1")
         dependencies.add(dependency)
     }
 }
