@@ -810,6 +810,7 @@ class DocAnalyzer(
     }
 }
 
+@Suppress("DEPRECATION") // replace with getClassVersions(...).min() when Lint is upgraded
 fun ApiLookup.getClassVersion(cls: PsiClass): Int {
     val owner = cls.qualifiedName ?: return -1
     return getClassVersion(owner)
@@ -817,6 +818,7 @@ fun ApiLookup.getClassVersion(cls: PsiClass): Int {
 
 val defaultEvaluator = DefaultJavaEvaluator(null, null)
 
+@Suppress("DEPRECATION") // replace with getMethonVersions(...).min() when Lint is upgraded
 fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
     val containingClass = method.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
@@ -828,6 +830,7 @@ fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
     return getMethodVersion(owner, if (method.isConstructor) "<init>" else method.name, desc)
 }
 
+@Suppress("DEPRECATION") // replace with getFieldVersions(...).min() when Lint is upgraded
 fun ApiLookup.getFieldVersion(field: PsiField): Int {
     val containingClass = field.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
