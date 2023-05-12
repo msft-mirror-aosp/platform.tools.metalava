@@ -803,6 +803,7 @@ open class PsiBasedCodebase(
      * Do not cache returned binding context for longer than the lifetime of this codebase
      */
     internal fun bindingContext(element: KtElement): BindingContext? {
+        @Suppress("DEPRECATION")
         return project.getService(KotlinUastResolveProviderService::class.java)
             ?.getBindingContext(element)
     }

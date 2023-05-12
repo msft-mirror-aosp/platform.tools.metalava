@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.options
+import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierList
@@ -298,11 +299,13 @@ class PsiModifierItem(
         ): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
             val uAnnotations = annotated.uAnnotations
+            val psiAnnotations = modifierList.annotations.takeIf { it.isNotEmpty() }
+                ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
+                ?: PsiAnnotation.EMPTY_ARRAY
 
             var flags = computeFlag(codebase, element, modifierList)
 
             return if (uAnnotations.isEmpty()) {
-                val psiAnnotations = modifierList.annotations
                 if (psiAnnotations.isNotEmpty()) {
                     val annotations: MutableList<AnnotationItem> =
                         psiAnnotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
@@ -336,7 +339,6 @@ class PsiModifierItem(
                     }.filter { !it.isDeprecatedForSdk() }.toMutableList()
 
                 if (!isPrimitiveVariable) {
-                    val psiAnnotations = modifierList.annotations
                     if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
                         val ktNullAnnotation = psiAnnotations.firstOrNull { psiAnnotation ->
                             psiAnnotation.qualifiedName?.let { isNullnessAnnotation(it) } == true
