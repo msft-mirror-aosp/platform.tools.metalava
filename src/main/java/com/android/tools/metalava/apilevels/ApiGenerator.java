@@ -153,7 +153,7 @@ public class ApiGenerator {
                                     @Nullable Codebase codebase) throws IOException {
         AndroidJarReader reader = new AndroidJarReader(patterns, minApi, currentJar, currentApi, codebase);
         Api api = reader.getApi();
-        return createApiFile(new File(outPath), api);
+        return createApiLevelsXml(new File(outPath), api);
     }
 
     public static boolean generate(@NotNull File[] apiLevels,
@@ -162,7 +162,23 @@ public class ApiGenerator {
                                    @Nullable Codebase codebase) throws IOException {
         AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
         Api api = reader.getApi();
-        return createApiFile(outputFile, api);
+        return createApiLevelsXml(outputFile, api);
+    }
+
+    /**
+     * Generates an API version history file based on the API surfaces of the versions provided.
+     *
+     * @param apiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param outputFile Path of the JSON file to write output to.
+     * @param apiVersionNames The names of the API versions, ordered starting from version 1.
+     */
+    public static void generate(@NotNull List<File> apiVersions,
+                                @NotNull File outputFile,
+                                @NotNull List<String> apiVersionNames) {
+        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
+        Api api = reader.getApi();
+        ApiJsonPrinter printer = new ApiJsonPrinter(apiVersionNames);
+        printer.print(api, outputFile);
     }
 
     private static void printUsage() {
@@ -187,7 +203,7 @@ public class ApiGenerator {
      * @param outFile the output file
      * @param api     the api to write
      */
-    private static boolean createApiFile(File outFile, Api api) {
+    private static boolean createApiLevelsXml(File outFile, Api api) {
         File parentFile = outFile.getParentFile();
         if (!parentFile.exists()) {
             boolean ok = parentFile.mkdirs();

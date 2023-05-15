@@ -29,11 +29,11 @@ class TextPackageItem(
         modifiers.setOwner(this)
     }
 
-    private val classes = ArrayList<TextClassItem>(100)
+    private val classes = ArrayList<ClassItem>(100)
 
     fun name() = name
 
-    fun addClass(classInfo: TextClassItem) {
+    fun addClass(classInfo: ClassItem) {
         classes.add(classInfo)
     }
 
