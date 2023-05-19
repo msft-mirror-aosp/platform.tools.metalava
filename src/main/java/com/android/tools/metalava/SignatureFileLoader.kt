@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
 object SignatureFileLoader {
-    private val map = mutableMapOf<File, Codebase>()
+    private val map = mutableMapOf<File, TextCodebase>()
 
-    fun load(file: File, kotlinStyleNulls: Boolean = false): Codebase {
+    fun load(file: File, kotlinStyleNulls: Boolean = false): TextCodebase {
         return map[file] ?: run {
             val loaded = loadFiles(listOf(file), kotlinStyleNulls)
             map[file] = loaded
@@ -32,7 +32,7 @@ object SignatureFileLoader {
         }
     }
 
-    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): Codebase {
+    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
