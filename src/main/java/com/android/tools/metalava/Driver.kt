@@ -699,7 +699,9 @@ internal fun parseSources(
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
+    @Suppress("DEPRECATION")
     config.addSourceRoots(sourceRoots.map { it.absoluteFile })
+    @Suppress("DEPRECATION")
     config.addClasspathRoots(classpath.map { it.absoluteFile })
     options.jdkHome?.let {
         if (options.isJdkModular(it)) {
@@ -742,6 +744,7 @@ fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
  */
 fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+    @Suppress("DEPRECATION")
     config.addClasspathRoots(apiJars)
 
     val environment = createProjectEnvironment(config)
