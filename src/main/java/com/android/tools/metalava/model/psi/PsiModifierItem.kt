@@ -40,10 +40,7 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolWithVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
-import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -54,7 +51,6 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
-import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
@@ -98,7 +94,6 @@ class PsiModifierItem(
         }
 
         private fun computeFlag(
-            codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             modifierList: PsiModifierList
         ): Int {
@@ -177,25 +172,11 @@ class PsiModifierItem(
                     // Reset visibilityFlags to INTERNAL if the element has no explicit visibility
                     // modifier, but overrides an internal declaration. Adapted from
                     // org.jetbrains.kotlin.asJava.classes.UltraLightMembersCreator.isInternal
-                    val descriptor = codebase.bindingContext(sourcePsi)
-                        ?.get(BindingContext.DECLARATION_TO_DESCRIPTOR, sourcePsi)
-
-                    if (descriptor != null) { // FE 1.0
-                        if (descriptor is DeclarationDescriptorWithVisibility) {
-                            val effectiveVisibility =
-                                descriptor.visibility.effectiveVisibility(descriptor, false)
-
-                            if (effectiveVisibility == EffectiveVisibility.Internal) {
-                                visibilityFlags = INTERNAL
-                            }
-                        }
-                    } else { // Analysis API
-                        analyze(sourcePsi) {
-                            val symbol = (sourcePsi as? KtDeclaration)?.getSymbol()
-                            val visibility = (symbol as? KtSymbolWithVisibility)?.visibility
-                            if (visibility == Visibilities.Internal) {
-                                visibilityFlags = INTERNAL
-                            }
+                    analyze(sourcePsi) {
+                        val symbol = (sourcePsi as? KtDeclaration)?.getSymbol()
+                        val visibility = (symbol as? KtSymbolWithVisibility)?.visibility
+                        if (visibility == Visibilities.Internal) {
+                            visibilityFlags = INTERNAL
                         }
                     }
                 }
@@ -265,7 +246,7 @@ class PsiModifierItem(
 
         private fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
-            var flags = computeFlag(codebase, element, modifierList)
+            var flags = computeFlag(element, modifierList)
 
             val psiAnnotations = modifierList.annotations
             return if (psiAnnotations.isEmpty()) {
@@ -303,7 +284,7 @@ class PsiModifierItem(
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
                 ?: PsiAnnotation.EMPTY_ARRAY
 
-            var flags = computeFlag(codebase, element, modifierList)
+            var flags = computeFlag(element, modifierList)
 
             return if (uAnnotations.isEmpty()) {
                 if (psiAnnotations.isNotEmpty()) {
@@ -371,8 +352,8 @@ class PsiModifierItem(
             return false
         }
 
-        internal val NOT_NULL = NotNull::class.qualifiedName
-        internal val NULLABLE = Nullable::class.qualifiedName
+        private val NOT_NULL = NotNull::class.qualifiedName
+        private val NULLABLE = Nullable::class.qualifiedName
 
         private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
             get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE

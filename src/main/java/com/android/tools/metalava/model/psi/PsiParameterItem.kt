@@ -28,12 +28,9 @@ import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.builtins.StandardNames
-import org.jetbrains.kotlin.builtins.isFunctionOrKFunctionTypeWithAnySuspendability
-import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.resolve.typeBinding.createTypeBindingForReturnType
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
@@ -260,24 +257,13 @@ class PsiParameterItem(
             // a type is SAM convertible or not, which should handle external dependencies better
             // and avoid any divergence from the actual compiler behaviour, if there are changes.
             val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
-            val bindingContext = codebase.bindingContext(parameter)
-            if (bindingContext != null) { // FE 1.0
-                val type =
-                    parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
-                // True if the type is a SAM type, or a fun interface
-                val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
-                // True if the type is a Kotlin lambda (suspend or not)
-                val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
+            analyze(parameter) {
+                val ktType = parameter.getParameterSymbol().returnType
+                val isSamType = ktType.isFunctionalInterfaceType
+                val isFunctionalType =
+                    ktType.isFunctionType || ktType.isSuspendFunctionType ||
+                        ktType.isKFunctionType || ktType.isKSuspendFunctionType
                 return isSamType || isFunctionalType
-            } else { // Analysis API
-                analyze(parameter) {
-                    val ktType = parameter.getParameterSymbol().returnType
-                    val isSamType = ktType.isFunctionalInterfaceType
-                    val isFunctionalType =
-                        ktType.isFunctionType || ktType.isSuspendFunctionType ||
-                            ktType.isKFunctionType || ktType.isKSuspendFunctionType
-                    return isSamType || isFunctionalType
-                }
             }
         }
     }
