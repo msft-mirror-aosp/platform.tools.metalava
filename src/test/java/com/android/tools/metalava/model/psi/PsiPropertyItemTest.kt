@@ -148,8 +148,8 @@ class PsiPropertyItemTest {
 
                     class Foo {
                         @ExperimentalFooApi
-                        var withField: String
-                            get() { return filed }
+                        var withField: String = "42"
+                            get() { return field }
                             set(value) { field = "v=" + value }
 
                         @ExperimentalFooApi
