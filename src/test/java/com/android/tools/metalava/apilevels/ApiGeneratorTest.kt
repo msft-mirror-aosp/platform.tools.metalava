@@ -29,6 +29,7 @@ import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
+import com.android.tools.metalava.minApiLevel
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -267,9 +268,9 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
 
         // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
-        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
-        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
+        assertEquals(30, apiLookup.getClassVersions("android/os/ext/SdkExtensions").minApiLevel())
+        assertEquals(30, apiLookup.getMethodVersions("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I").minApiLevel())
+        assertEquals(31, apiLookup.getMethodVersions("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;").minApiLevel())
 
         // Verify there's no extension versions listed for SdkExtensions
         val sdkExtClassLine = xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
