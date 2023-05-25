@@ -16,8 +16,27 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import org.intellij.lang.annotations.Language
+
 // Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
 abstract class UastTestBase : DriverTest() {
+
+    private fun uastCheck(
+        isK2: Boolean,
+        format: FileFormat = FileFormat.latest,
+        sourceFiles: Array<TestFile> = emptyArray(),
+        @Language("TEXT")
+        api: String? = null,
+        extraArguments: Array<String> = emptyArray(),
+    ) {
+        check(
+            format = format,
+            sourceFiles = sourceFiles,
+            api = api,
+            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 })
+        )
+    }
 
     protected fun `Kotlin language level`(isK2: Boolean) {
         // static method in interface is not overridable.
@@ -26,7 +45,8 @@ abstract class UastTestBase : DriverTest() {
         //  Put this back to Java9LanguageFeaturesTest, before `Basic class signature extraction`
         val f = if (isK2) " final" else ""
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
-        check(
+        uastCheck(
+            isK2,
             format = FileFormat.V1,
             sourceFiles = arrayOf(
                 kotlin(
@@ -67,7 +87,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
         // See http://b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -154,9 +175,10 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `renamed via @JvmName`(api: String) {
+    protected fun `renamed via @JvmName`(isK2: Boolean, api: String) {
         // Regression test from http://b/257444932: @get:JvmName on constructor property
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -185,7 +207,8 @@ abstract class UastTestBase : DriverTest() {
         //  FE1.0 UAST will have implicit nullability too.
         //  Put this back to ApiFileTest, before `Kotlin Reified Methods 2`
         val n = if (isK2) " @Nullable" else ""
-        check(
+        uastCheck(
+            isK2,
             format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
@@ -229,7 +252,8 @@ abstract class UastTestBase : DriverTest() {
         //  FE1.0 UAST will have implicit nullability too.
         //  Put this back to ApiFileTest, before `Nullness in varargs`
         val n = if (isK2) "" else "!"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     "src/test/pkg/test.kt",
@@ -301,7 +325,8 @@ abstract class UastTestBase : DriverTest() {
         //  FE1.0 UAST will emit that too.
         //  Put this back to ApiFileTest, before `Constants in a file scope annotation`
         val n = if (isK2) " @NonNull" else ""
-        check(
+        uastCheck(
+            isK2,
             format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
@@ -347,7 +372,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Annotation on parameters of data class synthetic copy`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57003
         val typeAnno = if (isK2) "" else "@test.pkg.MyAnnotation "
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -387,7 +413,8 @@ abstract class UastTestBase : DriverTest() {
                     property public final float Center;
                     property public final float End;
                     property public final float Start;"""
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -418,7 +445,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `non-last vararg type`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57547
         val varargType = if (isK2) "java.lang.String..." else "String![]"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -441,7 +469,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `implements Comparator`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57548
         val inherit = if (isK2) "extends" else "implements"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -473,7 +502,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `constant in file-level annotation`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57550
         val c = if (isK2) "31L" else "31"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -501,7 +531,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57567
         val f = if (isK2) "" else " final"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -568,7 +599,8 @@ abstract class UastTestBase : DriverTest() {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57569
         val additional = if (isK2) """
                     field public java.util.List<test.pkg.Bar> bars;""" else ""
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -599,7 +631,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = if (isK2) "" else "? extends "
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -696,7 +729,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `boxed type argument as method return type`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57579
         val b = if (isK2) "boolean" else "Boolean"
-        check(
+        uastCheck(
+            isK2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
