@@ -16,33 +16,9 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.FIR_UAST_KEY
-import com.android.tools.lint.UastEnvironment
-import org.junit.AfterClass
-import org.junit.BeforeClass
 import org.junit.Test
 
 class UastTestK2 : UastTestBase() {
-    companion object {
-        private var lastKey: String? = null
-
-        @BeforeClass
-        @JvmStatic
-        fun classSetup() {
-            lastKey = System.getProperty(FIR_UAST_KEY, "false")
-            System.setProperty(FIR_UAST_KEY, "true")
-        }
-
-        @AfterClass
-        @JvmStatic
-        fun classTeardown() {
-            lastKey?.let {
-                System.setProperty(FIR_UAST_KEY, it)
-            }
-            lastKey = null
-            UastEnvironment.disposeApplicationEnvironment()
-        }
-    }
 
     @Test
     fun `Kotlin language level -- K2`() {
@@ -58,6 +34,7 @@ class UastTestK2 : UastTestBase() {
     fun `renamed via @JvmName -- K2`() {
         // NB: getInterpolated -> isInterpolated
         `renamed via @JvmName`(
+            isK2 = true,
             api = """
                 // Signature format: 4.0
                 package test.pkg {
