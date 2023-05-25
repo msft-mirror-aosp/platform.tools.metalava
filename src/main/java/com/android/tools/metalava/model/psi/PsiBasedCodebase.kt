@@ -233,11 +233,11 @@ open class PsiBasedCodebase(
                                 )
                             }
 
-                            override fun visitCodeBlock(block: PsiCodeBlock?) {
+                            override fun visitCodeBlock(block: PsiCodeBlock) {
                                 // Ignore to avoid eagerly parsing all method bodies.
                             }
 
-                            override fun visitDocComment(comment: PsiDocComment?) {
+                            override fun visitDocComment(comment: PsiDocComment) {
                                 // Ignore to avoid eagerly parsing all doc comments.
                                 // Doc comments cannot contain error elements.
                             }
