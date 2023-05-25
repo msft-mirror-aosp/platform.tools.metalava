@@ -21,7 +21,6 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
-import com.android.tools.lint.FIR_UAST_KEY
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -640,9 +639,6 @@ private fun loadFromSources(): Codebase {
     return codebase
 }
 
-private fun useFirUast(): Boolean =
-    System.getProperty(FIR_UAST_KEY, "false").toBoolean()
-
 /**
  * Returns a codebase initialized from the given Java or Kotlin source files, with the given
  * description. The codebase will use a project environment initialized according to the current
@@ -687,7 +683,7 @@ private fun parseAbsoluteSources(
     kotlinLanguageLevel: LanguageVersionSettings,
     manifest: File?
 ): PsiBasedCodebase {
-    val config = UastEnvironment.Configuration.create(useFirUast = useFirUast())
+    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots)
@@ -718,7 +714,7 @@ private fun parseAbsoluteSources(
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
-    val config = UastEnvironment.Configuration.create(useFirUast = useFirUast())
+    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.addClasspathRoots(listOf(apiJar))
 
     val environment = createProjectEnvironment(config)
