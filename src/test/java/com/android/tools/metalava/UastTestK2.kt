@@ -92,4 +92,49 @@ class UastTestK2 : UastTestBase() {
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN -- K2`() {
         `Annotations aren't dropped when DeprecationLevel is HIDDEN`(isK2 = true)
     }
+
+    @Test
+    fun `Annotation on parameters of data class synthetic copy -- K2`() {
+        `Annotation on parameters of data class synthetic copy`(isK2 = true)
+    }
+
+    @Test
+    fun `Member of companion object in value class -- K2`() {
+        `Member of companion object in value class`(isK2 = true)
+    }
+
+    @Test
+    fun `non-last vararg type -- K2`() {
+        `non-last vararg type`(isK2 = true)
+    }
+
+    @Test
+    fun `implements Comparator -- K2`() {
+        `implements Comparator`(isK2 = true)
+    }
+
+    @Test
+    fun `constant in file-level annotation -- K2`() {
+        `constant in file-level annotation`(isK2 = true)
+    }
+
+    @Test
+    fun `final modifier in enum members -- K2`() {
+        `final modifier in enum members`(isK2 = true)
+    }
+
+    @Test
+    fun `lateinit var as mutable bare field -- K2`() {
+        `lateinit var as mutable bare field`(isK2 = true)
+    }
+
+    @Test
+    fun `Upper bound wildcards -- K2`() {
+        `Upper bound wildcards`(isK2 = true)
+    }
+
+    @Test
+    fun `boxed type argument as method return type -- K2`() {
+        `boxed type argument as method return type`(isK2 = true)
+    }
 }
