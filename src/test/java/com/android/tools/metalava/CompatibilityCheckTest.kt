@@ -4078,9 +4078,9 @@ CompatibilityCheckTest : DriverTest() {
                   @test.pkg.MetaAnnotatedDoNotCheckCompat
                   public class MyTest2 {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
                   }
                 }
                 """,
@@ -4091,9 +4091,9 @@ CompatibilityCheckTest : DriverTest() {
                   @test.pkg.MetaAnnotatedDoNotCheckCompat
                   public class MyTest2 {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
                   }
                 }
                 """,
@@ -4114,9 +4114,9 @@ CompatibilityCheckTest : DriverTest() {
                   @test.pkg.MetaAnnotatedDoNotCheckCompat
                   public class MyTest2 {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
                   }
                 }
                 """,
@@ -4128,9 +4128,9 @@ CompatibilityCheckTest : DriverTest() {
                   @test.pkg.MetaAnnotatedDoNotCheckCompat
                   public class MyTest2 {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
                   }
-                  @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
                   }
                 }
                 """,
