@@ -275,9 +275,17 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>
                                              Hide/skip issues of the given id
+--error-category <name>
+                                             Report all issues in the given category as errors
+--warning-category <name>
+                                             Report all issues in the given category as warnings
+--lint-category <name>
+                                             Report all issues in the given category as having lint-severity
+--hide-category <name>
+                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide')
+                                             baseline) but not if hidden (by '--hide' or '--hide-category')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
