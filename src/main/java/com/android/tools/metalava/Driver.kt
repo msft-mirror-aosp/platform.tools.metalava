@@ -487,6 +487,13 @@ fun processNonCodebaseFlags() {
             JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
         }
     }
+
+    val apiVersionsJson = options.generateApiVersionsJson
+    val apiVersionFiles = options.apiVersionSignatureFiles
+    if (apiVersionsJson != null && apiVersionFiles != null) {
+        progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
+        ApiGenerator.generate(apiVersionFiles, apiVersionsJson)
+    }
 }
 
 /**

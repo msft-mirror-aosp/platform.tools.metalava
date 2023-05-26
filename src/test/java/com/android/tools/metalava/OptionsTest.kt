@@ -399,6 +399,16 @@ Extracting API Levels:
                                              Lines beginning with # are comments.
 
 
+Generating API version history:
+--generate-api-version-history <jsonfile>
+                                             Reads API signature files and generates a JSON file recording the API
+                                             version each class, method, and field was added in and (if applicable)
+                                             deprecated in. Required to generate API version JSON.
+--api-version-signature-files <files>
+                                             An ordered list of text API signature files. The oldest API version should
+                                             be first, the newest last. Required to generate API version JSON.
+
+
 Sandboxing:
 --no-implicit-root
                                              Disable implicit root directory detection. Otherwise, metalava adds in
