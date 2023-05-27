@@ -1280,9 +1280,8 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    @Ignore("TODO(aurimas) reenable once this is default on")
     @Test
-    fun `Incompatible method change -- throws list`() {
+    fun `Incompatible method change -- throws list -- java`() {
         check(
             expectedIssues = """
                 src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
@@ -1314,6 +1313,53 @@ CompatibilityCheckTest : DriverTest() {
                         public void method2() {}
                         public void method3() throws java.lang.UnsupportedOperationException {}
                     }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Incompatible method change -- throws list -- kt`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
+                src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
+                src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
+                src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public final class MyClass {
+                    ctor public MyClass(int);
+                    method public final void method1();
+                    method public final String getProperty1();
+                    method public final String getProperty2();
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class MyClass
+                        @Throws(MyException::class)
+                        constructor(
+                            val p: Int
+                        ) {
+                            @Throws(MyException::class)
+                            fun method1() {}
+
+                            @get:Throws(MyException::class)
+                            val property1 : String = "42"
+
+                            val property2 : String = "42"
+                                @Throws(MyException::class)
+                                get
+                        }
+
+                        class MyException : Exception()
                     """
                 )
             )
@@ -3963,6 +4009,132 @@ CompatibilityCheckTest : DriverTest() {
                 ),
                 nonNullSource
             )
+        )
+    }
+
+    @Test
+    fun `adding a method to an abstract class with hidden constructor`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo {
+                    }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public abstract class Foo {
+                        /**
+                        * @hide
+                        */
+                        public Foo() {}
+                        public abstract void newAbstractMethod();
+                    }
+                    """
+                ),
+            )
+        )
+    }
+
+    @Test
+    fun `Allow incompatible changes to unchecked APIs`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest1 {
+                    method public Double method(Float);
+                    field public Double field;
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public class MyTest1 {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+        )
+    }
+
+    @Test
+    fun `Allow changing API from unchecked to checked`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+        )
+    }
+
+    @Test
+    fun `Fail when changing API from checked to unchecked`() {
+        check(
+            expectedIssues = """
+                TESTROOT/released-api.txt:2: error: Removed class test.pkg.MyTest1 from compatibility checked API surface [BecameUnchecked]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
         )
     }
 
