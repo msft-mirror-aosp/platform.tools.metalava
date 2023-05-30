@@ -75,6 +75,12 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
+--api-class-resolution <api|api:classpath>
+                                             Determines how class resolution is performed when loading API signature
+                                             files (default `api`). `--api-class-resolution api` will only look for
+                                             classes in the API signature files. `--api-class-resolution api:classpath`
+                                             will look for classes in the API signature files first and then in the
+                                             classpath. Any classes that cannot be found will be treated as empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
