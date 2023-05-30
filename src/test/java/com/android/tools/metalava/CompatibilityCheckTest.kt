@@ -4142,6 +4142,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
         // Closeable implements AutoCloseable
         check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased = """
                 // Signature format: 4.0
@@ -4191,6 +4192,7 @@ CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
         check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased = """
                 // Signature format: 4.0
@@ -4229,6 +4231,7 @@ CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Expected API changes converting collections to Kotlin`() {
         check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
             // The parameter names are different between java.util.Collection and kotlin.collections.Collection
             // Methods not defined in kotlin.collections.Collection appear abstract as they are not listed in the API file
             expectedIssues = """
@@ -4292,6 +4295,7 @@ CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Flag renaming a parameter from the classpath`() {
         check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
             expectedIssues = """
                 error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.endsWith [ParameterNameChange]
                 TESTROOT/load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
@@ -4318,6 +4322,7 @@ CompatibilityCheckTest : DriverTest() {
     @Test
     fun `No issues using the same classpath class twice`() {
         check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased = """
                 // Signature format: 4.0
