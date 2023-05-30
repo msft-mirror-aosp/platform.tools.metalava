@@ -55,6 +55,7 @@ const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
+const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
@@ -309,6 +310,20 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
+
+    enum class ApiClassResolution(val optionValue: String) {
+        /**
+         * Only look for classes in the API signature text files.
+         */
+        API("api"),
+
+        /**
+         * Look for classes in the API signature text files first, then the classpath.
+         */
+        API_CLASSPATH("api:classpath")
+    }
+
+    var apiClassResolution: ApiClassResolution = ApiClassResolution.API
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes).
@@ -781,6 +796,14 @@ class Options(
                     listString.split(",").forEach { path ->
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
+                }
+
+                ARG_API_CLASS_RESOLUTION -> {
+                    val resolution = getValue(args, ++index)
+                    val resolutions = ApiClassResolution.values()
+                    apiClassResolution = resolutions.find { resolution == it.optionValue } ?: throw DriverException(
+                        stderr = "$ARG_API_CLASS_RESOLUTION must be one of ${resolutions.joinToString { it.optionValue }}; was $resolution"
+                    )
                 }
 
                 ARG_SUBTRACT_API -> {
@@ -1984,6 +2007,12 @@ class Options(
             "One or more directories or jars (separated by " +
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                 "source files",
+
+            "$ARG_API_CLASS_RESOLUTION <api|api:classpath> ",
+            "Determines how class resolution is performed when loading API signature files (default `api`). " +
+                "`$ARG_API_CLASS_RESOLUTION api` will only look for classes in the API signature files. " +
+                "`$ARG_API_CLASS_RESOLUTION api:classpath` will look for classes in the API signature files " +
+                "first and then in the classpath. Any classes that cannot be found will be treated as empty.",
 
             "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
             "An external annotations file to merge and overlay " +

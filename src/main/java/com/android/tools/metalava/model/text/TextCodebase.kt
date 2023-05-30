@@ -24,6 +24,7 @@ import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -64,6 +65,11 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     // Classes which are not part of the API surface but are referenced by other classes.
     // These are initialized as wrapped empty stubs, but may be switched out for PSI classes.
     val wrappedStubClasses = HashMap<String, WrappedClassItem>()
+
+    /**
+     * True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes.
+     */
+    val addWrappersForUnknownClasses = options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH
 
     override var description = "Codebase"
     override var preFiltered: Boolean = true
@@ -315,7 +321,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     fun getOrCreateClass(
         name: String,
         isInterface: Boolean = false,
-        canBeFromClasspath: Boolean = true,
+        canBeFromClasspath: Boolean = addWrappersForUnknownClasses,
     ): ClassItem {
         val erased = TextTypeItem.eraseTypeArguments(name)
         val cls = mAllClasses[erased] ?: wrappedStubClasses[erased]
@@ -379,8 +385,9 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         resolveInnerClasses(packages)
 
         // Add overridden methods to the codebase only when the codebase is generated
-        // from text file passed via --source-files
-        if (this.location in options.sources) {
+        // from text file passed via --source-files and it does not fallback to loading classes from
+        // the classpath.
+        if (options.apiClassResolution == Options.ApiClassResolution.API && this.location in options.sources) {
             resolveAbstractMethods(classes)
         }
     }
