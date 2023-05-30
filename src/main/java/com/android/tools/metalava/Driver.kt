@@ -721,7 +721,7 @@ private fun parseAbsoluteSources(
  * If classpath jars are present, merges classes loaded from the jars into the [textCodebase].
  */
 fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
-    return if (options.classpath.isNotEmpty()) {
+    return if (options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH && options.classpath.isNotEmpty()) {
         progress("Processing classpath: ")
         val uastEnvironment = loadUastFromJars(options.classpath)
         TextCodebaseWithClasspath(textCodebase, uastEnvironment)
