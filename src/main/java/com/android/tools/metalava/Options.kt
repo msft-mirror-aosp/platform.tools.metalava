@@ -115,6 +115,8 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
+const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
+const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_PUBLIC = "--public"
@@ -527,6 +529,12 @@ class Options(
      * the APIs that are kept
      */
     var sdkInfoFile: File? = null
+
+    /** API version history JSON file to generate */
+    var generateApiVersionsJson: File? = null
+
+    /** Ordered list of signatures for each API version, if generating an API version JSON */
+    var apiVersionSignatureFiles: List<File>? = null
 
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
@@ -1140,6 +1148,13 @@ class Options(
                     }
                 }
                 ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS -> removeMissingClassesInApiLevels = true
+
+                ARG_GENERATE_API_VERSION_HISTORY -> {
+                    generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
+                }
+                ARG_API_VERSION_SIGNATURE_FILES -> {
+                    apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
+                }
 
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
@@ -2292,6 +2307,15 @@ class Options(
                 "A mainline module may be listed multiple times. " +
                 "The special pattern \"*\" refers to all APIs in the given mainline module. " +
                 "Lines beginning with # are comments.",
+
+            "", "\nGenerating API version history:",
+            "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
+            "Reads API signature files and generates a JSON file recording the API version each " +
+                "class, method, and field was added in and (if applicable) deprecated in. " +
+                "Required to generate API version JSON.",
+            "$ARG_API_VERSION_SIGNATURE_FILES <files>",
+            "An ordered list of text API signature files. The oldest API version should be " +
+                "first, the newest last. Required to generate API version JSON.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,
