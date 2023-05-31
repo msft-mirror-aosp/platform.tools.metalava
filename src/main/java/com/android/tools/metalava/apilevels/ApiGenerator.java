@@ -86,10 +86,10 @@ public class ApiGenerator {
      */
     public static void generate(@NotNull List<File> apiVersions,
                                 @NotNull File outputFile) {
-       AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
-       Api api = reader.getApi();
-       // Generating an XML instead of a JSON -- will be changed in following CL
-       createApiLevelsXml(outputFile, api, Collections.emptySet());
+        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
+        Api api = reader.getApi();
+        ApiJsonPrinter printer = new ApiJsonPrinter();
+        printer.print(api, outputFile);
     }
 
 
