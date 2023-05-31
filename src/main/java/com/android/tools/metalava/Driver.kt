@@ -306,7 +306,10 @@ private fun processFlags() {
         val apiReference = apiType.getReferenceFilter()
 
         createReportFile(codebase, apiFile, "API") { printWriter ->
-            SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+            SignatureWriter(
+                printWriter, apiEmit, apiReference, codebase.preFiltered,
+                methodComparator = options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -328,7 +331,11 @@ private fun processFlags() {
         val removedReference = apiType.getReferenceFilter()
 
         createReportFile(unfiltered, apiFile, "removed API", options.deleteEmptyRemovedSignatures) { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null, options.includeSignatureFormatVersionRemoved)
+            SignatureWriter(
+                printWriter, removedEmit, removedReference, codebase.original != null,
+                options.includeSignatureFormatVersionRemoved,
+                options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
