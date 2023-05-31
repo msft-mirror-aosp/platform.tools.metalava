@@ -33,6 +33,8 @@ import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
 import com.android.tools.metalava.minApiLevel
 import com.google.common.truth.Truth.assertThat
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -645,24 +647,54 @@ class ApiGeneratorTest : DriverTest() {
         )
 
         assertTrue(output.isFile)
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
         assertEquals(
-            output.readText().trim(),
             """
-                <?xml version="1.0" encoding="utf-8"?>
-                <api version="3">
-                	<class name="test/pkg/Foo" since="1">
-                		<extends name="java/lang/Object"/>
-                		<method name="methodV1()V" deprecated="3"/>
-                		<method name="methodV2()V" since="2" deprecated="2" removed="3"/>
-                		<method name="methodV3()V" since="3"/>
-                		<field name="fieldV1"/>
-                		<field name="fieldV2" since="2"/>
-                	</class>
-                	<class name="test/pkg/Foo${"$"}Bar" since="1" deprecated="3">
-                		<extends name="java/lang/Object"/>
-                	</class>
-                </api>
-            """.trimIndent()
+                [
+                  {
+                    "class": "test/pkg/Foo",
+                    "addedIn": "1",
+                    "methods": [
+                      {
+                        "method": "methodV3()V",
+                        "addedIn": "3"
+                      },
+                      {
+                        "method": "methodV1()V",
+                        "addedIn": "1",
+                        "deprecatedIn": "3"
+                      },
+                      {
+                        "method": "methodV2()V",
+                        "addedIn": "2",
+                        "deprecatedIn": "2"
+                      }
+                    ],
+                    "fields": [
+                      {
+                        "field": "fieldV2",
+                        "addedIn": "2"
+                      },
+                      {
+                        "field": "fieldV1",
+                        "addedIn": "1"
+                      }
+                    ]
+                  },
+                  {
+                    "class": "test/pkg/Foo${"$"}Bar",
+                    "addedIn": "1",
+                    "deprecatedIn": "3",
+                    "methods": [],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            prettyOutput
         )
     }
 
