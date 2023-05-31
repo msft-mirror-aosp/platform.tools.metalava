@@ -726,6 +726,40 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Kotlin-style nulls with old signature format is parsed`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val input = createTextFile(
+            "0.0.0",
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(String?);
+                  }
+                }
+            """.trimIndent()
+        )
+
+        check(
+            inputKotlinStyleNulls = true,
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                input.absolutePath,
+                ARG_API_VERSION_NAMES,
+                "0.0.0"
+            )
+        )
+
+        val expectedJson = "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0\"}],\"fields\":[]}]"
+        assertEquals(expectedJson, output.readText())
+    }
+
     private fun createTextFile(name: String, contents: String): File {
         val file = File.createTempFile(name, ".txt")
         file.deleteOnExit()
