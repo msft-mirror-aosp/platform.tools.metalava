@@ -38,10 +38,15 @@ object SignatureFileLoader {
         try {
             val codebase = ApiFile.parseApi(files, kotlinStyleNulls)
 
-            // Unlike loadFromSources, analyzer methods are not required for text based codebase
-            // because all methods in the API text file belong to an API surface.
-            val analyzer = ApiAnalyzer(codebase)
-            analyzer.addConstructors { _ -> true }
+            // Only add constructors if the codebase does not fall back to loading classes from the
+            // classpath. This is needed because only the TextCodebase supports adding constructors
+            // in this way.
+            if (options.apiClassResolution == Options.ApiClassResolution.API) {
+                // Unlike loadFromSources, analyzer methods are not required for text based codebase
+                // because all methods in the API text file belong to an API surface.
+                val analyzer = ApiAnalyzer(codebase)
+                analyzer.addConstructors { _ -> true }
+            }
             return codebase
         } catch (ex: ApiParseException) {
             throw DriverException("Unable to parse signature file: ${ex.message}")
