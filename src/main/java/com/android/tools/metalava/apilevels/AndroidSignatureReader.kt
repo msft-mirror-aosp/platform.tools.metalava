@@ -34,7 +34,7 @@ class AndroidSignatureReader(
     val api: Api
 
     init {
-        api = Api(1, previousApiFiles.size)
+        api = Api(1)
         previousApiFiles.forEachIndexed { index, apiFile ->
             val codebase = SignatureFileLoader.load(apiFile, kotlinStyleNulls)
             // Uses index + 1 as the apiLevel because 0 is not a valid API level

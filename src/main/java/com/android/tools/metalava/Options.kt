@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
@@ -54,7 +55,9 @@ const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API = "--api"
+const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_XML_API = "--api-xml"
+const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
@@ -83,7 +86,6 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
@@ -113,6 +115,7 @@ const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
+const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS = "--remove-missing-class-references-in-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
@@ -166,6 +169,8 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
+const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
@@ -261,9 +266,9 @@ class Options(
 
     /**
      * Whether metalava is invoked as part of updating the API files. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as --check-compatibility.
+     * should *cancel* various other flags that are also being passed in, such as --check-compatibility:*.
      * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
+     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
      * and this integration is re-used for the update-api facility where we *only* want to generate the
      * signature files. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
@@ -276,7 +281,7 @@ class Options(
      * files.
      *
      * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
+     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
      * and this integration is re-used for the checkapi facility where we *only* want to run compatibility
      * checks. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
@@ -314,6 +319,20 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
+
+    enum class ApiClassResolution(val optionValue: String) {
+        /**
+         * Only look for classes in the API signature text files.
+         */
+        API("api"),
+
+        /**
+         * Look for classes in the API signature text files first, then the classpath.
+         */
+        API_CLASSPATH("api:classpath")
+    }
+
+    var apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes).
@@ -410,6 +429,24 @@ class Options(
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
+    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+        /**
+         * Sort overloaded methods according to source order.
+         */
+        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+
+        /**
+         * Sort overloaded methods by their signature.
+         */
+        SIGNATURE(MethodItem.comparator)
+    }
+
+    /**
+     * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
+     * files.
+     */
+    var apiOverloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE
+
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
 
@@ -494,14 +531,29 @@ class Options(
      */
     var firstApiLevel = 1
 
-    /** The codename of the codebase, if it's a preview, or null if not specified */
+    /**
+     * The codename of the codebase: non-null string if this is a developer preview build, null if
+     * this is a release build.
+     */
     var currentCodeName: String? = null
 
     /** API level XML file to generate */
     var generateApiLevelXml: File? = null
 
+    /** Whether references to missing classes should be removed from the api levels file. */
+    var removeMissingClassesInApiLevels: Boolean = false
+
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
+
+    /** Directory of prebuilt extension SDK jars that contribute to the API */
+    var sdkJarRoot: File? = null
+
+    /**
+     * Rules to filter out some of the extension SDK APIs from the API, and assign extensions to
+     * the APIs that are kept
+     */
+    var sdkInfoFile: File? = null
 
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
@@ -718,7 +770,6 @@ class Options(
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        var delayedCheckApiFiles = false
         var skipGenerateAnnotations = false
         reporter = Reporter(null, null)
 
@@ -783,6 +834,14 @@ class Options(
                     }
                 }
 
+                ARG_API_CLASS_RESOLUTION -> {
+                    val resolution = getValue(args, ++index)
+                    val resolutions = ApiClassResolution.values()
+                    apiClassResolution = resolutions.find { resolution == it.optionValue } ?: throw DriverException(
+                        stderr = "$ARG_API_CLASS_RESOLUTION must be one of ${resolutions.joinToString { it.optionValue }}; was $resolution"
+                    )
+                }
+
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
                         throw DriverException(stderr = "Only one $ARG_SUBTRACT_API can be supplied")
@@ -829,6 +888,14 @@ class Options(
                 ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
+
+                ARG_API_OVERLOADED_METHOD_ORDER -> {
+                    val order = getValue(args, ++index)
+                    val orders = OverloadedMethodOrder.values()
+                    apiOverloadedMethodOrder = orders.find { order == it.name.lowercase() } ?: throw DriverException(
+                        stderr = "$ARG_API_OVERLOADED_METHOD_ORDER must be one of ${orders.joinToString { it.name.lowercase() }}; was $order"
+                    )
+                }
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -1011,7 +1078,7 @@ class Options(
                     }
                 }
 
-                ARG_CHECK_COMPATIBILITY, ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
+                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
@@ -1027,35 +1094,6 @@ class Options(
                 }
 
                 ARG_NO_NATIVE_DIFF -> noNativeDiff = true
-
-                // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
-                "--check-api-files" -> {
-                    if (index < args.size - 1 && args[index + 1].startsWith("-")) {
-                        // Work around bug where --check-api-files is invoked with all
-                        // the other metalava args before the 4 files; this will be
-                        // fixed by https://android-review.googlesource.com/c/platform/build/+/874473
-                        delayedCheckApiFiles = true
-                    } else {
-                        val stableApiFile = stringToExistingFile(getValue(args, ++index))
-                        val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                        val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
-                        val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                        mutableCompatibilityChecks.add(
-                            CheckRequest(
-                                stableApiFile,
-                                ApiType.PUBLIC_API,
-                                apiFileToBeTested
-                            )
-                        )
-                        mutableCompatibilityChecks.add(
-                            CheckRequest(
-                                stableRemovedApiFile,
-                                ApiType.REMOVED,
-                                removedApiFileToBeTested
-                            )
-                        )
-                    }
-                }
 
                 ARG_ERROR, "-error" -> setIssueSeverity(
                     getValue(args, ++index),
@@ -1146,7 +1184,10 @@ class Options(
                     firstApiLevel = Integer.parseInt(getValue(args, ++index))
                 }
                 ARG_CURRENT_CODENAME -> {
-                    currentCodeName = getValue(args, ++index)
+                    val codeName = getValue(args, ++index)
+                    if (codeName != "REL") {
+                        currentCodeName = codeName
+                    }
                 }
                 ARG_CURRENT_JAR -> {
                     currentJar = stringToExistingFile(getValue(args, ++index))
@@ -1163,6 +1204,7 @@ class Options(
                         stringToExistingFile(getValue(args, ++index))
                     }
                 }
+                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS -> removeMissingClassesInApiLevels = true
 
                 ARG_GENERATE_API_VERSION_HISTORY -> {
                     generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
@@ -1273,6 +1315,14 @@ class Options(
                 }
 
                 ARG_USE_K2_UAST -> useK2Uast = true
+
+                ARG_SDK_JAR_ROOT -> {
+                    sdkJarRoot = stringToExistingDir(getValue(args, ++index))
+                }
+
+                ARG_SDK_INFO_FILE -> {
+                    sdkInfoFile = stringToExistingFile(getValue(args, ++index))
+                }
 
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
@@ -1431,35 +1481,13 @@ class Options(
                         val usage = getUsage(includeHeader = false, colorize = color)
                         throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
-                        if (delayedCheckApiFiles) {
-                            delayedCheckApiFiles = false
-                            val stableApiFile = stringToExistingFile(arg)
-                            val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                            val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
-                            val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                            mutableCompatibilityChecks.add(
-                                CheckRequest(
-                                    stableApiFile,
-                                    ApiType.PUBLIC_API,
-                                    apiFileToBeTested
-                                )
-                            )
-                            mutableCompatibilityChecks.add(
-                                CheckRequest(
-                                    stableRemovedApiFile,
-                                    ApiType.REMOVED,
-                                    removedApiFileToBeTested
-                                )
-                            )
-                        } else {
-                            // All args that don't start with "-" are taken to be filenames
-                            mutableSources.addAll(stringToExistingFiles(arg))
+                        // All args that don't start with "-" are taken to be filenames
+                        mutableSources.addAll(stringToExistingFiles(arg))
 
-                            // Temporary workaround for
-                            // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
-                            if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
-                                skipGenerateAnnotations = true
-                            }
+                        // Temporary workaround for
+                        // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
+                        if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
+                            skipGenerateAnnotations = true
                         }
                     }
                 }
@@ -1469,6 +1497,10 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
+            if (currentApiLevel == -1) {
+                throw DriverException(stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
+            }
+
             // <String> is redundant here but while IDE (with newer type inference engine
             // understands that) the current 1.3.x compiler does not
             @Suppress("RemoveExplicitTypeArguments")
@@ -1481,10 +1513,13 @@ class Options(
             apiLevelJars = findAndroidJars(
                 patterns,
                 firstApiLevel,
-                currentApiLevel,
-                currentCodeName,
+                currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
                 currentJar
             )
+        }
+
+        if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
+            throw DriverException(stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied")
         }
 
         if (apiVersionSignatureFiles?.size != apiVersionNames?.size) {
@@ -1519,6 +1554,8 @@ class Options(
             // flags count
             apiLevelJars = null
             generateApiLevelXml = null
+            sdkJarRoot = null
+            sdkInfoFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -1539,6 +1576,8 @@ class Options(
         } else if (onlyCheckApi) {
             apiLevelJars = null
             generateApiLevelXml = null
+            sdkJarRoot = null
+            sdkInfoFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -1607,6 +1646,8 @@ class Options(
         updateClassPath()
         checkFlagConsistency()
     }
+
+    public fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
@@ -1683,16 +1724,8 @@ class Options(
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,
-        currentCodeName: String?,
         currentJar: File?
     ): Array<File> {
-        @Suppress("NAME_SHADOWING")
-        val currentApiLevel = if (currentCodeName != null && "REL" != currentCodeName) {
-            currentApiLevel + 1
-        } else {
-            currentApiLevel
-        }
-
         val apiLevelFiles = mutableListOf<File>()
         // api level 0: placeholder, should not be processed.
         // (This is here because we want the array index to match
@@ -2056,6 +2089,12 @@ class Options(
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                 "source files",
 
+            "$ARG_API_CLASS_RESOLUTION <api|api:classpath> ",
+            "Determines how class resolution is performed when loading API signature files (default `api:classpath`). " +
+                "`$ARG_API_CLASS_RESOLUTION api` will only look for classes in the API signature files. " +
+                "`$ARG_API_CLASS_RESOLUTION api:classpath` will look for classes in the API signature files " +
+                "first and then in the classpath. Any classes that cannot be found will be treated as empty.",
+
             "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
             "An external annotations file to merge and overlay " +
                 "the sources, or a directory of such files. Should be used for annotations intended for " +
@@ -2152,6 +2191,11 @@ class Options(
             "$ARG_API <file>", "Generate a signature descriptor file",
             "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
+            "$ARG_API_OVERLOADED_METHOD_ORDER <source|signature>",
+            "Specifies the order of overloaded methods in signature files (default `signature`). " +
+                "Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API. " +
+                "`$ARG_API_OVERLOADED_METHOD_ORDER source` will preserve the order in which they appear in the source files. " +
+                "`$ARG_API_OVERLOADED_METHOD_ORDER signature` will sort them based on their signature.",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]",
             "Controls whether nullness annotations should be formatted as " +
@@ -2208,7 +2252,7 @@ class Options(
             "Whether the signature file being read should be " +
                 "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
                 "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
-            "$ARG_CHECK_COMPATIBILITY:type:released <file>",
+            "--check-compatibility:type:released <file>",
             "Check compatibility. Type is one of 'api' " +
                 "and 'removed', which checks either the public api or the removed api.",
             "$ARG_CHECK_COMPATIBILITY_BASE_API <file>",
@@ -2304,6 +2348,11 @@ class Options(
             "$ARG_GENERATE_API_LEVELS <xmlfile>",
             "Reads android.jar SDK files and generates an XML file recording " +
                 "the API level for each class, method and field",
+            "$ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS",
+            "Removes references to missing classes when generating the API levels XML file. " +
+                "This can happen when generating the XML file for the non-updatable portions of " +
+                "the module-lib sdk, as those non-updatable portions can reference classes that are " +
+                "part of an updatable apex.",
             "$ARG_ANDROID_JAR_PATTERN <pattern>",
             "Patterns to use to locate Android JAR files. The default " +
                 "is \$ANDROID_HOME/platforms/android-%/android.jar.",
@@ -2311,6 +2360,28 @@ class Options(
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
+            ARG_SDK_JAR_ROOT,
+            "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
+                "contain snapshots of historical extension SDK versions in the form of stub jars. " +
+                "The paths should be on the format \"<int>/public/<module-name>.jar\", where <int> " +
+                "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
+            ARG_SDK_INFO_FILE,
+            "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
+                "and describes, per extension SDK, what APIs from that extension to include in the " +
+                "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
+                "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the " +
+                "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
+                "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
+                "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
+                "<ext-name> is the name of an SDK, " +
+                "<ext-id> its numerical ID and <type> is one of " +
+                "\"platform\" (the Android platform SDK), " +
+                "\"platform-ext\" (an extension to the Android platform SDK), " +
+                "\"standalone\" (a separate SDK). " +
+                "Fields are separated by whitespace. " +
+                "A mainline module may be listed multiple times. " +
+                "The special pattern \"*\" refers to all APIs in the given mainline module. " +
+                "Lines beginning with # are comments.",
 
             "", "\nGenerating API version history:",
             "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
