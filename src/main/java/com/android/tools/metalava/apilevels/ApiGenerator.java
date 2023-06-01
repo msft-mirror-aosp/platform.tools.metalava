@@ -58,7 +58,7 @@ public class ApiGenerator {
         if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
             int apiLevel = isDeveloperPreviewBuild ? notFinalizedApiLevel : currentApiLevel;
-            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase);
+            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, true);
         }
         api.backfillHistoricalFixes();
 
