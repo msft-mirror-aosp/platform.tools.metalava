@@ -32,7 +32,7 @@ internal class ApiJsonPrinter(
      * Writes the [api] as JSON to the [outputFile]
      */
     fun print(api: Api, outputFile: File) {
-        val gson = GsonBuilder().create()
+        val gson = GsonBuilder().disableHtmlEscaping().create()
         val json = api.toJson()
         val printStream = PrintStream(outputFile)
         gson.toJson(json, printStream)
