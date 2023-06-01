@@ -500,7 +500,7 @@ fun processNonCodebaseFlags() {
     val apiVersionNames = options.apiVersionNames
     if (apiVersionsJson != null && apiVersionFiles != null && apiVersionNames != null) {
         progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
-        ApiGenerator.generate(apiVersionFiles, apiVersionsJson, apiVersionNames)
+        ApiGenerator.generate(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
     }
 }
 
