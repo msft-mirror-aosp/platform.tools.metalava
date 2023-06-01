@@ -487,6 +487,64 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Nullness in reified signatures`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "src/test/pkg/test.kt",
+                    """
+                    package test.pkg
+
+                    import androidx.annotation.UiThread
+                    import test.pkg2.NavArgs
+                    import test.pkg2.NavArgsLazy
+                    import test.pkg2.Fragment
+                    import test.pkg2.Bundle
+
+                    @UiThread
+                    inline fun <reified Args : NavArgs> Fragment.navArgs() = NavArgsLazy(Args::class) {
+                        throw IllegalStateException("Fragment $this has null arguments")
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg2
+
+                    import kotlin.reflect.KClass
+
+                    interface NavArgs
+                    class Fragment
+                    class Bundle
+                    class NavArgsLazy<Args : NavArgs>(
+                        private val navArgsClass: KClass<Args>,
+                        private val argumentProducer: () -> Bundle
+                    )
+                    """
+                ),
+                uiThreadSource
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+                  }
+                }
+                """,
+            format = FileFormat.V3,
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "androidx.annotation",
+                ARG_HIDE_PACKAGE, "test.pkg2",
+                ARG_HIDE, "ReferencesHidden",
+                ARG_HIDE, "UnavailableSymbol",
+                ARG_HIDE, "HiddenTypeParameter",
+                ARG_HIDE, "HiddenSuperclass"
+            )
+        )
+    }
+
+    @Test
     fun `Nullness in varargs`() {
         check(
             sourceFiles = arrayOf(
@@ -4601,6 +4659,52 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
+        // Regression test for http://b/219792969
+        check(
+            format = FileFormat.V2,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        import androidx.annotation.IntRange
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        @IntRange(from=0)
+                        fun myMethod() { TODO() }
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNull(): String = "42"
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNullImplicitly() = "42"
+                    """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 2.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @NonNull public static String returnsNonNull();
+                    method @Deprecated @NonNull public static String returnsNonNullImplicitly();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Constants in a file scope annotation`() {
         check(
             sourceFiles = arrayOf(
@@ -4771,6 +4875,8 @@ class ApiFileTest : DriverTest() {
 
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
+        val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
+        val sameParameters = "(Integer? i, String? s, java.lang.Object... vs);"
         check(
             sourceFiles = arrayOf(
                 kotlin(
@@ -4810,8 +4916,8 @@ class ApiFileTest : DriverTest() {
                     property public abstract T value;
                   }
                   public final class StateKt {
-                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
-                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                    method $sameModifiersAndReturnType after$sameParameters
+                    method @Deprecated $sameModifiersAndReturnType before$sameParameters
                   }
                 }
             """
