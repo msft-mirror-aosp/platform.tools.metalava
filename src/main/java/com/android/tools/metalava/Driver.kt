@@ -24,6 +24,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
+import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -696,13 +697,41 @@ internal fun parseSources(
         extractRoots(sources, sourceRoots)
     }
 
+    val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
+
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
-    @Suppress("DEPRECATION")
-    config.addSourceRoots(sourceRoots.map { it.absoluteFile })
-    @Suppress("DEPRECATION")
-    config.addClasspathRoots(classpath.map { it.absoluteFile })
+
+    val lintClient = MetalavaCliClient()
+    // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
+    // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
+    // `referenceDir` is used to adjust `lib` dir accordingly if needed,
+    // but we set `classpath` anyway below.
+    val lintProject = Project.create(
+        lintClient,
+        /* dir = */ rootDir,
+        /* referenceDir = */ rootDir
+    )
+    lintProject.javaSourceFolders.addAll(sourceRoots.map { it.absoluteFile })
+    // TODO(b/271219257): javaLibraries seems better?
+    lintProject.javaClassFolders.addAll(classpath.map { it.absoluteFile })
+    config.addModules(
+        listOf(
+            UastEnvironment.Module(
+                lintProject,
+                // K2 UAST: building KtSdkModule for JDK
+                options.jdkHome,
+                includeTests = false,
+                includeTestFixtureSources = false,
+                // TODO(b/271219257): should be `false` if we can set javaLibraries instead
+                isUnitTest = true
+            )
+        ),
+        // TODO(b/271219257): should be able to add modules w/o bootclasspath
+        emptySet()
+    )
+    // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
     options.jdkHome?.let {
         if (options.isJdkModular(it)) {
             config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
@@ -714,8 +743,6 @@ internal fun parseSources(
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
     environment.analyzeFiles(kotlinFiles)
-
-    val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
