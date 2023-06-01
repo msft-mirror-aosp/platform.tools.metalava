@@ -109,6 +109,10 @@ const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
+const val ARG_ERROR_CATEGORY = "--error-category"
+const val ARG_WARNING_CATEGORY = "--warning-category"
+const val ARG_LINT_CATEGORY = "--lint-category"
+const val ARG_HIDE_CATEGORY = "--hide-category"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS = "--remove-missing-class-references-in-api-levels"
@@ -1103,6 +1107,27 @@ class Options(
                 )
                 ARG_LINT, "-lint" -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
                 ARG_HIDE, "-hide" -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
+
+                ARG_ERROR_CATEGORY, "-error-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.ERROR,
+                    arg
+                )
+                ARG_WARNING_CATEGORY, "-warning-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.WARNING,
+                    arg
+                )
+                ARG_LINT_CATEGORY, "-lint-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.LINT,
+                    arg
+                )
+                ARG_HIDE_CATEGORY, "-hide-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.HIDDEN,
+                    arg
+                )
 
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -2251,7 +2276,11 @@ class Options(
             "$ARG_WARNING <id>", "Report issues of the given id as warnings",
             "$ARG_LINT <id>", "Report issues of the given id as having lint-severity",
             "$ARG_HIDE <id>", "Hide/skip issues of the given id",
-            "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>", "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE')",
+            "$ARG_ERROR_CATEGORY <name>", "Report all issues in the given category as errors",
+            "$ARG_WARNING_CATEGORY <name>", "Report all issues in the given category as warnings",
+            "$ARG_LINT_CATEGORY <name>", "Report all issues in the given category as having lint-severity",
+            "$ARG_HIDE_CATEGORY <name>", "Hide/skip all issues in the given category",
+            "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>", "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY')",
             "$ARG_BASELINE <file>",
             "Filter out any errors already reported in the given baseline file, or " +
                 "create if it does not already exist",
@@ -2469,6 +2498,25 @@ class Options(
                 } ?: throw DriverException("Unknown issue id: $arg $id")
 
             defaultConfiguration.setSeverity(issue, severity)
+        }
+
+        private fun setCategorySeverity(
+            id: String,
+            severity: Severity,
+            arg: String
+        ) {
+            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+                id.split(",").forEach {
+                    setCategorySeverity(it.trim(), severity, arg)
+                }
+                return
+            }
+            val issues = Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
+                ?: throw DriverException("Unknown category: $arg $id")
+
+            issues.forEach {
+                defaultConfiguration.setSeverity(it, severity)
+            }
         }
     }
 }
