@@ -236,11 +236,6 @@ interface MethodItem : MemberItem {
             val name1 = o1.name()
             val name2 = o2.name()
             if (name1 == name2) {
-                val rankDelta = o1.sortingRank - o2.sortingRank
-                if (rankDelta != 0) {
-                    return rankDelta
-                }
-
                 // Compare by the rest of the signature to ensure stable output (we don't need to sort
                 // by return value or modifiers or modifiers or throws-lists since methods can't be overloaded
                 // by just those attributes
