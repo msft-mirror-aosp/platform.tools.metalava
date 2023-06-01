@@ -332,7 +332,7 @@ class Options(
         API_CLASSPATH("api:classpath")
     }
 
-    var apiClassResolution: ApiClassResolution = ApiClassResolution.API
+    var apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes).
@@ -2090,7 +2090,7 @@ class Options(
                 "source files",
 
             "$ARG_API_CLASS_RESOLUTION <api|api:classpath> ",
-            "Determines how class resolution is performed when loading API signature files (default `api`). " +
+            "Determines how class resolution is performed when loading API signature files (default `api:classpath`). " +
                 "`$ARG_API_CLASS_RESOLUTION api` will only look for classes in the API signature files. " +
                 "`$ARG_API_CLASS_RESOLUTION api:classpath` will look for classes in the API signature files " +
                 "first and then in the classpath. Any classes that cannot be found will be treated as empty.",
