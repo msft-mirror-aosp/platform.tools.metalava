@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
@@ -54,6 +55,7 @@ const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API = "--api"
+const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
@@ -421,6 +423,24 @@ class Options(
 
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
+
+    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+        /**
+         * Sort overloaded methods according to source order.
+         */
+        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+
+        /**
+         * Sort overloaded methods by their signature.
+         */
+        SIGNATURE(MethodItem.comparator)
+    }
+
+    /**
+     * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
+     * files.
+     */
+    var apiOverloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SOURCE
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -860,6 +880,14 @@ class Options(
                 ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
+
+                ARG_API_OVERLOADED_METHOD_ORDER -> {
+                    val order = getValue(args, ++index)
+                    val orders = OverloadedMethodOrder.values()
+                    apiOverloadedMethodOrder = orders.find { order == it.name.lowercase() } ?: throw DriverException(
+                        stderr = "$ARG_API_OVERLOADED_METHOD_ORDER must be one of ${orders.joinToString { it.name.lowercase() }}; was $order"
+                    )
+                }
 
                 ARG_MANIFEST, "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
 
@@ -2125,6 +2153,11 @@ class Options(
             "$ARG_API <file>", "Generate a signature descriptor file",
             "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
+            "$ARG_API_OVERLOADED_METHOD_ORDER <source|signature>",
+            "Specifies the order of overloaded methods in signature files (default `source`). " +
+                "Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API. " +
+                "`$ARG_API_OVERLOADED_METHOD_ORDER source` will preserve the order in which they appear in the source files. " +
+                "`$ARG_API_OVERLOADED_METHOD_ORDER signature` will sort them based on their signature.",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]",
             "Controls whether nullness annotations should be formatted as " +

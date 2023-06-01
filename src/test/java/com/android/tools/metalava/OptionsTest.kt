@@ -185,6 +185,13 @@ Extracting Signature Files:
                                              Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
+--api-overloaded-method-order <source|signature>
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `source`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `--api-overloaded-method-order source` will preserve the
+                                             order in which they appear in the source files.
+                                             `--api-overloaded-method-order signature` will sort them based on their
+                                             signature.
 --format=<v1,v2,v3,...>
                                              Sets the output signature file format to be the given version.
 --output-kotlin-nulls[=yes|no]
