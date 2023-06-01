@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava
 
+import org.junit.Ignore
 import org.junit.Test
 
+@Ignore("b/283576091: until AGP 8.2.0-alpha06+ is ready")
 class UastTestK2 : UastTestBase() {
 
     @Test
