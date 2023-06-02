@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import org.junit.Ignore
 import org.junit.Test
 
-@Ignore("b/283576091: until AGP 8.2.0-alpha06+ is ready")
 class UastTestK2 : UastTestBase() {
 
     @Test
@@ -57,6 +56,7 @@ class UastTestK2 : UastTestBase() {
         )
     }
 
+    @Ignore("b/271219257: didn't include Java sources")
     @Test
     fun `Kotlin Reified Methods -- K2`() {
         `Kotlin Reified Methods`(isK2 = true)
@@ -82,6 +82,7 @@ class UastTestK2 : UastTestBase() {
         `implements Comparator`(isK2 = true)
     }
 
+    @Ignore("b/271219257: didn't include Java sources")
     @Test
     fun `constant in file-level annotation -- K2`() {
         `constant in file-level annotation`(isK2 = true)
