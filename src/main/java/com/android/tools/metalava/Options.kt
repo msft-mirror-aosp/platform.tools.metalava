@@ -1460,8 +1460,7 @@ class Options(
             }
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
-            @Suppress("DEPRECATION")
-            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
+            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
     }
