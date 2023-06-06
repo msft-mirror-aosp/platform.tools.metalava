@@ -105,11 +105,8 @@ fun run(
         maybeDumpArgv(stdout, originalArgs, modifiedArgs)
 
         // Actual work begins here.
-        options = Options(modifiedArgs, stdout, stderr)
-
-        maybeActivateSandbox()
-
-        processFlags()
+        val command = MetalavaCommand(stdout, stderr)
+        command.process(modifiedArgs)
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
@@ -188,7 +185,7 @@ private fun exit(exitCode: Int = 0) {
     exitProcess(exitCode)
 }
 
-private fun maybeActivateSandbox() {
+internal fun maybeActivateSandbox() {
     // Set up a sandbox to detect access to files that are not explicitly specified.
     if (options.strictInputFiles == Options.StrictInputFileMode.PERMISSIVE) {
         return
@@ -242,7 +239,7 @@ private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: In
     }
 }
 
-private fun processFlags() {
+internal fun processFlags() {
     val stopwatch = Stopwatch.createStarted()
 
     processNonCodebaseFlags()

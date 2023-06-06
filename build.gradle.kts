@@ -85,6 +85,7 @@ dependencies {
     implementation("com.android.tools:common:$studioVersion")
     implementation("com.android.tools:sdk-common:$studioVersion")
     implementation("com.android.tools:sdklib:$studioVersion")
+    implementation("com.github.ajalt.clikt:clikt-jvm:3.5.2")
     implementation(libs.kotlinStdlib)
     implementation(libs.kotlinReflect)
     implementation("org.ow2.asm:asm:8.0")
