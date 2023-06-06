@@ -217,8 +217,6 @@ class Options(
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
-    /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
-    private val alreadyWarned: MutableSet<String> = mutableSetOf()
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
@@ -373,8 +371,6 @@ class Options(
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     var skipEmitPackages: List<String> = mutableSkipEmitPackages
-
-    var showAnnotationOverridesVisibility: Boolean = false
 
     /** Annotations to hide */
     var hideAnnotations: AnnotationFilter = mutableHideAnnotations
@@ -917,11 +913,6 @@ class Options(
 
                 ARG_SHOW_UNANNOTATED, "-showUnannotated" -> showUnannotated = true
 
-                "--showAnnotationOverridesVisibility" -> {
-                    unimplemented(arg)
-                    showAnnotationOverridesVisibility = true
-                }
-
                 ARG_HIDE_ANNOTATION, "--hideAnnotations", "-hideAnnotation" ->
                     mutableHideAnnotations.add(getValue(args, ++index))
                 ARG_HIDE_META_ANNOTATION, "--hideMetaAnnotations", "-hideMetaAnnotation" ->
@@ -1335,115 +1326,8 @@ class Options(
                     System.setProperty("user.dir", pwd.path)
                 }
 
-                "--noop", "--no-op" -> {
-                }
-
-                // Doclava1 flag: Already the behavior in metalava
-                "-keepstubcomments" -> {
-                }
-
-                // Unimplemented doclava1 flags (no arguments)
-                "-quiet",
-                "-yamlV2" -> {
-                    unimplemented(arg)
-                }
-
-                "-android" -> { // partially implemented: Pick up the color hint, but there may be other implications
-                    color = true
-                    unimplemented(arg)
-                }
-
-                "-stubsourceonly" -> {
-                    /* noop */
-                }
-
-                // Unimplemented doclava1 flags (1 argument)
-                "-d" -> {
-                    unimplemented(arg)
-                    index++
-                }
-
-                // Unimplemented doclava1 flags (2 arguments)
-                "-since" -> {
-                    unimplemented(arg)
-                    index += 2
-                }
-
-                // doclava1 doc-related flags: only supported here to make this command a drop-in
-                // replacement
-                "-referenceonly",
-                "-devsite",
-                "-ignoreJdLinks",
-                "-nodefaultassets",
-                "-parsecomments",
-                "-offlinemode",
-                "-gcmref",
-                "-metadataDebug",
-                "-includePreview",
-                "-staticonly",
-                "-navtreeonly",
-                "-atLinksNavtree" -> {
-                    javadoc(arg)
-                }
-
-                // doclava1 flags with 1 argument
-                "-doclet",
-                "-docletpath",
-                "-templatedir",
-                "-htmldir",
-                "-knowntags",
-                "-resourcesdir",
-                "-resourcesoutdir",
-                "-yaml",
-                "-apidocsdir",
-                "-toroot",
-                "-samplegroup",
-                "-samplesdir",
-                "-dac_libraryroot",
-                "-dac_dataname",
-                "-title",
-                "-proofread",
-                "-todo",
-                "-overview" -> {
-                    javadoc(arg)
-                    index++
-                }
-
-                // doclava1 flags with two arguments
-                "-federate",
-                "-federationapi",
-                "-htmldir2" -> {
-                    javadoc(arg)
-                    index += 2
-                }
-
-                // doclava1 flags with three arguments
-                "-samplecode" -> {
-                    javadoc(arg)
-                    index += 3
-                }
-
-                // doclava1 flag with variable number of arguments; skip everything until next arg
-                "-hdf" -> {
-                    javadoc(arg)
-                    index++
-                    while (index < args.size) {
-                        if (args[index].startsWith("-")) {
-                            break
-                        }
-                        index++
-                    }
-                    index--
-                }
-
                 else -> {
-                    if (arg.startsWith("-J-") || arg.startsWith("-XD")) {
-                        // -J: mechanism to pass extra flags to javadoc, e.g.
-                        //    -J-XX:-OmitStackTraceInFastThrow
-                        // -XD: mechanism to set properties, e.g.
-                        //    -XDignore.symbol.file
-                        javadoc(arg)
-                    } else if (arg.startsWith(ARG_OUTPUT_KOTLIN_NULLS)) {
+                    if (arg.startsWith(ARG_OUTPUT_KOTLIN_NULLS)) {
                         outputKotlinStyleNulls = if (arg == ARG_OUTPUT_KOTLIN_NULLS) {
                             true
                         } else {
@@ -1799,33 +1683,6 @@ class Options(
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
             throw DriverException(stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both")
-        }
-    }
-
-    private fun javadoc(arg: String) {
-        if (!alreadyWarned.add(arg)) {
-            return
-        }
-        if (!options.quiet) {
-            reporter.report(
-                Severity.WARNING, null as String?, "Ignoring javadoc-related doclava1 flag $arg",
-                color = color
-            )
-        }
-    }
-
-    private fun unimplemented(arg: String) {
-        if (!alreadyWarned.add(arg)) {
-            return
-        }
-        if (!options.quiet) {
-            val message = "Ignoring unimplemented doclava1 flag $arg" +
-                when (arg) {
-                    "-encoding" -> " (UTF-8 assumed)"
-                    "-source" -> "  (1.8 assumed)"
-                    else -> ""
-                }
-            reporter.report(Severity.WARNING, null as String?, message, color = color)
         }
     }
 
