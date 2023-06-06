@@ -440,7 +440,7 @@ class Options(
     var removedApiFile: File? = null
 
     /** Whether output should be colorized */
-    var color = System.getenv("TERM")?.startsWith("xterm") ?: System.getenv("COLORTERM") != null ?: false
+    var color = System.getenv("TERM")?.startsWith("xterm") ?: (System.getenv("COLORTERM") != null)
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
