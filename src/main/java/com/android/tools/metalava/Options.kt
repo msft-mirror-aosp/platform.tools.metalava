@@ -562,24 +562,24 @@ class Options(
     var baseline: Baseline? = null
 
     /** A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT]) */
-    var baselineApiLint: Baseline? = null
+    private var baselineApiLint: Baseline? = null
 
     /**
      * A baseline to check against, specifically used for "check-compatibility:*:released"
      * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var baselineCompatibilityReleased: Baseline? = null
+    private var baselineCompatibilityReleased: Baseline? = null
 
     var allBaselines: List<Baseline>
 
     /** If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails. */
-    var errorMessageApiLint: String = DefaultLintErrorMessage
+    private var errorMessageApiLint: String = DefaultLintErrorMessage
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
      * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var errorMessageCompatibilityReleased: String? = null
+    private var errorMessageCompatibilityReleased: String? = null
 
     /** [Reporter] for "api-lint" */
     var reporterApiLint: Reporter
@@ -605,7 +605,7 @@ class Options(
     var baselineErrorsOnly = false
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
-    var reportEvenIfSuppressed: File? = null
+    private var reportEvenIfSuppressed: File? = null
     var reportEvenIfSuppressedWriter: PrintWriter? = null
 
     /**
@@ -640,13 +640,13 @@ class Options(
      * the platform's android.jar file to the classpath if it does not already
      * find the android.jar file in the classpath.
      */
-    var sdkHome: File? = null
+    private var sdkHome: File? = null
 
     /**
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example,
      * for R it would be "29". For R preview, if would be "R".
      */
-    var compileSdkVersion: String? = null
+    private var compileSdkVersion: String? = null
 
     /** List of signature files to export as JDiff files */
     val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
@@ -1435,7 +1435,7 @@ class Options(
         checkFlagConsistency()
     }
 
-    public fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
+    fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
