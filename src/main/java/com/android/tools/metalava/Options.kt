@@ -2102,7 +2102,7 @@ class Options(
             "$ARG_GENERATE_API_LEVELS <xmlfile>",
             "Reads android.jar SDK files and generates an XML file recording " +
                 "the API level for each class, method and field",
-            "$ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS",
+            ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
             "Removes references to missing classes when generating the API levels XML file. " +
                 "This can happen when generating the XML file for the non-updatable portions of " +
                 "the module-lib sdk, as those non-updatable portions can reference classes that are " +
