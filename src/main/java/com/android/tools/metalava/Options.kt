@@ -142,8 +142,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
-const val ARG_UPDATE_API = "--only-update-api"
-const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
@@ -205,8 +203,6 @@ class Options(
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [annotationCoverageOf] */
-    private val mutableAnnotationCoverageOf: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
     private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [skipEmitPackages] */
@@ -261,30 +257,6 @@ class Options(
      * source annotations present in the code. This is implied by --doc-stubs.
      */
     var enhanceDocumentation = false
-
-    /**
-     * Whether metalava is invoked as part of updating the API files. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as --check-compatibility:*.
-     * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
-     * and this integration is re-used for the update-api facility where we *only* want to generate the
-     * signature files. This avoids having duplicate metalava invocation logic where potentially newly
-     * added flags are missing in one of the invocations etc.
-     */
-    var onlyUpdateApi = false
-
-    /**
-     * Whether metalava is invoked as part of running the checkapi target. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as updating signature
-     * files.
-     *
-     * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
-     * and this integration is re-used for the checkapi facility where we *only* want to run compatibility
-     * checks. This avoids having duplicate metalava invocation logic where potentially newly
-     * added flags are missing in one of the invocations etc.
-     */
-    var onlyCheckApi = false
 
     /** Whether nullness annotations should be displayed as ?/!/empty instead of with @NonNull/@Nullable. */
     var outputKotlinStyleNulls = false // requires v3
@@ -1206,9 +1178,6 @@ class Options(
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
 
-                ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
-                ARG_CHECK_API -> onlyCheckApi = true
-
                 ARG_CONVERT_TO_JDIFF,
                 // doclava compatibility:
                 "-convert2xml",
@@ -1417,60 +1386,6 @@ class Options(
         // members should be shown in the output then only show them if no annotations were provided.
         if (!showUnannotated && showAnnotations.isEmpty()) {
             showUnannotated = true
-        }
-
-        if (onlyUpdateApi) {
-            if (onlyCheckApi) {
-                throw DriverException(stderr = "Cannot supply both $ARG_UPDATE_API and $ARG_CHECK_API at the same time")
-            }
-            // We're running in update API mode: cancel other "action" flags; only signature file generation
-            // flags count
-            apiLevelJars = null
-            generateApiLevelXml = null
-            sdkJarRoot = null
-            sdkInfoFile = null
-            applyApiLevelsXml = null
-            androidJarSignatureFiles = null
-            stubsDir = null
-            docStubsDir = null
-            stubsSourceList = null
-            docStubsSourceList = null
-            sdkValueDir = null
-            externalAnnotations = null
-            proguard = null
-            mutableCompatibilityChecks.clear()
-            mutableAnnotationCoverageOf.clear()
-            mutableConvertToXmlFiles.clear()
-            nullabilityAnnotationsValidator = null
-            nullabilityWarningsTxt = null
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromList = null
-        } else if (onlyCheckApi) {
-            apiLevelJars = null
-            generateApiLevelXml = null
-            sdkJarRoot = null
-            sdkInfoFile = null
-            applyApiLevelsXml = null
-            androidJarSignatureFiles = null
-            stubsDir = null
-            docStubsDir = null
-            stubsSourceList = null
-            docStubsSourceList = null
-            sdkValueDir = null
-            externalAnnotations = null
-            proguard = null
-            mutableAnnotationCoverageOf.clear()
-            mutableConvertToXmlFiles.clear()
-            nullabilityAnnotationsValidator = null
-            nullabilityWarningsTxt = null
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromList = null
-            apiFile = null
-            apiXmlFile = null
-            dexApiFile = null
-            removedApiFile = null
         }
 
         // Fix up [Baseline] files and [Reporter]s.
@@ -1910,12 +1825,6 @@ class Options(
             ARG_VERBOSE, "Include extra diagnostic output",
             ARG_COLOR, "Attempt to colorize the output (defaults to true if \$TERM is xterm)",
             ARG_NO_COLOR, "Do not attempt to colorize the output",
-            ARG_UPDATE_API,
-            "Cancel any other \"action\" flags other than generating signature files. This is here " +
-                "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
-            ARG_CHECK_API,
-            "Cancel any other \"action\" flags other than checking signature files. This is here " +
-                "to make it easier customize build system tasks, particularly for the \"make checkapi\" task.",
             "$ARG_REPEAT_ERRORS_MAX <N>", "When specified, repeat at most N errors before finishing.",
 
             "", "\nAPI sources:",
