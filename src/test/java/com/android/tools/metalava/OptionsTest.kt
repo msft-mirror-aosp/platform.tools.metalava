@@ -680,7 +680,8 @@ internal fun updateGlobalOptionsForTest(
     /** Writer to direct error messages to */
     stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
 ) {
-    val newOptions = Options()
-    newOptions.parse(args, stdout, stderr)
-    options = newOptions
+    // Create a special command that will ensure that the Clikt based properties in Options have
+    // been initialized correctly before updating the global options.
+    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
+    command.parse(args)
 }

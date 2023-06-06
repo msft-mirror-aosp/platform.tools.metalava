@@ -35,10 +35,18 @@ import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
 
-/** Main metalava command. */
+/**
+ * Main metalava command.
+ *
+ * This has some special support to allow it to be used to parse the options for tests.
+ *
+ * @param parseOptionsOnly true if this command should just parse the options, false if it should
+ *   perform the legacy behavior.
+ */
 class MetalavaCommand(
     private val stdout: PrintWriter,
     private val stderr: PrintWriter,
+    private val parseOptionsOnly: Boolean = false,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be passed to Options().
@@ -148,6 +156,12 @@ class MetalavaCommand(
     }
 
     /**
+     * Add [Options] (an [com.github.ajalt.clikt.parameters.groups.OptionGroup]) so that any Clikt
+     * defined properties will be processed by Clikt.
+     */
+    private val optionGroup by Options()
+
+    /**
      * Perform this command's actions.
      *
      * This is called after the command line parameters are parsed. If one of the sub-commands is
@@ -161,12 +175,17 @@ class MetalavaCommand(
         if (subcommand == null) {
             showHelpAndExitIfRequested()
 
+            // Parse any remaining arguments/options that were not handled by Clikt.
             val remainingArgs = flags.toTypedArray()
-            val newOptions = Options(common)
-            newOptions.parse(remainingArgs, stdout, stderr)
+            optionGroup.parse(remainingArgs, stdout, stderr)
 
             // Update the global options.
-            options = newOptions
+            options = optionGroup
+
+            // If requested drop out after parsing the options.
+            if (parseOptionsOnly) {
+                return
+            }
 
             maybeActivateSandbox()
 
