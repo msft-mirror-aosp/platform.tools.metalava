@@ -19,10 +19,13 @@ package com.android.tools.metalava.apilevels
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_VERSION_NAMES
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
@@ -31,6 +34,8 @@ import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
 import com.android.tools.metalava.minApiLevel
 import com.google.common.truth.Truth.assertThat
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -579,5 +584,186 @@ class ApiGeneratorTest : DriverTest() {
         assertNotNull(exception)
         assertThat(exception?.message ?: "").contains("There are classes in this API that reference other classes that do not exist in this API.")
         assertThat(exception?.message ?: "").contains("java/lang/Object referenced by:\n    android/test/ClassThatImplementsMethodFromApex")
+    }
+
+    @Test
+    fun `Create API levels from signature files`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val versions = listOf(
+            createTextFile(
+                "1.1.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public <T extends java.lang.String> void methodV1(T);
+                        field public int fieldV1;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.2.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public <T extends java.lang.String> void methodV1(T);
+                        method @Deprecated public <T> void methodV2(String, int);
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.3.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method @Deprecated public <T extends java.lang.String> void methodV1(T);
+                        method public void methodV3();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      @Deprecated public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                versions.joinToString(":") { it.absolutePath },
+                ARG_API_VERSION_NAMES,
+                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" ")
+            )
+        )
+
+        assertTrue(output.isFile)
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+        assertEquals(
+            """
+                [
+                  {
+                    "class": "test.pkg.Foo.Bar",
+                    "addedIn": "1.1.0",
+                    "deprecatedIn": "1.3.0",
+                    "methods": [],
+                    "fields": []
+                  },
+                  {
+                    "class": "test.pkg.Foo",
+                    "addedIn": "1.1.0",
+                    "methods": [
+                      {
+                        "method": "methodV1<T extends java.lang.String>(T)",
+                        "addedIn": "1.1.0",
+                        "deprecatedIn": "1.3.0"
+                      },
+                      {
+                        "method": "methodV2<T>(java.lang.String,int)",
+                        "addedIn": "1.2.0",
+                        "deprecatedIn": "1.2.0"
+                      },
+                      {
+                        "method": "methodV3()",
+                        "addedIn": "1.3.0"
+                      }
+                    ],
+                    "fields": [
+                      {
+                        "field": "fieldV2",
+                        "addedIn": "1.2.0"
+                      },
+                      {
+                        "field": "fieldV1",
+                        "addedIn": "1.1.0"
+                      }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            prettyOutput
+        )
+    }
+
+    @Test
+    fun `Correct error with different number of API signature files and API version names`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val filePaths = listOf("1.1.0", "1.2.0", "1.3.0").map { name ->
+            val file = File.createTempFile(name, ".txt")
+            file.deleteOnExit()
+            file.path
+        }
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                filePaths.joinToString(":"),
+                ARG_API_VERSION_NAMES,
+                listOf("1.1.0", "1.2.0").joinToString(" ")
+            ),
+            expectedFail = "Aborting: --api-version-signature-files and --api-version-names must have equal length"
+        )
+    }
+
+    @Test
+    fun `Kotlin-style nulls with old signature format is parsed`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val input = createTextFile(
+            "0.0.0",
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(String?);
+                  }
+                }
+            """.trimIndent()
+        )
+
+        check(
+            inputKotlinStyleNulls = true,
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                input.absolutePath,
+                ARG_API_VERSION_NAMES,
+                "0.0.0"
+            )
+        )
+
+        val expectedJson = "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0\"}],\"fields\":[]}]"
+        assertEquals(expectedJson, output.readText())
+    }
+
+    private fun createTextFile(name: String, contents: String): File {
+        val file = File.createTempFile(name, ".txt")
+        file.deleteOnExit()
+        file.writeText(contents)
+        return file
     }
 }

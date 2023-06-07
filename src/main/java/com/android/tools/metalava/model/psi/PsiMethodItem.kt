@@ -22,19 +22,15 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.psi.PsiModifierItem.Companion.NOT_NULL
-import com.android.tools.metalava.model.psi.PsiModifierItem.Companion.NULLABLE
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiType
 import com.intellij.psi.util.PsiTypesUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.types.typeUtil.TypeNullability
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
@@ -51,7 +47,7 @@ import java.io.StringWriter
 open class PsiMethodItem(
     override val codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
+    private val containingClass: ClassItem,
     private val name: String,
     modifiers: PsiModifierItem,
     documentation: String,
@@ -87,7 +83,7 @@ open class PsiMethodItem(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
-    override fun containingClass(): PsiClassItem = containingClass
+    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         // TODO: Allow mix and matching with other MethodItems?
@@ -259,7 +255,7 @@ open class PsiMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiMethod)
+        val duplicated = create(codebase, targetContainingClass, psiMethod)
 
         duplicated.inheritedFrom = containingClass
 
@@ -374,7 +370,7 @@ open class PsiMethodItem(
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiMethod: PsiMethod
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
@@ -421,30 +417,6 @@ open class PsiMethodItem(
             )
             method.modifiers.setOwner(method)
 
-            // UAST workaround: nullability annotation for UMethod with fake LC PSI
-            // See https://youtrack.jetbrains.com/issue/KTIJ-23807
-            // We will be informed when the fix is ready, since use of [TypeNullability] will break
-            // as per https://youtrack.jetbrains.com/issue/KTIJ-23603
-            if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
-                val isUnitFunction = psiMethod.returnType == PsiType.VOID
-                if (!isUnitFunction) {
-                    // Alas, this [nullability] misses the nullability for an implicit return type.
-                    // Fixed together with KTIJ-23603, but no easy workaround for now.
-                    when (psiMethod.baseResolveProviderService.nullability(psiMethod.original)) {
-                        TypeNullability.NOT_NULL -> {
-                            modifiers.addAnnotation(
-                                codebase.createAnnotation("@$NOT_NULL", method, mapName = false)
-                            )
-                        }
-                        TypeNullability.NULLABLE -> {
-                            modifiers.addAnnotation(
-                                codebase.createAnnotation("@$NULLABLE", method, mapName = false)
-                            )
-                        }
-                        else -> {}
-                    }
-                }
-            }
             return method
         }
 

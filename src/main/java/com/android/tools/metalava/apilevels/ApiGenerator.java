@@ -58,7 +58,7 @@ public class ApiGenerator {
         if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
             int apiLevel = isDeveloperPreviewBuild ? notFinalizedApiLevel : currentApiLevel;
-            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase);
+            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, true);
         }
         api.backfillHistoricalFixes();
 
@@ -75,8 +75,27 @@ public class ApiGenerator {
         } else {
             api.verifyNoMissingClasses();
         }
-        return createApiFile(outputFile, api, sdkIdentifiers);
+        return createApiLevelsXml(outputFile, api, sdkIdentifiers);
     }
+
+    /**
+     * Generates an API version history file based on the API surfaces of the versions provided.
+     *
+     * @param apiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param outputFile Path of the JSON file to write output to.
+     * @param apiVersionNames The names of the API versions, ordered starting from version 1.
+     * @param inputKotlinStyleNulls Whether to assume the signature files are formatted as Kotlin-style nulls.
+     */
+    public static void generate(@NotNull List<File> apiVersions,
+                                @NotNull File outputFile,
+                                @NotNull List<String> apiVersionNames,
+                                boolean inputKotlinStyleNulls) {
+        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions, inputKotlinStyleNulls);
+        Api api = reader.getApi();
+        ApiJsonPrinter printer = new ApiJsonPrinter(apiVersionNames);
+        printer.print(api, outputFile);
+    }
+
 
     private static Api readAndroidJars(File[] apiLevels, int firstApiLevel) {
         Api api = new Api(firstApiLevel);
@@ -161,7 +180,7 @@ public class ApiGenerator {
      * @param api            the api to write
      * @param sdkIdentifiers SDKs referenced by the api
      */
-    private static boolean createApiFile(@NotNull File outFile, @NotNull Api api, @NotNull Set<SdkIdentifier> sdkIdentifiers) {
+    private static boolean createApiLevelsXml(@NotNull File outFile, @NotNull Api api, @NotNull Set<SdkIdentifier> sdkIdentifiers) {
         File parentFile = outFile.getParentFile();
         if (!parentFile.exists()) {
             boolean ok = parentFile.mkdirs();
