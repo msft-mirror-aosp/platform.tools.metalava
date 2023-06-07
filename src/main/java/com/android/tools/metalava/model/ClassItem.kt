@@ -230,6 +230,10 @@ interface ClassItem : Item {
         return qualifiedName() == JAVA_LANG_OBJECT
     }
 
+    fun isAbstractClass(): Boolean {
+        return modifiers.isAbstract()
+    }
+
     // Mutation APIs: Used to "fix up" the API hierarchy (in [ApiAnalyzer]) to only expose
     // visible parts of the API)
 
@@ -374,6 +378,7 @@ interface ClassItem : Item {
             val source = value?.value?.toSource()
             return when {
                 source == null -> AnnotationRetention.getDefault(cls)
+                source.contains("CLASS") -> AnnotationRetention.CLASS
                 source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
                 source.contains("SOURCE") -> AnnotationRetention.SOURCE
                 else -> AnnotationRetention.getDefault(cls)
@@ -788,6 +793,8 @@ interface ClassItem : Item {
     fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
+
+    fun addInnerClass(cls: ClassItem): Unit = codebase.unsupported()
 }
 
 class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {

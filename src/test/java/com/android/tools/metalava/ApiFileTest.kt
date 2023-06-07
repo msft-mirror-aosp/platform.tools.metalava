@@ -363,47 +363,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Kotlin Reified Methods`() {
-        check(
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Kotlin Reified Methods 2`() {
         check(
             format = FileFormat.V2,
@@ -426,10 +385,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(@Nullable T t);
-                    method public static inline <reified T> void b(@Nullable T t);
-                    method public static inline <reified T> void e(@Nullable T t);
-                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
+                    method public static inline <T> void a(T t);
+                    method public static inline <reified T> void b(T t);
+                    method public static inline <reified T> void e(T t);
+                    method public static inline <reified T> void f(T, T t);
                   }
                 }
                 """
@@ -569,20 +528,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-//            Actual expected API is below. However, due to KT-39209 the nullability information is
-//              missing
-//            api = """
-//                // Signature format: 3.0
-//                package test.pkg {
-//                  public final class TestKt {
-//                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
-//                  }
-//                }
-//                """,
             format = FileFormat.V3,
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "androidx.annotation",
@@ -686,6 +635,132 @@ class ApiFileTest : DriverTest() {
                 ARG_HIDE, "UnavailableSymbol",
                 ARG_HIDE, "HiddenTypeParameter"
             )
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameters`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class NonNullUpperBound<T : Any>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    class NullableUpperBound<T : Any?>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    class UnspecifiedUpperBound<T>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    fun <T : Any> topLevelNonNullUpperBoundExplicitNullable(t: T?) = t
+                    fun <T : Any> topLevelNonNullUpperBoundInherited(t: T) = t
+
+                    fun <T : Any?> topLevelNullableUpperBoundExplicitNullable(t: T?) = t
+                    fun <T : Any?> topLevelNullableUpperBoundInherited(t: T) = t
+
+                    fun <T> topLevelUnspecifiedUpperBoundExplicitNullable(t: T?) = t
+                    fun <T> topLevelUnspecifiedUpperBoundInherited(t: T) = t
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class NonNullUpperBound<T> {
+                    ctor public NonNullUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                  public final class NonNullUpperBoundKt {
+                    method public static <T> T? topLevelNonNullUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelNonNullUpperBoundInherited(T t);
+                    method public static <T> T? topLevelNullableUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelNullableUpperBoundInherited(T t);
+                    method public static <T> T? topLevelUnspecifiedUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelUnspecifiedUpperBoundInherited(T t);
+                  }
+                  public final class NullableUpperBound<T> {
+                    ctor public NullableUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                  public final class UnspecifiedUpperBound<T> {
+                    ctor public UnspecifiedUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameter -- suspend fun`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.util.concurrent;
+
+                        public interface MyFuture<V extends @Nullable Object> {
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import test.util.concurrent.MyFuture
+
+                        suspend fun <T> MyFuture<T>.await(t: T): T = TODO()
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class TestKt {
+                    method public static suspend <T> Object? await(test.util.concurrent.MyFuture<T>, T t, kotlin.coroutines.Continuation<? super T>);
+                  }
+                }
+                package test.util.concurrent {
+                  public interface MyFuture<V> {
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameter -- property and accessor`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class CircularArray<E> {
+                            val first: E
+                                get() = TODO()
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class CircularArray<E> {
+                    ctor public CircularArray();
+                    method public E getFirst();
+                    property public final E first;
+                  }
+                }
+            """
         )
     }
 
@@ -951,7 +1026,7 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
+                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
@@ -1010,10 +1085,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.content {
                   public final class TestKt {
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
-                    method public static void blahblahblah(String, String firstArg = "hello");
                     method public static void blahblahblah(String);
+                    method public static void blahblahblah(String, String firstArg = "hello");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
                     method public static inline void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     method public static inline void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
@@ -1157,95 +1232,6 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
-                  }
-                  @test.pkg.ExperimentalBar public final class FancyBar {
-                    ctor public FancyBar();
-                  }
-                  public final class SimpleClass {
-                    ctor public SimpleClass();
-                    method public void methodUsingFancyBar();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Test Experimental and UseExperimental`() {
-        check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-
-                    @Experimental
-                    @Retention(AnnotationRetention.BINARY)
-                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
-                    annotation class ExperimentalBar
-
-                    @ExperimentalBar
-                    class FancyBar
-
-                    @UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
-                    class SimpleClass {
-                        fun methodUsingFancyBar() {
-                            val fancyBar = FancyBar()
-                        }
-                    }
-
-                    @androidx.annotation.experimental.UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
-                    class AnotherSimpleClass {
-                        fun methodUsingFancyBar() {
-                            val fancyBar = FancyBar()
-                        }
-                    }
-                """
-                ),
-                kotlin(
-                    """
-                    package androidx.annotation.experimental
-
-                    import kotlin.annotation.Retention
-                    import kotlin.annotation.Target
-                    import kotlin.reflect.KClass
-
-                    @Retention(AnnotationRetention.BINARY)
-                    @Target(
-                        AnnotationTarget.CLASS,
-                        AnnotationTarget.PROPERTY,
-                        AnnotationTarget.LOCAL_VARIABLE,
-                        AnnotationTarget.VALUE_PARAMETER,
-                        AnnotationTarget.CONSTRUCTOR,
-                        AnnotationTarget.FUNCTION,
-                        AnnotationTarget.PROPERTY_GETTER,
-                        AnnotationTarget.PROPERTY_SETTER,
-                        AnnotationTarget.FILE,
-                        AnnotationTarget.TYPEALIAS
-                    )
-                    annotation class UseExperimental(
-                        /**
-                         * Defines the experimental API(s) whose usage this annotation allows.
-                         */
-                        vararg val markerClass: KClass<out Annotation>
-                    )
-                """
-                )
-            ),
-            format = FileFormat.V3,
-            api = """
-                // Signature format: 3.0
-                package androidx.annotation.experimental {
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
-                    method public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
-                  }
-                }
-                package test.pkg {
-                  public final class AnotherSimpleClass {
-                    ctor public AnotherSimpleClass();
-                    method public void methodUsingFancyBar();
-                  }
-                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1460,7 +1446,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Enum class`() {
+    fun `Enum class -- java`() {
         check(
             sourceFiles = arrayOf(
                 java(
@@ -1476,6 +1462,32 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public enum Foo {
+                    enum_constant public static final test.pkg.Foo A;
+                    enum_constant public static final test.pkg.Foo B;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Enum class -- kt`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Foo {
+                        A, B;
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public enum Foo {
+                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
+                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -2282,6 +2294,33 @@ class ApiFileTest : DriverTest() {
                         ctor public MyClass();
                         method public void method1();
                         method public String method2(String);
+                      }
+                    }
+            """
+        )
+    }
+
+    @Test
+    fun `Check generic type signature insertion`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class MyClass {
+                        public <T> MyClass(Class<T> klass) { }
+                        public <U> void method1(Function<U> func) { }
+                    }
+                    """
+                )
+            ),
+            expectedIssues = "",
+            api = """
+                    package test.pkg {
+                      public class MyClass {
+                        ctor public <T> MyClass(Class<T>);
+                        method public <U> void method1(Function<U>);
                       }
                     }
             """
@@ -3777,7 +3816,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test cannot merging API signature files with duplicate class`() {
+    fun `Test can merge API signature files with duplicate class`() {
         val source1 = """
             package Test.pkg {
               public final class Class1 {
@@ -3792,9 +3831,80 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
+        val expected = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test can merge API signature files with generic type classes`() {
+        val source1 = """
+            package Test.pkg {
+              public class LinkedHashMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                ctor public LinkedHashMap(int, float);
+                ctor public LinkedHashMap(int);
+                ctor public LinkedHashMap();
+                ctor public LinkedHashMap(java.util.Map<? extends K,? extends V>);
+                ctor public LinkedHashMap(int, float, boolean);
+                method protected boolean removeEldestEntry(java.util.Map.Entry<K,V>);
+              }
+            }
+            """
+        val source2 = """
+            package Test.pkg {
+              public class LinkedHashMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                method public java.util.Map.Entry<K,V> eldest();
+              }
+            }
+            """
+        val expected = """
+            package Test.pkg {
+              public class LinkedHashMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                ctor public LinkedHashMap(int, float);
+                ctor public LinkedHashMap(int);
+                ctor public LinkedHashMap();
+                ctor public LinkedHashMap(java.util.Map<? extends K,? extends V>);
+                ctor public LinkedHashMap(int, float, boolean);
+                method public java.util.Map.Entry<K,V> eldest();
+                method protected boolean removeEldestEntry(java.util.Map.Entry<K,V>);
+              }
+            }
+            """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected,
+            overloadedMethodOrder = Options.OverloadedMethodOrder.SOURCE,
+            format = FileFormat.V2,
+        )
+    }
+
+    @Test
+    fun `Test cannot merge API signature files with incompatible class definitions`() {
+        val source1 = """
+            package Test.pkg {
+              public class Class1 {
+                method public void method2();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Aborting: Unable to parse signature file: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 
@@ -4301,7 +4411,7 @@ class ApiFileTest : DriverTest() {
                   }
 
                 }
-"""
+                """
             ),
             dexApi = """
             Landroid/widget/ListView;
@@ -4356,8 +4466,7 @@ class ApiFileTest : DriverTest() {
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
                         val someBits
-                            get() = value && 0x00ff
-                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                            get() = value.toInt() and 0x00ff
                         fun doSomething() {}
                     }
                 """
@@ -4368,6 +4477,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp();
+                    method public void doSomething();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
@@ -4391,11 +4501,14 @@ class ApiFileTest : DriverTest() {
                         inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         val someBits
-                            get() = value && 0x00ff
+                            get() = value.toInt() and 0x00ff
                         fun doSomething() {}
+                        override fun compareTo(other: Dp): Int = value.compareTo(other.value)
                     }
 
-                    fun box(val p : Dp) {}
+                    fun box(p : Dp) {
+                        println(p)
+                    }
                 """
                 )
             ),
@@ -4404,12 +4517,13 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp(float value);
+                    method public int compareTo(float other);
                     method public void doSomething();
-                    method public boolean getSomeBits();
+                    method public int getSomeBits();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
-                    property public final boolean someBits;
+                    property public final int someBits;
                     property public final float value;
                   }
                   public final class DpKt {
@@ -4481,16 +4595,16 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class AllOptionalJvmOverloads {
-                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
-                    ctor public AllOptionalJvmOverloads(optional int foo);
                     ctor public AllOptionalJvmOverloads();
+                    ctor public AllOptionalJvmOverloads(optional int foo);
+                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class AllOptionalNoJvmOverloads {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                     ctor public SomeOptionalJvmOverloads(int foo);
+                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
@@ -4545,6 +4659,7 @@ class ApiFileTest : DriverTest() {
 
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
+        // Regression test for http://b/219792969
         check(
             format = FileFormat.V2,
             sourceFiles = arrayOf(
@@ -4581,7 +4696,7 @@ class ApiFileTest : DriverTest() {
                   public final class TestKt {
                     method @Deprecated @IntRange(from=0L) public static void myMethod();
                     method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated public static String returnsNonNullImplicitly();
+                    method @Deprecated @NonNull public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4591,7 +4706,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Constants in a file scope annotation`() {
         check(
-            format = FileFormat.V4,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4599,6 +4713,8 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
                     import androidx.annotation.RestrictTo
                     private fun veryFun(): Boolean = true
+                    const val CONST = "Hello"
+                    fun bar()
                 """
                 ),
                 restrictToSource
@@ -4608,6 +4724,8 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
+                    method public static void bar();
+                    field public static final String CONST = "Hello";
                   }
                 }
             """
@@ -4756,6 +4874,8 @@ class ApiFileTest : DriverTest() {
 
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
+        val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
+        val sameParameters = "(Integer? i, String? s, java.lang.Object... vs);"
         check(
             sourceFiles = arrayOf(
                 kotlin(
@@ -4791,12 +4911,96 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface State<T> {
-                    method public T! getValue();
-                    property public abstract T! value;
+                    method public T getValue();
+                    property public abstract T value;
                   }
                   public final class StateKt {
-                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
-                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                    method $sameModifiersAndReturnType after$sameParameters
+                    method @Deprecated $sameModifiersAndReturnType before$sameParameters
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN) on constructors`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        class AsyncPagingDataDiffer<T : Any>
+                        @JvmOverloads
+                        constructor(
+                            private val initState: State<T>,
+                            private val nextState: State<T>,
+                            private val updateCallback: Runnable,
+                        ) {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                            constructor(
+                                state: State<T>,
+                            ) : this(
+                                initState = state,
+                                nextState = state,
+                                updateCallback = { }
+                            )
+
+                            constructor(
+                                initState: State<T>,
+                                nextState: State<T>,
+                            ) : this(
+                                initState = initState,
+                                nextState = nextState,
+                                updateCallback = { }
+                            )
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class AsyncPagingDataDiffer<T> {
+                    ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
+                  }
+                  public interface State<T> {
+                    method public T getValue();
+                    property public abstract T value;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@Deprecated sealed interface and its members`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        @Deprecated("moved to somewhere else")
+                        sealed interface LazyInfo {
+                          val index : Int
+                          val key: Int
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @Deprecated public sealed interface LazyInfo {
+                    method @Deprecated public int getIndex();
+                    method @Deprecated public int getKey();
+                    property @Deprecated public abstract int index;
+                    property @Deprecated public abstract int key;
                   }
                 }
             """
@@ -4833,6 +5037,218 @@ class ApiFileTest : DriverTest() {
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Don't print empty facade classes`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "test/pkg/Toast.kt",
+                    """
+                        package test.pkg
+                        internal fun bar() {}
+
+                        private val baz
+
+                        class Toast {
+                            val foo: Int
+                        }
+                    """
+                ),
+                kotlin(
+                    "test/pkg/Bar.kt",
+                    """
+                        package test.pkg
+                        class Bar
+                    """
+                ),
+                kotlin(
+                    "test/pkg/test.kt",
+                    """
+                        package test.pkg
+
+                        /**
+                         * @suppress
+                         */
+                        @PublishedApi
+                        internal fun internalYetPublished() {}
+
+                        private val buzz
+                    """
+                ),
+                kotlin(
+                    "test/pkg/ConfigurationError.kt",
+                    """
+                        package test.pkg
+                        import androidx.annotation.RestrictTo
+
+                        /**
+                         * @hide
+                         */
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        data class ConfigurationError(val id: String)
+
+                        /**
+                         * @hide
+                         */
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        fun conditionalError(): ConfigurationError? = null
+                    """
+                ),
+                kotlin(
+                    "test/pkg/test2.kt",
+                    """
+                        package test.pkg
+                        import androidx.annotation.VisibleForTesting
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        fun shouldBePackagePrivate() {}
+
+                        private fun shouldBePrivate() {}
+                    """
+                ),
+                restrictToSource,
+                visibleForTestingSource,
+            ),
+            extraArguments = arrayOf(
+                ARG_SHOW_UNANNOTATED,
+                ARG_SHOW_ANNOTATION, "kotlin.PublishedApi",
+                ARG_HIDE_ANNOTATION, "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
+                ARG_HIDE_PACKAGE, "androidx.annotation"
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Bar {
+                    ctor public Bar();
+                  }
+                  public final class TestKt {
+                    method @kotlin.PublishedApi internal static void internalYetPublished();
+                  }
+                  public final class Toast {
+                    ctor public Toast();
+                    method public int getFoo();
+                    property public final int foo;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test @JvmMultifileClass appears only once`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "test/pkg/A.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.bar(): Unit {}
+                    """
+                ),
+                kotlin(
+                    "test/pkg/B.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.baz(): Unit {}
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void bar(String);
+                    method public static void baz(String);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@JvmName on @Deprecated hidden`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                          @JvmName("newNameForRenamed")
+                          fun renamed() = Unit
+
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun deprecatedHidden() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedError")
+                          @Deprecated(level = DeprecationLevel.ERROR)
+                          fun renamedAndDeprecatedError() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedHidden")
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun renamedAndDeprecatedHidden() = Unit
+                        }
+                    """
+                )
+            ),
+            api = """
+               package test.pkg {
+                 public final class Foo {
+                   ctor public Foo();
+                   method @Deprecated public void deprecatedHidden();
+                   method public void newNameForRenamed();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                 }
+               }
+            """
+        )
+    }
+
+    @Test
+    fun `Ordering of methods`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo {
+                            fun foo(s: String) {}
+                            fun foo(i: Int) {}
+                        }
+
+                        class Bar {
+                            fun bar(i: Int) {}
+                            fun bar(s: String) {}
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class Bar {
+                    ctor public Bar();
+                    method public void bar(int i);
+                    method public void bar(String s);
+                  }
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void foo(int i);
+                    method public void foo(String s);
                   }
                 }
             """
