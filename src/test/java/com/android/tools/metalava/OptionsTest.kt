@@ -122,15 +122,12 @@ API sources:
 --hide-meta-annotation <meta-annotation class>
                                              Treat as hidden any elements annotated with an annotation which is itself
                                              annotated with the given meta-annotation
---suppress-compatibility-meta-annotation <meta-annotation class>
-                                             Suppress compatibility checks for any elements within the scope of an
-                                             annotation which is itself annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.8.
+                                             Sets the source level for Kotlin source files; default is 1.7.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -275,17 +272,9 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>
                                              Hide/skip issues of the given id
---error-category <name>
-                                             Report all issues in the given category as errors
---warning-category <name>
-                                             Report all issues in the given category as warnings
---lint-category <name>
-                                             Report all issues in the given category as having lint-severity
---hide-category <name>
-                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide' or '--hide-category')
+                                             baseline) but not if hidden (by '--hide')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
@@ -338,6 +327,12 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
+--include-annotation-classes <dir>
+                                             Copies the given stub annotation source files into the generated stub
+                                             sources; <dir> is typically metalava/stub-annotations/src/main/java/.
+--rewrite-annotations <dir/jar>
+                                             For a bytecode folder or output jar, rewrites the androidx annotations to
+                                             be package private
 --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by
@@ -373,19 +368,6 @@ Extracting API Levels:
                                              Sets the code name for the current source code
 --current-jar
                                              Points to the current API jar, if any
-
-
-Generating API version history:
---generate-api-version-history <jsonfile>
-                                             Reads API signature files and generates a JSON file recording the API
-                                             version each class, method, and field was added in and (if applicable)
-                                             deprecated in. Required to generate API version JSON.
---api-version-signature-files <files>
-                                             An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. Required to generate API version JSON.
---api-version-names <strings>
-                                             An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files. Required to generate API version JSON.
 
 
 Sandboxing:

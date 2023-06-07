@@ -75,20 +75,6 @@ public class Api extends ApiElement {
         return mClasses.get(name);
     }
 
-    public Collection<ApiClass> getClasses() {
-        return mClasses.values();
-    }
-
-    /**
-     * Cleans up the API surface for printing after all elements have been added.
-     */
-    public void clean() {
-        inlineFromHiddenSuperClasses();
-        removeImplicitInterfaces();
-        removeOverridingMethods();
-        prunePackagePrivateClasses();
-    }
-
     /**
      * The bytecode visitor registers interfaces listed for a class. However,
      * a class will <b>also</b> implement interfaces implemented by the super classes.

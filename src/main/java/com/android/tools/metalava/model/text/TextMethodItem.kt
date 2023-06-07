@@ -29,7 +29,7 @@ import java.util.function.Predicate
 open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
-    containingClass: ClassItem,
+    containingClass: TextClassItem,
     modifiers: TextModifiers,
     private val returnType: TextTypeItem?,
     position: SourcePositionInfo
@@ -137,7 +137,7 @@ open class TextMethodItem(
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val duplicated = TextMethodItem(
-            codebase, name(), targetContainingClass,
+            codebase, name(), targetContainingClass as TextClassItem,
             modifiers.duplicate(), returnType, position
         )
         duplicated.inheritedFrom = containingClass()
@@ -181,7 +181,7 @@ open class TextMethodItem(
 
     override fun throwsTypes(): List<ClassItem> = if (throwsClasses == null) emptyList() else throwsClasses!!
 
-    fun setThrowsList(throwsClasses: List<ClassItem>) {
+    fun setThrowsList(throwsClasses: List<TextClassItem>) {
         this.throwsClasses = throwsClasses
     }
 

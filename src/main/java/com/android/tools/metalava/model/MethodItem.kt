@@ -19,7 +19,6 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
-import org.jetbrains.kotlin.builtins.StandardNames
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
@@ -240,6 +239,11 @@ interface MethodItem : MemberItem {
             val name1 = o1.name()
             val name2 = o2.name()
             if (name1 == name2) {
+                val rankDelta = o1.sortingRank - o2.sortingRank
+                if (rankDelta != 0) {
+                    return rankDelta
+                }
+
                 // Compare by the rest of the signature to ensure stable output (we don't need to sort
                 // by return value or modifiers or modifiers or throws-lists since methods can't be overloaded
                 // by just those attributes
@@ -521,17 +525,12 @@ interface MethodItem : MemberItem {
     fun isKotlinProperty(): Boolean = false
 
     /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean =
-        isEnumSyntheticValues() || isEnumSyntheticValueOf()
-
-    fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() &&
-            name() == StandardNames.ENUM_VALUES.identifier &&
-            parameters().isEmpty()
-
-    fun isEnumSyntheticValueOf(): Boolean =
-        containingClass().isEnum() &&
-            name() == StandardNames.ENUM_VALUE_OF.identifier &&
-            parameters().size == 1 &&
-            parameters()[0].type().isString()
+    fun isEnumSyntheticMethod(): Boolean {
+        return containingClass().isEnum() &&
+            (
+                name() == "values" && parameters().isEmpty() ||
+                    name() == "valueOf" && parameters().size == 1 &&
+                    parameters()[0].type().isString()
+                )
+    }
 }

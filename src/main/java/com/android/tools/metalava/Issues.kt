@@ -89,7 +89,6 @@ object Issues {
     val VARARG_REMOVAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADD_SEALED = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val FUN_REMOVAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val BECAME_UNCHECKED = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ANNOTATION_EXTRACTION = Issue(Severity.ERROR)
     val SUPERFLUOUS_PREFIX = Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT = Issue(Severity.ERROR)
@@ -242,12 +241,6 @@ object Issues {
         return null
     }
 
-    fun findCategoryById(id: String?): Category? =
-        Category.values().find { it.id == id }
-
-    fun findIssuesByCategory(category: Category?): List<Issue> =
-        allIssues.filter { it.category == category }
-
     class Issue private constructor(
         val defaultLevel: Severity,
         /**
@@ -297,12 +290,7 @@ object Issues {
         API_LINT("API Lint", "https://s.android.com/api-guidelines#"),
         // AndroidX API guidelines are split across multiple files, so add a category per-file
         API_LINT_ANDROIDX_MISC("API Lint", "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"),
-        UNKNOWN("Default", null);
-
-        /**
-         * Identifier for use in command-line arguments and reporting.
-         */
-        val id: String = SdkVersionInfo.underlinesToCamelCase(name.lowercase(Locale.US))
+        UNKNOWN("Default", null)
     }
 
     init { // Initialize issue names based on the field names
