@@ -42,13 +42,18 @@ import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
-/** Global options for the metadata extraction tool */
-var options = Options(emptyArray())
+/**
+ * Global options for the metadata extraction tool
+ *
+ * This is an empty options which is created to avoid having a nullable options. It is replaced with
+ * the actual options to use, either created from the command line arguments for the main process or
+ * with arguments supplied by tests.
+ */
+var options = Options()
 
 private const val INDENT_WIDTH = 45
 
 const val ARG_FORMAT = "--format"
-const val ARG_HELP = "--help"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
@@ -166,14 +171,11 @@ const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
-class Options(
-    private val args: Array<String>,
+class Options(commonOptions: CommonOptions = defaultCommonOptions) {
     /** Writer to direct output to */
-    var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
     /** Writer to direct error messages to */
-    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-    commonOptions: CommonOptions = defaultCommonOptions,
-) {
+    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err))
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
@@ -561,7 +563,7 @@ class Options(
      */
     private var baselineCompatibilityReleased: Baseline? = null
 
-    var allBaselines: List<Baseline>
+    var allBaselines: List<Baseline> = emptyList()
 
     /**
      * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.
@@ -575,15 +577,15 @@ class Options(
     private var errorMessageCompatibilityReleased: String? = null
 
     /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter
+    var reporterApiLint: Reporter = Reporter(null, null)
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
      * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var reporterCompatibilityReleased: Reporter
+    var reporterCompatibilityReleased: Reporter = Reporter(null, null)
 
-    var allReporters: List<Reporter>
+    var allReporters: List<Reporter> = emptyList()
 
     /** If updating baselines, don't fail the build */
     var passBaselineUpdates = false
@@ -707,7 +709,16 @@ class Options(
 
     var useK2Uast = false
 
-    init {
+    fun parse(
+        args: Array<String>,
+        /** Writer to direct output to */
+        stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+        /** Writer to direct error messages to */
+        stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+    ) {
+        this.stdout = stdout
+        this.stderr = stderr
+
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
         reporter = Reporter(null, null)
@@ -732,7 +743,6 @@ class Options(
 
         var index = 0
         while (index < args.size) {
-
             when (val arg = args[index]) {
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH,
@@ -1299,6 +1309,7 @@ class Options(
             patterns.add("prebuilts/sdk/%/public/android.jar")
             apiLevelJars =
                 findAndroidJars(
+                    args,
                     patterns,
                     firstApiLevel,
                     currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
@@ -1359,6 +1370,7 @@ class Options(
         baselineApiLint = baselineApiLintBuilder.build()
         baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
 
+        // Override the default reporters.
         reporterApiLint = Reporter(baselineApiLint ?: baseline, errorMessageApiLint)
         reporterCompatibilityReleased =
             Reporter(baselineCompatibilityReleased ?: baseline, errorMessageCompatibilityReleased)
@@ -1460,6 +1472,7 @@ class Options(
      * --strict-input-files-exempt to exempt the jar directory.
      */
     private fun findAndroidJars(
+        args: Array<String>,
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,

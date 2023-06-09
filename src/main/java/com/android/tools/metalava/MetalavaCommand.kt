@@ -162,7 +162,11 @@ class MetalavaCommand(
             showHelpAndExitIfRequested()
 
             val remainingArgs = flags.toTypedArray()
-            options = Options(remainingArgs, stdout, stderr, common)
+            val newOptions = Options(common)
+            newOptions.parse(remainingArgs, stdout, stderr)
+
+            // Update the global options.
+            options = newOptions
 
             maybeActivateSandbox()
 
