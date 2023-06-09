@@ -36,6 +36,7 @@ import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.parseDocument
+import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
@@ -292,7 +293,7 @@ abstract class DriverTest {
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT")
         signatureSources: Array<String> = emptyArray(),
-        apiClassResolution: Options.ApiClassResolution = Options.ApiClassResolution.API,
+        apiClassResolution: ApiClassResolution = ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.

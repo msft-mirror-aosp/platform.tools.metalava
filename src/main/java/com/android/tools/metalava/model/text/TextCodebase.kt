@@ -24,7 +24,6 @@ import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
-import com.android.tools.metalava.Options
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -50,7 +49,10 @@ import kotlin.math.min
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
-class TextCodebase(location: File) : DefaultCodebase(location) {
+class TextCodebase(
+    location: File,
+    val apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+) : DefaultCodebase(location) {
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable,
      * ! suffix means unknown, and absence of a suffix means not nullable.
@@ -69,7 +71,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     /**
      * True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes.
      */
-    val addWrappersForUnknownClasses = options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH
+    val addWrappersForUnknownClasses = apiClassResolution == ApiClassResolution.API_CLASSPATH
 
     override var description = "Codebase"
     override var preFiltered: Boolean = true
@@ -387,7 +389,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         // Add overridden methods to the codebase only when the codebase is generated
         // from text file passed via --source-files and it does not fallback to loading classes from
         // the classpath.
-        if (options.apiClassResolution == Options.ApiClassResolution.API && this.location in options.sources) {
+        if (apiClassResolution == ApiClassResolution.API && this.location in options.sources) {
             resolveAbstractMethods(classes)
         }
     }

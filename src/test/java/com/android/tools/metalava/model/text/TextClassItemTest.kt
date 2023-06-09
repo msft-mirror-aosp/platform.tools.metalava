@@ -153,7 +153,8 @@ class TextClassItemTest {
               }
             }
             """.trimIndent(),
-            false
+            false,
+            apiClassResolution = ApiClassResolution.API,
         )
 
         val getAdapter1 = codebase.getOrCreateClass("android.widget.AdapterView<T extends android.widget.Adapter>").findMethod("getAdapter", "")!!
@@ -195,7 +196,8 @@ class TextClassItemTest {
               }
             }
             """.trimIndent(),
-            false
+            false,
+            apiClassResolution = ApiClassResolution.API,
         )
 
         val compareTo1 = codebase.getOrCreateClass("java.lang.Comparable").findMethod("compareTo", "T")!!

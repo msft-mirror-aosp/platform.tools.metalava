@@ -22,6 +22,7 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
+import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -289,18 +290,6 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
-
-    enum class ApiClassResolution(val optionValue: String) {
-        /**
-         * Only look for classes in the API signature text files.
-         */
-        API("api"),
-
-        /**
-         * Look for classes in the API signature text files first, then the classpath.
-         */
-        API_CLASSPATH("api:classpath")
-    }
 
     var apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH
 

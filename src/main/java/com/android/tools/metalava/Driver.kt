@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
+import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -771,7 +772,7 @@ private fun parseAbsoluteSources(
  * If classpath jars are present, merges classes loaded from the jars into the [textCodebase].
  */
 fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
-    return if (options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH && options.classpath.isNotEmpty()) {
+    return if (options.apiClassResolution == ApiClassResolution.API_CLASSPATH && options.classpath.isNotEmpty()) {
         progress("Processing classpath: ")
         val uastEnvironment = loadUastFromJars(options.classpath)
         TextCodebaseWithClasspath(textCodebase, uastEnvironment)
