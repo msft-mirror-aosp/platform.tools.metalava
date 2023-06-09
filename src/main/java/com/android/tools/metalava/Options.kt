@@ -26,6 +26,9 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
@@ -280,7 +283,22 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
-    var apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH
+    val apiClassResolution by
+        option(
+                help =
+                    """
+                Determines how class resolution is performed when loading API signature files. `api`
+                will only look for classes in the API signature files. `api:classpath` will look for
+                classes in the API signature files first and then in the classpath. Any classes that
+                cannot be found will be treated as empty.",
+            """
+                        .trimIndent()
+            )
+            .choice(ApiClassResolution.values().associateBy { it.optionValue })
+            .default(
+                ApiClassResolution.API_CLASSPATH,
+                defaultForHelp = ApiClassResolution.API_CLASSPATH.optionValue
+            )
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
@@ -775,16 +793,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     listString.split(",").forEach { path ->
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
-                }
-                ARG_API_CLASS_RESOLUTION -> {
-                    val resolution = getValue(args, ++index)
-                    val resolutions = ApiClassResolution.values()
-                    apiClassResolution =
-                        resolutions.find { resolution == it.optionValue }
-                            ?: throw DriverException(
-                                stderr =
-                                    "$ARG_API_CLASS_RESOLUTION must be one of ${resolutions.joinToString { it.optionValue }}; was $resolution"
-                            )
                 }
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
@@ -1805,11 +1813,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                     "source files",
-                "$ARG_API_CLASS_RESOLUTION <api|api:classpath> ",
-                "Determines how class resolution is performed when loading API signature files (default `api:classpath`). " +
-                    "`$ARG_API_CLASS_RESOLUTION api` will only look for classes in the API signature files. " +
-                    "`$ARG_API_CLASS_RESOLUTION api:classpath` will look for classes in the API signature files " +
-                    "first and then in the classpath. Any classes that cannot be found will be treated as empty.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +

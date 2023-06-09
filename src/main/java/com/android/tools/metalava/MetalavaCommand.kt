@@ -127,6 +127,9 @@ class MetalavaCommand(
         } catch (e: NoSuchOption) {
             val message = createUsageErrorMessage(e)
             throw DriverException(stderr = message, exitCode = e.statusCode)
+        } catch (e: UsageError) {
+            val message = e.helpMessage()
+            throw DriverException(stderr = message, exitCode = e.statusCode)
         }
     }
 
