@@ -77,7 +77,7 @@ abstract class DriverTest {
     }
 
     protected fun createProject(vararg files: TestFile): File {
-        val dir = newFolder("project")
+        val dir = temporaryFolder.newFolder("project")
 
         files
             .map { it.createFile(dir) }
@@ -86,34 +86,13 @@ abstract class DriverTest {
         return dir
     }
 
-    private fun newFolder(children: String = ""): File {
-        var dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
-        } else {
-            temporaryFolder.newFolder(children)
-        }
-    }
-
-    private fun newFile(children: String = ""): File {
-        var dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
-        } else {
-            temporaryFolder.newFile(children)
-        }
-    }
-
     // Makes a note to fail the test, but still allows the test to complete before failing
     protected fun addError(error: String) {
         errorCollector.addError(Throwable(error))
     }
 
-    protected fun getApiFile(): File {
-        return File(temporaryFolder.root.path, "public-api.txt")
-    }
-
     protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
+
         resetTicker()
 
         // Capture the actual input and output from System.out/err and compare it
@@ -140,7 +119,7 @@ abstract class DriverTest {
                     actualFail.replace(".", "").trim()
                 ) {
                     val reportedCompatError = actualFail.startsWith("Aborting: Found compatibility problems checking the ")
-                    if (expectedFail == "Aborting: Found compatibility problems" &&
+                    if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
                         reportedCompatError
                     ) {
                         // Special case for compat checks; we don't want to force each one of them
@@ -252,8 +231,6 @@ abstract class DriverTest {
         dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The overloaded method order, defaults to signature. */
-        overloadedMethodOrder: Options.OverloadedMethodOrder? = Options.OverloadedMethodOrder.SIGNATURE,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
@@ -292,7 +269,6 @@ abstract class DriverTest {
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT")
         signatureSources: Array<String> = emptyArray(),
-        apiClassResolution: Options.ApiClassResolution = Options.ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
@@ -323,8 +299,6 @@ abstract class DriverTest {
         hideAnnotations: Array<String> = emptyArray(),
         /** Hide meta-annotations (--hide-meta-annotation arguments) */
         hideMetaAnnotations: Array<String> = emptyArray(),
-        /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
-        suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
@@ -372,6 +346,11 @@ abstract class DriverTest {
         validateNullability: Set<String>? = null,
         /** Enable nullability validation for the listed classes */
         validateNullabilityFromList: String? = null,
+        /**
+         * Whether to include source retention annotations in the stubs (in that case they do not
+         * go into the extracted annotations zip file)
+         */
+        includeSourceRetentionAnnotations: Boolean = true,
         /**
          * Whether to include the signature version in signatures
          */
@@ -437,7 +416,7 @@ abstract class DriverTest {
             expectedFail != null -> expectedFail
             (checkCompatibilityApiReleased != null || checkCompatibilityRemovedApiReleased != null) &&
                 expectedIssues != null && expectedIssues.trim().isNotEmpty() -> {
-                "Aborting: Found compatibility problems"
+                "Aborting: Found compatibility problems with --check-compatibility"
             }
             else -> ""
         }
@@ -458,10 +437,6 @@ abstract class DriverTest {
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
         }
-
-        val apiClassResolutionArgs = arrayOf(
-            ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue
-        )
 
         val sourceList =
             if (signatureSources.isNotEmpty() || signatureSource != null) {
@@ -721,21 +696,16 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val suppressCompatMetaAnnotationArguments =
-            if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
-                val args = mutableListOf<String>()
-                for (annotation in suppressCompatibilityMetaAnnotations) {
-                    args.add(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION)
-                    args.add(annotation)
-                }
-                args.toTypedArray()
+        val showUnannotatedArgs =
+            if (showUnannotated) {
+                arrayOf(ARG_SHOW_UNANNOTATED)
             } else {
                 emptyArray()
             }
 
-        val showUnannotatedArgs =
-            if (showUnannotated) {
-                arrayOf(ARG_SHOW_UNANNOTATED)
+        val includeSourceRetentionAnnotationArgs =
+            if (includeSourceRetentionAnnotations) {
+                arrayOf(ARG_INCLUDE_SOURCE_RETENTION)
             } else {
                 emptyArray()
             }
@@ -748,14 +718,12 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        // Always pass apiArgs and generate API text file in runDriver
-        var apiFile: File = newFile("public-api.txt")
-        val apiArgs = arrayOf(ARG_API, apiFile.path)
-
-        val overloadedMethodArgs = if (overloadedMethodOrder == null) {
-            emptyArray()
+        var apiFile: File? = null
+        val apiArgs = if (api != null) {
+            apiFile = temporaryFolder.newFile("public-api.txt")
+            arrayOf(ARG_API, apiFile.path)
         } else {
-            arrayOf(ARG_API_OVERLOADED_METHOD_ORDER, overloadedMethodOrder.name.lowercase())
+            emptyArray()
         }
 
         var apiXmlFile: File? = null
@@ -828,7 +796,7 @@ abstract class DriverTest {
 
         var stubsDir: File? = null
         val stubsArgs = if (stubFiles.isNotEmpty()) {
-            stubsDir = newFolder("stubs")
+            stubsDir = temporaryFolder.newFolder("stubs")
             if (docStubs) {
                 arrayOf(ARG_DOC_STUBS, stubsDir.path)
             } else {
@@ -960,12 +928,12 @@ abstract class DriverTest {
             validateNullabilityTxt = null
             emptyArray()
         }
-        val validateNullabilityFromListFile: File?
+        val validateNullablityFromListFile: File?
         val validateNullabilityFromListArgs = if (validateNullabilityFromList != null) {
-            validateNullabilityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
-            validateNullabilityFromListFile.writeText(validateNullabilityFromList)
+            validateNullablityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
+            validateNullablityFromListFile.writeText(validateNullabilityFromList)
             arrayOf(
-                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullabilityFromListFile.path
+                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullablityFromListFile.path
             )
         } else {
             emptyArray()
@@ -995,7 +963,7 @@ abstract class DriverTest {
             // test root folder such that we clean up the output strings referencing
             // paths to the temp folder
             "--temp-folder",
-            newFolder("temp").path,
+            temporaryFolder.newFolder("temp").path,
 
             // Annotation generation temporarily turned off by default while integrating with
             // SDK builds; tests need these
@@ -1009,7 +977,6 @@ abstract class DriverTest {
             *kotlinPathArgs,
             *removedArgs,
             *apiArgs,
-            *overloadedMethodArgs,
             *apiXmlArgs,
             *dexApiArgs,
             *subtractApiArgs,
@@ -1038,9 +1005,9 @@ abstract class DriverTest {
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *hideMetaAnnotationArguments,
-            *suppressCompatMetaAnnotationArguments,
             *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
+            *includeSourceRetentionAnnotationArgs,
             *apiLintArgs,
             *sdkFilesArgs,
             *importedPackageArgs.toTypedArray(),
@@ -1049,7 +1016,6 @@ abstract class DriverTest {
             *validateNullabilityArgs,
             *validateNullabilityFromListArgs,
             format.outputFlag(),
-            *apiClassResolutionArgs,
             *sourceList,
             *extraArguments,
             *errorMessageApiLintArgs,
@@ -1075,7 +1041,7 @@ abstract class DriverTest {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
 
-        if (api != null) {
+        if (api != null && apiFile != null) {
             assertTrue("${apiFile.path} does not exist even though --api was used", apiFile.exists())
             val actualText = readFile(apiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(api, format), actualText)
@@ -1226,21 +1192,15 @@ abstract class DriverTest {
         if (stubFiles.isNotEmpty()) {
             for (expected in stubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
-                if (!actual.exists()) {
-                    val existing = stubsDir.walkTopDown()
-                        .filter { it.isFile }
-                        .map { it.path }
-                        .joinToString("\n  ")
+                if (actual.exists()) {
+                    val actualContents = readFile(actual, stripBlankLines, trim)
+                    assertEquals(expected.contents, actualContents)
+                } else {
+                    val existing = stubsDir.walkTopDown().filter { it.isFile }.map { it.path }.joinToString("\n  ")
                     throw FileNotFoundException(
-                        "Could not find a generated stub for ${expected.targetRelativePath}. " +
-                            "Found these files: \n  $existing"
+                        "Could not find a generated stub for ${expected.targetRelativePath}. Found these files: \n  $existing"
                     )
                 }
-                val actualContents = readFile(actual, stripBlankLines, trim)
-                val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
-                val message =
-                    "Generated from-$stubSource stub contents does not match expected contents"
-                assertEquals(message, expected.contents, actualContents)
             }
         }
 
@@ -1404,8 +1364,7 @@ abstract class DriverTest {
             }
         }
 
-        @JvmStatic
-        protected fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {
+        private fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {
             var apiLines: List<String> = Files.asCharSource(file, UTF_8).readLines()
             if (stripBlankLines) {
                 apiLines = apiLines.asSequence().filter { it.isNotBlank() }.toList()

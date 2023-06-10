@@ -29,9 +29,9 @@ import java.util.function.Predicate
 open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
-    containingClass: ClassItem,
+    containingClass: TextClassItem,
     modifiers: TextModifiers,
-    private val returnType: TextTypeItem,
+    private val returnType: TextTypeItem?,
     position: SourcePositionInfo
 ) : TextMemberItem(
     codebase, name, containingClass, position,
@@ -79,7 +79,7 @@ open class TextMethodItem(
 
     override fun isConstructor(): Boolean = false
 
-    override fun returnType(): TypeItem = returnType
+    override fun returnType(): TypeItem? = returnType
 
     override fun superMethods(): List<MethodItem> {
         if (isConstructor()) {
@@ -137,7 +137,7 @@ open class TextMethodItem(
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val duplicated = TextMethodItem(
-            codebase, name(), targetContainingClass,
+            codebase, name(), targetContainingClass as TextClassItem,
             modifiers.duplicate(), returnType, position
         )
         duplicated.inheritedFrom = containingClass()
@@ -181,7 +181,7 @@ open class TextMethodItem(
 
     override fun throwsTypes(): List<ClassItem> = if (throwsClasses == null) emptyList() else throwsClasses!!
 
-    fun setThrowsList(throwsClasses: List<ClassItem>) {
+    fun setThrowsList(throwsClasses: List<TextClassItem>) {
         this.throwsClasses = throwsClasses
     }
 
@@ -209,10 +209,9 @@ open class TextMethodItem(
     override var inheritedFrom: ClassItem? = null
 
     override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
-
-    fun toSignatureString(): String =
-        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${name()}(${parameters().joinToString {
+            it.type().toSimpleType()
+        }})"
 
     private var annotationDefault = ""
 

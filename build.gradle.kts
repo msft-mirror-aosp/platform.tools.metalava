@@ -8,11 +8,6 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.util.Properties
 
-/**
- * Take a copy of the original [buildDir] for use by [testPrebuiltsSdkDir]
- */
-val originalBuildDir = buildDir
-
 buildDir = getBuildDirectory()
 
 defaultTasks = mutableListOf(
@@ -38,7 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
-    id("com.android.lint") version "8.2.0-alpha06"
+    id("com.android.lint") version "7.4.0-alpha05"
     id("application")
     id("java")
     id("maven-publish")
@@ -53,15 +48,15 @@ application {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 tasks.withType(KotlinCompile::class.java) {
     kotlinOptions {
-        jvmTarget = "17"
-        apiVersion = "1.7"
-        languageVersion = "1.7"
+        jvmTarget = "11"
+        apiVersion = "1.6"
+        languageVersion = "1.6"
         allWarningsAsErrors = true
     }
 }
@@ -71,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "31.2.0-alpha06"
+    "30.4.0-alpha08"
 }
 
 dependencies {
@@ -89,8 +84,7 @@ dependencies {
     implementation(libs.kotlinReflect)
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
-    implementation("com.google.guava:guava:31.0.1-jre")
-    implementation("com.google.code.gson:gson:2.8.9")
+    implementation("com.google.guava:guava:30.1.1-jre")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
@@ -105,97 +99,8 @@ val zipTask: TaskProvider<Zip> = project.tasks.register(
     archiveFileName.set("metalava-tests.zip")
 }
 
-/**
- * The location into which a fake representation of the prebuilts/sdk directory will be written.
- *
- * This uses [originalBuildDir] rather than [buildDir] as the latter depends on the `OUT_DIR`
- * environment variable. As this value is passed in to the tests this would make the tests dependent
- * on the `OUT_DIR` which as it varies from build to build would reduce the benefit of remote
- * caching.
- */
-val testPrebuiltsSdkDir = originalBuildDir.resolve("prebuilts/sdk")
-
-/**
- * Register tasks to emulate parts of the prebuilts/sdk repository using source from this
- * directory.
- *
- * [sourceDir] is the path to the root directory of code that is compiled into a jar that
- * corresponds to the jar specified by [destJar].
- *
- * [destJar] is the path to a jar within prebuilts/sdk. The fake jar created from [sourceDir] is
- * copied to getBuildDirectory()/prebuilts/sdk/$destJar.
- *
- * The jars created by this can be accessed by tests via the `METALAVA_TEST_PREBUILTS_SDK_ROOT`
- * environment variable which is set to point to getBuildDirectory()/prebuilts/sdk; see [testTask].
- */
-fun registerTestPrebuiltsSdkTasks(sourceDir: String, destJar: String): TaskProvider<Jar> {
-    val basename = sourceDir.replace("/", "-")
-    val javaCompileTaskName = "$basename.classes"
-    val jarTaskName = "$basename.jar"
-
-    val compileTask = project.tasks.register(javaCompileTaskName, JavaCompile::class) {
-        options.compilerArgs = listOf("--patch-module", "java.base=" + file(sourceDir))
-        source = fileTree(sourceDir)
-        classpath = project.files()
-        destinationDirectory.set(originalBuildDir.resolve(javaCompileTaskName))
-    }
-
-    val destJarFile = File(destJar)
-    val dir = destJarFile.parent
-    val filename = destJarFile.name
-    if (dir == ".") {
-        throw IllegalArgumentException("bad destJar argument '$destJar'")
-    }
-
-    val jarTask = project.tasks.register(jarTaskName, Jar::class) {
-        from(compileTask.flatMap { it.destinationDirectory })
-        archiveFileName.set(filename)
-        destinationDirectory.set(testPrebuiltsSdkDir.resolve(dir))
-    }
-
-    return jarTask
-}
-
-val testPrebuiltsSdkApi30 = registerTestPrebuiltsSdkTasks(
-    "src/testdata/prebuilts-sdk-test/30",
-    "30/public/android.jar"
-)
-val testPrebuiltsSdkApi31 = registerTestPrebuiltsSdkTasks(
-    "src/testdata/prebuilts-sdk-test/31",
-    "31/public/android.jar"
-)
-val testPrebuiltsSdkExt1 = registerTestPrebuiltsSdkTasks(
-    "src/testdata/prebuilts-sdk-test/extensions/1",
-    "extensions/1/public/framework-ext.jar"
-)
-val testPrebuiltsSdkExt2 = registerTestPrebuiltsSdkTasks(
-    "src/testdata/prebuilts-sdk-test/extensions/2",
-    "extensions/2/public/framework-ext.jar"
-)
-val testPrebuiltsSdkExt3 = registerTestPrebuiltsSdkTasks(
-    "src/testdata/prebuilts-sdk-test/extensions/3",
-    "extensions/3/public/framework-ext.jar"
-)
-
-project.tasks.register("test-sdk-extensions-info.xml", Copy::class) {
-    from("src/testdata/prebuilts-sdk-test/sdk-extensions-info.xml")
-    into(testPrebuiltsSdkDir)
-}
-
-project.tasks.register("test-prebuilts-sdk") {
-    dependsOn(testPrebuiltsSdkApi30)
-    dependsOn(testPrebuiltsSdkApi31)
-    dependsOn(testPrebuiltsSdkExt1)
-    dependsOn(testPrebuiltsSdkExt2)
-    dependsOn(testPrebuiltsSdkExt3)
-    dependsOn("test-sdk-extensions-info.xml")
-}
-
 val testTask = tasks.named("test", Test::class.java)
 testTask.configure {
-    dependsOn("test-prebuilts-sdk")
-    setEnvironment("METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir)
-    jvmArgs = listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
@@ -216,8 +121,14 @@ fun getMetalavaVersion(): Any {
     if (versionPropertyFile.canRead()) {
         val versionProps = Properties()
         versionProps.load(FileInputStream(versionPropertyFile))
-        return versionProps["metalavaVersion"]
+        val metalavaVersion = versionProps["metalavaVersion"]
             ?: throw IllegalStateException("metalava version was not set in ${versionPropertyFile.absolutePath}")
+        return if (isBuildingOnServer()) {
+            metalavaVersion
+        } else {
+            // Local builds are not public release candidates.
+            "$metalavaVersion-SNAPSHOT"
+        }
     } else {
         throw FileNotFoundException("Could not read ${versionPropertyFile.absolutePath}")
     }
@@ -261,7 +172,7 @@ fun getBuildId(): String {
 
 fun Project.getKtlintConfiguration(): Configuration {
     return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.47.1")
+        val dependency = project.dependencies.create("com.pinterest:ktlint:0.41.0")
         dependencies.add(dependency)
     }
 }
@@ -317,15 +228,7 @@ publishing {
     }
 }
 
-lint {
-    fatal.add("UastImplementation")
-    disable.add("UseTomlInstead") // not useful for this project
-    disable.add("GradleDependency") // not useful for this project
-    abortOnError = true
-    baseline = File("lint-baseline.xml")
-}
-
-// Add a buildId into Gradle Metadata file so we can tell which build it is from.
+// Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     val outDirProvider = project.providers.environmentVariable("DIST_DIR")
     inputs.property("buildOutputDirectory", outDirProvider).optional(true)
@@ -335,11 +238,8 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
         val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
         metadata.writeText(
             text.replace(
-                """"createdBy": {
-    "gradle": {""",
-                """"createdBy": {
-    "gradle": {
-      "buildId:": "$buildId",""",
+                "\"buildId\": .*".toRegex(),
+                "\"buildId:\": \"${buildId}\""
             )
         )
     }

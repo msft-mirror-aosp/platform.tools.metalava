@@ -209,8 +209,7 @@ class CoreApiTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.IntraCoreApi",
                 ARG_HIDE_ANNOTATION, "libcore.api.LibCoreHidden"
-            ),
-            docStubs = true
+            )
         )
     }
 

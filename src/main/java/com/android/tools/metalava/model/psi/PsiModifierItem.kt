@@ -25,9 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.options
-import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierList
@@ -37,13 +35,13 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolWithVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
+import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
+import org.jetbrains.kotlin.descriptors.EffectiveVisibility
+import org.jetbrains.kotlin.descriptors.effectiveVisibility
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
@@ -51,12 +49,12 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -94,6 +92,7 @@ class PsiModifierItem(
         }
 
         private fun computeFlag(
+            codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             modifierList: PsiModifierList
         ): Int {
@@ -149,14 +148,6 @@ class PsiModifierItem(
                     ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
                     else -> PUBLIC
                 }
-                // UAST workaround: fake light method for inline/hidden function may not have a
-                // concrete modifier list, but overrides `hasModifierProperty` to mimic modifiers.
-                element is KotlinUMethodWithFakeLightDelegate -> when {
-                    element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
-                    element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
-                    element.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
-                    else -> PUBLIC
-                }
                 else -> PACKAGE_PRIVATE
             }
             if (ktModifierList != null) {
@@ -172,10 +163,14 @@ class PsiModifierItem(
                     // Reset visibilityFlags to INTERNAL if the element has no explicit visibility
                     // modifier, but overrides an internal declaration. Adapted from
                     // org.jetbrains.kotlin.asJava.classes.UltraLightMembersCreator.isInternal
-                    analyze(sourcePsi) {
-                        val symbol = (sourcePsi as? KtDeclaration)?.getSymbol()
-                        val visibility = (symbol as? KtSymbolWithVisibility)?.visibility
-                        if (visibility == Visibilities.Internal) {
+                    val descriptor = codebase.bindingContext(sourcePsi)
+                        .get(BindingContext.DECLARATION_TO_DESCRIPTOR, sourcePsi)
+
+                    if (descriptor is DeclarationDescriptorWithVisibility) {
+                        val effectiveVisibility =
+                            descriptor.visibility.effectiveVisibility(descriptor, false)
+
+                        if (effectiveVisibility == EffectiveVisibility.Internal) {
                             visibilityFlags = INTERNAL
                         }
                     }
@@ -201,7 +196,7 @@ class PsiModifierItem(
                     // Workaround for b/117565118:
                     val func = sourcePsi as? KtNamedFunction
                     if (func != null &&
-                        (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
+                        (func.typeParameterList?.text ?: "").contains("reified") &&
                         !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
                         !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
                     ) {
@@ -246,7 +241,7 @@ class PsiModifierItem(
 
         private fun create(codebase: PsiBasedCodebase, element: PsiModifierListOwner): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
-            var flags = computeFlag(element, modifierList)
+            var flags = computeFlag(codebase, element, modifierList)
 
             val psiAnnotations = modifierList.annotations
             return if (psiAnnotations.isEmpty()) {
@@ -280,13 +275,11 @@ class PsiModifierItem(
         ): PsiModifierItem {
             val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
             val uAnnotations = annotated.uAnnotations
-            val psiAnnotations = modifierList.annotations.takeIf { it.isNotEmpty() }
-                ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
-                ?: PsiAnnotation.EMPTY_ARRAY
 
-            var flags = computeFlag(element, modifierList)
+            var flags = computeFlag(codebase, element, modifierList)
 
             return if (uAnnotations.isEmpty()) {
+                val psiAnnotations = modifierList.annotations
                 if (psiAnnotations.isNotEmpty()) {
                     val annotations: MutableList<AnnotationItem> =
                         psiAnnotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
@@ -305,6 +298,7 @@ class PsiModifierItem(
                             !it.isKotlinNullabilityAnnotation
                     }
                     .map {
+
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
@@ -320,10 +314,9 @@ class PsiModifierItem(
                     }.filter { !it.isDeprecatedForSdk() }.toMutableList()
 
                 if (!isPrimitiveVariable) {
+                    val psiAnnotations = modifierList.annotations
                     if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
-                        val ktNullAnnotation = psiAnnotations.firstOrNull { psiAnnotation ->
-                            psiAnnotation.qualifiedName?.let { isNullnessAnnotation(it) } == true
-                        }
+                        val ktNullAnnotation = psiAnnotations.firstOrNull { it is KtLightNullabilityAnnotation<*> }
                         ktNullAnnotation?.let {
                             annotations.add(PsiAnnotationItem.create(codebase, it))
                         }
