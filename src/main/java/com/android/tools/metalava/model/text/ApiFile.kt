@@ -47,11 +47,7 @@ object ApiFile {
      * Even if false, we'll allow them if the file format supports them/
      */
     @Throws(ApiParseException::class)
-    fun parseApi(@Nonnull file: File, kotlinStyleNulls: Boolean): TextCodebase {
-        val files: MutableList<File> = ArrayList(1)
-        files.add(file)
-        return parseApi(files, kotlinStyleNulls)
-    }
+    fun parseApi(@Nonnull file: File, kotlinStyleNulls: Boolean) = parseApi(listOf(file), kotlinStyleNulls)
 
     /**
      * Read API signature files into a [TextCodebase].
@@ -242,9 +238,7 @@ object ApiFile {
         var isInterface = false
         var isAnnotation = false
         var isEnum = false
-        val qualifiedName: String
         var ext: String? = null
-        val cl: TextClassItem
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -279,10 +273,7 @@ object ApiFile {
         }
         assertIdent(tokenizer, token)
         val name: String = token
-        qualifiedName = qualifiedName(pkg.name(), name)
-        if (api.findClass(qualifiedName) != null) {
-            throw ApiParseException("Duplicate class found: $qualifiedName", tokenizer)
-        }
+        val qualifiedName = qualifiedName(pkg.name(), name)
         val typeInfo = api.obtainTypeFromString(qualifiedName)
         // Simple type info excludes the package name (but includes enclosing class names)
         var rawName = name
@@ -291,11 +282,22 @@ object ApiFile {
             rawName = rawName.substring(0, variableIndex)
         }
         token = tokenizer.requireToken()
-        cl = TextClassItem(
+        val maybeExistingClass = TextClassItem(
             api, tokenizer.pos(), modifiers, isInterface, isEnum, isAnnotation,
             typeInfo.toErasedTypeString(null), typeInfo.qualifiedTypeName(),
             rawName, annotations
         )
+        val cl = when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
+            null -> maybeExistingClass
+            else -> {
+                if (!foundClass.isCompatible(maybeExistingClass)) {
+                    throw ApiParseException("Incompatible $foundClass definitions")
+                } else {
+                    foundClass
+                }
+            }
+        }
+
         cl.setContainingPackage(pkg)
         cl.setTypeInfo(typeInfo)
         cl.deprecated = modifiers.isDeprecated()
@@ -446,12 +448,17 @@ object ApiFile {
     ) {
         var token = startingToken
         val method: TextConstructorItem
+        var typeParameterList = NONE
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, annotations)
         token = tokenizer.current
+        if ("<" == token) {
+            typeParameterList = parseTypeParameterList(api, tokenizer)
+            token = tokenizer.requireToken()
+        }
         assertIdent(tokenizer, token)
         val name: String = token.substring(token.lastIndexOf('.') + 1) // For inner classes, strip outer classes from name
         token = tokenizer.requireToken()
@@ -461,6 +468,10 @@ object ApiFile {
         method = TextConstructorItem(api, name, cl, modifiers, cl.asTypeInfo(), tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
         parseParameterList(api, tokenizer, method)
+        method.setTypeParameterList(typeParameterList)
+        if (typeParameterList is TextTypeParameterList) {
+            typeParameterList.owner = method
+        }
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
@@ -551,7 +562,9 @@ object ApiFile {
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        cl.addMethod(method)
+        if (!cl.methods().contains(method)) {
+            cl.addMethod(method)
+        }
     }
 
     private fun mergeAnnotations(

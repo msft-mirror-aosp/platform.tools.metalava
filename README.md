@@ -73,6 +73,14 @@ Then run it with:
 
 (*output truncated*)
 
+### Maven artifacts
+
+To build Metalava's Maven artifacts including `.pom` and `.module` metadata, run:
+
+    $ ./gradlew createArchive
+
+Then locate the artifacts under `../../out/dist/repo/m2repository`.
+
 ## Features
 
 * Ability to read in an existing android.jar file instead of from source, which
@@ -351,7 +359,7 @@ There are several key helpers that help with the implementation, detailed next.
 First, metalava provides an ItemVisitor. This lets you visit the API easily.
 For example, here's how you can visit every class:
 
-    coebase.accept(object : ItemVisitor() {
+    codebase.accept(object : ItemVisitor() {
         override fun visitClass(cls: ClassItem) {
             // code operating on the class here
         }

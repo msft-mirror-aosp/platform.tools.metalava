@@ -21,12 +21,19 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.intellij.psi.LambdaUtil
+import com.intellij.psi.PsiArrayType
+import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 
 class PsiParameterItem(
@@ -72,12 +79,22 @@ class PsiParameterItem(
             ) {
                 return null
             }
+            // UAST workaround: value parameter name for enum synthetic valueOf
+            // TODO: won't need this after kotlinc 1.9
+            if (containingMethod.isEnumSyntheticValueOf()) {
+                return StandardNames.DEFAULT_VALUE_PARAMETER.identifier
+            }
             return name
         } else {
             // Java: Look for @ParameterName annotation
             val annotation = modifiers.annotations().firstOrNull { it.isParameterName() }
             if (annotation != null) {
                 return annotation.attributes.firstOrNull()?.value?.value()?.toString()
+            }
+
+            // Parameter names from classpath jars are not present as annotations
+            if (isFromClassPath()) {
+                return name()
             }
         }
 
@@ -202,6 +219,55 @@ class PsiParameterItem(
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
 
+    /**
+     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
+     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
+     * syntax.
+     *
+     * Specifically this will attempt to handle the follow cases:
+     *
+     * - Java SAM interface = true
+     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
+     * - Kotlin fun interface = true
+     * - Kotlin lambda = true
+     * - Any other type = false
+     */
+    fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // Method is defined in Java source
+        if (isJava()) {
+            // Check the parameter type to see if it is defined in Kotlin or not.
+            // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
+            // This is a best-effort check, since external dependencies (bytecode) won't appear to
+            // be Kotlin, and won't have a `fun` modifier visible. To resolve this, we could parse
+            // the kotlin.metadata annotation on the bytecode declaration (and special case
+            // kotlin.jvm.functions.Function* since the actual Kotlin lambda type can always be used
+            // with trailing lambda syntax), but in reality the amount of Java methods with a Kotlin
+            // interface with a single abstract method from an external dependency should be
+            // minimal, so just checking source will make this easier to maintain in the future.
+            val cls = type.asClass()
+            if (cls != null && cls.isKotlin()) {
+                return cls.isInterface() && cls.modifiers.isFunctional()
+            }
+            // Note: this will return `true` if the interface is defined in Kotlin, hence why we
+            // need the prior check as well
+            return LambdaUtil.isFunctionalType(type.psiType)
+            // Method is defined in Kotlin source
+        } else {
+            // For Kotlin declarations we can re-use the existing utilities for calculating whether
+            // a type is SAM convertible or not, which should handle external dependencies better
+            // and avoid any divergence from the actual compiler behaviour, if there are changes.
+            val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
+            analyze(parameter) {
+                val ktType = parameter.getParameterSymbol().returnType
+                val isSamType = ktType.isFunctionalInterfaceType
+                val isFunctionalType =
+                    ktType.isFunctionType || ktType.isSuspendFunctionType ||
+                        ktType.isKFunctionType || ktType.isKSuspendFunctionType
+                return isSamType || isFunctionalType
+            }
+        }
+    }
+
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
@@ -211,7 +277,33 @@ class PsiParameterItem(
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
             val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
-            val type = codebase.getType(psiParameter.type)
+            val psiType = psiParameter.type
+            // UAST workaround: nullity of element type in last `vararg` parameter's array type
+            val workaroundPsiType =
+                if (psiParameter is UParameter &&
+                    psiParameter.sourcePsi is KtParameter &&
+                    psiParameter.isVarArgs && // last `vararg`
+                    psiType is PsiArrayType
+                ) {
+                    val ktParameter = psiParameter.sourcePsi as KtParameter
+                    val annotationProvider =
+                        when (codebase.uastResolveService?.nullability(ktParameter)) {
+                            KtTypeNullability.NON_NULLABLE ->
+                                codebase.getNonNullAnnotationProvider()
+                            KtTypeNullability.NULLABLE ->
+                                codebase.getNullableAnnotationProvider()
+                            else -> null
+                        }
+                    val annotatedType = if (annotationProvider != null) {
+                        psiType.componentType.annotate(annotationProvider)
+                    } else {
+                        psiType.componentType
+                    }
+                    PsiEllipsisType(annotatedType, annotatedType.annotationProvider)
+                } else {
+                    psiType
+                }
+            val type = codebase.getType(workaroundPsiType)
             val parameter = PsiParameterItem(
                 codebase = codebase,
                 psiParameter = psiParameter,
