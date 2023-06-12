@@ -414,10 +414,14 @@ Generating API version history:
                                              deprecated in. Required to generate API version JSON.
 --api-version-signature-files <files>
                                              An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. Required to generate API version JSON.
+                                             be first, the newest last. This should not include a signature file for the
+                                             current API version, which will be parsed from the provided source files.
+                                             Not required to generate API version JSON if the current version is the
+                                             only version.
 --api-version-names <strings>
                                              An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files. Required to generate API version JSON.
+                                             --api-version-signature-files, and the name of the current API version.
+                                             Required to generate API version JSON.
 
 
 Sandboxing:

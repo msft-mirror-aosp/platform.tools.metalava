@@ -526,10 +526,13 @@ class Options(
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
 
-    /** Ordered list of signatures for each API version, if generating an API version JSON */
+    /** Ordered list of signatures for each past API version, if generating an API version JSON */
     var apiVersionSignatureFiles: List<File>? = null
 
-    /** The names of the API versions in [apiVersionSignatureFiles], in the same order */
+    /**
+     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
+     * of the current API version
+     */
     var apiVersionNames: List<String>? = null
 
     /** Level to include for javadoc */
@@ -1368,9 +1371,13 @@ class Options(
             throw DriverException(stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied")
         }
 
-        if (apiVersionSignatureFiles?.size != apiVersionNames?.size) {
+        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
+        // so there should be 1 more name than signature file (or both can be null)
+        val numVersionNames = apiVersionNames?.size ?: 0
+        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
             throw DriverException(
-                "$ARG_API_VERSION_SIGNATURE_FILES and $ARG_API_VERSION_NAMES must have equal length"
+                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
             )
         }
 
@@ -2144,10 +2151,13 @@ class Options(
                 "Required to generate API version JSON.",
             "$ARG_API_VERSION_SIGNATURE_FILES <files>",
             "An ordered list of text API signature files. The oldest API version should be " +
-                "first, the newest last. Required to generate API version JSON.",
+                "first, the newest last. This should not include a signature file for the " +
+                "current API version, which will be parsed from the provided source files. Not " +
+                "required to generate API version JSON if the current version is the only version.",
             "$ARG_API_VERSION_NAMES <strings>",
             "An ordered list of strings with the names to use for the API versions from " +
-                "$ARG_API_VERSION_SIGNATURE_FILES. Required to generate API version JSON.",
+                "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
+                "Required to generate API version JSON.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,

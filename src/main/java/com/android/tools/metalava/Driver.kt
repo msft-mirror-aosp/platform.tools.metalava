@@ -291,6 +291,20 @@ private fun processFlags() {
         }
     }
 
+    val apiVersionsJson = options.generateApiVersionsJson
+    val apiVersionNames = options.apiVersionNames
+    if (apiVersionsJson != null && apiVersionNames != null) {
+        progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
+        ApiGenerator.generateJson(
+            // The signature files can be null if the current version is the only version
+            options.apiVersionSignatureFiles ?: emptyList(),
+            codebase,
+            apiVersionsJson,
+            apiVersionNames,
+            options.inputKotlinStyleNulls
+        )
+    }
+
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {
         createStubFiles(
@@ -494,14 +508,6 @@ fun processNonCodebaseFlags() {
         createReportFile(outputApi, convert.outputFile, "JDiff File") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
         }
-    }
-
-    val apiVersionsJson = options.generateApiVersionsJson
-    val apiVersionFiles = options.apiVersionSignatureFiles
-    val apiVersionNames = options.apiVersionNames
-    if (apiVersionsJson != null && apiVersionFiles != null && apiVersionNames != null) {
-        progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
-        ApiGenerator.generateJson(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
     }
 }
 

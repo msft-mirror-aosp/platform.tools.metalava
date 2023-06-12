@@ -592,7 +592,7 @@ class ApiGeneratorTest : DriverTest() {
         output.deleteOnExit()
         val outputPath = output.path
 
-        val versions = listOf(
+        val pastVersions = listOf(
             createTextFile(
                 "1.1.0",
                 """
@@ -637,15 +637,29 @@ class ApiGeneratorTest : DriverTest() {
                 """.trimIndent()
             )
         )
+        val currentVersion = """
+            package test.pkg {
+              public class Foo {
+                method @Deprecated public <T extends java.lang.String> void methodV1(T);
+                method public void methodV3();
+                method public void methodV4();
+                field public int fieldV1;
+                field public int fieldV2;
+              }
+              @Deprecated public class Foo.Bar {
+              }
+            }
+        """.trimIndent()
 
         check(
+            signatureSource = currentVersion,
             extraArguments = arrayOf(
                 ARG_GENERATE_API_VERSION_HISTORY,
                 outputPath,
                 ARG_API_VERSION_SIGNATURE_FILES,
-                versions.joinToString(":") { it.absolutePath },
+                pastVersions.joinToString(":") { it.absolutePath },
                 ARG_API_VERSION_NAMES,
-                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" ")
+                listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
             )
         )
 
@@ -682,6 +696,10 @@ class ApiGeneratorTest : DriverTest() {
                       {
                         "method": "methodV3()",
                         "addedIn": "1.3.0"
+                      },
+                      {
+                        "method": "methodV4()",
+                        "addedIn": "1.4.0"
                       }
                     ],
                     "fields": [
@@ -722,7 +740,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_API_VERSION_NAMES,
                 listOf("1.1.0", "1.2.0").joinToString(" ")
             ),
-            expectedFail = "Aborting: --api-version-signature-files and --api-version-names must have equal length"
+            expectedFail = "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name"
         )
     }
 
@@ -732,25 +750,57 @@ class ApiGeneratorTest : DriverTest() {
         output.deleteOnExit()
         val outputPath = output.path
 
-        val input = createTextFile(
-            "0.0.0",
-            """
+        val api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class Foo {
                     method public void foo(String?);
                   }
                 }
-            """.trimIndent()
+        """.trimIndent()
+        val input = createTextFile(
+            "0.0.0",
+            api
         )
 
         check(
+            signatureSource = api,
             inputKotlinStyleNulls = true,
             extraArguments = arrayOf(
                 ARG_GENERATE_API_VERSION_HISTORY,
                 outputPath,
                 ARG_API_VERSION_SIGNATURE_FILES,
                 input.absolutePath,
+                ARG_API_VERSION_NAMES,
+                listOf("0.0.0", "0.1.0").joinToString(" ")
+            )
+        )
+
+        val expectedJson = "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0\"}],\"fields\":[]}]"
+        assertEquals(expectedJson, output.readText())
+    }
+
+    @Test
+    fun `API levels can be generated from just the current codebase`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val api = """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(String?);
+                  }
+                }
+        """.trimIndent()
+
+        check(
+            signatureSource = api,
+            inputKotlinStyleNulls = true,
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
                 ARG_API_VERSION_NAMES,
                 "0.0.0"
             )
