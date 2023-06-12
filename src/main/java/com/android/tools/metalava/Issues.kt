@@ -52,6 +52,7 @@ object Issues {
     val CHANGED_SYNCHRONIZED = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_FINAL_UNINSTANTIABLE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val REMOVED_FINAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val REMOVED_FINAL_STRICT = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_DEPRECATED_CLASS = Issue(REMOVED_CLASS, Category.COMPATIBILITY)
     val REMOVED_DEPRECATED_METHOD = Issue(REMOVED_METHOD, Category.COMPATIBILITY)
     val REMOVED_DEPRECATED_FIELD = Issue(REMOVED_FIELD, Category.COMPATIBILITY)
@@ -243,6 +244,12 @@ object Issues {
         return null
     }
 
+    fun findCategoryById(id: String?): Category? =
+        Category.values().find { it.id == id }
+
+    fun findIssuesByCategory(category: Category?): List<Issue> =
+        allIssues.filter { it.category == category }
+
     class Issue private constructor(
         val defaultLevel: Severity,
         /**
@@ -292,7 +299,12 @@ object Issues {
         API_LINT("API Lint", "https://s.android.com/api-guidelines#"),
         // AndroidX API guidelines are split across multiple files, so add a category per-file
         API_LINT_ANDROIDX_MISC("API Lint", "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"),
-        UNKNOWN("Default", null)
+        UNKNOWN("Default", null);
+
+        /**
+         * Identifier for use in command-line arguments and reporting.
+         */
+        val id: String = SdkVersionInfo.underlinesToCamelCase(name.lowercase(Locale.US))
     }
 
     init { // Initialize issue names based on the field names

@@ -24,6 +24,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
+import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -270,7 +271,7 @@ private fun processFlags() {
         assert(options.currentApiLevel != -1)
 
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
-        ApiGenerator.generate(
+        ApiGenerator.generateXml(
             apiLevelJars, options.firstApiLevel, options.currentApiLevel, options.isDeveloperPreviewBuild(),
             androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile, options.removeMissingClassesInApiLevels
         )
@@ -306,7 +307,10 @@ private fun processFlags() {
         val apiReference = apiType.getReferenceFilter()
 
         createReportFile(codebase, apiFile, "API") { printWriter ->
-            SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+            SignatureWriter(
+                printWriter, apiEmit, apiReference, codebase.preFiltered,
+                methodComparator = options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -328,7 +332,11 @@ private fun processFlags() {
         val removedReference = apiType.getReferenceFilter()
 
         createReportFile(unfiltered, apiFile, "removed API", options.deleteEmptyRemovedSignatures) { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null, options.includeSignatureFormatVersionRemoved)
+            SignatureWriter(
+                printWriter, removedEmit, removedReference, codebase.original != null,
+                options.includeSignatureFormatVersionRemoved,
+                options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -490,9 +498,10 @@ fun processNonCodebaseFlags() {
 
     val apiVersionsJson = options.generateApiVersionsJson
     val apiVersionFiles = options.apiVersionSignatureFiles
-    if (apiVersionsJson != null && apiVersionFiles != null) {
+    val apiVersionNames = options.apiVersionNames
+    if (apiVersionsJson != null && apiVersionFiles != null && apiVersionNames != null) {
         progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
-        ApiGenerator.generate(apiVersionFiles, apiVersionsJson)
+        ApiGenerator.generateJson(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
     }
 }
 
@@ -699,8 +708,38 @@ private fun parseAbsoluteSources(
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
-    config.addSourceRoots(sourceRoots)
-    config.addClasspathRoots(classpath)
+
+    val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
+
+    val lintClient = MetalavaCliClient()
+    // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
+    // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
+    // `referenceDir` is used to adjust `lib` dir accordingly if needed,
+    // but we set `classpath` anyway below.
+    val lintProject = Project.create(
+        lintClient,
+        /* dir = */ rootDir,
+        /* referenceDir = */ rootDir
+    )
+    lintProject.javaSourceFolders.addAll(sourceRoots)
+    // TODO(b/271219257): javaLibraries seems better?
+    lintProject.javaClassFolders.addAll(classpath)
+    config.addModules(
+        listOf(
+            UastEnvironment.Module(
+                lintProject,
+                // K2 UAST: building KtSdkModule for JDK
+                options.jdkHome,
+                includeTests = false,
+                includeTestFixtureSources = false,
+                // TODO(b/271219257): should be `false` if we can set javaLibraries instead
+                isUnitTest = true
+            )
+        ),
+        // TODO(b/271219257): should be able to add modules w/o bootclasspath
+        emptySet()
+    )
+    // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
     options.jdkHome?.let {
         if (options.isJdkModular(it)) {
             config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
@@ -712,8 +751,6 @@ private fun parseAbsoluteSources(
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
     environment.analyzeFiles(kotlinFiles)
-
-    val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
 
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
@@ -742,6 +779,7 @@ fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
  */
 fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+    @Suppress("DEPRECATION")
     config.addClasspathRoots(apiJars)
 
     val environment = createProjectEnvironment(config)
