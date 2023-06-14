@@ -51,7 +51,7 @@ class PsiAnnotationItem private constructor(
     val psiAnnotation: PsiAnnotation,
     override val originalName: String?
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
+    override val qualifiedName: String? = AnnotationItem.mapName(codebase, originalName)
 
     override fun toString(): String = toSource()
 
@@ -137,7 +137,7 @@ class PsiAnnotationItem private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = AnnotationItem.mapName(originalName, target) ?: return
+            val qualifiedName = AnnotationItem.mapName(codebase, originalName, null, target) ?: return
 
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
@@ -268,11 +268,6 @@ class PsiAnnotationAttribute(
     override val value: AnnotationAttributeValue = PsiAnnotationValue.create(
         codebase, psiValue
     )
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationAttribute) return false
-        return name == other.name && value == other.value
-    }
 }
 
 abstract class PsiAnnotationValue : AnnotationAttributeValue {
@@ -328,25 +323,13 @@ class PsiAnnotationSingleAttributeValue(
         }
         return null
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationSingleAttributeValue) return false
-        return value == other.value
-    }
 }
 
-class PsiAnnotationArrayAttributeValue(
-    codebase: PsiBasedCodebase,
-    private val value: PsiArrayInitializerMemberValue
-) : PsiAnnotationValue(), AnnotationArrayAttributeValue {
+class PsiAnnotationArrayAttributeValue(codebase: PsiBasedCodebase, private val value: PsiArrayInitializerMemberValue) :
+    PsiAnnotationValue(), AnnotationArrayAttributeValue {
     override val values = value.initializers.map {
         create(codebase, it)
     }.toList()
 
     override fun toSource(): String = value.text
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationArrayAttributeValue) return false
-        return values.containsAll(other.values)
-    }
 }

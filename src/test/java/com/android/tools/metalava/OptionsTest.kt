@@ -49,6 +49,14 @@ General:
                                              Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
 --no-color
                                              Do not attempt to colorize the output
+--only-update-api
+                                             Cancel any other "action" flags other than generating signature files. This
+                                             is here to make it easier customize build system tasks, particularly for
+                                             the "make update-api" task.
+--only-check-api
+                                             Cancel any other "action" flags other than checking signature files. This
+                                             is here to make it easier customize build system tasks, particularly for
+                                             the "make checkapi" task.
 --repeat-errors-max <N>
                                              When specified, repeat at most N errors before finishing.
 
@@ -67,13 +75,6 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
---api-class-resolution <api|api:classpath>
-                                             Determines how class resolution is performed when loading API signature
-                                             files (default `api:classpath`). `--api-class-resolution api` will only
-                                             look for classes in the API signature files. `--api-class-resolution
-                                             api:classpath` will look for classes in the API signature files first and
-                                             then in the classpath. Any classes that cannot be found will be treated as
-                                             empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -121,15 +122,12 @@ API sources:
 --hide-meta-annotation <meta-annotation class>
                                              Treat as hidden any elements annotated with an annotation which is itself
                                              annotated with the given meta-annotation
---suppress-compatibility-meta-annotation <meta-annotation class>
-                                             Suppress compatibility checks for any elements within the scope of an
-                                             annotation which is itself annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.8.
+                                             Sets the source level for Kotlin source files; default is 1.7.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -178,13 +176,6 @@ Extracting Signature Files:
                                              Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
---api-overloaded-method-order <source|signature>
-                                             Specifies the order of overloaded methods in signature files (default
-                                             `signature`). Applies to the contents of the files specified on --api and
-                                             --removed-api. `--api-overloaded-method-order source` will preserve the
-                                             order in which they appear in the source files.
-                                             `--api-overloaded-method-order signature` will sort them based on their
-                                             signature.
 --format=<v1,v2,v3,...>
                                              Sets the output signature file format to be the given version.
 --output-kotlin-nulls[=yes|no]
@@ -250,9 +241,13 @@ Diffs and Checks:
                                              encoded its types using Kotlin style types: a suffix of "?" for nullable
                                              types, no suffix for non nullable types, and "!" for unknown. The default
                                              is no.
---check-compatibility:type:released <file>
+--check-compatibility:type:state <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
-                                             either the public api or the removed api.
+                                             either the public api or the removed api. State is one of 'current' and
+                                             'released', to check either the currently in development API or the last
+                                             publicly released API, respectively. Different compatibility checks apply
+                                             in the two scenarios. For example, to check the code base against the
+                                             current public API, use --check-compatibility:api:current.
 --check-compatibility:base <file>
                                              When performing a compat check, use the provided signature file as a base
                                              api, which is treated as part of the API being checked. This allows us to
@@ -281,17 +276,9 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>
                                              Hide/skip issues of the given id
---error-category <name>
-                                             Report all issues in the given category as errors
---warning-category <name>
-                                             Report all issues in the given category as warnings
---lint-category <name>
-                                             Report all issues in the given category as having lint-severity
---hide-category <name>
-                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide' or '--hide-category')
+                                             baseline) but not if hidden (by '--hide')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
@@ -344,6 +331,12 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
+--include-annotation-classes <dir>
+                                             Copies the given stub annotation source files into the generated stub
+                                             sources; <dir> is typically metalava/stub-annotations/src/main/java/.
+--rewrite-annotations <dir/jar>
+                                             For a bytecode folder or output jar, rewrites the androidx annotations to
+                                             be package private
 --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by
@@ -368,11 +361,6 @@ Extracting API Levels:
 --generate-api-levels <xmlfile>
                                              Reads android.jar SDK files and generates an XML file recording the API
                                              level for each class, method and field
---remove-missing-class-references-in-api-levels
-                                             Removes references to missing classes when generating the API levels XML
-                                             file. This can happen when generating the XML file for the non-updatable
-                                             portions of the module-lib sdk, as those non-updatable portions can
-                                             reference classes that are part of an updatable apex.
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
@@ -384,40 +372,6 @@ Extracting API Levels:
                                              Sets the code name for the current source code
 --current-jar
                                              Points to the current API jar, if any
---sdk-extensions-root
-                                             Points to root of prebuilt extension SDK jars, if any. This directory is
-                                             expected to contain snapshots of historical extension SDK versions in the
-                                             form of stub jars. The paths should be on the format
-                                             "<int>/public/<module-name>.jar", where <int> corresponds to the extension
-                                             SDK version, and <module-name> to the name of the mainline module.
---sdk-extensions-info
-                                             Points to map of extension SDK APIs to include, if any. The file is a plain
-                                             text file and describes, per extension SDK, what APIs from that extension
-                                             to include in the file created via --generate-api-levels. The format of
-                                             each line is one of the following: "<module-name> <pattern> <ext-name>
-                                             [<ext-name> [...]]", where <module-name> is the name of the mainline module
-                                             this line refers to, <pattern> is a common Java name prefix of the APIs
-                                             this line refers to, and <ext-name> is a list of extension SDK names in
-                                             which these SDKs first appeared, or "<ext-name> <ext-id> <type>", where
-                                             <ext-name> is the name of an SDK, <ext-id> its numerical ID and <type> is
-                                             one of "platform" (the Android platform SDK), "platform-ext" (an extension
-                                             to the Android platform SDK), "standalone" (a separate SDK). Fields are
-                                             separated by whitespace. A mainline module may be listed multiple times.
-                                             The special pattern "*" refers to all APIs in the given mainline module.
-                                             Lines beginning with # are comments.
-
-
-Generating API version history:
---generate-api-version-history <jsonfile>
-                                             Reads API signature files and generates a JSON file recording the API
-                                             version each class, method, and field was added in and (if applicable)
-                                             deprecated in. Required to generate API version JSON.
---api-version-signature-files <files>
-                                             An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. Required to generate API version JSON.
---api-version-names <strings>
-                                             An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files. Required to generate API version JSON.
 
 
 Sandboxing:

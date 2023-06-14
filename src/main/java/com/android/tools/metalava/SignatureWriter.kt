@@ -36,13 +36,12 @@ class SignatureWriter(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved,
-    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved
 ) : ApiVisitor(
     visitConstructorsAsMethods = false,
     nestInnerClasses = false,
     inlineInheritedFields = true,
-    methodComparator = methodComparator,
+    methodComparator = MethodItem.comparator,
     fieldComparator = FieldItem.comparator,
     filterEmit = filterEmit,
     filterReference = filterReference,
@@ -78,7 +77,8 @@ class SignatureWriter(
     override fun visitConstructor(constructor: ConstructorItem) {
         write("    ctor ")
         writeModifiers(constructor)
-        writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
+        // Note - we don't write out the type parameter list (constructor.typeParameterList()) in signature files!
+        // writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
         write(constructor.containingClass().fullName())
         writeParameterList(constructor)
         writeThrowsList(constructor)
@@ -284,7 +284,7 @@ class SignatureWriter(
             outerAnnotations = false,
             innerAnnotations = true,
             erased = false,
-            kotlinStyleNulls = outputKotlinStyleNulls && !item.hasInheritedGenericType(),
+            kotlinStyleNulls = outputKotlinStyleNulls,
             context = item,
             filter = filterReference
         )

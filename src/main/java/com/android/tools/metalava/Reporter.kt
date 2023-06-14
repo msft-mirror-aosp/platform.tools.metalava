@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextItem
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
@@ -254,17 +255,9 @@ class Reporter(
         element ?: return null
         val psiFile = element.containingFile ?: return null
         val virtualFile = psiFile.virtualFile ?: return null
-        val virtualFileAbsolutePath = try {
-            virtualFile.toNioPath().toAbsolutePath()
-        } catch (e: UnsupportedOperationException) {
-            return null
-        }
+        val file = VfsUtilCore.virtualToIoFile(virtualFile)
 
-        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
-        // either both of them are absolute paths or both of them are not absolute paths.
-        val path = rootFolder?.toPath()?.relativize(virtualFileAbsolutePath)
-            ?: virtualFileAbsolutePath
-        val pathString = path.toString()
+        val path = (rootFolder?.toPath()?.relativize(file.toPath()) ?: file.toPath()).toString()
 
         // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets sometimes)
         val sourceElement = (element as? UElement)?.sourcePsi ?: element
@@ -283,7 +276,7 @@ class Reporter(
         } else {
             getLineNumber(psiFile.text, range.startOffset) + 1
         }
-        return if (lineNumber > 0) "$pathString:$lineNumber" else pathString
+        return if (lineNumber > 0) "$path:$lineNumber" else path
     }
 
     /** Returns the 0-based line number of character position <offset> in <text> */

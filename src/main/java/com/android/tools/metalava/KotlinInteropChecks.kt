@@ -38,6 +38,7 @@ import org.jetbrains.uast.UField
 // Also potentially makes other API suggestions.
 class KotlinInteropChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {
+
         codebase.accept(object : ApiVisitor(
             // Sort by source order such that warnings follow source line number order
             methodComparator = MethodItem.sourceOrderComparator,

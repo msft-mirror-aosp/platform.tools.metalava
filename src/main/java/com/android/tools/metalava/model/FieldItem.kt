@@ -270,8 +270,8 @@ fun javaEscapeString(str: String): String {
     return result
 }
 
-// From doclava1 TextFieldItem#javaUnescapeString
 @Suppress("LocalVariableName")
+// From doclava1 TextFieldItem#javaUnescapeString
 fun javaUnescapeString(str: String): String {
     val n = str.length
     var simple = true
@@ -339,6 +339,7 @@ fun javaUnescapeString(str: String): String {
                 }
             }
             CHAR1, CHAR2, CHAR3, CHAR4 -> {
+
                 escaped = (escaped.code shl 4).toChar()
                 escaped = when (c) {
                     in '0'..'9' -> (escaped.code or (c - '0')).toChar()
