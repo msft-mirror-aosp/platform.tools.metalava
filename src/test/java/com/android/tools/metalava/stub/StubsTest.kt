@@ -18,16 +18,14 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_CHECK_API
+import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.androidxNullableSource
@@ -46,7 +44,6 @@ import com.android.tools.metalava.testApiSource
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 import java.io.File
-import java.io.FileNotFoundException
 import kotlin.test.assertEquals
 
 @SuppressWarnings("ALL")
@@ -55,7 +52,10 @@ class StubsTest : DriverTest() {
     // TODO: test @DocOnly handling
 
     private fun checkStubs(
-        @Language("JAVA") source: String,
+        // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
+        // use stubFiles.
+        @Language("JAVA") source: String = "",
+        stubFiles: Array<TestFile> = emptyArray(),
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -63,12 +63,16 @@ class StubsTest : DriverTest() {
         showAnnotations: Array<String> = emptyArray(),
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         format: FileFormat = FileFormat.latest,
-        sourceFiles: Array<TestFile>
+        sourceFiles: Array<TestFile> = emptyArray(),
+        signatureSources: Array<String> = emptyArray(),
+        checkTextStubEquivalence: Boolean = false
     ) {
+        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
             sourceFiles = sourceFiles,
+            signatureSources = signatureSources,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
+            stubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = true,
             api = api,
@@ -77,6 +81,30 @@ class StubsTest : DriverTest() {
             skipEmitPackages = skipEmitPackages,
             format = format
         )
+        if (checkTextStubEquivalence) {
+            if (stubFilesArr.isEmpty()) {
+                addError("Stub files may not be empty when checkTextStubEquivalence is set to true.")
+                return
+            }
+            if (docStubs) {
+                addError("From-text stub generation is not supported for documentation stub.")
+                return
+            }
+            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
+                addError("From-text stub generation is only supported for Java stubs.")
+                return
+            }
+            check(
+                signatureSources = arrayOf(readFile(getApiFile())),
+                showAnnotations = showAnnotations,
+                stubFiles = stubFilesArr,
+                expectedIssues = warnings,
+                checkCompilation = true,
+                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
+                skipEmitPackages = skipEmitPackages,
+                format = format
+            )
+        }
     }
 
     @Test
@@ -260,7 +288,7 @@ class StubsTest : DriverTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
-                private Foo() { throw new RuntimeException("Stub!"); }
+                Foo() { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
@@ -287,7 +315,8 @@ class StubsTest : DriverTest() {
                 public interface Foo {
                 public void foo();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -415,6 +444,15 @@ class StubsTest : DriverTest() {
                         public static final double field10 = Double.NaN;
                         public static final double field11 = Double.POSITIVE_INFINITY;
 
+                        public static final boolean field12;
+                        public static final byte field13;
+                        public static final char field14;
+                        public static final short field15;
+                        public static final int field16;
+                        public static final long field17;
+                        public static final float field18;
+                        public static final double field19;
+
                         public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
                         public static final char HEX_INPUT = 61184;
                     }
@@ -440,8 +478,25 @@ class StubsTest : DriverTest() {
                 public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
                 public static final double field10 = (0.0/0.0);
                 public static final double field11 = (1.0/0.0);
+                public static final boolean field12;
+                static { field12 = false; }
+                public static final byte field13;
+                static { field13 = 0; }
+                public static final char field14;
+                static { field14 = 0; }
+                public static final short field15;
+                static { field15 = 0; }
+                public static final int field16;
+                static { field16 = 0; }
+                public static final long field17;
+                static { field17 = 0; }
+                public static final float field18;
+                static { field18 = 0; }
+                public static final double field19;
+                static { field19 = 0; }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -683,7 +738,7 @@ class StubsTest : DriverTest() {
 
                     @SuppressWarnings("ALL")
                     public class MoreAsserts {
-                        public static void assertEquals(String arg0, Set<? extends Object> arg1, Set<? extends Object> arg2) { }
+                        public static void assertEquals(String arg1, Set<? extends Object> arg2, Set<? extends Object> arg3) { }
                         public static void assertEquals(Set<? extends Object> arg1, Set<? extends Object> arg2) { }
                     }
                     """
@@ -695,10 +750,11 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MoreAsserts {
                 public MoreAsserts() { throw new RuntimeException("Stub!"); }
-                public static void assertEquals(java.lang.String arg0, java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
+                public static void assertEquals(java.lang.String arg1, java.util.Set<?> arg2, java.util.Set<?> arg3) { throw new RuntimeException("Stub!"); }
                 public static void assertEquals(java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -861,7 +917,8 @@ class StubsTest : DriverTest() {
                     public void method2() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String CONSTANT = "MyConstant";
                     }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -909,7 +966,8 @@ class StubsTest : DriverTest() {
                 public void other() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -939,7 +997,8 @@ class StubsTest : DriverTest() {
                 protected void finalize1() throws java.lang.Throwable { throw new RuntimeException("Stub!"); }
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -969,7 +1028,8 @@ class StubsTest : DriverTest() {
                 public static final int CONSTANT3 = 0; // 0x0
                 public static final java.lang.String CONSTANT4 = null;
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -988,7 +1048,7 @@ class StubsTest : DriverTest() {
                         }
                         public static final class IsoFields {
                             public static final TemporalField DAY_OF_QUARTER = Field.DAY_OF_QUARTER;
-                            private IsoFields() {
+                            IsoFields() {
                                 throw new AssertionError("Not instantiable");
                             }
 
@@ -1013,7 +1073,7 @@ class StubsTest : DriverTest() {
                     public FinalFieldTest() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static final class IsoFields {
-                    private IsoFields() { throw new RuntimeException("Stub!"); }
+                    IsoFields() { throw new RuntimeException("Stub!"); }
                     public static final test.pkg.FinalFieldTest.TemporalField DAY_OF_QUARTER;
                     static { DAY_OF_QUARTER = null; }
                     }
@@ -1102,6 +1162,88 @@ class StubsTest : DriverTest() {
                 public static java.lang.String CONSTANT4;
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Check overridden method added for complex hierarchy`() {
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                public final class A extends C implements B<String> {
+                    @Override public void method2() { }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public interface B<T> {
+                    void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class C extends D {
+                    public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class D implements B<String> {
+                    @Override public void method1(String arg1) { }
+                }
+                """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public final class A extends test.pkg.C implements test.pkg.B<java.lang.String> {
+                public A() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public interface B<T> {
+                public void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class C extends test.pkg.D {
+                public C() { throw new RuntimeException("Stub!"); }
+                public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class D implements test.pkg.B<java.lang.String> {
+                public D() { throw new RuntimeException("Stub!"); }
+                public void method1(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                }
+                """
+                )
+            ),
+            checkTextStubEquivalence = true
         )
     }
 
@@ -1329,35 +1471,35 @@ class StubsTest : DriverTest() {
                     @SuppressWarnings("WeakerAccess")
                     public class Constructors {
                         public class Parent {
-                            public Parent(String s, int i, long l, boolean b, short sh) {
+                            public Parent(String arg1, int arg2, long arg3, boolean arg4, short arg5) {
                             }
                         }
 
                         public class Child extends Parent {
-                            public Child(String s, int i, long l, boolean b, short sh) {
-                                super(s, i, l, b, sh);
+                            public Child(String arg1, int arg2, long arg3, boolean arg4, short arg5) {
+                                super(arg1, arg2, arg3, arg4, arg5);
                             }
 
-                            private Child(String s) {
-                                super(s, 0, 0, false, 0);
+                            private Child(String arg1) {
+                                super(arg1, 0, 0, false, 0);
                             }
                         }
 
                         public class Child2 extends Parent {
-                            Child2(String s) {
-                                super(s, 0, 0, false, 0);
+                            Child2(String arg1) {
+                                super(arg1, 0, 0, false, 0);
                             }
                         }
 
                         public class Child3 extends Child2 {
-                            private Child3(String s) {
+                            private Child3(String arg1) {
                                 super("something");
                             }
                         }
 
                         public class Child4 extends Parent {
-                            Child4(String s, HiddenClass hidden) {
-                                super(s, 0, 0, true, 0);
+                            Child4(String arg1, HiddenClass arg2) {
+                                super(arg1, 0, 0, true, 0);
                             }
                         }
                         /** @hide */
@@ -1374,7 +1516,7 @@ class StubsTest : DriverTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
@@ -1382,7 +1524,7 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
-                    private Child3() { throw new RuntimeException("Stub!"); }
+                    Child3() { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
@@ -1390,10 +1532,11 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
-                    public Parent(java.lang.String s, int i, long l, boolean b, short sh) { throw new RuntimeException("Stub!"); }
+                    public Parent(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { throw new RuntimeException("Stub!"); }
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -1463,7 +1606,7 @@ class StubsTest : DriverTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
-                    private Child3() { throw new RuntimeException("Stub!"); }
+                    Child3() { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
@@ -1685,6 +1828,53 @@ class StubsTest : DriverTest() {
                 public static final int MY_CONSTANT = 5; // 0x5
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Check resolving override equivalent signatures`() {
+        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file created.
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser, test.pkg.AttributeSet {
+                        public void close();
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlPullParser {
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface AttributeSet {
+                        default String getAttributeNamespace (int arg1) { }
+                    }
+                    """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser,  test.pkg.AttributeSet {
+                    public void close();
+                    public java.lang.String getAttributeNamespace(int arg1);
+                    }
+                    """
+                )
+            ),
+            checkTextStubEquivalence = true
         )
     }
 
@@ -2422,7 +2612,8 @@ class StubsTest : DriverTest() {
                     public static interface TypeEvaluator<T> {
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3232,7 +3423,8 @@ class StubsTest : DriverTest() {
                 public interface MyInterface {
                 public void run();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3316,7 +3508,8 @@ class StubsTest : DriverTest() {
                     }
                     """
                 )
-            )
+            ),
+            docStubs = true
         )
     }
 
@@ -3460,7 +3653,7 @@ class StubsTest : DriverTest() {
                     @Deprecated
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
-                    private Foo() { throw new RuntimeException("Stub!"); }
+                    Foo() { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
@@ -3529,7 +3722,7 @@ class StubsTest : DriverTest() {
                     @test.pkg.MyClassRetentionAnnotation
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
-                    private Foo() { throw new RuntimeException("Stub!"); }
+                    Foo() { throw new RuntimeException("Stub!"); }
                     @Deprecated
                     public void bar() { throw new RuntimeException("Stub!"); }
                     @Deprecated protected int foo;
@@ -3710,81 +3903,6 @@ class StubsTest : DriverTest() {
                 @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity = 0; // 0x0
                 }
                 """
-        )
-    }
-
-    @Test(expected = FileNotFoundException::class)
-    fun `Test update-api should not generate stubs`() {
-        check(
-            format = FileFormat.V2,
-            extraArguments = arrayOf(
-                ARG_UPDATE_API,
-                ARG_EXCLUDE_ALL_ANNOTATIONS
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public class Foo {
-                        /**
-                         * @deprecated Use checkPermission instead.
-                         */
-                        @Deprecated
-                        protected boolean inClass(String name) {
-                            return false;
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-            package test.pkg {
-              public class Foo {
-                ctor public Foo();
-                method @Deprecated protected boolean inClass(String);
-              }
-            }
-            """,
-            stubFiles = arrayOf(
-                source(
-                    "test/pkg/Foo.java",
-                    "This file should not be generated since --update-api is supplied."
-                )
-            )
-        )
-    }
-
-    @Test(expected = AssertionError::class)
-    fun `Test check-api should not generate stubs or API files`() {
-        check(
-            extraArguments = arrayOf(
-                ARG_CHECK_API,
-                ARG_EXCLUDE_ALL_ANNOTATIONS
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public class Foo {
-                        /**
-                         * @deprecated Use checkPermission instead.
-                         */
-                        @Deprecated
-                        protected boolean inClass(String name) {
-                            return false;
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-            package test.pkg {
-              public class Foo {
-                ctor public Foo();
-                method @Deprecated protected boolean inClass(String);
-              }
-            }
-            """
         )
     }
 
@@ -4081,7 +4199,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Orange {
-                    private Orange() { throw new RuntimeException("Stub!"); }
+                    Orange() { throw new RuntimeException("Stub!"); }
                     }
                     """
                 ),
@@ -4090,7 +4208,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
-                    private Alpha() { throw new RuntimeException("Stub!"); }
+                    Alpha() { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
@@ -4413,7 +4531,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicApi {
-                    private PublicApi() { throw new RuntimeException("Stub!"); }
+                    PublicApi() { throw new RuntimeException("Stub!"); }
                     /** @deprecated My deprecation reason 1 */
                     @Deprecated
                     public static void method1() { throw new RuntimeException("Stub!"); }
@@ -4522,7 +4640,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicApi2 {
-                    private PublicApi2() { throw new RuntimeException("Stub!"); }
+                    PublicApi2() { throw new RuntimeException("Stub!"); }
                     public static void method1() { throw new RuntimeException("Stub!"); }
                     /**
                      * My docs.

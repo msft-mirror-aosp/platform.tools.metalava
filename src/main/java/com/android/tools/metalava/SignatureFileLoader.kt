@@ -24,40 +24,32 @@ import java.io.File
 object SignatureFileLoader {
     private val map = mutableMapOf<File, TextCodebase>()
 
-    fun load(
-        file: File,
-        kotlinStyleNulls: Boolean? = null
-    ): TextCodebase {
+    fun load(file: File, kotlinStyleNulls: Boolean = false): TextCodebase {
         return map[file] ?: run {
-            val loaded = loadFromSignatureFiles(file, kotlinStyleNulls)
+            val loaded = loadFiles(listOf(file), kotlinStyleNulls)
             map[file] = loaded
             loaded
         }
     }
 
-    private fun loadFromSignatureFiles(
-        file: File,
-        kotlinStyleNulls: Boolean? = null
-    ): TextCodebase {
+    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): TextCodebase {
+        require(files.isNotEmpty()) { "files must not be empty" }
+
         try {
-            val codebase = ApiFile.parseApi(File(file.path), kotlinStyleNulls ?: false)
-            codebase.description = "Codebase loaded from ${file.path}"
+            val codebase = ApiFile.parseApi(files, kotlinStyleNulls)
+
+            // Only add constructors if the codebase does not fall back to loading classes from the
+            // classpath. This is needed because only the TextCodebase supports adding constructors
+            // in this way.
+            if (options.apiClassResolution == Options.ApiClassResolution.API) {
+                // Unlike loadFromSources, analyzer methods are not required for text based codebase
+                // because all methods in the API text file belong to an API surface.
+                val analyzer = ApiAnalyzer(codebase)
+                analyzer.addConstructors { _ -> true }
+            }
             return codebase
         } catch (ex: ApiParseException) {
-            val message = "Unable to parse signature file $file: ${ex.message}"
-            throw DriverException(message)
-        }
-    }
-
-    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean? = null): TextCodebase {
-        if (files.isEmpty()) {
-            throw IllegalArgumentException("files must not be empty")
-        }
-        try {
-            return ApiFile.parseApi(files, kotlinStyleNulls ?: false)
-        } catch (ex: ApiParseException) {
-            val message = "Unable to parse signature file: ${ex.message}"
-            throw DriverException(message)
+            throw DriverException("Unable to parse signature file: ${ex.message}")
         }
     }
 }

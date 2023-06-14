@@ -254,8 +254,6 @@ private fun processFlags() {
         } else {
             return
         }
-    codebase.apiLevel = options.currentApiLevel +
-        if (options.currentCodeName != null && "REL" != options.currentCodeName) 1 else 0
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
@@ -270,8 +268,13 @@ private fun processFlags() {
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
     if (androidApiLevelXml != null && apiLevelJars != null) {
+        assert(options.currentApiLevel != -1)
+
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
-        ApiGenerator.generate(apiLevelJars, options.firstApiLevel, androidApiLevelXml, codebase)
+        ApiGenerator.generateXml(
+            apiLevelJars, options.firstApiLevel, options.currentApiLevel, options.isDeveloperPreviewBuild(),
+            androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile, options.removeMissingClassesInApiLevels
+        )
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {
@@ -304,7 +307,10 @@ private fun processFlags() {
         val apiReference = apiType.getReferenceFilter()
 
         createReportFile(codebase, apiFile, "API") { printWriter ->
-            SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+            SignatureWriter(
+                printWriter, apiEmit, apiReference, codebase.preFiltered,
+                methodComparator = options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -326,7 +332,11 @@ private fun processFlags() {
         val removedReference = apiType.getReferenceFilter()
 
         createReportFile(unfiltered, apiFile, "removed API", options.deleteEmptyRemovedSignatures) { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null, options.includeSignatureFormatVersionRemoved)
+            SignatureWriter(
+                printWriter, removedEmit, removedReference, codebase.original != null,
+                options.includeSignatureFormatVersionRemoved,
+                options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -491,7 +501,7 @@ fun processNonCodebaseFlags() {
     val apiVersionNames = options.apiVersionNames
     if (apiVersionsJson != null && apiVersionFiles != null && apiVersionNames != null) {
         progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
-        ApiGenerator.generate(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
+        ApiGenerator.generateJson(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
     }
 }
 
@@ -500,13 +510,13 @@ fun processNonCodebaseFlags() {
  * signature file.
  */
 fun checkCompatibility(
-    codebase: Codebase,
+    newCodebase: Codebase,
     check: CheckRequest
 ) {
     progress("Checking API compatibility ($check): ")
     val signatureFile = check.file
 
-    val old =
+    val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
@@ -518,65 +528,40 @@ fun checkCompatibility(
             )
         }
 
-    val oldFormat = (old as? TextCodebase)?.format ?: (old as? TextCodebaseWithClasspath)?.format
+    val oldFormat = (oldCodebase as? TextCodebase)?.format ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
     if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
         throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat")
     }
 
-    var newBase: Codebase? = null
-    var oldBase: Codebase? = null
+    var baseApi: Codebase? = null
+
     val apiType = check.apiType
 
-    // If diffing with a system-api or test-api (or other signature-based codebase
-    // generated from --show-annotations), the API is partial: it's only listing
-    // the API that is *different* from the base API. This really confuses the
-    // codebase comparison when diffing with a complete codebase, since it looks like
-    // many classes and members have been added and removed. Therefore, the comparison
-    // is simpler if we just make the comparison with the same generated signature
-    // file. If we've only emitted one for the new API, use it directly, if not, generate
-    // it first
-    val new =
-        if (check.codebase != null) {
-            SignatureFileLoader.load(
-                file = check.codebase,
+    if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
+        // Fast path: if we've already generated a signature file, and it's identical, we're good!
+        val apiFile = options.apiFile
+        if (apiFile != null && apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
+            return
+        }
+        val baseApiFile = options.baseApiForCompatCheck
+        if (baseApiFile != null) {
+            baseApi = SignatureFileLoader.load(
+                file = baseApiFile,
                 kotlinStyleNulls = options.inputKotlinStyleNulls
             )
-        } else if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
-            if (options.baseApiForCompatCheck != null) {
-                // This option does not make sense with showAnnotation, as the "base" in that case
-                // is the non-annotated APIs.
-                throw DriverException(
-                    ARG_CHECK_COMPATIBILITY_BASE_API +
-                        " is not compatible with --showAnnotation."
-                )
-            }
-
-            newBase = codebase
-            oldBase = newBase
-
-            codebase
-        } else {
-            // Fast path: if we've already generated a signature file and it's identical, we're good!
-            val apiFile = options.apiFile
-            if (apiFile != null && apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
-                return
-            }
-
-            val baseApiFile = options.baseApiForCompatCheck
-            if (baseApiFile != null) {
-                oldBase = SignatureFileLoader.load(
-                    file = baseApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
-                newBase = oldBase
-            }
-
-            codebase
         }
+    } else if (options.baseApiForCompatCheck != null) {
+        // This option does not make sense with showAnnotation, as the "base" in that case
+        // is the non-annotated APIs.
+        throw DriverException(
+            ARG_CHECK_COMPATIBILITY_BASE_API +
+                " is not compatible with --showAnnotation."
+        )
+    }
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, old, apiType, oldBase, newBase)
+    CompatibilityCheck.checkCompatibility(newCodebase, oldCodebase, apiType, baseApi)
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
@@ -680,6 +665,8 @@ private fun loadFromSources(): Codebase {
  * Returns a codebase initialized from the given Java or Kotlin source files, with the given
  * description. The codebase will use a project environment initialized according to the current
  * [options].
+ *
+ * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
  */
 internal fun parseSources(
     sources: List<File>,
@@ -690,18 +677,39 @@ internal fun parseSources(
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
     manifest: File? = options.manifest
 ): PsiBasedCodebase {
-    val sourceRoots = mutableListOf<File>()
-    sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
+    val absoluteSources = sources.map { it.absoluteFile }
+
+    val absoluteSourceRoots = sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
     // Add in source roots implied by the source files
     if (options.allowImplicitRoot) {
-        extractRoots(sources, sourceRoots)
+        extractRoots(absoluteSources, absoluteSourceRoots)
     }
 
-    val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
+    val absoluteClasspath = classpath.map { it.absoluteFile }
 
+    return parseAbsoluteSources(
+        absoluteSources, description, absoluteSourceRoots,
+        absoluteClasspath, javaLanguageLevel, kotlinLanguageLevel, manifest
+    )
+}
+
+/**
+ * Returns a codebase initialized from the given set of absolute files.
+ */
+private fun parseAbsoluteSources(
+    sources: List<File>,
+    description: String,
+    sourceRoots: List<File>,
+    classpath: List<File>,
+    javaLanguageLevel: LanguageLevel,
+    kotlinLanguageLevel: LanguageVersionSettings,
+    manifest: File?
+): PsiBasedCodebase {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
+
+    val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
 
     val lintClient = MetalavaCliClient()
     // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
@@ -713,9 +721,9 @@ internal fun parseSources(
         /* dir = */ rootDir,
         /* referenceDir = */ rootDir
     )
-    lintProject.javaSourceFolders.addAll(sourceRoots.map { it.absoluteFile })
+    lintProject.javaSourceFolders.addAll(sourceRoots)
     // TODO(b/271219257): javaLibraries seems better?
-    lintProject.javaClassFolders.addAll(classpath.map { it.absoluteFile })
+    lintProject.javaClassFolders.addAll(classpath)
     config.addModules(
         listOf(
             UastEnvironment.Module(
@@ -757,7 +765,7 @@ internal fun parseSources(
  * If classpath jars are present, merges classes loaded from the jars into the [textCodebase].
  */
 fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
-    return if (options.classpath.isNotEmpty()) {
+    return if (options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH && options.classpath.isNotEmpty()) {
         progress("Processing classpath: ")
         val uastEnvironment = loadUastFromJars(options.classpath)
         TextCodebaseWithClasspath(textCodebase, uastEnvironment)
@@ -870,8 +878,15 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
 }
 
 private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean, writeStubList: Boolean) {
-    // Generating stubs from a sig-file-based codebase is problematic
-    assert(codebase.supportsDocumentation())
+    if (codebase is TextCodebase) {
+        if (options.verbose) {
+            options.stdout.println(
+                "Generating stubs from text based codebase is an experimental feature. " +
+                    "It is not guaranteed that stubs generated from text based codebase are " +
+                    "class level equivalent to the stubs generated from source files. "
+            )
+        }
+    }
 
     // Temporary bug workaround for org.chromium.arc
     if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {

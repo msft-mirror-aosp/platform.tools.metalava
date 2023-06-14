@@ -31,7 +31,7 @@ open class TextMethodItem(
     name: String,
     containingClass: ClassItem,
     modifiers: TextModifiers,
-    private val returnType: TextTypeItem?,
+    private val returnType: TextTypeItem,
     position: SourcePositionInfo
 ) : TextMemberItem(
     codebase, name, containingClass, position,
@@ -79,7 +79,7 @@ open class TextMethodItem(
 
     override fun isConstructor(): Boolean = false
 
-    override fun returnType(): TypeItem? = returnType
+    override fun returnType(): TypeItem = returnType
 
     override fun superMethods(): List<MethodItem> {
         if (isConstructor()) {
@@ -209,9 +209,10 @@ open class TextMethodItem(
     override var inheritedFrom: ClassItem? = null
 
     override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${name()}(${parameters().joinToString {
-            it.type().toSimpleType()
-        }})"
+        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
+
+    fun toSignatureString(): String =
+        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 
     private var annotationDefault = ""
 

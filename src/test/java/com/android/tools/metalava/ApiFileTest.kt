@@ -3816,7 +3816,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test cannot merging API signature files with duplicate class`() {
+    fun `Test can merge API signature files with duplicate class`() {
         val source1 = """
             package Test.pkg {
               public final class Class1 {
@@ -3831,9 +3831,80 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
+        val expected = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test can merge API signature files with generic type classes`() {
+        val source1 = """
+            package Test.pkg {
+              public class LinkedHashMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                ctor public LinkedHashMap(int, float);
+                ctor public LinkedHashMap(int);
+                ctor public LinkedHashMap();
+                ctor public LinkedHashMap(java.util.Map<? extends K,? extends V>);
+                ctor public LinkedHashMap(int, float, boolean);
+                method protected boolean removeEldestEntry(java.util.Map.Entry<K,V>);
+              }
+            }
+            """
+        val source2 = """
+            package Test.pkg {
+              public class LinkedHashMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                method public java.util.Map.Entry<K,V> eldest();
+              }
+            }
+            """
+        val expected = """
+            package Test.pkg {
+              public class LinkedHashMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                ctor public LinkedHashMap(int, float);
+                ctor public LinkedHashMap(int);
+                ctor public LinkedHashMap();
+                ctor public LinkedHashMap(java.util.Map<? extends K,? extends V>);
+                ctor public LinkedHashMap(int, float, boolean);
+                method public java.util.Map.Entry<K,V> eldest();
+                method protected boolean removeEldestEntry(java.util.Map.Entry<K,V>);
+              }
+            }
+            """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected,
+            overloadedMethodOrder = Options.OverloadedMethodOrder.SOURCE,
+            format = FileFormat.V2,
+        )
+    }
+
+    @Test
+    fun `Test cannot merge API signature files with incompatible class definitions`() {
+        val source1 = """
+            package Test.pkg {
+              public class Class1 {
+                method public void method2();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Aborting: Unable to parse signature file: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 

@@ -244,11 +244,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     override fun visitMethod(method: MethodItem) {
         checkMethod(method, filterReference)
         val returnType = method.returnType()
-        if (returnType != null) {
-            checkType(returnType, method)
-            checkNullableCollections(returnType, method)
-            checkMethodSuffixListenableFutureReturn(returnType, method)
-        }
+        checkType(returnType, method)
+        checkNullableCollections(returnType, method)
+        checkMethodSuffixListenableFutureReturn(returnType, method)
         for (parameter in method.parameters()) {
             checkType(parameter.type(), parameter)
         }
@@ -581,7 +579,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             method.parameters().size == 1 &&
                 method.name().startsWith("on") &&
                 !method.parameters().first().type().primitive &&
-                method.returnType()?.toTypeString() == Void.TYPE.name
+                method.returnType().toTypeString() == Void.TYPE.name
 
         if (!methods.all(::isSingleParamCallbackMethod)) return
 
@@ -626,7 +624,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val prefix = when (className) {
             "android.content.Intent" -> "android.intent.action"
             "android.provider.Settings" -> "android.settings"
-            "android.app.admin.DevicePolicyManager", "android.app.admin.DeviceAdminReceiver" -> "android.app.action"
             else -> field.containingClass().containingPackage().qualifiedName() + ".action"
         }
         val expected = prefix + "." + name.substring(7)
@@ -663,7 +660,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val packageName = field.containingClass().containingPackage().qualifiedName()
         val prefix = when {
             className == "android.content.Intent" -> "android.intent.extra"
-            packageName == "android.app.admin" -> "android.app.extra"
             else -> "$packageName.extra"
         }
         val expected = prefix + "." + name.substring(6)
@@ -921,7 +917,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkIntentBuilder(method: MethodItem) {
-        if (method.returnType()?.toTypeString() == "android.content.Intent") {
+        if (method.returnType().toTypeString() == "android.content.Intent") {
             val name = method.name()
             if (name.startsWith("create") && name.endsWith("Intent")) {
                 return
@@ -1058,27 +1054,25 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 )
             } else if (name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")) {
                 val returnType = method.returnType()
-                if (returnType != null) {
-                    val returnsClassType = if (
-                        returnType is PsiTypeItem && clsType is PsiTypeItem
-                    ) {
-                        clsType.isAssignableFromWithoutUnboxing(returnType)
-                    } else {
-                        // fallback to a limited text based check
-                        val returnTypeBounds = returnType
-                            .asTypeParameter(context = method)
-                            ?.typeBounds()?.map {
-                                it.toTypeString()
-                            } ?: emptyList()
-                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
-                    }
-                    if (!returnsClassType) {
-                        report(
-                            SETTER_RETURNS_THIS, method,
-                            "Methods must return the builder object (return type " +
-                                "$clsType instead of $returnType): ${method.describe()}"
-                        )
-                    }
+                val returnsClassType = if (
+                    returnType is PsiTypeItem && clsType is PsiTypeItem
+                ) {
+                    clsType.isAssignableFromWithoutUnboxing(returnType)
+                } else {
+                    // fallback to a limited text based check
+                    val returnTypeBounds = returnType
+                        .asTypeParameter(context = method)
+                        ?.typeBounds()?.map {
+                            it.toTypeString()
+                        } ?: emptyList()
+                    returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
+                }
+                if (!returnsClassType) {
+                    report(
+                        SETTER_RETURNS_THIS, method,
+                        "Methods must return the builder object (return type " +
+                            "$clsType instead of $returnType): ${method.describe()}"
+                    )
                 }
 
                 if (method.modifiers.isNullable()) {
@@ -1251,16 +1245,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         for (method in methodsAndConstructors) {
             val returnType = method.returnType()
-            if (returnType != null) { // not a constructor
-                val returnTypeRank = getTypeRank(returnType)
-                if (returnTypeRank != -1 && returnTypeRank < classRank) {
-                    report(
-                        PACKAGE_LAYERING, cls,
-                        "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                            returnType
-                        )}`"
-                    )
-                }
+            val returnTypeRank = getTypeRank(returnType)
+            if (returnTypeRank != -1 && returnTypeRank < classRank) {
+                report(
+                    PACKAGE_LAYERING, cls,
+                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
+                        returnType
+                    )}`"
+                )
             }
 
             for (parameter in method.parameters()) {
@@ -1359,7 +1351,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
 
         fun isGetter(method: MethodItem): Boolean {
-            val returnType = method.returnType() ?: return false
+            val returnType = method.returnType()
             return method.parameters().isEmpty() && returnType.primitive && returnType.toTypeString() == "boolean"
         }
 
@@ -1610,7 +1602,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             )
         }
         for (method in methods) {
-            if (method.returnType()?.asClass() == cls) {
+            if (method.returnType().asClass() == cls) {
                 report(
                     MANAGER_LOOKUP, method,
                     "Managers must always be obtained from Context (`${method.name()}`)"
@@ -1663,7 +1655,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 is MethodItem -> {
                     // For methods requiresNullnessInfo and hasNullnessInfo considers both parameters and return,
                     // only warn about non-annotated returns here as parameters will get visited individually.
-                    if (item.isConstructor() || item.returnType()?.primitive == true) return
+                    if (item.isConstructor() || item.returnType().primitive) return
                     if (item.modifiers.hasNullnessInfo()) return
                     "method `${item.name()}` return"
                 }
@@ -1700,9 +1692,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
-            superMethod.modifiers.isNonNull() &&
-                // Disable check for generics
-                superMethod.returnType()?.isTypeParameter() != true
+            // Disable check for generics
+            superMethod.modifiers.isNonNull() && !superMethod.returnType().isTypeParameter()
         }
     }
 
@@ -1722,9 +1713,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
-            !superMethod.hasNullnessInfo() &&
-                // Disable check for generics
-                superMethod.returnType()?.isTypeParameter() != true
+            // Disable check for generics
+            !superMethod.hasNullnessInfo() && !superMethod.returnType().isTypeParameter()
         }
     }
 
@@ -1995,8 +1985,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkContextFirst(method: MethodItem) {
         val parameters = method.parameters()
-        if (parameters.size > 1 && parameters[0].type().toTypeString() != "android.content.Context") {
-            for (i in 1 until parameters.size) {
+        // The first parameter for a Kotlin extension method is the receiver
+        val effectivelyFirstParameterPosition = if (method.isExtensionMethod()) 1 else 0
+        val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
+        if (parameters.size <= effectivelySecondParameterPosition) return
+        val firstParameterTypeString =
+            parameters[effectivelyFirstParameterPosition].type().toTypeString()
+        if (firstParameterTypeString != "android.content.Context") {
+            for (i in effectivelySecondParameterPosition until parameters.size) {
                 val p = parameters[i]
                 if (p.type().toTypeString() == "android.content.Context") {
                     report(
@@ -2006,8 +2002,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
             }
         }
-        if (parameters.size > 1 && parameters[0].type().toTypeString() != "android.content.ContentResolver") {
-            for (i in 1 until parameters.size) {
+        if (firstParameterTypeString != "android.content.ContentResolver") {
+            for (i in effectivelySecondParameterPosition until parameters.size) {
                 val p = parameters[i]
                 if (p.type().toTypeString() == "android.content.ContentResolver") {
                     report(
@@ -2198,7 +2194,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
         for (method in methods) {
-            val returnType = method.returnType() ?: continue
+            val returnType = method.returnType()
             if (returnType.primitive) {
                 return
             }
@@ -2238,7 +2234,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkUnits(method: MethodItem) {
-        val returnType = method.returnType() ?: return
+        val returnType = method.returnType()
         var type = returnType.toTypeString()
         val name = method.name()
         if (type == "int" || type == "long" || type == "short") {
@@ -2328,7 +2324,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
                 // https://kotlinlang.org/docs/reference/operator-overloading.html#increments-and-decrements
                 "inc", "dec" -> {
-                    if (method.parameters().isEmpty() && method.returnType()?.toTypeString() != "void") {
+                    if (method.parameters().isEmpty() && method.returnType().toTypeString() != "void") {
                         flagKotlinOperator(
                             method, "Method can be invoked as a pre/postfix inc/decrement operator from Kotlin: `$name`"
                         )
@@ -2346,7 +2342,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     if (methods.any {
                         it.name() == assignName &&
                             it.parameters().size == 1 &&
-                            it.returnType()?.toTypeString() == "void"
+                            it.returnType().toTypeString() == "void"
                     }
                     ) {
                         report(
@@ -2357,7 +2353,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
                 // https://kotlinlang.org/docs/reference/operator-overloading.html#in
                 "contains" -> {
-                    if (method.parameters().size == 1 && method.returnType()?.toTypeString() == "boolean") {
+                    if (method.parameters().size == 1 && method.returnType().toTypeString() == "boolean") {
                         flagKotlinOperator(
                             method, "Method can be invoked as a \"in\" operator from Kotlin: `$name`"
                         )
@@ -2389,7 +2385,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
                 // https://kotlinlang.org/docs/reference/operator-overloading.html#assignments
                 "plusAssign", "minusAssign", "timesAssign", "divAssign", "remAssign", "modAssign" -> {
-                    if (method.parameters().size == 1 && method.returnType()?.toTypeString() == "void") {
+                    if (method.parameters().size == 1 && method.returnType().toTypeString() == "void") {
                         flagKotlinOperator(
                             method, "Method can be invoked as a compound assignment operator from Kotlin: `$name`"
                         )
@@ -2442,8 +2438,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkUserHandle(cls: ClassItem, methods: Sequence<MethodItem>) {
         val qualifiedName = cls.qualifiedName()
-        if (qualifiedName == "android.app.admin.DeviceAdminReceiver" ||
-            qualifiedName == "android.content.pm.LauncherApps" ||
+        if (qualifiedName == "android.content.pm.LauncherApps" ||
             qualifiedName == "android.os.UserHandle" ||
             qualifiedName == "android.os.UserManager"
         ) {

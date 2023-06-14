@@ -111,7 +111,6 @@ class TextCodebaseWithClasspath(
 
     // Inherit properties from the backing [textCodebase]
     val format: FileFormat = textCodebase.format
-    override var apiLevel: Int = textCodebase.apiLevel
     override var preFiltered: Boolean = textCodebase.preFiltered
 
     override fun getPackageDocs(): PackageDocs? = textCodebase.getPackageDocs()

@@ -274,6 +274,10 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Test callbacks`() {
         check(
+            extraArguments = arrayOf(
+                ARG_ERROR,
+                "CallbackInterface"
+            ),
             apiLint = "", // enabled
             expectedIssues = """
                 src/android/pkg/MyCallback.java:9: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [See https://s.android.com/api-guidelines#callback-method-naming]
@@ -2014,6 +2018,7 @@ class ApiLintTest : DriverTest() {
             expectedIssues = """
                 src/android/pkg/MyClass.java:11: error: Context is distinct, so it must be the first argument (method `wrong`) [ContextFirst]
                 src/android/pkg/MyClass.java:12: error: ContentResolver is distinct, so it must be the first argument (method `wrong`) [ContextFirst]
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -2032,6 +2037,15 @@ class ApiLintTest : DriverTest() {
                         public void wrong(int i, @Nullable Context context) { }
                         public void wrong(int i, @Nullable ContentResolver resolver) { }
                     }
+                    """
+                ),
+                kotlin(
+                    """
+                    package android.pkg
+                    import android.content.Context
+                    fun String.okCall(context: Context) {}
+                    fun String.okCall(context: Context, value: Int) {}
+                    fun String.badCall(value: Int, context: Context) {}
                     """
                 ),
                 androidxNullableSource
