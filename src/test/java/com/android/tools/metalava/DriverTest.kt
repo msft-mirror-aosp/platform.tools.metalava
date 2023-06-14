@@ -92,7 +92,6 @@ abstract class DriverTest {
     }
 
     protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
-
         resetTicker()
 
         // Capture the actual input and output from System.out/err and compare it
@@ -299,6 +298,8 @@ abstract class DriverTest {
         hideAnnotations: Array<String> = emptyArray(),
         /** Hide meta-annotations (--hide-meta-annotation arguments) */
         hideMetaAnnotations: Array<String> = emptyArray(),
+        /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
+        suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
@@ -346,11 +347,6 @@ abstract class DriverTest {
         validateNullability: Set<String>? = null,
         /** Enable nullability validation for the listed classes */
         validateNullabilityFromList: String? = null,
-        /**
-         * Whether to include source retention annotations in the stubs (in that case they do not
-         * go into the extracted annotations zip file)
-         */
-        includeSourceRetentionAnnotations: Boolean = true,
         /**
          * Whether to include the signature version in signatures
          */
@@ -696,16 +692,21 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val showUnannotatedArgs =
-            if (showUnannotated) {
-                arrayOf(ARG_SHOW_UNANNOTATED)
+        val suppressCompatMetaAnnotationArguments =
+            if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
+                val args = mutableListOf<String>()
+                for (annotation in suppressCompatibilityMetaAnnotations) {
+                    args.add(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION)
+                    args.add(annotation)
+                }
+                args.toTypedArray()
             } else {
                 emptyArray()
             }
 
-        val includeSourceRetentionAnnotationArgs =
-            if (includeSourceRetentionAnnotations) {
-                arrayOf(ARG_INCLUDE_SOURCE_RETENTION)
+        val showUnannotatedArgs =
+            if (showUnannotated) {
+                arrayOf(ARG_SHOW_UNANNOTATED)
             } else {
                 emptyArray()
             }
@@ -1005,9 +1006,9 @@ abstract class DriverTest {
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *hideMetaAnnotationArguments,
+            *suppressCompatMetaAnnotationArguments,
             *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
-            *includeSourceRetentionAnnotationArgs,
             *apiLintArgs,
             *sdkFilesArgs,
             *importedPackageArgs.toTypedArray(),

@@ -97,6 +97,7 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
+const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
@@ -106,6 +107,10 @@ const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
+const val ARG_ERROR_CATEGORY = "--error-category"
+const val ARG_WARNING_CATEGORY = "--warning-category"
+const val ARG_LINT_CATEGORY = "--lint-category"
+const val ARG_HIDE_CATEGORY = "--hide-category"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
@@ -113,6 +118,9 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
+const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
+const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
+const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_PUBLIC = "--public"
@@ -127,8 +135,6 @@ const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
-const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
-const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
@@ -160,6 +166,7 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
     private val args: Array<String>,
@@ -183,6 +190,8 @@ class Options(
     private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
+    /** Internal list backing [suppressCompatibilityMetaAnnotations] */
+    private val mutableNoCompatCheckMetaAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [showForStubPurposesAnnotations] */
     private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
     /** Internal list backing [stubImportPackages] */
@@ -354,9 +363,12 @@ class Options(
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
 
+    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
+    var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
+
     /**
      * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in included in certain kinds of output such as stubs, but others (e.g.
+     * will be included in certain kinds of output such as stubs, but others (e.g.
      * API lint and the API signature file) ignore them.
      */
     var showForStubPurposesAnnotations: AnnotationFilter = mutableShowForStubPurposesAnnotation
@@ -365,7 +377,7 @@ class Options(
      * classpath. Defaults to true for backwards compatibility but is set to false if any API signatures are imported
      * as they must provide a complete set of all classes required but not provided by the generated API.
      *
-     * Once all APIs are either self contained or imported all the required references this will be removed and no
+     * Once all APIs are either self-contained or imported all the required references this will be removed and no
      * classes will be allowed from the classpath JARs. */
     var allowClassesFromClasspath = true
 
@@ -415,22 +427,6 @@ class Options(
 
     /** For [ARG_COPY_ANNOTATIONS], the target directory to write converted stub annotations from */
     var privateAnnotationsTarget: File? = null
-
-    /**
-     * For [ARG_INCLUDE_ANNOTATION_CLASSES], the directory to copy stub annotation source files into the
-     * stubs folder from
-     */
-    var copyStubAnnotationsFrom: File? = null
-
-    /**
-     * For [ARG_INCLUDE_SOURCE_RETENTION], true if we want to include source-retention annotations
-     * both in the set of files emitted by [ARG_INCLUDE_ANNOTATION_CLASSES] and into the stubs
-     * themselves
-     */
-    var includeSourceRetentionAnnotations = false
-
-    /** For [ARG_REWRITE_ANNOTATIONS], the jar or bytecode folder to rewrite annotations in */
-    var rewriteAnnotations: List<File>? = null
 
     /** A manifest file to read to for example look up available permissions */
     var manifest: File? = null
@@ -506,6 +502,15 @@ class Options(
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
+
+    /** API version history JSON file to generate */
+    var generateApiVersionsJson: File? = null
+
+    /** Ordered list of signatures for each API version, if generating an API version JSON */
+    var apiVersionSignatureFiles: List<File>? = null
+
+    /** The names of the API versions in [apiVersionSignatureFiles], in the same order */
+    var apiVersionNames: List<String>? = null
 
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
@@ -686,6 +691,8 @@ class Options(
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
     var repeatErrorsMax = 0
 
+    var useK2Uast = false
+
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
         // to emit the banner even before we emit errors
@@ -853,6 +860,9 @@ class Options(
                 ARG_HIDE_META_ANNOTATION, "--hideMetaAnnotations", "-hideMetaAnnotation" ->
                     mutableHideMetaAnnotations.add(getValue(args, ++index))
 
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION ->
+                    mutableNoCompatCheckMetaAnnotations.add(getValue(args, ++index))
+
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
@@ -977,9 +987,6 @@ class Options(
                     privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
                     privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
                 }
-                ARG_REWRITE_ANNOTATIONS -> rewriteAnnotations = stringToExistingDirsOrJars(getValue(args, ++index))
-                ARG_INCLUDE_ANNOTATION_CLASSES -> copyStubAnnotationsFrom = stringToExistingDir(getValue(args, ++index))
-                ARG_INCLUDE_SOURCE_RETENTION -> includeSourceRetentionAnnotations = true
 
                 "--previous-api" -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
@@ -1063,6 +1070,27 @@ class Options(
                 ARG_LINT, "-lint" -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
                 ARG_HIDE, "-hide" -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
 
+                ARG_ERROR_CATEGORY, "-error-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.ERROR,
+                    arg
+                )
+                ARG_WARNING_CATEGORY, "-warning-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.WARNING,
+                    arg
+                )
+                ARG_LINT_CATEGORY, "-lint-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.LINT,
+                    arg
+                )
+                ARG_HIDE_CATEGORY, "-hide-category" -> setCategorySeverity(
+                    getValue(args, ++index),
+                    Severity.HIDDEN,
+                    arg
+                )
+
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
                 "-werror" -> {
@@ -1134,6 +1162,16 @@ class Options(
                     } else {
                         stringToExistingFile(getValue(args, ++index))
                     }
+                }
+
+                ARG_GENERATE_API_VERSION_HISTORY -> {
+                    generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
+                }
+                ARG_API_VERSION_SIGNATURE_FILES -> {
+                    apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
+                }
+                ARG_API_VERSION_NAMES -> {
+                    apiVersionNames = getValue(args, ++index).split(' ')
                 }
 
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
@@ -1233,6 +1271,8 @@ class Options(
                 ARG_REPEAT_ERRORS_MAX -> {
                     repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
+
+                ARG_USE_K2_UAST -> useK2Uast = true
 
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
@@ -1447,6 +1487,12 @@ class Options(
             )
         }
 
+        if (apiVersionSignatureFiles?.size != apiVersionNames?.size) {
+            throw DriverException(
+                "$ARG_API_VERSION_SIGNATURE_FILES and $ARG_API_VERSION_NAMES must have equal length"
+            )
+        }
+
         // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
             if (outputFormat < FileFormat.V3) {
@@ -1640,7 +1686,6 @@ class Options(
         currentCodeName: String?,
         currentJar: File?
     ): Array<File> {
-
         @Suppress("NAME_SHADOWING")
         val currentApiLevel = if (currentCodeName != null && "REL" != currentCodeName) {
             currentApiLevel + 1
@@ -2065,6 +2110,9 @@ class Options(
             "$ARG_HIDE_META_ANNOTATION <meta-annotation class>",
             "Treat as hidden any elements annotated with an " +
                 "annotation which is itself annotated with the given meta-annotation",
+            "$ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION <meta-annotation class>",
+            "Suppress compatibility checks for any elements within the scope of an annotation " +
+                "which is itself annotated with the given meta-annotation",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
             "$ARG_KOTLIN_SOURCE <level>", "Sets the source level for Kotlin source files; default is ${LanguageVersionSettingsImpl.DEFAULT.languageVersion}.",
@@ -2160,13 +2208,9 @@ class Options(
             "Whether the signature file being read should be " +
                 "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
                 "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
-            "$ARG_CHECK_COMPATIBILITY:type:state <file>",
+            "$ARG_CHECK_COMPATIBILITY:type:released <file>",
             "Check compatibility. Type is one of 'api' " +
-                "and 'removed', which checks either the public api or the removed api. State is one of " +
-                "'current' and 'released', to check either the currently in development API or the last publicly " +
-                "released API, respectively. Different compatibility checks apply in the two scenarios. " +
-                "For example, to check the code base against the current public API, use " +
-                "$ARG_CHECK_COMPATIBILITY:api:current.",
+                "and 'removed', which checks either the public api or the removed api.",
             "$ARG_CHECK_COMPATIBILITY_BASE_API <file>",
             "When performing a compat check, use the provided signature " +
                 "file as a base api, which is treated as part of the API being checked. This allows us to compute the " +
@@ -2188,7 +2232,11 @@ class Options(
             "$ARG_WARNING <id>", "Report issues of the given id as warnings",
             "$ARG_LINT <id>", "Report issues of the given id as having lint-severity",
             "$ARG_HIDE <id>", "Hide/skip issues of the given id",
-            "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>", "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE')",
+            "$ARG_ERROR_CATEGORY <name>", "Report all issues in the given category as errors",
+            "$ARG_WARNING_CATEGORY <name>", "Report all issues in the given category as warnings",
+            "$ARG_LINT_CATEGORY <name>", "Report all issues in the given category as having lint-severity",
+            "$ARG_HIDE_CATEGORY <name>", "Hide/skip all issues in the given category",
+            "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>", "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY')",
             "$ARG_BASELINE <file>",
             "Filter out any errors already reported in the given baseline file, or " +
                 "create if it does not already exist",
@@ -2235,12 +2283,6 @@ class Options(
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
             "Extracts source annotations from the source files and writes " +
                 "them into the given zip file",
-            "$ARG_INCLUDE_ANNOTATION_CLASSES <dir>",
-            "Copies the given stub annotation source files into the " +
-                "generated stub sources; <dir> is typically $PROGRAM_NAME/stub-annotations/src/main/java/.",
-            "$ARG_REWRITE_ANNOTATIONS <dir/jar>",
-            "For a bytecode folder or output jar, rewrites the " +
-                "androidx annotations to be package private",
             "$ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS <package1:-package2:...>",
             "On every API declared " +
                 "in a class referenced by the given filter, makes nullability issues appear to callers as warnings " +
@@ -2269,6 +2311,18 @@ class Options(
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
+
+            "", "\nGenerating API version history:",
+            "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
+            "Reads API signature files and generates a JSON file recording the API version each " +
+                "class, method, and field was added in and (if applicable) deprecated in. " +
+                "Required to generate API version JSON.",
+            "$ARG_API_VERSION_SIGNATURE_FILES <files>",
+            "An ordered list of text API signature files. The oldest API version should be " +
+                "first, the newest last. Required to generate API version JSON.",
+            "$ARG_API_VERSION_NAMES <strings>",
+            "An ordered list of strings with the names to use for the API versions from " +
+                "$ARG_API_VERSION_SIGNATURE_FILES. Required to generate API version JSON.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,
@@ -2373,6 +2427,25 @@ class Options(
                 } ?: throw DriverException("Unknown issue id: $arg $id")
 
             defaultConfiguration.setSeverity(issue, severity)
+        }
+
+        private fun setCategorySeverity(
+            id: String,
+            severity: Severity,
+            arg: String
+        ) {
+            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+                id.split(",").forEach {
+                    setCategorySeverity(it.trim(), severity, arg)
+                }
+                return
+            }
+            val issues = Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
+                ?: throw DriverException("Unknown category: $arg $id")
+
+            issues.forEach {
+                defaultConfiguration.setSeverity(it, severity)
+            }
         }
     }
 }
