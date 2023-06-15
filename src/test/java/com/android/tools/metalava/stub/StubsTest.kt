@@ -18,15 +18,12 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.deprecatedForSdkSource
@@ -41,71 +38,14 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
-import org.intellij.lang.annotations.Language
 import org.junit.Test
 import java.io.File
 import kotlin.test.assertEquals
 
 @SuppressWarnings("ALL")
-class StubsTest : DriverTest() {
+class StubsTest : AbstractStubsTest() {
     // TODO: test fields that need initialization
     // TODO: test @DocOnly handling
-
-    private fun checkStubs(
-        // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
-        // use stubFiles.
-        @Language("JAVA") source: String = "",
-        stubFiles: Array<TestFile> = emptyArray(),
-        warnings: String? = "",
-        api: String? = null,
-        extraArguments: Array<String> = emptyArray(),
-        docStubs: Boolean = false,
-        showAnnotations: Array<String> = emptyArray(),
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
-        format: FileFormat = FileFormat.latest,
-        sourceFiles: Array<TestFile> = emptyArray(),
-        signatureSources: Array<String> = emptyArray(),
-        checkTextStubEquivalence: Boolean = false
-    ) {
-        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
-        check(
-            sourceFiles = sourceFiles,
-            signatureSources = signatureSources,
-            showAnnotations = showAnnotations,
-            stubFiles = stubFilesArr,
-            expectedIssues = warnings,
-            checkCompilation = true,
-            api = api,
-            extraArguments = extraArguments,
-            docStubs = docStubs,
-            skipEmitPackages = skipEmitPackages,
-            format = format
-        )
-        if (checkTextStubEquivalence) {
-            if (stubFilesArr.isEmpty()) {
-                addError("Stub files may not be empty when checkTextStubEquivalence is set to true.")
-                return
-            }
-            if (docStubs) {
-                addError("From-text stub generation is not supported for documentation stub.")
-                return
-            }
-            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
-                addError("From-text stub generation is only supported for Java stubs.")
-                return
-            }
-            check(
-                signatureSources = arrayOf(readFile(getApiFile())),
-                showAnnotations = showAnnotations,
-                stubFiles = stubFilesArr,
-                expectedIssues = warnings,
-                checkCompilation = true,
-                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
-                skipEmitPackages = skipEmitPackages,
-                format = format
-            )
-        }
-    }
 
     @Test
     fun `Generate stubs for basic class`() {
