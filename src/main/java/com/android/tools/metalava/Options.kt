@@ -710,7 +710,7 @@ class Options(
         // to emit the banner even before we emit errors
         if (args.contains(ARG_NO_COLOR)) {
             color = false
-        } else if (args.contains(ARG_COLOR) || args.contains("-android")) {
+        } else if (args.contains(ARG_COLOR)) {
             color = true
         }
         // empty args: only when building initial default Options (options field
