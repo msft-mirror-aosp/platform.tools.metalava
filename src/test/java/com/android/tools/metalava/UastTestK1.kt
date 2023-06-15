@@ -21,11 +21,6 @@ import org.junit.Test
 class UastTestK1 : UastTestBase() {
 
     @Test
-    fun `Kotlin language level -- K1`() {
-        `Kotlin language level`(isK2 = false)
-    }
-
-    @Test
     fun `Test RequiresOptIn and OptIn -- K1`() {
         `Test RequiresOptIn and OptIn`(isK2 = false)
     }

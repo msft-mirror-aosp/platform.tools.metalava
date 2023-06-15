@@ -38,49 +38,6 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Kotlin language level`(isK2: Boolean) {
-        // static method in interface is not overridable.
-        // TODO: Put this back to Java9LanguageFeaturesTest, before `Basic class signature extraction`
-        // See https://kotlinlang.org/docs/reference/whatsnew13.html
-        uastCheck(
-            isK2,
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-                    interface Foo {
-                        companion object {
-                            @JvmField
-                            const val answer: Int = 42
-                            @JvmStatic
-                            fun sayHello() {
-                                println("Hello, world!")
-                            }
-                        }
-                    }
-                    """
-                )
-            ),
-            api =
-            """
-                package test.pkg {
-                  public interface Foo {
-                    method public static void sayHello();
-                    field @NonNull public static final test.pkg.Foo.Companion Companion;
-                    field public static final int answer = 42; // 0x2a
-                  }
-                  public static final class Foo.Companion {
-                    method public void sayHello();
-                  }
-                }
-                """,
-            // The above source uses 1.3 features, though UAST currently
-            // seems to still treat it as 1.3 despite being passed 1.2
-            extraArguments = arrayOf(ARG_KOTLIN_SOURCE, "1.2")
-        )
-    }
-
     protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
         // See http://b/248341155 for more details
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
