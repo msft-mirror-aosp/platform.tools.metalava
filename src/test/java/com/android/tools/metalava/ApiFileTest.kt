@@ -1043,7 +1043,10 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "androidx.annotation",
+                ARG_KOTLIN_SOURCE, "1.8"
+            )
         )
     }
 
@@ -1492,7 +1495,8 @@ class ApiFileTest : DriverTest() {
                     enum_constant public static final test.pkg.Foo B;
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(ARG_KOTLIN_SOURCE, "1.8")
         )
     }
 

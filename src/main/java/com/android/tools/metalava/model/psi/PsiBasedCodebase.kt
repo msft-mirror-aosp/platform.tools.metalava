@@ -59,7 +59,6 @@ import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.kotlin.fileClasses.isJvmMultifileClassFile
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
@@ -305,10 +304,6 @@ open class PsiBasedCodebase(
 
         packageClasses.clear() // Not used after this point
     }
-
-    // TODO(jsjeon): remove this when the upstream has this commonized property (ETA: 1.9)
-    private val KtLightClassForFacade.multiFileClass: Boolean
-        get() = files.size > 1 && files.first().isJvmMultifileClassFile
 
     override fun dispose() {
         uastEnvironment.dispose()

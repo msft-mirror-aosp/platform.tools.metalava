@@ -729,8 +729,7 @@ private fun parseAbsoluteSources(
         /* referenceDir = */ rootDir
     )
     lintProject.javaSourceFolders.addAll(sourceRoots)
-    // TODO(b/271219257): javaLibraries seems better?
-    lintProject.javaClassFolders.addAll(classpath)
+    lintProject.javaLibraries.addAll(classpath)
     config.addModules(
         listOf(
             UastEnvironment.Module(
@@ -739,12 +738,9 @@ private fun parseAbsoluteSources(
                 options.jdkHome,
                 includeTests = false,
                 includeTestFixtureSources = false,
-                // TODO(b/271219257): should be `false` if we can set javaLibraries instead
-                isUnitTest = true
+                isUnitTest = false
             )
         ),
-        // TODO(b/271219257): should be able to add modules w/o bootclasspath
-        emptySet()
     )
     // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
     options.jdkHome?.let {
