@@ -484,28 +484,6 @@ $FLAGS
     }
 
     @Test
-    fun `Test invalid value`() {
-        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
-
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
-        assertEquals(BANNER + "\n\n", stdout.toString())
-        assertEquals(
-            """
-
-Aborting: --api-class-resolution must be one of api, api:classpath; was foo
-
-            """.trimIndent(),
-            stderr.toString()
-        )
-    }
-
-    @Test
     fun `Test help`() {
         val args = listOf(ARG_NO_COLOR, "--help")
 

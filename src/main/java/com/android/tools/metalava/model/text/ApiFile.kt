@@ -47,11 +47,7 @@ object ApiFile {
      * Even if false, we'll allow them if the file format supports them/
      */
     @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull file: File,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ) = parseApi(listOf(file), kotlinStyleNulls, apiClassResolution)
+    fun parseApi(@Nonnull file: File, kotlinStyleNulls: Boolean) = parseApi(listOf(file), kotlinStyleNulls)
 
     /**
      * Read API signature files into a [TextCodebase].
@@ -65,13 +61,9 @@ object ApiFile {
      * Even if false, we'll allow them if the file format supports them/
      */
     @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull files: List<File>,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ): TextCodebase {
+    fun parseApi(@Nonnull files: List<File>, kotlinStyleNulls: Boolean): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
-        val api = TextCodebase(files[0], apiClassResolution = apiClassResolution)
+        val api = TextCodebase(files[0])
         val description = StringBuilder("Codebase loaded from ")
         var first = true
         for (file in files) {
@@ -98,10 +90,9 @@ object ApiFile {
     fun parseApi(
         filename: String,
         apiText: String,
-        kotlinStyleNulls: Boolean?,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        kotlinStyleNulls: Boolean?
     ): TextCodebase {
-        return parseApi(filename, apiText, kotlinStyleNulls != null && kotlinStyleNulls, apiClassResolution)
+        return parseApi(filename, apiText, kotlinStyleNulls != null && kotlinStyleNulls)
     }
 
     /**
@@ -112,10 +103,9 @@ object ApiFile {
     fun parseApi(
         @Nonnull filename: String,
         @Nonnull apiText: String,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        kotlinStyleNulls: Boolean
     ): TextCodebase {
-        val api = TextCodebase(File(filename), apiClassResolution)
+        val api = TextCodebase(File(filename))
         api.description = "Codebase loaded from $filename"
         parseApiSingleFile(api, false, filename, apiText, kotlinStyleNulls)
         api.postProcess()
