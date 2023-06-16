@@ -1753,7 +1753,7 @@ class ApiLint(
             }
             if (item is MethodItem && item.isKotlinProperty()) {
                 return // kotlinc doesn't add nullability
-                       // https://youtrack.jetbrains.com/issue/KT-45771
+                // https://youtrack.jetbrains.com/issue/KT-45771
             }
             val where =
                 when (item) {
@@ -2295,7 +2295,7 @@ class ApiLint(
                 }
             }
             STYLEABLE, // appears as R class but name check is implicitly done as part of style
-                       // class check
+            // class check
             // DECLARE_STYLEABLE,
             STYLE_ITEM,
             PUBLIC,

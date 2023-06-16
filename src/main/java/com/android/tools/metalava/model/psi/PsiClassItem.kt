@@ -269,9 +269,8 @@ open class PsiClassItem(
                 val result = ArrayList<PsiTypeItem>(interfaces.size + extendsListTypes.size - 1)
                 val create: (PsiClassType) -> PsiTypeItem = {
                     val type = PsiTypeItem.create(codebase, it)
-                    type
-                        .asClass() // ensure that we initialize classes eagerly too such that
-                                   // they're registered etc
+                    type.asClass() // ensure that we initialize classes eagerly too such that
+                    // they're registered etc
                     type
                 }
                 (1 until extendsListTypes.size).mapTo(result) { create(extendsListTypes[it]) }
