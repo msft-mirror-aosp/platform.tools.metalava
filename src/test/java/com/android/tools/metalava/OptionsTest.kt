@@ -539,6 +539,29 @@ $FLAGS
     }
 
     @Test
+    fun `Test version`() {
+        val args = listOf(ARG_NO_COLOR, "--version")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals("", stderr.toString())
+        assertEquals(
+            """
+
+                metalava version: 1.0.0-alpha09
+
+            """
+                .trimIndent(),
+            stdout.toString()
+        )
+    }
+
+    @Test
     fun `Test issue severity options`() {
         check(
             extraArguments =
