@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import org.junit.Ignore
 import org.junit.Test
 
 class UastTestK2 : UastTestBase() {
@@ -80,6 +81,7 @@ class UastTestK2 : UastTestBase() {
         `constant in file-level annotation`(isK2 = true)
     }
 
+    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
     @Test
     fun `final modifier in enum members -- K2`() {
         `final modifier in enum members`(isK2 = true)
@@ -90,6 +92,7 @@ class UastTestK2 : UastTestBase() {
         `lateinit var as mutable bare field`(isK2 = true)
     }
 
+    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
     @Test
     fun `Upper bound wildcards -- K2`() {
         `Upper bound wildcards`(isK2 = true)

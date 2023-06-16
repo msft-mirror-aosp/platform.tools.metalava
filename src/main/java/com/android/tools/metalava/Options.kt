@@ -618,7 +618,10 @@ class Options(
     /**
      * The language level to use for Java files, set with [ARG_KOTLIN_SOURCE]
      */
-    var kotlinLanguageLevel: LanguageVersionSettings = LanguageVersionSettingsImpl.DEFAULT
+    var kotlinLanguageLevel: LanguageVersionSettings =
+        // TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
+        // LanguageVersionSettingsImpl.DEFAULT
+        kotlinLanguageVersionSettings("1.8")
 
     /**
      * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set
@@ -1218,12 +1221,7 @@ class Options(
 
                 ARG_KOTLIN_SOURCE -> {
                     val value = getValue(args, ++index)
-                    val languageLevel =
-                        LanguageVersion.fromVersionString(value)
-                            ?: throw DriverException("$value is not a valid or supported Kotlin language level")
-                    val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
-                    val settings = LanguageVersionSettingsImpl(languageLevel, apiVersion)
-                    kotlinLanguageLevel = settings
+                    kotlinLanguageLevel = kotlinLanguageVersionSettings(value)
                 }
 
                 ARG_JDK_HOME -> {
@@ -2270,6 +2268,13 @@ class Options(
             issues.forEach {
                 defaultConfiguration.setSeverity(it, severity)
             }
+        }
+
+        private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
+            val languageLevel = LanguageVersion.fromVersionString(value)
+                ?: throw DriverException("$value is not a valid or supported Kotlin language level")
+            val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
+            return LanguageVersionSettingsImpl(languageLevel, apiVersion)
         }
     }
 }
