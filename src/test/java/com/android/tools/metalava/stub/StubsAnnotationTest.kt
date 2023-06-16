@@ -33,12 +33,14 @@ import org.junit.Test
 class StubsAnnotationTest : AbstractStubsTest() {
     @Test
     fun `Generate stubs for annotation type`() {
-        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
+        // Interface: makes sure the right modifiers etc are shown (and that "package private"
+        // methods
         // in the interface are taken to be public etc)
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import static java.lang.annotation.ElementType.*;
                     import java.lang.annotation.*;
@@ -48,9 +50,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         String value();
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
@@ -64,13 +67,15 @@ class StubsAnnotationTest : AbstractStubsTest() {
 
     @Test
     fun `Remove Hidden Annotations`() {
-        // When APIs reference annotations that are hidden, make sure the're excluded from the stubs and
+        // When APIs reference annotations that are hidden, make sure the're excluded from the stubs
+        // and
         // signature files
         checkStubs(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Foo {
@@ -78,9 +83,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.*;
                     import static java.lang.annotation.ElementType.*;
@@ -93,10 +98,11 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         String value();
                     }
                     """
-                )
-            ),
-            api = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                """
+                    )
+                ),
+            api =
+                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
+                    """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -104,8 +110,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                   }
                 }
                 """
-            } else {
-                """
+                } else {
+                    """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -113,10 +119,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
                   }
                 }
                 """
-            },
-
-            source = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                """
+                },
+            source =
+                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
+                    """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
@@ -124,8 +130,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public void foo(int p1, java.util.Map<java.lang.String, java.lang.String> p2) { throw new RuntimeException("Stub!"); }
                 }
                 """
-            } else {
-                """
+                } else {
+                    """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
@@ -133,7 +139,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public void foo(int p1, java.util.Map<java.lang.String,java.lang.String> p2) { throw new RuntimeException("Stub!"); }
                 }
                 """
-            }
+                }
         )
     }
 
@@ -142,33 +148,36 @@ class StubsAnnotationTest : AbstractStubsTest() {
         check(
             format = FileFormat.V2,
             checkCompilation = true,
-            sourceFiles = arrayOf(
-                java(
-                    "package my.pkg;\n" +
-                        "public class String {\n" +
-                        "public String(@other.NonNull char[] value) { throw new RuntimeException(\"Stub!\"); }\n" +
-                        "}\n"
-                )
-            ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "package my.pkg;\n" +
+                            "public class String {\n" +
+                            "public String(@other.NonNull char[] value) { throw new RuntimeException(\"Stub!\"); }\n" +
+                            "}\n"
+                    )
+                ),
             expectedIssues = "",
-            api = """
+            api =
+                """
                     package my.pkg {
                       public class String {
                         ctor public String(@NonNull char[]);
                       }
                     }
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package my.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class String {
                     public String(@android.annotation.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -177,16 +186,18 @@ class StubsAnnotationTest : AbstractStubsTest() {
         check(
             format = FileFormat.V2,
             checkCompilation = true,
-            sourceFiles = arrayOf(
-                java(
-                    "package my.pkg;\n" +
-                        "public class String {\n" +
-                        "public String(@other.NonNull char[] value) { throw new RuntimeException(\"Stub!\"); }\n" +
-                        "}\n"
-                )
-            ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "package my.pkg;\n" +
+                            "public class String {\n" +
+                            "public String(@other.NonNull char[] value) { throw new RuntimeException(\"Stub!\"); }\n" +
+                            "}\n"
+                    )
+                ),
             expectedIssues = "",
-            api = """
+            api =
+                """
                     package my.pkg {
                       public class String {
                         ctor public String(@NonNull char[]);
@@ -194,17 +205,18 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     }
                     """,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                         package my.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class String {
                         public String(@androidx.annotation.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                         }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -212,47 +224,50 @@ class StubsAnnotationTest : AbstractStubsTest() {
     fun `Rewrite libcore annotations`() {
         check(
             checkCompilation = true,
-            sourceFiles = arrayOf(
-                java(
-                    "package my.pkg;\n" +
-                        "public class String {\n" +
-                        "public String(char @libcore.util.NonNull [] value) { throw new RuntimeException(\"Stub!\"); }\n" +
-                        "}\n"
-                )
-            ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "package my.pkg;\n" +
+                            "public class String {\n" +
+                            "public String(char @libcore.util.NonNull [] value) { throw new RuntimeException(\"Stub!\"); }\n" +
+                            "}\n"
+                    )
+                ),
             expectedIssues = "",
-            api = """
+            api =
+                """
                     package my.pkg {
                       public class String {
                         ctor public String(char[]);
                       }
                     }
                     """,
-            stubFiles = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                arrayOf(
-                    java(
-                        """
+            stubFiles =
+                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
+                    arrayOf(
+                        java(
+                            """
                         package my.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class String {
                         public String(char @androidx.annotation.NonNull [] value) { throw new RuntimeException("Stub!"); }
                         }
                         """
+                        )
                     )
-                )
-            } else {
-                arrayOf(
-                    java(
-                        """
+                } else {
+                    arrayOf(
+                        java(
+                            """
                         package my.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class String {
                         public String(char[] value) { throw new RuntimeException("Stub!"); }
                         }
                         """
+                        )
                     )
-                )
-            }
+                }
         )
     }
 
@@ -261,22 +276,22 @@ class StubsAnnotationTest : AbstractStubsTest() {
         check(
             format = FileFormat.V2,
             checkCompilation = true,
-            extraArguments = arrayOf(
-                ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            extraArguments = arrayOf(ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package my.pkg;
                     public class String {
                     public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    ),
+                    libcoreNonNullSource
                 ),
-                libcoreNonNullSource
-            ),
             expectedIssues = "",
-            api = """
+            api =
+                """
                     package libcore.util {
                       @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
                       }
@@ -287,30 +302,35 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package my.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class String {
                     public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Pass through multiple annotations`() {
         checkStubs(
-            extraArguments = arrayOf(
-                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.RequiresApi,androidx.annotation.Nullable",
-                ARG_HIDE_PACKAGE, "androidx.annotation"
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            extraArguments =
+                arrayOf(
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "androidx.annotation.RequiresApi,androidx.annotation.Nullable",
+                    ARG_HIDE_PACKAGE,
+                    "androidx.annotation"
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package my.pkg;
                     public class MyClass {
                         @androidx.annotation.RequiresApi(21)
@@ -319,12 +339,13 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         public String anotherTestMethod() { return null; }
                     }
                     """
+                    ),
+                    supportParameterName,
+                    requiresApiSource,
+                    androidxNullableSource
                 ),
-                supportParameterName,
-                requiresApiSource,
-                androidxNullableSource
-            ),
-            source = """
+            source =
+                """
                 package my.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass {
@@ -341,23 +362,23 @@ class StubsAnnotationTest : AbstractStubsTest() {
     @Test
     fun `Skip RequiresApi annotation`() {
         check(
-            extraArguments = arrayOf(
-                ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package my.pkg;
                     public class MyClass {
                         @androidx.annotation.RequiresApi(21)
                         public void testMethod() {}
                     }
                     """
+                    ),
+                    requiresApiSource
                 ),
-                requiresApiSource
-            ),
             expectedIssues = "",
-            api = """
+            api =
+                """
                     package androidx.annotation {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface RequiresApi {
                         method public abstract int api() default 1;
@@ -371,9 +392,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package my.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass {
@@ -381,17 +403,18 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public void testMethod() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Annotation default values`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import java.lang.annotation.ElementType;
@@ -445,10 +468,11 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            api = """
+            api =
+                """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD}) public @interface ExportedProperty {
                     method public abstract String category() default "";
@@ -479,7 +503,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                   }
                 }
             """,
-            source = """
+            source =
+                """
                 package test.pkg;
                 /**
                  * This annotation can be used to mark fields and methods to be dumped by
@@ -533,9 +558,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
     fun `Annotation metadata in stubs`() {
         checkStubs(
             skipEmitPackages = emptyList(),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package com.android.metalava.test;
 
                     import java.lang.annotation.*;
@@ -545,10 +571,11 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MyAnnotation {
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package com.android.metalava.test;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
@@ -563,9 +590,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
     fun `Ensure we emit both deprecated javadoc and annotation with exclude-all-annotations`() {
         check(
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo {
                         /**
@@ -577,11 +605,12 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
@@ -593,8 +622,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     protected boolean inClass(java.lang.String name) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -602,9 +631,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
     fun `Ensure we emit runtime and deprecated annotations in stubs with exclude-annotations`() {
         check(
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @deprecated */
                     @MySourceRetentionAnnotation
@@ -615,9 +645,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         private Foo() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.Retention;
                     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -625,9 +655,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MySourceRetentionAnnotation {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.Retention;
                     import static java.lang.annotation.RetentionPolicy.CLASS;
@@ -635,9 +665,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MyClassRetentionAnnotation {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.Retention;
                     import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -645,11 +675,12 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MyRuntimeRetentionAnnotation {
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @deprecated */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -659,8 +690,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     Foo() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -668,9 +699,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
     fun `Ensure we include class and runtime and not source annotations in stubs with include-annotations`() {
         check(
             extraArguments = arrayOf("--include-annotations"),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @deprecated */
                     @MySourceRetentionAnnotation
@@ -683,9 +715,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         public void bar();
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.Retention;
                     import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -693,9 +725,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MySourceRetentionAnnotation {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.Retention;
                     import static java.lang.annotation.RetentionPolicy.CLASS;
@@ -703,9 +735,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MyClassRetentionAnnotation {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.Retention;
                     import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -713,11 +745,12 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     public @interface MyRuntimeRetentionAnnotation {
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @deprecated */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -731,17 +764,18 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @Deprecated protected int foo;
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Annotation nested rewriting`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.view.Gravity;
@@ -756,9 +790,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         public int gravity = Gravity.NO_GRAVITY;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view;
 
                     public class Gravity {
@@ -767,9 +801,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         public static final int BOTTOM = 2;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     import java.lang.annotation.ElementType;
@@ -798,9 +832,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class ActionBar {

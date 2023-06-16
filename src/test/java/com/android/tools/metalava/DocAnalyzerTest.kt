@@ -12,9 +12,10 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Basic documentation generation test`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.Nullable;
                     import android.annotation.NonNull;
@@ -30,16 +31,16 @@ class DocAnalyzerTest : DriverTest() {
                         @Nullable public Double method4(@NonNull Double factor1, @NonNull Double factor2) { }
                     }
                     """
+                    ),
+                    nonNullSource,
+                    nullableSource
                 ),
-
-                nonNullSource,
-                nullableSource
-            ),
             checkCompilation = false, // needs androidx.annotations in classpath
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
@@ -75,17 +76,18 @@ class DocAnalyzerTest : DriverTest() {
                     public java.lang.Double method4(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Fix first sentence handling`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.annotation;
 
                     import static java.lang.annotation.ElementType.*;
@@ -102,13 +104,14 @@ class DocAnalyzerTest : DriverTest() {
                     public @interface StringRes {
                     }
                     """
-                )
-            ),
+                    )
+                ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.annotation;
                     /**
                      * Denotes that an integer parameter, field or method return value is expected
@@ -121,9 +124,13 @@ class DocAnalyzerTest : DriverTest() {
                     public @interface StringRes {
                     }
                     """
-                )
-            ),
-            extraArguments = arrayOf(ARG_HIDE, "Typo") // "e.g. " correction should still run with Typo fixing is off.
+                    )
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    "Typo"
+                ) // "e.g. " correction should still run with Typo fixing is off.
         )
     }
 
@@ -131,9 +138,10 @@ class DocAnalyzerTest : DriverTest() {
     fun `Fix typo replacement`() {
         // common_typos_disable
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** This is an API for Andriod. Replace all occurrences: Andriod. */
                     public class Foo {
@@ -142,14 +150,16 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             checkCompilation = true,
             docStubs = true,
-            expectedIssues = "src/test/pkg/Foo.java:3: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
-            stubFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** This is an API for Android. Replace all occurrences: Android. */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -158,8 +168,8 @@ class DocAnalyzerTest : DriverTest() {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
         // common_typos_enable
     }
@@ -168,9 +178,10 @@ class DocAnalyzerTest : DriverTest() {
     fun `Document Permissions`() {
         check(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.Manifest;
@@ -207,9 +218,9 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android;
 
                     public abstract class Manifest {
@@ -221,15 +232,17 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            expectedIssues = "src/test/pkg/PermissionTest.java:33: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
-            stubFiles = arrayOf(
-                // common_typos_disable
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/PermissionTest.java:33: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
+            stubFiles =
+                arrayOf(
+                    // common_typos_disable
+                    java(
+                        """
                     package test.pkg;
                     import android.Manifest;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -262,18 +275,19 @@ class DocAnalyzerTest : DriverTest() {
                     public void test6() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
+                    // common_typos_enable
                 )
-                // common_typos_enable
-            )
         )
     }
 
     @Test
     fun `Conditional Permission`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.Manifest;
@@ -286,9 +300,9 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android;
 
                     public abstract class Manifest {
@@ -297,13 +311,14 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PermissionTest {
@@ -311,17 +326,18 @@ class DocAnalyzerTest : DriverTest() {
                     public void test1() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Merging in documentation snippets from annotation memberDoc and classDoc`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import androidx.annotation.UiThread;
                     import androidx.annotation.WorkerThread;
@@ -331,15 +347,16 @@ class DocAnalyzerTest : DriverTest() {
                         public int test1() { }
                     }
                     """
+                    ),
+                    uiThreadSource,
+                    workerThreadSource
                 ),
-                uiThreadSource,
-                workerThreadSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /**
                      * Methods in this class must be called on the thread that originally created
@@ -356,17 +373,18 @@ class DocAnalyzerTest : DriverTest() {
                     public int test1() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Warn about multiple threading annotations`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import androidx.annotation.UiThread;
                     import androidx.annotation.WorkerThread;
@@ -375,16 +393,18 @@ class DocAnalyzerTest : DriverTest() {
                         public int test1() { }
                     }
                     """
+                    ),
+                    uiThreadSource,
+                    workerThreadSource
                 ),
-                uiThreadSource,
-                workerThreadSource
-            ),
             checkCompilation = true,
-            expectedIssues = "src/test/pkg/RangeTest.java:6: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+            expectedIssues =
+                "src/test/pkg/RangeTest.java:6: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -399,18 +419,20 @@ class DocAnalyzerTest : DriverTest() {
                     public int test1() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Merge Multiple sections`() {
         check(
-            expectedIssues = "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.widget;
                     import androidx.annotation.UiThread;
 
@@ -433,12 +455,13 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    uiThreadSource
                 ),
-                uiThreadSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            applyApiLevelsXml = """
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/widget/Toolbar2" since="21">
@@ -452,9 +475,10 @@ class DocAnalyzerTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.widget;
                     /** @apiSince 21 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -478,17 +502,18 @@ class DocAnalyzerTest : DriverTest() {
                     public int getCurrentContentInsetRight() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Create method documentation from nothing`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
@@ -499,14 +524,15 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -518,17 +544,18 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Warn about missing field`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     public class RangeTest {
@@ -537,15 +564,17 @@ class DocAnalyzerTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
-            stubFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/RangeTest.java:5: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -556,17 +585,18 @@ class DocAnalyzerTest : DriverTest() {
                     public void test1() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add to existing single-line method documentation`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
@@ -577,14 +607,15 @@ class DocAnalyzerTest : DriverTest() {
                         public int test1() { }
                     }
                     """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -598,17 +629,18 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add to existing multi-line method documentation`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
@@ -622,14 +654,15 @@ class DocAnalyzerTest : DriverTest() {
                         public int test1() { }
                     }
                     """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -644,17 +677,18 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add to method when there are existing parameter docs and appear before these`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
@@ -671,14 +705,15 @@ class DocAnalyzerTest : DriverTest() {
                         public int test1(int parameter1, int parameter2, int parameter3) { }
                     }
                         """
+                    ),
+                    requiresPermissionSource
                 ),
-                requiresPermissionSource
-            ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -696,8 +731,8 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -710,7 +745,8 @@ class DocAnalyzerTest : DriverTest() {
          * This is a comment
          * This is a second comment
          */
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         )
     }
@@ -718,9 +754,10 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Merge deprecation levels`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.hardware;
                     /**
                      * The Camera class is used to set image capture settings, start/stop preview.
@@ -734,9 +771,10 @@ class DocAnalyzerTest : DriverTest() {
                        public static final String ACTION_NEW_VIDEO = "android.hardware.action.NEW_VIDEO";
                     }
                     """
-                )
-            ),
-            applyApiLevelsXml = """
+                    )
+                ),
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/hardware/Camera" since="1" deprecated="21">
@@ -749,9 +787,10 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.hardware;
                     /**
                      * The Camera class is used to set image capture settings, start/stop preview.
@@ -774,24 +813,26 @@ class DocAnalyzerTest : DriverTest() {
                     @Deprecated public static final java.lang.String ACTION_NEW_VIDEO = "android.hardware.action.NEW_VIDEO";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Api levels around current and preview`() {
         check(
-            extraArguments = arrayOf(
-                ARG_CURRENT_CODENAME,
-                "Z",
-                ARG_CURRENT_VERSION,
-                "35" // not real api level of Z
-            ),
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                    ARG_CURRENT_VERSION,
+                    "35" // not real api level of Z
+                ),
             includeSystemApiAnnotations = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     import android.annotation.SystemApi;
                     public class Test {
@@ -803,10 +844,11 @@ class DocAnalyzerTest : DriverTest() {
                        public static final String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
+                    ),
+                    systemApiSource
                 ),
-                systemApiSource
-            ),
-            applyApiLevelsXml = """
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/pkg/Test" since="1">
@@ -817,9 +859,10 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     /** @apiSince 1 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -833,8 +876,8 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -843,15 +886,17 @@ class DocAnalyzerTest : DriverTest() {
         // @SystemApi, @TestApi etc cannot get api versions since we don't have
         // accurate android.jar files (or even reliable api.txt/api.xml files) for them.
         check(
-            extraArguments = arrayOf(
-                ARG_CURRENT_CODENAME,
-                "Z",
-                ARG_CURRENT_VERSION,
-                "35" // not real api level of Z
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                    ARG_CURRENT_VERSION,
+                    "35" // not real api level of Z
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     public class Test {
                        public Test(int i) { }
@@ -859,9 +904,10 @@ class DocAnalyzerTest : DriverTest() {
                        public static final String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
-                )
-            ),
-            applyApiLevelsXml = """
+                    )
+                ),
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/pkg/Test" since="1">
@@ -873,9 +919,10 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     /** @apiSince 1 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -888,8 +935,8 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -899,60 +946,64 @@ class DocAnalyzerTest : DriverTest() {
         // TODO: Test merging
         // TODO: Test non-merging
         check(
-            extraArguments = arrayOf(
-                ARG_CURRENT_CODENAME,
-                "Z",
-                ARG_CURRENT_VERSION,
-                "35" // not real api level of Z
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                    ARG_CURRENT_VERSION,
+                    "35" // not real api level of Z
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg1;
                     public class Test1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.pkg1;
                     public class Test2 {
                     }
                     """
-                ),
-                source(
-                    "src/android/pkg2/package.html",
-                    """
+                    ),
+                    source(
+                            "src/android/pkg2/package.html",
+                            """
                     <body bgcolor="white">
                     Some existing doc here.
                     @deprecated
                     <!-- comment -->
                     </body>
                     """
-                ).indented(),
-                java(
-                    """
+                        )
+                        .indented(),
+                    java(
+                        """
                     package android.pkg2;
                     public class Test1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.pkg2;
                     public class Test2 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.pkg3;
                     public class Test1 {
                     }
                     """
-                )
-            ),
-            applyApiLevelsXml = """
+                    )
+                ),
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/pkg1/Test1" since="15"/>
@@ -961,9 +1012,10 @@ class DocAnalyzerTest : DriverTest() {
                     """,
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg1;
                     /** @apiSince 15 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -971,15 +1023,15 @@ class DocAnalyzerTest : DriverTest() {
                     public Test1() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     /** @apiSince 15 */
                     package android.pkg1;
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     /**
                      * Some existing doc here.
                      * @deprecated
@@ -987,15 +1039,16 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     package android.pkg2;
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     /** @apiSince 20 */
                     package android.pkg3;
                     """
-                )
-            ),
-            docStubsSourceList = """
+                    )
+                ),
+            docStubsSourceList =
+                """
                 TESTROOT/stubs/android/pkg1/package-info.java
                 TESTROOT/stubs/android/pkg1/Test1.java
                 TESTROOT/stubs/android/pkg1/Test2.java
@@ -1009,9 +1062,10 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     object SdkExtSinceConstants {
-        val sourceFiles = arrayOf(
-            java(
-                """
+        val sourceFiles =
+            arrayOf(
+                java(
+                    """
                 package android.pkg;
                 public class Test {
                    public static final String UNIT_TEST_1 = "unit.test.1";
@@ -1025,10 +1079,11 @@ class DocAnalyzerTest : DriverTest() {
                    }
                 }
                 """
+                )
             )
-        )
 
-        const val apiVersionsXml = """
+        const val apiVersionsXml =
+            """
                 <?xml version="1.0" encoding="utf-8"?>
                 <api version="3">
                     <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
@@ -1054,7 +1109,8 @@ class DocAnalyzerTest : DriverTest() {
                 </api>
                 """
 
-        const val docStubsSourceList = """
+        const val docStubsSourceList =
+            """
                 TESTROOT/stubs/android/pkg/package-info.java
                 TESTROOT/stubs/android/pkg/Test.java
             """
@@ -1063,18 +1119,20 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `@sdkExtSince (finalized, no codename)`() {
         check(
-            extraArguments = arrayOf(
-                ARG_CURRENT_VERSION,
-                "30",
-            ),
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_VERSION,
+                    "30",
+                ),
             sourceFiles = SdkExtSinceConstants.sourceFiles,
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
             docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     /**
                      * @apiSince 1
@@ -1123,8 +1181,8 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -1136,9 +1194,10 @@ class DocAnalyzerTest : DriverTest() {
             checkCompilation = true,
             docStubs = true,
             docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     /**
                      * @apiSince 1
@@ -1190,8 +1249,8 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -1200,11 +1259,12 @@ class DocAnalyzerTest : DriverTest() {
         // If a codebase provides overview.html files in the a public package,
         // make sure that we include this in the exported stubs folder as well!
         check(
-            sourceFiles = arrayOf(
-                source("src/overview.html", "<html>My overview docs</html>"),
-                source(
-                    "src/foo/test/visible/package.html",
-                    """
+            sourceFiles =
+                arrayOf(
+                    source("src/overview.html", "<html>My overview docs</html>"),
+                    source(
+                            "src/foo/test/visible/package.html",
+                            """
                     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
                     <!-- not a body tag: <body> -->
                     <html>
@@ -1216,26 +1276,27 @@ class DocAnalyzerTest : DriverTest() {
                     </BODY>
                     </html>
                     """
-                ).indented(),
-                java(
-                    // Note that we're *deliberately* placing the source file in the wrong
-                    // source root here. This is to simulate the scenario where the source
-                    // root (--source-path) points to a parent of the source folder instead
-                    // of the source folder instead. In this case, we need to try a bit harder
-                    // to compute the right package name; metalava has some code for that.
-                    // This is a regression test for b/144264106.
-                    "src/foo/test/visible/MyClass.java",
-                    """
+                        )
+                        .indented(),
+                    java(
+                        // Note that we're *deliberately* placing the source file in the wrong
+                        // source root here. This is to simulate the scenario where the source
+                        // root (--source-path) points to a parent of the source folder instead
+                        // of the source folder instead. In this case, we need to try a bit harder
+                        // to compute the right package name; metalava has some code for that.
+                        // This is a regression test for b/144264106.
+                        "src/foo/test/visible/MyClass.java",
+                        """
                     package test.visible;
                     public class MyClass {
                         public void test() { }
                     }
                     """
-                ),
-                // Also test hiding classes via javadoc
-                source(
-                    "src/foo/test/hidden1/package.html",
-                    """
+                    ),
+                    // Also test hiding classes via javadoc
+                    source(
+                            "src/foo/test/hidden1/package.html",
+                            """
                     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
                     <html>
                     <body>
@@ -1244,39 +1305,42 @@ class DocAnalyzerTest : DriverTest() {
                     </body>
                     </html>
                     """
-                ).indented(),
-                java(
-                    "src/foo/test/hidden1/Hidden.java",
-                    """
+                        )
+                        .indented(),
+                    java(
+                        "src/foo/test/hidden1/Hidden.java",
+                        """
                     package test.hidden1;
                     public class Hidden {
                         public void test() { }
                     }
                     """
-                ),
-                // Also test hiding classes via package-info.java
-                java(
-                    """
+                    ),
+                    // Also test hiding classes via package-info.java
+                    java(
+                            """
                     /**
                      * My package docs<br>
                      * @hide
                      */
                     package test.hidden2;
                     """
-                ).indented(),
-                java(
-                    """
+                        )
+                        .indented(),
+                    java(
+                        """
                     package test.hidden2;
                     public class Hidden {
                         public void test() { }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             docStubs = true,
             // Make sure we expose exactly what we intend (so @hide via javadocs and
             // via package-info.java works)
-            api = """
+            api =
+                """
                 package test.visible {
                   public class MyClass {
                     ctor public MyClass();
@@ -1287,10 +1351,11 @@ class DocAnalyzerTest : DriverTest() {
             // Make sure the stubs are generated correctly; in particular, that we've
             // pulled docs from overview.html into javadoc on package-info.java instead
             // (removing all the content surrounding <body>, etc)
-            stubFiles = arrayOf(
-                source("overview.html", "<html>My overview docs</html>"),
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    source("overview.html", "<html>My overview docs</html>"),
+                    java(
+                        """
                     /**
                      * My package docs<br>
                      * <!-- comment -->
@@ -1299,9 +1364,9 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     package test.visible;
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.visible;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass {
@@ -1309,17 +1374,18 @@ class DocAnalyzerTest : DriverTest() {
                     public void test() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Check RequiresFeature handling`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.RequiresFeature;
                     import android.content.pm.PackageManager;
@@ -1328,24 +1394,24 @@ class DocAnalyzerTest : DriverTest() {
                     public class LocationManager {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.content.pm;
                     public abstract class PackageManager {
                         public static final String FEATURE_LOCATION = "android.hardware.location";
                         public boolean hasSystemFeature(String feature) { return false; }
                     }
                     """
+                    ),
+                    requiresFeatureSource
                 ),
-
-                requiresFeatureSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.content.pm.PackageManager;
                     /**
@@ -1356,32 +1422,33 @@ class DocAnalyzerTest : DriverTest() {
                     public LocationManager() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Check RequiresApi handling`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import androidx.annotation.RequiresApi;
                     @RequiresApi(value = 21)
                     public class MyClass1 {
                     }
                     """
+                    ),
+                    requiresApiSource
                 ),
-
-                requiresApiSource
-            ),
             docStubs = true,
             checkCompilation = false, // duplicate class: androidx.annotation.RequiresApi
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @apiSince 21 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1389,17 +1456,18 @@ class DocAnalyzerTest : DriverTest() {
                     public MyClass1() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Include Kotlin deprecation text`() {
         check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     package test.pkg
 
                     @Suppress("DeprecatedCallableAddReplaceWith","EqualsOrHashCode")
@@ -1419,13 +1487,14 @@ class DocAnalyzerTest : DriverTest() {
                     }
 
                     """
-                )
-            ),
+                    )
+                ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /**
                      * @deprecated Use Jetpack preference library
@@ -1453,17 +1522,18 @@ class DocAnalyzerTest : DriverTest() {
                     public int hashCode() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Annotation annotating self`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.lang.annotation.Retention;
                         import java.lang.annotation.RetentionPolicy;
@@ -1476,9 +1546,9 @@ class DocAnalyzerTest : DriverTest() {
                         public @interface MyAnnotation {
                         }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                         package test.pkg;
 
                         /**
@@ -1489,12 +1559,13 @@ class DocAnalyzerTest : DriverTest() {
                         public class OtherClass {
                         }
                     """
-                )
-            ),
+                    )
+                ),
             checkCompilation = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /**
                      * Documentation here
@@ -1504,9 +1575,9 @@ class DocAnalyzerTest : DriverTest() {
                     public @interface MyAnnotation {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /**
                      * Other documentation here
@@ -1516,17 +1587,18 @@ class DocAnalyzerTest : DriverTest() {
                     public OtherClass() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Annotation annotating itself indirectly`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         /**
@@ -1537,9 +1609,9 @@ class DocAnalyzerTest : DriverTest() {
                         public @interface MyAnnotation1 {
                         }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                         package test.pkg;
 
                         /**
@@ -1550,12 +1622,13 @@ class DocAnalyzerTest : DriverTest() {
                         public @interface MyAnnotation2 {
                         }
                     """
-                )
-            ),
+                    )
+                ),
             checkCompilation = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /**
                      * Documentation 1 here
@@ -1566,9 +1639,9 @@ class DocAnalyzerTest : DriverTest() {
                     public @interface MyAnnotation1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /**
                      * Documentation 2 here
@@ -1579,8 +1652,8 @@ class DocAnalyzerTest : DriverTest() {
                     public @interface MyAnnotation2 {
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -1588,9 +1661,10 @@ class DocAnalyzerTest : DriverTest() {
     fun `Test Column annotation`() {
         // Bug: 120429729
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.provider.Column;
                     import android.database.Cursor;
@@ -1606,9 +1680,9 @@ class DocAnalyzerTest : DriverTest() {
                         public static final String BOGUS = "bogus";
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                         package android.database;
                         public interface Cursor {
                             int FIELD_TYPE_NULL = 0;
@@ -1618,17 +1692,19 @@ class DocAnalyzerTest : DriverTest() {
                             int FIELD_TYPE_BLOB = 4;
                         }
                     """
+                    ),
+                    columnSource
                 ),
-                columnSource
-            ),
             checkCompilation = false, // stubs contain Cursor.NONEXISTENT so it does not compile
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/ColumnTest.java:13: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.database.Cursor;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1652,17 +1728,18 @@ class DocAnalyzerTest : DriverTest() {
                     @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_STRING, readOnly=true) public static final java.lang.String TITLE = "title";
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `memberDoc crash`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import java.lang.annotation.ElementType;
                     import java.lang.annotation.Retention;
@@ -1677,17 +1754,17 @@ class DocAnalyzerTest : DriverTest() {
                     @Retention(RetentionPolicy.SOURCE)
                     public @interface Foo { }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package another.pkg;
                     public class Bar {
                         public String BAR = "BAAAAR";
                     }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package yetonemore.pkg;
                     public class Fun {
                         /**
@@ -1697,12 +1774,13 @@ class DocAnalyzerTest : DriverTest() {
                         public static final String FUN = "FUN";
                     }
                 """
-                )
-            ),
+                    )
+                ),
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package yetonemore.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Fun {
@@ -1716,8 +1794,8 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String FUN = "FUN";
                     }
                 """
+                    )
                 )
-            )
         )
     }
 }

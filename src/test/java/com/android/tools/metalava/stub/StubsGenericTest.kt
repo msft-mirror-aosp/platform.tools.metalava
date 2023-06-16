@@ -29,9 +29,10 @@ class StubsGenericTest : AbstractStubsTest() {
         // the source code.)
         check(
             checkCompilation = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public interface MyInterface2<T extends Number>
@@ -40,28 +41,29 @@ class StubsGenericTest : AbstractStubsTest() {
                         abstract class Range<T extends Comparable<? super T>> { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public interface MyInterface<T extends Object>
                             extends MyBaseInterface {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public interface MyBaseInterface {
                     }
                     """
-                )
-            ),
+                    )
+                ),
             expectedIssues = "",
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
@@ -75,33 +77,34 @@ class StubsGenericTest : AbstractStubsTest() {
                     }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface MyInterface<T> extends test.pkg.MyBaseInterface {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface MyBaseInterface {
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Check correct throws list for generics`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import java.util.function.Supplier;
@@ -113,9 +116,10 @@ class StubsGenericTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class Test<T> {
@@ -130,9 +134,10 @@ class StubsGenericTest : AbstractStubsTest() {
     fun `Generate stubs for additional generics scenarios`() {
         // Some additional declarations where PSI default type handling diffs from doclava1
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public abstract class Collections {
@@ -143,10 +148,10 @@ class StubsGenericTest : AbstractStubsTest() {
                         public final class Range<T extends java.lang.Comparable<? super T>> { }
                     }
                     """
-                )
-            ),
-
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Collections {
@@ -166,9 +171,10 @@ class StubsGenericTest : AbstractStubsTest() {
     fun `Generate stubs for even more generics scenarios`() {
         // Some additional declarations where PSI default type handling diffs from doclava1
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import java.util.Set;
@@ -179,10 +185,10 @@ class StubsGenericTest : AbstractStubsTest() {
                         public static void assertEquals(Set<? extends Object> arg1, Set<? extends Object> arg2) { }
                     }
                     """
-                )
-            ),
-
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MoreAsserts {
@@ -198,9 +204,10 @@ class StubsGenericTest : AbstractStubsTest() {
     @Test
     fun `Check generating classes with generics`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Generics {
@@ -208,10 +215,11 @@ class StubsGenericTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics {
@@ -229,11 +237,12 @@ class StubsGenericTest : AbstractStubsTest() {
         // in the current class, so we need to handle this
 
         checkStubs(
-            sourceFiles = arrayOf(
-                // TODO: Try using prefixes like "A", and "AA" to make sure my generics
-                // variable renaming doesn't do something really unexpected
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    // TODO: Try using prefixes like "A", and "AA" to make sure my generics
+                    // variable renaming doesn't do something really unexpected
+                    java(
+                        """
                     package test.pkg;
 
                     import java.util.List;
@@ -263,10 +272,11 @@ class StubsGenericTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics {

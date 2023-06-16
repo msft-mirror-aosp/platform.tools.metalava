@@ -26,8 +26,7 @@ abstract class UastTestBase : DriverTest() {
         isK2: Boolean,
         format: FileFormat = FileFormat.latest,
         sourceFiles: Array<TestFile> = emptyArray(),
-        @Language("TEXT")
-        api: String? = null,
+        @Language("TEXT") api: String? = null,
         extraArguments: Array<String> = emptyArray(),
     ) {
         check(
@@ -43,9 +42,10 @@ abstract class UastTestBase : DriverTest() {
         val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     package test.pkg
 
                     @RequiresOptIn
@@ -70,9 +70,9 @@ abstract class UastTestBase : DriverTest() {
                         }
                     }
                 """
-                ),
-                kotlin(
-                    """
+                    ),
+                    kotlin(
+                        """
                     package androidx.annotation.experimental
 
                     import kotlin.annotation.Retention
@@ -99,10 +99,11 @@ abstract class UastTestBase : DriverTest() {
                         vararg val markerClass: KClass<out Annotation>
                     )
                 """
-                )
-            ),
+                    )
+                ),
             format = FileFormat.V3,
-            api = """
+            api =
+                """
                 // Signature format: 3.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
@@ -133,9 +134,10 @@ abstract class UastTestBase : DriverTest() {
         // Regression test from http://b/257444932: @get:JvmName on constructor property
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
 
                         class ColorRamp(
@@ -150,8 +152,8 @@ abstract class UastTestBase : DriverTest() {
                             var otherColors: IntArray
                         }
                     """
-                )
-            ),
+                    )
+                ),
             api = api
         )
     }
@@ -164,9 +166,10 @@ abstract class UastTestBase : DriverTest() {
         uastCheck(
             isK2,
             format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Context {
@@ -176,17 +179,18 @@ abstract class UastTestBase : DriverTest() {
                         }
                     }
                     """
-                ),
-                kotlin(
-                    """
+                    ),
+                    kotlin(
+                        """
                     package test.pkg
 
                     inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
                     inline fun Context.systemService2() = getSystemService(String::class.java)
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Context {
                     ctor public Context();
@@ -206,17 +210,19 @@ abstract class UastTestBase : DriverTest() {
         val typeAnno = if (isK2) "" else "@test.pkg.MyAnnotation "
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         annotation class MyAnnotation
 
                         data class Foo(@MyAnnotation val p1: Int, val p2: String)
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
@@ -240,9 +246,10 @@ abstract class UastTestBase : DriverTest() {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57577
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         @kotlin.jvm.JvmInline
                         value class AnchorType internal constructor(internal val ratio: Float) {
@@ -253,9 +260,10 @@ abstract class UastTestBase : DriverTest() {
                             }
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class AnchorType {
                     field public static final test.pkg.AnchorType.Companion Companion;
@@ -277,16 +285,18 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57547
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         fun foo(vararg vs: String, b: Boolean = true) {
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public final class TestKt {
                     method public static void foo(String![] vs, optional boolean b);
@@ -300,9 +310,10 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57548
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         class Foo(val x : Int)
                         class FooComparator : Comparator<Foo> {
@@ -310,9 +321,10 @@ abstract class UastTestBase : DriverTest() {
                             firstFoo.x - secondFoo.x
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(int x);
@@ -332,9 +344,10 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57550
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         @file:RequiresApi(31)
                         package test.pkg
                         import androidx.annotation.RequiresApi
@@ -342,11 +355,12 @@ abstract class UastTestBase : DriverTest() {
                         @RequiresApi(31)
                         fun foo(p: Int) {}
                     """
+                    ),
+                    requiresApiSource
                 ),
-                requiresApiSource
-            ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            api = """
+            api =
+                """
                 package test.pkg {
                   @RequiresApi(31) public final class TestKt {
                     method @RequiresApi(31) public static void foo(int p);
@@ -363,9 +377,10 @@ abstract class UastTestBase : DriverTest() {
         // val s = if (isK2) "test.pkg.State" else "E!"
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         enum class Event {
                           ON_CREATE, ON_START, ON_STOP, ON_DESTROY;
@@ -390,9 +405,10 @@ abstract class UastTestBase : DriverTest() {
                           }
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public enum Event {
                     method public static final test.pkg.Event? upTo(test.pkg.State state);
@@ -429,9 +445,10 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57569
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         class Bar
                         class Foo {
@@ -439,9 +456,10 @@ abstract class UastTestBase : DriverTest() {
                             private set
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
@@ -464,9 +482,10 @@ abstract class UastTestBase : DriverTest() {
         // val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         enum class PowerCategoryDisplayLevel {
                           BREAKDOWN, TOTAL
@@ -510,9 +529,10 @@ abstract class UastTestBase : DriverTest() {
                           }
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public enum PowerCategory {
                     method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
@@ -562,9 +582,10 @@ abstract class UastTestBase : DriverTest() {
         val n = if (isK2) "!" else ""
         uastCheck(
             isK2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         abstract class ActivityResultContract<I, O> {
                           abstract fun parseResult(resultCode: Int, intent: Intent?): O
@@ -578,9 +599,10 @@ abstract class UastTestBase : DriverTest() {
                           }
                         }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public abstract class ActivityResultContract<I, O> {
                     ctor public ActivityResultContract();

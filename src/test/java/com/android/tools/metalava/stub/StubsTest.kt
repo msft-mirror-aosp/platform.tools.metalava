@@ -27,9 +27,9 @@ import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
-import org.junit.Test
 import java.io.File
 import kotlin.test.assertEquals
+import org.junit.Test
 
 @SuppressWarnings("ALL")
 class StubsTest : AbstractStubsTest() {
@@ -39,9 +39,10 @@ class StubsTest : AbstractStubsTest() {
     @Test
     fun `Generate stubs for fields with initial values`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public class Foo {
@@ -76,9 +77,10 @@ class StubsTest : AbstractStubsTest() {
                         public static final char HEX_INPUT = 61184;
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
@@ -128,9 +130,10 @@ class StubsTest : AbstractStubsTest() {
         // promoted to public.
         checkStubs(
             warnings = null,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("ALL")
@@ -147,10 +150,10 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Foo {
@@ -193,9 +196,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Check throws list`() {
         // Make sure we format a throws list
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import java.io.IOException;
 
@@ -205,9 +209,10 @@ class StubsTest : AbstractStubsTest() {
                         @Override protected void finalize2() throws IOException, IllegalArgumentException {  }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class AbstractCursor {
@@ -224,9 +229,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Test final instance fields`() {
         // Instance fields in a class must be initialized
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("all")
@@ -245,10 +251,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class InstanceFieldTest {
@@ -271,43 +278,45 @@ class StubsTest : AbstractStubsTest() {
     @Test
     fun `Check overridden method added for complex hierarchy`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                 package test.pkg;
                 public final class A extends C implements B<String> {
                     @Override public void method2() { }
                 }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                 package test.pkg;
                 public interface B<T> {
                     void method1(T arg1);
                 }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                 package test.pkg;
                 public abstract class C extends D {
                     public abstract void method2();
                 }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                 package test.pkg;
                 public abstract class D implements B<String> {
                     @Override public void method1(String arg1) { }
                 }
                 """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class A extends test.pkg.C implements test.pkg.B<java.lang.String> {
@@ -315,18 +324,18 @@ class StubsTest : AbstractStubsTest() {
                 public void method2() { throw new RuntimeException("Stub!"); }
                 }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public interface B<T> {
                 public void method1(T arg1);
                 }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class C extends test.pkg.D {
@@ -334,9 +343,9 @@ class StubsTest : AbstractStubsTest() {
                 public abstract void method2();
                 }
                 """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class D implements test.pkg.B<java.lang.String> {
@@ -344,8 +353,8 @@ class StubsTest : AbstractStubsTest() {
                 public void method1(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
                 }
                 """
-                )
-            ),
+                    )
+                ),
             checkTextStubEquivalence = true
         )
     }
@@ -353,9 +362,10 @@ class StubsTest : AbstractStubsTest() {
     @Test
     fun `Preserve file header comments`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     /*
                     My header 1
                      */
@@ -371,9 +381,10 @@ class StubsTest : AbstractStubsTest() {
                     public class HeaderComments {
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                     /*
                     My header 1
                      */
@@ -395,9 +406,10 @@ class StubsTest : AbstractStubsTest() {
         // Java code which explicitly specifies parameter names: make sure stub uses
         // parameter name
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import androidx.annotation.ParameterName;
 
@@ -406,10 +418,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
+                    ),
+                    supportParameterName
                 ),
-                supportParameterName
-            ),
-            source = """
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
@@ -425,9 +438,10 @@ class StubsTest : AbstractStubsTest() {
         // When marked @doconly don't include in stubs or signature files
         // unless specifically asked for (which we do when generating docs-stubs).
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("JavaDoc")
@@ -446,9 +460,10 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Outer {
@@ -459,7 +474,8 @@ class StubsTest : AbstractStubsTest() {
                 }
                 }
                     """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public class Outer {
                     ctor public Outer();
@@ -478,9 +494,10 @@ class StubsTest : AbstractStubsTest() {
         // unless specifically asked for (which we do when generating docs).
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("JavaDoc")
@@ -499,9 +516,10 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Outer {
@@ -527,38 +545,41 @@ class StubsTest : AbstractStubsTest() {
 
     @Test
     fun `Check resolving override equivalent signatures`() {
-        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file created.
+        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file
+        // created.
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public interface XmlResourceParser extends test.pkg.XmlPullParser, test.pkg.AttributeSet {
                         public void close();
                         String getAttributeNamespace (int arg1);
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public interface XmlPullParser {
                         String getAttributeNamespace (int arg1);
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public interface AttributeSet {
                         default String getAttributeNamespace (int arg1) { }
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface XmlResourceParser extends test.pkg.XmlPullParser,  test.pkg.AttributeSet {
@@ -566,8 +587,8 @@ class StubsTest : AbstractStubsTest() {
                     public java.lang.String getAttributeNamespace(int arg1);
                     }
                     """
-                )
-            ),
+                    )
+                ),
             checkTextStubEquivalence = true
         )
     }
@@ -578,9 +599,10 @@ class StubsTest : AbstractStubsTest() {
         // use super classes of filtered throwables
         checkStubs(
             format = FileFormat.V3,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import java.io.IOException;
@@ -615,10 +637,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            api = """
+            api =
+                """
                 // Signature format: 3.0
                 package test.pkg {
                   public class Generics {
@@ -638,7 +661,8 @@ class StubsTest : AbstractStubsTest() {
                   }
                 }
             """,
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics {
@@ -668,9 +692,10 @@ class StubsTest : AbstractStubsTest() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import java.util.Collection;
@@ -697,10 +722,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            api = """
+            api =
+                """
                     package test.pkg {
                       public class ConcurrentHashMap<K, V> {
                         ctor public ConcurrentHashMap();
@@ -713,7 +739,8 @@ class StubsTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ConcurrentHashMap<K, V> {
@@ -733,9 +760,10 @@ class StubsTest : AbstractStubsTest() {
     @Test
     fun `Arrays in type arguments`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Generics2 {
@@ -747,10 +775,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics2 {
@@ -772,9 +801,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Overriding protected methods`() {
         // Checks a scenario where the stubs were missing overrides
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("all")
@@ -797,10 +827,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            api = """
+            api =
+                """
                     package test.pkg {
                       public class Layouts {
                         ctor public Layouts();
@@ -818,7 +849,8 @@ class StubsTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Layouts {
@@ -847,9 +879,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Missing overridden method`() {
         // Another special case where overridden methods were missing
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import java.util.Collection;
@@ -876,10 +909,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SpanTest {
@@ -908,9 +942,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Skip type variables in casts`() {
         // When generating casts in super constructor calls, use raw types
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("all")
@@ -930,10 +965,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Properties {
@@ -956,9 +992,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Generate stubs with --exclude-documentation-from-stubs`() {
         checkStubs(
             extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     /*
                      * This is the copyright header.
                      */
@@ -980,10 +1017,11 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             // Excludes javadoc because of ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS:
-            source = """
+            source =
+                """
                 /*
                  * This is the copyright header.
                  */
@@ -1002,9 +1040,10 @@ class StubsTest : AbstractStubsTest() {
     fun `Generate documentation stubs with --exclude-documentation-from-stubs`() {
         checkStubs(
             extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     /*
                      * This is the copyright header.
                      */
@@ -1026,11 +1065,12 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             docStubs = true,
             // Includes javadoc despite ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, because of docStubs:
-            source = """
+            source =
+                """
                 /*
                  * This is the copyright header.
                  */
@@ -1064,43 +1104,46 @@ class StubsTest : AbstractStubsTest() {
         //    type substitution of Orange for T is lost.
         // """
         check(
-            expectedIssues = "src/test/pkg/Alpha.java:2: warning: Public class test.pkg.Alpha stripped of unavailable superclass test.pkg.Beta [HiddenSuperclass]",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/Alpha.java:2: warning: Public class test.pkg.Alpha stripped of unavailable superclass test.pkg.Beta [HiddenSuperclass]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Orange {
                         private Orange() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class Alpha extends Beta<Orange> {
                         private Alpha() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Beta<T> extends Charlie<T> {
                         private Beta() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class Charlie<T> {
                         private Charlie() { }
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
                   }
@@ -1110,26 +1153,27 @@ class StubsTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Orange {
                     Orange() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
                     Alpha() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -1137,41 +1181,44 @@ class StubsTest : AbstractStubsTest() {
     fun `Regression test for 124333557`() {
         // Regression test for 124333557: Handle empty java files
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
             TESTROOT/src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
             TESTROOT/src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
             """,
-            sourceFiles = arrayOf(
-                java(
-                    "src/test/pkg/Something.java",
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "src/test/pkg/Something.java",
+                        """
                     /** Nothing much here */
                     """
-                ),
-                java(
-                    "src/test/pkg/Something2.java",
-                    """
+                    ),
+                    java(
+                        "src/test/pkg/Something2.java",
+                        """
                     /** Nothing much here */
                     package test.pkg;
                     """
-                ),
-                java(
-                    "src/test/Something2.java",
-                    """
+                    ),
+                    java(
+                        "src/test/Something2.java",
+                        """
                     /** Wrong package */
                     package test.wrong;
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class Test {
                         private Test() { }
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Test {
                   }
@@ -1191,12 +1238,11 @@ class StubsTest : AbstractStubsTest() {
     @Test
     fun `Basic Kotlin stubs`() {
         check(
-            extraArguments = arrayOf(
-                ARG_KOTLIN_STUBS
-            ),
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            extraArguments = arrayOf(ARG_KOTLIN_STUBS),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     /* My file header */
                     // Another comment
                     @file:JvmName("Driver")
@@ -1229,17 +1275,18 @@ class StubsTest : AbstractStubsTest() {
                         open fun method3(value1: Int?, value2: Int): Int = null
                     }
                     """
-                ),
-                kotlin(
-                    """
+                    ),
+                    kotlin(
+                        """
                     package test.pkg
                     open class ExtendableClass<T>
                 """
-                )
-            ),
-            stubFiles = arrayOf(
-                kotlin(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         /* My file header */
                         // Another comment
                         package test.pkg
@@ -1252,17 +1299,17 @@ class StubsTest : AbstractStubsTest() {
                         open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
                         }
                     """
-                ),
-                kotlin(
-                    """
+                    ),
+                    kotlin(
+                        """
                         package test.pkg
                         @file:Suppress("ALL")
                         open class ExtendableClass<T> {
                         open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
                         }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -1270,9 +1317,10 @@ class StubsTest : AbstractStubsTest() {
     fun `NaN constants`() {
         check(
             checkCompilation = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class MyClass {
@@ -1280,11 +1328,12 @@ class StubsTest : AbstractStubsTest() {
                         public static final double doubleNaN = 0.0d / 0.0;
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class MyClass {
@@ -1293,8 +1342,8 @@ class StubsTest : AbstractStubsTest() {
                         public static final float floatNaN = (0.0f/0.0f);
                         }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -1302,12 +1351,14 @@ class StubsTest : AbstractStubsTest() {
     fun `Translate DeprecatedForSdk to Deprecated`() {
         // See b/144111352
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/PublicApi.java:30: error: Method test.pkg.PublicApi.method4(): Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk [DeprecationMismatch]
             """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
                     package test.pkg;
                     import android.annotation.DeprecatedForSdk;
                     import android.annotation.DeprecatedForSdk.*;
@@ -1347,10 +1398,12 @@ class StubsTest : AbstractStubsTest() {
                         public static void method5() { }
                     }
                     """
-                ).indented(),
-                deprecatedForSdkSource
-            ),
-            api = """
+                        )
+                        .indented(),
+                    deprecatedForSdkSource
+                ),
+            api =
+                """
                 package test.pkg {
                   public class PublicApi {
                     method @Deprecated public static void method1();
@@ -1361,9 +1414,10 @@ class StubsTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicApi {
@@ -1393,8 +1447,8 @@ class StubsTest : AbstractStubsTest() {
                     public static void method5() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             docStubs = true
         )
     }
@@ -1405,9 +1459,10 @@ class StubsTest : AbstractStubsTest() {
         // Remaining: don't include @deprecated in the docs for allowed platforms!
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
                     package test.pkg;
 
                     import android.annotation.SystemApi;
@@ -1445,12 +1500,14 @@ class StubsTest : AbstractStubsTest() {
                         }
                     }
                     """
-                ).indented(),
-                // Include some Kotlin files too to make sure we correctly handle
-                // annotation lookup for Kotlin (which uses UAST instead of plain Java PSI
-                // behind the scenes), even if android.util.ArrayMap is really implemented in Java
-                kotlin(
-                    """
+                        )
+                        .indented(),
+                    // Include some Kotlin files too to make sure we correctly handle
+                    // annotation lookup for Kotlin (which uses UAST instead of plain Java PSI
+                    // behind the scenes), even if android.util.ArrayMap is really implemented in
+                    // Java
+                    kotlin(
+                            """
                     package android.util
                     import android.annotation.DeprecatedForSdk
                     import android.annotation.SystemApi;
@@ -1465,14 +1522,16 @@ class StubsTest : AbstractStubsTest() {
                     @DeprecatedForSdk("Use android.Manifest.permission.ACCESS_FINE_LOCATION instead")
                     const val FINE_LOCATION =  "android.permission.ACCESS_FINE_LOCATION"
                     """
-                ).indented(),
-                deprecatedForSdkSource,
-                systemApiSource,
-                testApiSource
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                        )
+                        .indented(),
+                    deprecatedForSdkSource,
+                    systemApiSource,
+                    testApiSource
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicApi2 {
@@ -1490,9 +1549,9 @@ class StubsTest : AbstractStubsTest() {
                     public static void method3() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.util;
                     /**
                      * @deprecated Use androidx.collection.ArrayMap
@@ -1504,20 +1563,20 @@ class StubsTest : AbstractStubsTest() {
                     public ArrayMap() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                // SystemArrayMap is like ArrayMap, but has allowedIn=SystemApi::class, so
-                // it should not be deprecated here in the system api stubs
-                java(
-                    """
+                    ),
+                    // SystemArrayMap is like ArrayMap, but has allowedIn=SystemApi::class, so
+                    // it should not be deprecated here in the system api stubs
+                    java(
+                        """
                     package android.util;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class SystemArrayMap {
                     public SystemArrayMap() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.util;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class ArrayMapKt {
@@ -1527,8 +1586,8 @@ class StubsTest : AbstractStubsTest() {
                     @Deprecated @androidx.annotation.NonNull public static final java.lang.String FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION";
                     }
                     """
-                )
-            ),
+                    )
+                ),
             docStubs = true
         )
     }

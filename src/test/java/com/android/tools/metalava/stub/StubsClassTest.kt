@@ -25,9 +25,10 @@ class StubsClassTest : AbstractStubsTest() {
     @Test
     fun `Generate stubs for basic class`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     /*
                      * This is the copyright header.
                      */
@@ -56,9 +57,10 @@ class StubsClassTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 /*
                  * This is the copyright header.
                  */
@@ -82,30 +84,32 @@ class StubsClassTest : AbstractStubsTest() {
 
     @Test
     fun `Generate stubs for class with superclass`() {
-        // Make sure superclass statement is correct; unlike signature files, inherited method from parent
+        // Make sure superclass statement is correct; unlike signature files, inherited method from
+        // parent
         // that has same signature should be included in the child
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo extends Super {
                         @Override public void base() { }
                         public void child() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class Super {
                         public void base() { }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             source =
-            """
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo extends test.pkg.Super {
@@ -120,17 +124,18 @@ class StubsClassTest : AbstractStubsTest() {
     @Test
     fun `Generate stubs with superclass filtering`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass extends HiddenParent {
                         public void method4() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings("ALL")
@@ -146,9 +151,9 @@ class StubsClassTest : AbstractStubsTest() {
                         public void method3d(java.util.List<HiddenParent> p) { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings("ALL")
@@ -156,18 +161,19 @@ class StubsClassTest : AbstractStubsTest() {
                         public void method2() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class PublicParent {
                         public void method1() { }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             // Notice how the intermediate methods (method2, method3) have been removed
-            source = """
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass extends test.pkg.PublicParent {
@@ -179,7 +185,8 @@ class StubsClassTest : AbstractStubsTest() {
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
                 """,
-            warnings = """
+            warnings =
+                """
                 src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]
                 """
         )
@@ -191,17 +198,18 @@ class StubsClassTest : AbstractStubsTest() {
             // Note that doclava1 includes fields here that it doesn't include in the
             // signature file.
             // checkDoclava1 = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass extends HiddenParent {
                         public void method1() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     class HiddenParent {
                         public static final String CONSTANT = "MyConstant";
@@ -209,10 +217,11 @@ class StubsClassTest : AbstractStubsTest() {
                         public void method2() { }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass {
@@ -229,9 +238,10 @@ class StubsClassTest : AbstractStubsTest() {
     @Test
     fun `Handle non-constant fields in final classes`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("all")
@@ -256,10 +266,11 @@ class StubsClassTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class FinalFieldTest {
@@ -282,9 +293,10 @@ class StubsClassTest : AbstractStubsTest() {
     @Test
     fun `Check generating constants in class without inline-able initializers`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public static String[] CONSTANT1 = {"MyConstant","MyConstant2"};
@@ -293,10 +305,11 @@ class StubsClassTest : AbstractStubsTest() {
                         public static String CONSTANT4 = null;
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass {
@@ -312,19 +325,22 @@ class StubsClassTest : AbstractStubsTest() {
 
     @Test
     fun `Include package private classes referenced from public API`() {
-        // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
+        // Real world example: android.net.http.Connection in apache-http referenced from
+        // RequestHandle
         check(
             format = FileFormat.V2,
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
                 src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
                 src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4 returns unavailable type HiddenType4 [UnavailableSymbol]
                 src/test/pkg/PublicApi.java:4: warning: Method test.pkg.PublicApi.getHiddenType() references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
                 src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4() references hidden type test.pkg.HiddenType4. [HiddenTypeParameter]
                 """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class PublicApi {
@@ -332,17 +348,17 @@ class StubsClassTest : AbstractStubsTest() {
                         public HiddenType4 getHiddenType4() { return null; }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     public class PublicInterface {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     // Class exposed via public api above
@@ -353,9 +369,9 @@ class StubsClassTest : AbstractStubsTest() {
                         @Override public String toString() { return "hello"; }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     /** @hide */
@@ -363,9 +379,9 @@ class StubsClassTest : AbstractStubsTest() {
                         void foo();
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     // Class not exposed; only referenced from HiddenType
@@ -373,18 +389,19 @@ class StubsClassTest : AbstractStubsTest() {
                         HiddenType2(float f) { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     // Class not exposed; only referenced from HiddenType
                     interface HiddenType3 {
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class PublicApi {
                     ctor public PublicApi();
@@ -396,9 +413,10 @@ class StubsClassTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicApi {
@@ -407,33 +425,36 @@ class StubsClassTest : AbstractStubsTest() {
                     public test.pkg.HiddenType4 getHiddenType4() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicInterface {
                     public PublicInterface() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Include hidden inner classes referenced from public API`() {
-        // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in android.car-system-stubs
+        // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in
+        // android.car-system-stubs
         // referenced from outer class constructor
         check(
             format = FileFormat.V2,
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (as parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
                 src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
                 """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class PublicApi {
@@ -444,30 +465,33 @@ class StubsClassTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class PublicApi {
                     ctor public PublicApi(test.pkg.PublicApi.HiddenInner);
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicApi {
                     public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     // TODO: Test what happens when a class extends a hidden extends a public in separate packages,
-    // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
+    // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I
+    // should
     // check for this and fail build.
 }

@@ -7,9 +7,10 @@ class DocAnalyzerRangeTest : DriverTest() {
     @Test
     fun `Document ranges`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.Manifest;
@@ -26,14 +27,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                         public int test3() { return 50; }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -53,17 +55,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test3() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun Typedefs() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.annotation.IntDef;
@@ -96,15 +99,16 @@ class DocAnalyzerRangeTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource,
+                    intDefAnnotationSource
                 ),
-                intRangeAnnotationSource,
-                intDefAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TypedefTest {
@@ -124,17 +128,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public static final int STYLE_UNRELATED = 3; // 0x3
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Typedefs combined with ranges`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.annotation.IntDef;
@@ -158,15 +163,16 @@ class DocAnalyzerRangeTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource,
+                    intDefAnnotationSource
                 ),
-                intRangeAnnotationSource,
-                intDefAnnotationSource
-            ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TypedefTest {
@@ -181,31 +187,33 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public static final int STYLE_NO_TITLE = 1; // 0x1
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add new parameter when no doc exists`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     public class RangeTest {
                         public int test1(int parameter1, @IntRange(from = 10) int parameter2, int parameter3) { }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -216,17 +224,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add new parameter when doc exists but no param doc`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     public class RangeTest {
@@ -237,14 +246,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                         public int test1(int parameter1, @IntRange(from = 10) int parameter2, int parameter3) { }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -257,17 +267,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add new parameter, sorted correctly between existing ones`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     public class RangeTest {
@@ -280,14 +291,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                         public int test1(int parameter1, @IntRange(from = 10) int parameter2, int parameter3) { }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -302,17 +314,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add to existing parameter`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     public class RangeTest {
@@ -326,14 +339,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                         public int test1(int parameter1, @IntRange(from = 10) int parameter2, int parameter3) { }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -349,17 +363,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add new return value`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     public class RangeTest {
@@ -367,14 +382,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                         public int test1(int parameter1, int parameter2, int parameter3) { }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -385,17 +401,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Add to existing return value (ensuring it appears last)`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     public class RangeTest {
@@ -407,14 +424,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                         public int test1(int parameter1, int parameter2, int parameter3) { }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
@@ -427,17 +445,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Merge API levels`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.widget;
 
                     public class Toolbar {
@@ -450,12 +469,13 @@ class DocAnalyzerRangeTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            applyApiLevelsXml = """
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/widget/Toolbar" since="21">
@@ -469,9 +489,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.widget;
                     /** @apiSince 21 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -485,17 +506,18 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Trailing comment close`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.widget;
 
                     public class Toolbar {
@@ -506,12 +528,13 @@ class DocAnalyzerRangeTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
             checkCompilation = true,
             docStubs = true,
-            applyApiLevelsXml = """
+            applyApiLevelsXml =
+                """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="2">
                         <class name="android/widget/Toolbar" since="21">
@@ -519,9 +542,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.widget;
                     /** @apiSince 21 */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -534,8 +558,8 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 }

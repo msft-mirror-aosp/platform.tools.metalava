@@ -26,11 +26,12 @@ object SignatureFileLoader {
     private val map = mutableMapOf<File, TextCodebase>()
 
     fun load(file: File, kotlinStyleNulls: Boolean = false): TextCodebase {
-        return map[file] ?: run {
-            val loaded = loadFiles(listOf(file), kotlinStyleNulls)
-            map[file] = loaded
-            loaded
-        }
+        return map[file]
+            ?: run {
+                val loaded = loadFiles(listOf(file), kotlinStyleNulls)
+                map[file] = loaded
+                loaded
+            }
     }
 
     fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): TextCodebase {

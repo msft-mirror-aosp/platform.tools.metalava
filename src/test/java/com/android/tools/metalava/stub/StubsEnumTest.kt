@@ -23,21 +23,24 @@ import org.junit.Test
 class StubsEnumTest : AbstractStubsTest() {
     @Test
     fun `Generate stubs for enum`() {
-        // Interface: makes sure the right modifiers etc are shown (and that "package private" methods
+        // Interface: makes sure the right modifiers etc are shown (and that "package private"
+        // methods
         // in the interface are taken to be public etc)
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public enum Foo {
                         A, /** @deprecated */ @Deprecated B;
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum Foo {
@@ -59,9 +62,10 @@ class StubsEnumTest : AbstractStubsTest() {
         // and that they are listed separately.
 
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public enum FooBar {
@@ -81,9 +85,10 @@ class StubsEnumTest : AbstractStubsTest() {
                         public int field2 = 2;
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum FooBar {
@@ -102,9 +107,10 @@ class StubsEnumTest : AbstractStubsTest() {
     @Test
     fun `Skip hidden enum constants in stubs`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public enum Alignment {
                         ALIGN_NORMAL,
@@ -116,9 +122,10 @@ class StubsEnumTest : AbstractStubsTest() {
                         ALIGN_RIGHT
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public enum Alignment {
                     enum_constant public static final test.pkg.Alignment ALIGN_CENTER;
@@ -127,7 +134,8 @@ class StubsEnumTest : AbstractStubsTest() {
                   }
                 }
             """,
-            source = """
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum Alignment {
@@ -142,9 +150,10 @@ class StubsEnumTest : AbstractStubsTest() {
     @Test
     fun `Generate stubs enum instance methods`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public enum ChronUnit implements TempUnit {
@@ -167,9 +176,9 @@ class StubsEnumTest : AbstractStubsTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     public interface TempUnit {
@@ -177,9 +186,10 @@ class StubsEnumTest : AbstractStubsTest() {
                         String toString();
                     }
                      """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum ChronUnit implements test.pkg.TempUnit {

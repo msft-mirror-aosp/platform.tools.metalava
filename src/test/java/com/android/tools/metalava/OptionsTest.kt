@@ -17,22 +17,25 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.defaultConfiguration
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val DESCRIPTION = """
+    private val DESCRIPTION =
+        """
 $PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
 external annotations etc.
-    """.trimIndent()
+    """
+            .trimIndent()
 
-    private val FLAGS = """
+    private val FLAGS =
+        """
 Usage: metalava <flags>
 
 
@@ -457,7 +460,8 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-    """.trimIndent()
+    """
+            .trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -478,7 +482,8 @@ Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
-            """.trimIndent(),
+            """
+                .trimIndent(),
             stderr.toString()
         )
     }
@@ -500,7 +505,8 @@ $FLAGS
 
 Aborting: --api-class-resolution must be one of api, api:classpath; was foo
 
-            """.trimIndent(),
+            """
+                .trimIndent(),
             stderr.toString()
         )
     }
@@ -526,7 +532,8 @@ $DESCRIPTION
 
 $FLAGS
 
-            """.trimIndent(),
+            """
+                .trimIndent(),
             stdout.toString()
         )
     }
@@ -534,16 +541,17 @@ $FLAGS
     @Test
     fun `Test issue severity options`() {
         check(
-            extraArguments = arrayOf(
-                "--hide",
-                "StartWithLower",
-                "--lint",
-                "EndsWithImpl",
-                "--warning",
-                "StartWithUpper",
-                "--error",
-                "ArrayReturn"
-            )
+            extraArguments =
+                arrayOf(
+                    "--hide",
+                    "StartWithLower",
+                    "--lint",
+                    "EndsWithImpl",
+                    "--warning",
+                    "StartWithUpper",
+                    "--error",
+                    "ArrayReturn"
+                )
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -553,9 +561,7 @@ $FLAGS
 
     @Test
     fun `Test multiple issue severity options`() {
-        check(
-            extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn")
-        )
+        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -563,18 +569,20 @@ $FLAGS
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
-        check(
-            extraArguments = arrayOf("--error", "RemovedClass")
-        )
+        check(extraArguments = arrayOf("--error", "RemovedClass"))
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
+        assertEquals(
+            Severity.ERROR,
+            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+        )
     }
 
     @Test
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues =
+                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -599,10 +607,11 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf(
-                    "--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path
-                )
+                extraArguments =
+                    arrayOf(
+                        "--strict-input-files-exempt",
+                        file1.path + File.pathSeparatorChar + dir.path
+                    )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))

@@ -29,7 +29,8 @@ class UastTestK1 : UastTestBase() {
     fun `renamed via @JvmName -- K1`() {
         `renamed via @JvmName`(
             isK2 = false,
-            api = """
+            api =
+                """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class ColorRamp {

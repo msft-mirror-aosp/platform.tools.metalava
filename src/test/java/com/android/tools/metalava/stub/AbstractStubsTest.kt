@@ -57,7 +57,9 @@ open class AbstractStubsTest : DriverTest() {
         )
         if (checkTextStubEquivalence) {
             if (stubFilesArr.isEmpty()) {
-                addError("Stub files may not be empty when checkTextStubEquivalence is set to true.")
+                addError(
+                    "Stub files may not be empty when checkTextStubEquivalence is set to true."
+                )
                 return
             }
             if (docStubs) {

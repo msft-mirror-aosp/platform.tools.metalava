@@ -27,9 +27,10 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Generate stubs for class that should not get default constructor (has other constructors)`() {
         // Class without explicit constructors (shouldn't insert default constructor)
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo {
                         public Foo(int i) {
@@ -39,9 +40,10 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
@@ -56,18 +58,20 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Generate stubs for class that already has a private constructor`() {
         // Class without private constructor; no default constructor should be inserted
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo {
                         private Foo() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
@@ -81,9 +85,10 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Arguments to super constructors`() {
         // When overriding constructors we have to supply arguments
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("WeakerAccess")
@@ -125,9 +130,10 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Constructors {
@@ -163,9 +169,10 @@ class StubsConstructorTest : AbstractStubsTest() {
         // When overriding constructors we have to supply arguments
         checkStubs(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings("WeakerAccess")
@@ -207,9 +214,10 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Constructors {
@@ -239,7 +247,8 @@ class StubsConstructorTest : AbstractStubsTest() {
         )
     }
 
-    // TODO: Add test to see what happens if I have Child4 in a different package which can't access the package private constructor of child3?
+    // TODO: Add test to see what happens if I have Child4 in a different package which can't access
+    // the package private constructor of child3?
 
     @Test
     fun `Test inaccessible constructors`() {
@@ -250,17 +259,18 @@ class StubsConstructorTest : AbstractStubsTest() {
 
         check(
             checkCompilation = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass1 {
                         MyClass1(int myVar) { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import java.io.IOException;
                     @SuppressWarnings("RedundantThrows")
@@ -268,27 +278,28 @@ class StubsConstructorTest : AbstractStubsTest() {
                         MySubClass1(int myVar) throws IOException { super(myVar); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass2 {
                         /** @hide */
                         public MyClass2(int myVar) { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class MySubClass2 extends MyClass2 {
                         public MySubClass2() { super(5); }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             expectedIssues = "",
-            api = """
+            api =
+                """
                     package test.pkg {
                       public class MyClass1 {
                       }
@@ -301,45 +312,47 @@ class StubsConstructorTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass1 {
                     MyClass1() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MySubClass1 extends test.pkg.MyClass1 {
                     MySubClass1() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass2 {
                     MyClass2() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MySubClass2 extends test.pkg.MyClass2 {
                     public MySubClass2() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                )
-            ),
-            stubsSourceList = """
+                    )
+                ),
+            stubsSourceList =
+                """
                 TESTROOT/stubs/test/pkg/MyClass1.java
                 TESTROOT/stubs/test/pkg/MyClass2.java
                 TESTROOT/stubs/test/pkg/MySubClass1.java
@@ -348,16 +361,18 @@ class StubsConstructorTest : AbstractStubsTest() {
         )
     }
 
-// TODO: Add a protected constructor too to make sure my code to make non-public constructors package private
-// don't accidentally demote protected constructors to package private!
+    // TODO: Add a protected constructor too to make sure my code to make non-public constructors
+    // package private
+    // don't accidentally demote protected constructors to package private!
 
     @Test
     fun `Picking Super Constructors`() {
         checkStubs(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings({"RedundantThrows", "JavaDoc", "WeakerAccess"})
@@ -427,10 +442,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            api = """
+            api =
+                """
                     package test.pkg {
                       public class PickConstructors {
                         ctor public PickConstructors();
@@ -471,7 +487,8 @@ class StubsConstructorTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PickConstructors {
@@ -529,9 +546,10 @@ class StubsConstructorTest : AbstractStubsTest() {
     @Test
     fun `Picking Constructors`() {
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings({"WeakerAccess", "unused"})
@@ -608,10 +626,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Constructors2 {
@@ -660,11 +679,13 @@ class StubsConstructorTest : AbstractStubsTest() {
 
     @Test
     fun `Another Constructor Test`() {
-        // A specific scenario triggered in the API where the right super class detector was not chosen
+        // A specific scenario triggered in the API where the right super class detector was not
+        // chosen
         checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     @SuppressWarnings({"RedundantThrows", "JavaDoc", "WeakerAccess"})
@@ -690,10 +711,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PickConstructors2 {
@@ -721,9 +743,10 @@ class StubsConstructorTest : AbstractStubsTest() {
     fun `Use type argument in constructor cast`() {
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @deprecated */
                     @Deprecated
@@ -733,9 +756,9 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     public class WeakRef<T> {
@@ -746,17 +769,18 @@ class StubsConstructorTest : AbstractStubsTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     public class BasicPoolEntry {
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class BasicPoolEntry {
                     ctor public BasicPoolEntry();
@@ -770,9 +794,10 @@ class StubsConstructorTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @deprecated */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -782,8 +807,8 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public BasicPoolEntryRef(test.pkg.BasicPoolEntry entry) { super((test.pkg.BasicPoolEntry)null); throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 }

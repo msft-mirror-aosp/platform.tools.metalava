@@ -31,7 +31,8 @@ class UastTestK2 : UastTestBase() {
         // NB: getInterpolated -> isInterpolated
         `renamed via @JvmName`(
             isK2 = true,
-            api = """
+            api =
+                """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class ColorRamp {

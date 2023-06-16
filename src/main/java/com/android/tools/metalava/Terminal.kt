@@ -40,24 +40,20 @@ fun terminalAttributes(
         sb.append('3').append('0' + foreground.value)
     }
     if (background != null) {
-        if (sb.last().isDigit())
-            sb.append(';')
+        if (sb.last().isDigit()) sb.append(';')
         sb.append('4').append('0' + background.value)
     }
 
     if (bold) {
-        if (sb.last().isDigit())
-            sb.append(';')
+        if (sb.last().isDigit()) sb.append(';')
         sb.append('1')
     }
     if (underline) {
-        if (sb.last().isDigit())
-            sb.append(';')
+        if (sb.last().isDigit()) sb.append(';')
         sb.append('4')
     }
     if (reverse) {
-        if (sb.last().isDigit())
-            sb.append(';')
+        if (sb.last().isDigit()) sb.append(';')
         sb.append('7')
     }
     if (sb.last() == '[') {
