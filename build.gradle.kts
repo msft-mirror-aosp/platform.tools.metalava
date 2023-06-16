@@ -20,7 +20,6 @@ defaultTasks = mutableListOf(
     "test",
     CREATE_ARCHIVE_TASK,
     CREATE_BUILD_INFO_TASK,
-    "ktlint",
     "lint"
 )
 
@@ -256,31 +255,6 @@ fun isBuildingOnServer(): Boolean {
  */
 fun getBuildId(): String {
     return if (System.getenv("DIST_DIR") != null) File(System.getenv("DIST_DIR")).name else "0"
-}
-
-// KtLint: https://github.com/pinterest/ktlint
-
-fun Project.getKtlintConfiguration(): Configuration {
-    return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.47.1")
-        dependencies.add(dependency)
-    }
-}
-
-tasks.register("ktlint", JavaExec::class.java) {
-    description = "Check Kotlin code style."
-    group = "Verification"
-    classpath = getKtlintConfiguration()
-    mainClass.set("com.pinterest.ktlint.Main")
-    args = listOf("src/**/*.kt", "build.gradle.kts")
-}
-
-tasks.register("ktlintFormat", JavaExec::class.java) {
-    description = "Fix Kotlin code style deviations."
-    group = "formatting"
-    classpath = getKtlintConfiguration()
-    mainClass.set("com.pinterest.ktlint.Main")
-    args = listOf("-F", "src/**/*.kt", "build.gradle.kts")
 }
 
 val publicationName = "Metalava"
