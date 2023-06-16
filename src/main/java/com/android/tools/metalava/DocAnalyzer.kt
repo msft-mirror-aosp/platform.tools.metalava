@@ -649,20 +649,6 @@ class DocAnalyzer(
         return string
     }
 
-    /** Replacements to perform in documentation */
-    @Suppress("SpellCheckingInspection")
-    val typos =
-        mapOf(
-            "JetPack" to "Jetpack",
-            "Andriod" to "Android",
-            "Kitkat" to "KitKat",
-            "LemonMeringuePie" to "Lollipop",
-            "LMP" to "Lollipop",
-            "KeyLimePie" to "KitKat",
-            "KLP" to "KitKat",
-            "teh" to "the"
-        )
-
     private fun tweakGrammar() {
         codebase.accept(
             object : ApiVisitor() {
@@ -670,24 +656,6 @@ class DocAnalyzer(
                     var doc = item.documentation
                     if (doc.isBlank()) {
                         return
-                    }
-
-                    if (!reporter.isSuppressed(Issues.TYPO)) {
-                        for (typo in typos.keys) {
-                            if (doc.contains(typo)) {
-                                val replacement = typos[typo] ?: continue
-                                val new = doc.replace(Regex("\\b$typo\\b"), replacement)
-                                if (new != doc) {
-                                    reporter.report(
-                                        Issues.TYPO,
-                                        item,
-                                        "Replaced $typo with $replacement in the documentation for $item"
-                                    )
-                                    doc = new
-                                    item.documentation = doc
-                                }
-                            }
-                        }
                     }
 
                     // Work around javadoc cutting off the summary line after the first ". ".

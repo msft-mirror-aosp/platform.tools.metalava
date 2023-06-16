@@ -126,52 +126,7 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "Typo"
-                ) // "e.g. " correction should still run with Typo fixing is off.
         )
-    }
-
-    @Test
-    fun `Fix typo replacement`() {
-        // common_typos_disable
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    /** This is an API for Andriod. Replace all occurrences: Andriod. */
-                    public class Foo {
-                        /** Ignore matches within words: xAndriodx */
-                        public Foo() {
-                        }
-                    }
-                    """
-                    )
-                ),
-            checkCompilation = true,
-            docStubs = true,
-            expectedIssues =
-                "src/test/pkg/Foo.java:3: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    /** This is an API for Android. Replace all occurrences: Android. */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Foo {
-                    /** Ignore matches within words: xAndriodx */
-                    public Foo() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                )
-        )
-        // common_typos_enable
     }
 
     @Test
