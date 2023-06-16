@@ -357,8 +357,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57567
-        val f = if (isK2) "" else " final"
+        // https://youtrack.jetbrains.com/issue/KT-57567
         val e = if (isK2) "test.pkg.Event" else "E!"
         val s = if (isK2) "test.pkg.State" else "E!"
         uastCheck(
@@ -396,7 +395,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public enum Event {
                     method public static kotlin.enums.EnumEntries<$e> getEntries();
-                    method public static$f test.pkg.Event? upTo(test.pkg.State state);
+                    method public static final test.pkg.Event? upTo(test.pkg.State state);
                     method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Event[] values();
                     enum_constant public static final test.pkg.Event ON_CREATE;
@@ -410,8 +409,8 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public enum State {
                     method public static kotlin.enums.EnumEntries<$s> getEntries();
-                    method public$f boolean isAtLeast(test.pkg.State state);
-                    method public$f boolean isFinished();
+                    method public final boolean isAtLeast(test.pkg.State state);
+                    method public final boolean isFinished();
                     method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.State[] values();
                     property public final boolean isFinished;

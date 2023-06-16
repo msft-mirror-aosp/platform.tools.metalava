@@ -395,13 +395,6 @@ open class PsiMethodItem(
             }
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
-            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
-                // The containing class is final, so it is implied that every method is final as well.
-                // No need to apply 'final' to each method. (We do it here rather than just in the
-                // signature emit code since we want to make sure that the signature comparison
-                // methods with super methods also consider this method non-final.)
-                modifiers.setFinal(false)
-            }
             val parameters = parameterList(codebase, psiMethod)
             val psiReturnType = psiMethod.returnType
             val returnType = codebase.getType(psiReturnType!!)
@@ -416,6 +409,17 @@ open class PsiMethodItem(
                 parameters = parameters
             )
             method.modifiers.setOwner(method)
+            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
+                // The containing class is final, so it is implied that every method is final as well.
+                // No need to apply 'final' to each method. (We do it here rather than just in the
+                // signature emit code since we want to make sure that the signature comparison
+                // methods with super methods also consider this method non-final.)
+                if (!containingClass.isEnum() && !method.isEnumSyntheticMethod()) {
+                    // Unless this is a non-synthetic enum member
+                    // See: https://youtrack.jetbrains.com/issue/KT-57567
+                    modifiers.setFinal(false)
+                }
+            }
 
             return method
         }
