@@ -39,6 +39,7 @@ repositories {
 plugins {
     alias(libs.plugins.kotlinJvm)
     id("com.android.lint") version "8.2.0-alpha08"
+    id("com.ncorti.ktfmt.gradle") version "0.12.0"
     id("application")
     id("java")
     id("maven-publish")
@@ -323,6 +324,10 @@ lint {
     disable.add("GradleDependency") // not useful for this project
     abortOnError = true
     baseline = File("lint-baseline.xml")
+}
+
+ktfmt {
+    kotlinLangStyle()
 }
 
 // Add a buildId into Gradle Metadata file so we can tell which build it is from.
