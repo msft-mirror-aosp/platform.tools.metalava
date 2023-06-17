@@ -246,7 +246,7 @@ class CompatibilityCheck(
                 "${describe(new, capitalize = true)} changed class/interface declaration"
             )
             return // Avoid further warnings like "has changed abstract qualifier" which is implicit
-                   // in this change
+            // in this change
         }
 
         for (iface in old.interfaceTypes()) {

@@ -1033,7 +1033,7 @@ abstract class DriverTest {
                     ARG_NULLABILITY_WARNINGS_TXT,
                     validateNullabilityTxt.path,
                     ARG_NULLABILITY_ERRORS_NON_FATAL // for testing, report on errors instead of
-                                                     // throwing
+                    // throwing
                 )
             } else {
                 validateNullabilityTxt = null

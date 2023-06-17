@@ -150,7 +150,7 @@ class TextCodebase(
                             val existing = cl.superClassType()?.toTypeString()
                             val s = existing ?: JAVA_LANG_OBJECT
                             s // unnecessary variable, works around current compiler believing the
-                              // expression to be nullable
+                            // expression to be nullable
                         }
                     }
             }

@@ -20,7 +20,8 @@ defaultTasks = mutableListOf(
     "test",
     CREATE_ARCHIVE_TASK,
     CREATE_BUILD_INFO_TASK,
-    "lint"
+    "lint",
+    "ktfmtFormat",
 )
 
 repositories {
