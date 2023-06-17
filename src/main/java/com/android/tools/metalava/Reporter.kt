@@ -321,7 +321,7 @@ class Reporter(
         location: String?,
         message: String,
         id: Issues.Issue? = null,
-        color: Boolean = options.color
+        terminal: Terminal = options.terminal
     ): Boolean {
         if (severity == HIDDEN) {
             return false
@@ -336,7 +336,7 @@ class Reporter(
             }
 
         val formattedMessage =
-            format(effectiveSeverity, location, message, id, color, options.omitLocations)
+            format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
         if (effectiveSeverity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
@@ -352,54 +352,33 @@ class Reporter(
         location: String?,
         message: String,
         id: Issues.Issue?,
-        color: Boolean,
+        terminal: Terminal,
         omitLocations: Boolean
     ): String {
         val sb = StringBuilder(100)
 
-        if (color && !isUnderTest()) {
-            sb.append(terminalAttributes(bold = true))
-            if (!omitLocations) {
-                location?.let { sb.append(it).append(": ") }
-            }
-            when (severity) {
-                LINT ->
-                    sb.append(terminalAttributes(foreground = TerminalColor.CYAN)).append("lint: ")
-                INFO ->
-                    sb.append(terminalAttributes(foreground = TerminalColor.CYAN)).append("info: ")
-                WARNING ->
-                    sb.append(terminalAttributes(foreground = TerminalColor.YELLOW))
-                        .append("warning: ")
-                ERROR ->
-                    sb.append(terminalAttributes(foreground = TerminalColor.RED)).append("error: ")
-                INHERIT,
-                HIDDEN -> {}
-            }
-            sb.append(resetTerminal())
-            sb.append(message)
-            id?.let { sb.append(" [").append(it.name).append("]") }
-        } else {
-            if (!omitLocations) {
-                location?.let { sb.append(it).append(": ") }
-            }
-            when (severity) {
-                LINT -> sb.append("lint: ")
-                INFO -> sb.append("info: ")
-                WARNING -> sb.append("warning: ")
-                ERROR -> sb.append("error: ")
-                INHERIT,
-                HIDDEN -> {}
-            }
-            sb.append(message)
-            id?.let {
-                sb.append(" [")
-                sb.append(it.name)
-                sb.append("]")
-                val link = it.category.ruleLink
-                if (it.rule != null && link != null) {
-                    sb.append(" [See ").append(link).append(it.rule)
-                    sb.append("]")
-                }
+        sb.append(terminal.attributes(bold = true))
+        if (!omitLocations) {
+            location?.let { sb.append(it).append(": ") }
+        }
+        when (severity) {
+            LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
+            INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
+            WARNING ->
+                sb.append(terminal.attributes(foreground = TerminalColor.YELLOW))
+                    .append("warning: ")
+            ERROR ->
+                sb.append(terminal.attributes(foreground = TerminalColor.RED)).append("error: ")
+            INHERIT,
+            HIDDEN -> {}
+        }
+        sb.append(terminal.reset())
+        sb.append(message)
+        id?.let {
+            sb.append(" [").append(it.name).append("]")
+            val link = it.category.ruleLink
+            if (it.rule != null && link != null) {
+                sb.append(" [See ").append(link).append(it.rule).append("]")
             }
         }
         return sb.toString()
@@ -412,7 +391,7 @@ class Reporter(
         id: Issues.Issue
     ): Boolean {
         options.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, color = false, omitLocations = false)
+            format(severity, location, message, id, terminal = plainTerminal, omitLocations = false)
         )
         return true
     }

@@ -438,7 +438,7 @@ class Options(
     var removedApiFile: File? = null
 
     /** Whether output should be colorized */
-    var color = commonOptions.color
+    var terminal = commonOptions.terminal
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -746,7 +746,7 @@ class Options(
                 ARG_HELP,
                 "-h",
                 "-?" -> {
-                    helpAndQuit(color)
+                    helpAndQuit(terminal)
                 }
 
                 // For now we don't distinguish between bootclasspath and classpath
@@ -1294,7 +1294,7 @@ class Options(
                         outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
-                        val usage = getUsage(includeHeader = false, colorize = color)
+                        val usage = getUsage(includeHeader = false, terminal = terminal)
                         throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
                         // All args that don't start with "-" are taken to be filenames
@@ -1574,8 +1574,8 @@ class Options(
         }
     }
 
-    private fun helpAndQuit(colorize: Boolean = color) {
-        throw DriverException(stdout = getUsage(colorize = colorize))
+    private fun helpAndQuit(terminal: Terminal) {
+        throw DriverException(stdout = getUsage(terminal = terminal))
     }
 
     private fun getValue(args: Array<String>, index: Int): String {
@@ -1789,28 +1789,27 @@ class Options(
         return File(path).absoluteFile
     }
 
-    private fun getUsage(includeHeader: Boolean = true, colorize: Boolean = color): String {
+    private fun getUsage(
+        includeHeader: Boolean = true,
+        terminal: Terminal = this.terminal
+    ): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
-        usage(printWriter, includeHeader, colorize)
+        usage(printWriter, includeHeader, terminal)
         return usage.toString()
     }
 
-    private fun usage(out: PrintWriter, includeHeader: Boolean = true, colorize: Boolean = color) {
+    private fun usage(out: PrintWriter, includeHeader: Boolean = true, terminal: Terminal) {
         if (includeHeader) {
             out.println(wrap(HELP_PROLOGUE, MAX_LINE_WIDTH, ""))
         }
 
-        if (colorize) {
-            out.println("Usage: ${colorized(PROGRAM_NAME, TerminalColor.BLUE)} <flags>")
-        } else {
-            out.println("Usage: $PROGRAM_NAME <flags>")
-        }
+        out.println("Usage: ${terminal.colorize(PROGRAM_NAME, TerminalColor.BLUE)} <flags>")
 
         val args =
             arrayOf(
                 "",
-                "\nGeneral:",
+                "General:",
                 ARG_HELP,
                 "This message.",
                 ARG_VERSION,
@@ -1826,7 +1825,7 @@ class Options(
                 "$ARG_REPEAT_ERRORS_MAX <N>",
                 "When specified, repeat at most N errors before finishing.",
                 "",
-                "\nAPI sources:",
+                "API sources:",
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
@@ -1926,7 +1925,7 @@ class Options(
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
                 "",
-                "\nDocumentation:",
+                "Documentation:",
                 ARG_PUBLIC,
                 "Only include elements that are public",
                 ARG_PROTECTED,
@@ -1938,7 +1937,7 @@ class Options(
                 ARG_HIDDEN,
                 "Include all elements, including hidden",
                 "",
-                "\nExtracting Signature Files:",
+                "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
                 "$ARG_API <file>",
                 "Generate a signature descriptor file",
@@ -1968,7 +1967,7 @@ class Options(
                 "$ARG_SDK_VALUES <dir>",
                 "Write SDK values files to the given directory",
                 "",
-                "\nGenerating Stubs:",
+                "Generating Stubs:",
                 "$ARG_STUBS <dir>",
                 "Generate stub source files for the API",
                 "$ARG_DOC_STUBS <dir>",
@@ -2006,7 +2005,7 @@ class Options(
                 "$ARG_DOC_STUBS_SOURCE_LIST <file>",
                 "Write the list of generated doc stub files into the given source " + "list file",
                 "",
-                "\nDiffs and Checks:",
+                "Diffs and Checks:",
                 "$ARG_INPUT_KOTLIN_NULLS[=yes|no]",
                 "Whether the signature file being read should be " +
                     "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
@@ -2085,7 +2084,7 @@ class Options(
                 "If set, $PROGRAM_NAME shows it " +
                     "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
                 "",
-                "\nJDiff:",
+                "JDiff:",
                 "$ARG_XML_API <file>",
                 "Like $ARG_API, but emits the API in the JDiff XML format instead",
                 "$ARG_CONVERT_TO_JDIFF <sig> <xml>",
@@ -2095,7 +2094,7 @@ class Options(
                 "Reads in the given old and new api files, " +
                     "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
                 "",
-                "\nExtracting Annotations:",
+                "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
@@ -2112,12 +2111,12 @@ class Options(
                     "not apply to signature files. Source retention annotations are extracted into the external " +
                     "annotations files instead.",
                 "",
-                "\nInjecting API Levels:",
+                "Injecting API Levels:",
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
                 "",
-                "\nExtracting API Levels:",
+                "Extracting API Levels:",
                 "$ARG_GENERATE_API_LEVELS <xmlfile>",
                 "Reads android.jar SDK files and generates an XML file recording " +
                     "the API level for each class, method and field",
@@ -2160,7 +2159,7 @@ class Options(
                     "The special pattern \"*\" refers to all APIs in the given mainline module. " +
                     "Lines beginning with # are comments.",
                 "",
-                "\nGenerating API version history:",
+                "Generating API version history:",
                 "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
                 "Reads API signature files and generates a JSON file recording the API version each " +
                     "class, method, and field was added in and (if applicable) deprecated in. " +
@@ -2175,7 +2174,7 @@ class Options(
                     "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
                     "Required to generate API version JSON.",
                 "",
-                "\nSandboxing:",
+                "Sandboxing:",
                 ARG_NO_IMPLICIT_ROOT,
                 "Disable implicit root directory detection. " +
                     "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
@@ -2195,7 +2194,7 @@ class Options(
                     "access to files and/or directories (separated by `${File.pathSeparator}). Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files and/or directories.",
                 "",
-                "\nEnvironment Variables:",
+                "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
                 "Set to true to have metalava emit all the arguments it was invoked with. " +
                     "Helpful when debugging or reproducing under a debugger what the build system is doing.",
@@ -2212,37 +2211,29 @@ class Options(
             sb.append(' ')
         }
         val indent = sb.toString()
-        val formatString = "%1$-" + INDENT_WIDTH + "s%2\$s"
 
         var i = 0
         while (i < args.size) {
             val arg = args[i]
-            val description = "\n" + args[i + 1]
             if (arg.isEmpty()) {
-                if (colorize) {
-                    out.println(colorized(description, TerminalColor.YELLOW))
-                } else {
-                    out.println(description)
-                }
+                val groupTitle = args[i + 1]
+                out.println("\n")
+                out.println(terminal.colorize(groupTitle, TerminalColor.YELLOW))
             } else {
-                val output =
-                    if (colorize) {
-                        val colorArg = bold(arg)
-                        val invisibleChars = colorArg.length - arg.length
-                        // +invisibleChars: the extra chars in the above are counted but don't
-                        // contribute to width
-                        // so allow more space
-                        val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
+                val description = "\n" + args[i + 1]
+                val formattedArg = terminal.bold(arg)
+                val invisibleChars = formattedArg.length - arg.length
+                // +invisibleChars: the extra chars in the above are counted but don't
+                // contribute to width so allow more space
+                val formatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
 
-                        wrap(
-                            String.format(colorFormatString, colorArg, description),
-                            MAX_LINE_WIDTH + invisibleChars,
-                            MAX_LINE_WIDTH,
-                            indent
-                        )
-                    } else {
-                        wrap(String.format(formatString, arg, description), MAX_LINE_WIDTH, indent)
-                    }
+                val output =
+                    wrap(
+                        String.format(formatString, formattedArg, description),
+                        MAX_LINE_WIDTH + invisibleChars,
+                        MAX_LINE_WIDTH,
+                        indent
+                    )
 
                 // Remove trailing whitespace
                 val lines = output.lines()
