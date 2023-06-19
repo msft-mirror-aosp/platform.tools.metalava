@@ -33,6 +33,10 @@ const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
 const val ARG_NO_BANNER = "--no-banner"
 
+// Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
+// collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
+private const val NEL = "\u0085"
+
 enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
     /** Whether to report warnings and other diagnostics along the way. */
     QUIET(quiet = true),
@@ -61,18 +65,30 @@ class CommonOptions : OptionGroup() {
                 ARG_COLOR to stylingTerminal,
                 ARG_NO_COLOR to plainTerminal,
             )
-            .default(if (colorDefaultValue) stylingTerminal else plainTerminal)
+            .default(
+                if (colorDefaultValue) stylingTerminal else plainTerminal,
+                defaultForHelp = "true if \$TERM starts with `xterm` or \$COLORTERM is set",
+            )
 
     val noBanner by
-        option(ARG_NO_BANNER, help = "Do not show metalava ascii art banner").flag(default = false)
+        option(ARG_NO_BANNER, help = "Do not show metalava ascii art banner")
+            .flag(default = false, defaultForHelp = "false")
 
     val verbosity: Verbosity by
-        option()
+        option(
+                help =
+                    """
+            Set the verbosity of the output.$NEL
+                $ARG_QUIET - Only include vital output.$NEL
+                $ARG_VERBOSE - Include extra diagnostic output.$NEL
+            """
+                        .trimIndent()
+            )
             .switch(
                 ARG_QUIET to Verbosity.QUIET,
                 ARG_VERBOSE to Verbosity.VERBOSE,
             )
-            .default(Verbosity.NORMAL)
+            .default(Verbosity.NORMAL, defaultForHelp = "Neither $ARG_QUIET or $ARG_VERBOSE")
 }
 
 /**

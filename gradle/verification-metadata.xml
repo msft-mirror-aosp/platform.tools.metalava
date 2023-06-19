@@ -12,7 +12,7 @@
          <trust group="^com.android($|([.].*))" regex="true"/>
       </trusted-artifacts>
       <trusted-keys>
-         <trusted-key id="03c123038c20aae9e286c857479d601f3a7b5c1a" group="com.github.ajalt.clikt" name="clikt-jvm" version="3.5.2"/>
+         <trusted-key id="03c123038c20aae9e286c857479d601f3a7b5c1a" group="com.github.ajalt.clikt" name="clikt-jvm"/>
          <trusted-key id="04543577d6a9cc626239c50c7ecbd740ff06aeb5">
             <trusting group="com.sun.istack"/>
             <trusting group="com.sun.xml.bind"/>
