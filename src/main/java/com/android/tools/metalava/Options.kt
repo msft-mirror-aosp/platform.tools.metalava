@@ -44,7 +44,6 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 /** Global options for the metadata extraction tool */
 var options = Options(emptyArray())
 
-private const val MAX_LINE_WIDTH = 120
 private const val INDENT_WIDTH = 45
 
 const val ARG_FORMAT = "--format"

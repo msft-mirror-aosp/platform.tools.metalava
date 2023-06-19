@@ -17,8 +17,10 @@
 package com.android.tools.metalava
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -45,6 +47,8 @@ class MetalavaCommand(
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be passed to Options().
         treatUnknownOptionsAsArgs = true,
+        // Call run on this command even if no sub-command is provided.
+        invokeWithoutSubcommand = true,
     ) {
     init {
         context {
@@ -60,6 +64,10 @@ class MetalavaCommand(
             names = setOf(ARG_VERSION),
             message = { "$commandName version: $it" },
         )
+
+        subcommands(
+            VersionCommand(),
+        )
     }
 
     /** Group of common options. */
@@ -72,6 +80,11 @@ class MetalavaCommand(
     fun process(args: Array<String>) {
         try {
             parse(args)
+        } catch (e: PrintHelpMessage) {
+            throw DriverException(
+                stdout = e.command.getFormattedHelp(),
+                exitCode = if (e.error) 1 else 0
+            )
         } catch (e: PrintMessage) {
             throw DriverException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
         }
@@ -80,7 +93,8 @@ class MetalavaCommand(
     /**
      * Perform this command's actions.
      *
-     * This is called after the command line parameters are parsed.
+     * This is called after the command line parameters are parsed. If one of the sub-commands is
+     * invoked then this is called before the sub-commands parameters are parsed.
      */
     override fun run() {
         // Print the banner if needed.
@@ -89,11 +103,17 @@ class MetalavaCommand(
             stdout.flush()
         }
 
-        val remainingArgs = flags.toTypedArray()
-        options = Options(remainingArgs, stdout, stderr, common)
+        // Make the CommonOptions available to all sub-commands.
+        currentContext.obj = common
 
-        maybeActivateSandbox()
+        val subcommand = currentContext.invokedSubcommand
+        if (subcommand == null) {
+            val remainingArgs = flags.toTypedArray()
+            options = Options(remainingArgs, stdout, stderr, common)
 
-        processFlags()
+            maybeActivateSandbox()
+
+            processFlags()
+        }
     }
 }
