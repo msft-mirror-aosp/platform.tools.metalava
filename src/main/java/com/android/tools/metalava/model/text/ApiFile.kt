@@ -42,21 +42,6 @@ object ApiFile {
     /**
      * Same as [.parseApi]}, but take a single file for convenience.
      *
-     * <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java
-     *
-     * @param file input signature file
-     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers
-     *   (e.g. "?"). Even if false, we'll allow them if the file format supports them/
-     */
-    @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull file: File,
-        kotlinStyleNulls: Boolean,
-    ) = parseApi(listOf(file), kotlinStyleNulls, ApiClassResolution.API_CLASSPATH)
-
-    /**
-     * Same as [.parseApi]}, but take a single file for convenience.
-     *
      * @param file input signature file
      * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers
      *   (e.g. "?"). Even if false, we'll allow them if the file format supports them/
