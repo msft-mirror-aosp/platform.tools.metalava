@@ -34,6 +34,11 @@ class TextBackedAnnotationItemTest {
             override fun findClass(className: String): ClassItem? = unsupported()
             override fun findPackage(pkgName: String): PackageItem? = unsupported()
             override fun trustedApi(): Boolean = false
+            override fun createAnnotation(
+                source: String,
+                context: Item?,
+                mapName: Boolean
+            ): AnnotationItem = unsupported()
         }
 
     @Test

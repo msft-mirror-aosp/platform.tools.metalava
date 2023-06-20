@@ -18,12 +18,15 @@ package com.android.tools.metalava.model.text.classpath
 
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.FileFormat
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
@@ -106,6 +109,14 @@ class TextCodebaseWithClasspath(
                 PackageItem.comparator
             )
         packages = PackageList(this, allPackages)
+    }
+
+    override fun createAnnotation(
+        source: String,
+        context: Item?,
+        mapName: Boolean
+    ): AnnotationItem {
+        return TextBackedAnnotationItem(this, source, mapName)
     }
 
     // Search the [textCodebase] before the [classpathCodebase]

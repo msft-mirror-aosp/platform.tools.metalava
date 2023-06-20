@@ -24,7 +24,6 @@ import com.android.SdkConstants.TAG_USES_SDK
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.Issues
-import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.android.tools.metalava.reporter
@@ -97,7 +96,7 @@ interface Codebase {
         source: String,
         context: Item? = null,
         mapName: Boolean = true
-    ): AnnotationItem = TextBackedAnnotationItem(this, source, mapName)
+    ): AnnotationItem
 
     /** The manifest to associate with this codebase, if any */
     var manifest: File?
