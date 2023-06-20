@@ -110,6 +110,12 @@ open class PsiBasedCodebase(
      */
     var units: List<PsiFile> = emptyList()
 
+    /**
+     * Printer which can convert PSI, UAST and constants into source code, with ability to filter
+     * out elements that are not part of a codebase etc
+     */
+    @Suppress("LeakingThis") val printer = CodePrinter(this)
+
     /** Map from class name to class item. Classes are added via [registerClass] */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
