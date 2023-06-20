@@ -17,10 +17,25 @@
 package com.android.tools.metalava
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.versionOption
 import java.io.PrintWriter
+
+const val ARG_VERSION = "--version"
+
+val BANNER: String =
+    """
+                _        _
+ _ __ ___   ___| |_ __ _| | __ ___   ____ _
+| '_ ` _ \ / _ \ __/ _` | |/ _` \ \ / / _` |
+| | | | | |  __/ || (_| | | (_| |\ V / (_| |
+|_| |_| |_|\___|\__\__,_|_|\__,_| \_/ \__,_|
+"""
+        .trimIndent()
 
 /** Main metalava command. */
 class MetalavaCommand(
@@ -38,14 +53,28 @@ class MetalavaCommand(
             // Disable help so that Options can print it instead.
             helpOptionNames = emptySet()
         }
+
+        // Print the version number if requested.
+        versionOption(
+            Version.VERSION,
+            names = setOf(ARG_VERSION),
+            message = { "$commandName version: $it" },
+        )
     }
+
+    /** Group of common options. */
+    val common by CommonOptions()
 
     /** Property into which all the arguments (and unknown options) are gathered. */
     private val flags by argument().multiple()
 
     /** Process the command. */
     fun process(args: Array<String>) {
-        parse(args)
+        try {
+            parse(args)
+        } catch (e: PrintMessage) {
+            throw DriverException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
+        }
     }
 
     /**
@@ -54,8 +83,19 @@ class MetalavaCommand(
      * This is called after the command line parameters are parsed.
      */
     override fun run() {
+        // Print the banner if needed.
+        if (!common.verbosity.quiet && !common.noBanner) {
+            if (common.color) {
+                stdout.print(colorized(BANNER.trimIndent(), TerminalColor.BLUE))
+            } else {
+                stdout.println(BANNER.trimIndent())
+            }
+            stdout.println()
+            stdout.flush()
+        }
+
         val remainingArgs = flags.toTypedArray()
-        options = Options(remainingArgs, stdout, stderr)
+        options = Options(remainingArgs, stdout, stderr, common)
 
         maybeActivateSandbox()
 

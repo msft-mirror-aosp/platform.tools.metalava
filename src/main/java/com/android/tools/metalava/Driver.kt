@@ -67,17 +67,6 @@ const val HELP_PROLOGUE =
 const val PACKAGE_HTML = "package.html"
 const val OVERVIEW_HTML = "overview.html"
 
-@Suppress("PropertyName") // Can't mark const because trimIndent() :-(
-val BANNER: String =
-    """
-                _        _
- _ __ ___   ___| |_ __ _| | __ ___   ____ _
-| '_ ` _ \ / _ \ __/ _` | |/ _` \ \ / / _` |
-| | | | | |  __/ || (_| | | (_| |\ V / (_| |
-|_| |_| |_|\___|\__\__,_|_|\__,_| \_/ \__,_|
-"""
-        .trimIndent()
-
 fun main(args: Array<String>) {
     run(args, setExitCode = true)
 }

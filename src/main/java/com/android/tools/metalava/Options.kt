@@ -49,9 +49,6 @@ private const val INDENT_WIDTH = 45
 
 const val ARG_FORMAT = "--format"
 const val ARG_HELP = "--help"
-const val ARG_VERSION = "--version"
-const val ARG_QUIET = "--quiet"
-const val ARG_VERBOSE = "--verbose"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
@@ -101,9 +98,6 @@ const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
-const val ARG_COLOR = "--color"
-const val ARG_NO_COLOR = "--no-color"
-const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
@@ -178,7 +172,8 @@ class Options(
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     /** Writer to direct error messages to */
-    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err))
+    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+    commonOptions: CommonOptions = defaultCommonOptions,
 ) {
 
     /** Internal list backing [sources] */
@@ -360,13 +355,13 @@ class Options(
     var allowClassesFromClasspath = true
 
     /** Whether to report warnings and other diagnostics along the way */
-    var quiet = false
+    var quiet = commonOptions.verbosity.quiet
 
     /**
      * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
      * quiet)
      */
-    var verbose = false
+    var verbose = commonOptions.verbosity.verbose
 
     /** If set, a directory to write stub files to. Corresponds to the --stubs/-stubs flag. */
     var stubsDir: File? = null
@@ -443,7 +438,7 @@ class Options(
     var removedApiFile: File? = null
 
     /** Whether output should be colorized */
-    var color = System.getenv("TERM")?.startsWith("xterm") ?: (System.getenv("COLORTERM") != null)
+    var color = commonOptions.color
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -722,31 +717,6 @@ class Options(
     var useK2Uast = false
 
     init {
-        // Pre-check whether --color/--no-color is present and use that to decide how
-        // to emit the banner even before we emit errors
-        if (args.contains(ARG_NO_COLOR)) {
-            color = false
-        } else if (args.contains(ARG_COLOR)) {
-            color = true
-        }
-        // empty args: only when building initial default Options (options field
-        // at the top of this file; replaced once the driver runs and passes in
-        // a real argv. Don't print a banner when initializing the default options.)
-        if (
-            args.isNotEmpty() &&
-                !args.contains(ARG_QUIET) &&
-                !args.contains(ARG_NO_BANNER) &&
-                !args.contains(ARG_VERSION)
-        ) {
-            if (color) {
-                stdout.print(colorized(BANNER.trimIndent(), TerminalColor.BLUE))
-            } else {
-                stdout.println(BANNER.trimIndent())
-            }
-            stdout.println()
-            stdout.flush()
-        }
-
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
         reporter = Reporter(null, null)
@@ -777,17 +747,6 @@ class Options(
                 "-h",
                 "-?" -> {
                     helpAndQuit(color)
-                }
-                ARG_QUIET -> {
-                    quiet = true
-                    verbose = false
-                }
-                ARG_VERBOSE -> {
-                    verbose = true
-                    quiet = false
-                }
-                ARG_VERSION -> {
-                    throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
 
                 // For now we don't distinguish between bootclasspath and classpath
@@ -1123,11 +1082,6 @@ class Options(
                 }
                 ARG_API_LINT_IGNORE_PREFIX -> {
                     checkApiIgnorePrefix.add(getValue(args, ++index))
-                }
-                ARG_COLOR -> color = true
-                ARG_NO_COLOR -> color = false
-                ARG_NO_BANNER -> {
-                    // Already processed above but don't flag it here as invalid
                 }
 
                 // Extracting API levels
