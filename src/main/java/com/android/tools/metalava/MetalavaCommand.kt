@@ -85,12 +85,7 @@ class MetalavaCommand(
     override fun run() {
         // Print the banner if needed.
         if (!common.verbosity.quiet && !common.noBanner) {
-            if (common.color) {
-                stdout.print(colorized(BANNER.trimIndent(), TerminalColor.BLUE))
-            } else {
-                stdout.println(BANNER.trimIndent())
-            }
-            stdout.println()
+            stdout.println(common.terminal.colorize(BANNER.trimIndent(), TerminalColor.BLUE))
             stdout.flush()
         }
 

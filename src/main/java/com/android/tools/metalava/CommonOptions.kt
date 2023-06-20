@@ -47,17 +47,21 @@ enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
 /** Options that are common to all metalava sub-commands. */
 class CommonOptions : OptionGroup() {
 
-    /** Whether output should be colorized */
-    val color by
+    /** Whether output should use terminal capabilities */
+    val terminal by
         option(
-                ARG_COLOR,
-                help = "Determine whether to colorize the output",
+                help =
+                    """
+                Determine whether to use terminal capabilities to colorize and otherwise style the
+                output.
+            """
+                        .trimIndent(),
             )
-            .flag(
-                ARG_NO_COLOR,
-                default = colorDefaultValue,
-                defaultForHelp = "true if \$TERM starts with `xterm` or \$COLORTERM is set",
+            .switch(
+                ARG_COLOR to stylingTerminal,
+                ARG_NO_COLOR to plainTerminal,
             )
+            .default(if (colorDefaultValue) stylingTerminal else plainTerminal)
 
     val noBanner by
         option(ARG_NO_BANNER, help = "Do not show metalava ascii art banner").flag(default = false)
