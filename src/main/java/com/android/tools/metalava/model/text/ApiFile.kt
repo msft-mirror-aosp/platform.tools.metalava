@@ -108,6 +108,7 @@ object ApiFile {
         return api
     }
 
+    /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
     @Deprecated("Exists only for external callers. ")
     @JvmStatic
     @Throws(ApiParseException::class)
@@ -115,13 +116,12 @@ object ApiFile {
         filename: String,
         apiText: String,
         kotlinStyleNulls: Boolean?,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
     ): TextCodebase {
         return parseApi(
             filename,
             apiText,
             kotlinStyleNulls != null && kotlinStyleNulls,
-            apiClassResolution
+            ApiClassResolution.API_CLASSPATH,
         )
     }
 
