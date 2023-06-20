@@ -104,6 +104,12 @@ open class PsiBasedCodebase(
     val project: Project
         get() = uastEnvironment.ideaProject
 
+    /**
+     * Returns the compilation units used in this codebase (may be empty when the codebase is not
+     * loaded from source, such as from .jar files or from signature files)
+     */
+    var units: List<PsiFile> = emptyList()
+
     /** Map from class name to class item. Classes are added via [registerClass] */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
