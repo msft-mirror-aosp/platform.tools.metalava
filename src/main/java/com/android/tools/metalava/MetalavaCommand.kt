@@ -35,16 +35,6 @@ import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
 
-val BANNER: String =
-    """
-                _        _
- _ __ ___   ___| |_ __ _| | __ ___   ____ _
-| '_ ` _ \ / _ \ __/ _` | |/ _` \ \ / / _` |
-| | | | | |  __/ || (_| | | (_| |\ V / (_| |
-|_| |_| |_|\___|\__\__,_|_|\__,_| \_/ \__,_|
-"""
-        .trimIndent()
-
 /** Main metalava command. */
 class MetalavaCommand(
     private val stdout: PrintWriter,
@@ -95,7 +85,7 @@ class MetalavaCommand(
     val common by CommonOptions()
 
     /**
-     * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.noBanner] to
+     * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.terminal] to
      * be used when generating the help output.
      *
      * The built-in help option is eager and throws a [PrintHelpMessage] exception which aborts the
@@ -164,12 +154,6 @@ class MetalavaCommand(
      * invoked then this is called before the sub-commands parameters are parsed.
      */
     override fun run() {
-        // Print the banner if needed.
-        if (!common.verbosity.quiet && !common.noBanner) {
-            stdout.println(common.terminal.colorize(BANNER.trimIndent(), TerminalColor.BLUE))
-            stdout.flush()
-        }
-
         // Make the CommonOptions available to all sub-commands.
         currentContext.obj = common
 

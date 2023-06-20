@@ -453,7 +453,7 @@ Options:
   --version            Show the version and exit
   --color, --no-color  Determine whether to use terminal capabilities to colorize and otherwise style the output.
                        (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM is set)
-  --no-banner          Do not show metalava ascii art banner (default: false)
+  --no-banner          A banner is never output so this has no effect (deprecated: please remove)
   --quiet, --verbose   Set the verbosity of the output.
                        --quiet - Only include vital output.
                        --verbose - Include extra diagnostic output.
@@ -480,7 +480,7 @@ Sub-commands:
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n", stdout.toString())
+        assertEquals("", stdout.toString())
         assertEquals(
             """
 
@@ -514,7 +514,7 @@ $FLAGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n", stdout.toString())
+        assertEquals("", stdout.toString())
         assertEquals(
             """
 
@@ -540,7 +540,6 @@ Aborting: --api-class-resolution must be one of api, api:classpath; was foo
         assertEquals("", stderr.toString())
         assertEquals(
             """
-$BANNER
 
 $USAGE
 

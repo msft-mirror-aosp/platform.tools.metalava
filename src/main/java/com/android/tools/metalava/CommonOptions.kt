@@ -20,6 +20,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
@@ -71,8 +72,12 @@ class CommonOptions : OptionGroup() {
             )
 
     val noBanner by
-        option(ARG_NO_BANNER, help = "Do not show metalava ascii art banner")
-            .flag(default = false, defaultForHelp = "false")
+        option(ARG_NO_BANNER, help = "A banner is never output so this has no effect")
+            .flag(default = true)
+            .deprecated(
+                "WARNING: option `$ARG_NO_BANNER` is deprecated; it has no effect please remove",
+                tagValue = "please remove"
+            )
 
     val verbosity: Verbosity by
         option(
