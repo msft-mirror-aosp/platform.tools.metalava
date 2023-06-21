@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -41,7 +40,6 @@ import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiCodeBlock
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
@@ -58,13 +56,11 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.kotlin.fileClasses.isJvmMultifileClassFile
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.uast.UClass
+import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
+import org.jetbrains.uast.kotlin.KotlinUastResolveProviderService
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
@@ -80,12 +76,9 @@ const val METHOD_ESTIMATE = 1000
  * and class items along with their members. This process is broken into two phases:
  *
  * First, [initializing] is set to true, and class items are created from the supplied sources.
- * If [fromClasspath] is false, these are main classes of the codebase and have [ClassItem.emit] set
- * to true and [ClassItem.isFromClassPath] set to false. While creating these, package names are
- * reserved and associated with their classes in [packageClasses].
- *
- * If [fromClasspath] is true, all classes are assumed to be from the classpath, so [ClassItem.emit]
- * is set to false and [ClassItem.isFromClassPath] is set to true for all classes created.
+ * These are main classes of the codebase and have [ClassItem.emit] set to true and
+ * [ClassItem.isFromClassPath] set to false. While creating these, package names are reserved and
+ * associated with their classes in [packageClasses].
  *
  * Next, package items are created for source classes based on the contents of [packageClasses]
  * with [PackageItem.emit] set to true.
@@ -98,8 +91,7 @@ const val METHOD_ESTIMATE = 1000
  */
 open class PsiBasedCodebase(
     location: File,
-    override var description: String = "Unknown",
-    val fromClasspath: Boolean = false
+    override var description: String = "Unknown"
 ) : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
@@ -173,16 +165,11 @@ open class PsiBasedCodebase(
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
-        // A set to track @JvmMultifileClasses that have already been added to [topLevelClassesFromSource]
-        val multifileClassNames = HashSet<FqName>()
-
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
             tick() // show progress
 
-            // Visiting psiFile directly would eagerly load the entire file even though we only need
-            // the importList here.
-            (psiFile as? PsiJavaFile)?.importList?.accept(object : JavaRecursiveElementVisitor() {
+            psiFile.accept(object : JavaRecursiveElementVisitor() {
                 override fun visitImportStatement(element: PsiImportStatement) {
                     super.visitImportStatement(element)
                     if (element.resolve() == null) {
@@ -240,26 +227,8 @@ open class PsiBasedCodebase(
                                     "Syntax error: `${element.errorDescription}`"
                                 )
                             }
-
-                            override fun visitCodeBlock(block: PsiCodeBlock) {
-                                // Ignore to avoid eagerly parsing all method bodies.
-                            }
-
-                            override fun visitDocComment(comment: PsiDocComment) {
-                                // Ignore to avoid eagerly parsing all doc comments.
-                                // Doc comments cannot contain error elements.
-                            }
                         })
 
-                        // Multifile classes appear identically from each file they're defined in, don't add duplicates
-                        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacade
-                        if (ktLightClass?.multiFileClass == true) {
-                            if (multifileClassNames.contains(ktLightClass.facadeClassFqName)) {
-                                continue
-                            } else {
-                                multifileClassNames.add(ktLightClass.facadeClassFqName)
-                            }
-                        }
                         topLevelClassesFromSource += createClass(psiClass)
                     }
                 }
@@ -305,10 +274,6 @@ open class PsiBasedCodebase(
 
         packageClasses.clear() // Not used after this point
     }
-
-    // TODO(jsjeon): remove this when the upstream has this commonized property (ETA: 1.9)
-    private val KtLightClassForFacade.multiFileClass: Boolean
-        get() = files.size > 1 && files.first().isJvmMultifileClassFile
 
     override fun dispose() {
         uastEnvironment.dispose()
@@ -367,8 +332,8 @@ open class PsiBasedCodebase(
         pkgName: String
     ): PsiPackageItem {
         val packageItem = PsiPackageItem
-            .create(this, psiPackage, packageHtml, fromClassPath = fromClasspath || !initializing)
-        packageItem.emit = !packageItem.isFromClassPath()
+            .create(this, psiPackage, packageHtml, fromClassPath = !initializing)
+        packageItem.emit = initializing
 
         packageMap[pkgName] = packageItem
         if (isPackageHidden(pkgName)) {
@@ -527,9 +492,9 @@ open class PsiBasedCodebase(
 
     private fun createClass(clz: PsiClass): PsiClassItem {
         // If initializing is true, this class is from source
-        val classItem = PsiClassItem.create(this, clz, fromClassPath = fromClasspath || !initializing)
+        val classItem = PsiClassItem.create(this, clz, fromClassPath = !initializing)
         // Set emit to true for source classes but false for classpath classes
-        classItem.emit = !classItem.isFromClassPath()
+        classItem.emit = initializing
 
         if (!initializing) {
             // Workaround: we're pulling in .aidl files from .jar files. These are
@@ -807,8 +772,12 @@ open class PsiBasedCodebase(
         classMap[cls.qualifiedName()] = cls
     }
 
-    internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
-        ApplicationManager.getApplication()
-            .getService(BaseKotlinUastResolveProviderService::class.java)
+    /** Get a Kotlin [BindingContext] at [element]
+     *
+     * Do not cache returned binding context for longer than the lifetime of this codebase
+     */
+    fun bindingContext(element: KtElement): BindingContext {
+        return checkNotNull(project.getService(KotlinUastResolveProviderService::class.java))
+            .getBindingContext(element)
     }
 }

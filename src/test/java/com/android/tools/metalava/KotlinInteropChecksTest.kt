@@ -210,12 +210,8 @@ class KotlinInteropChecksTest : DriverTest() {
                 kotlin(
                     """
                         package test.pkg
-
-                        interface Bar
-                        interface Baz
-
                         @JvmSynthetic
-                        fun foo(bar: Bar, baz: Baz? = null) {
+                        fun foo(bar: Bar, baz: Baz = null) {
                         }
                     """
                 )

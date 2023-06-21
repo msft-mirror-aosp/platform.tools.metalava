@@ -26,5 +26,6 @@ platform and AndroidX libraries.
 - XML API signature generation (`--api-xml`) for CTS tests and test coverage infrastructure
 - Annotation include, exclude, rewrite, passthrough in stubs (`--include-annotations`, `--exclude-all-annotations`,
 `--pass-through-annotation`, `--exclude-annotation`)
-- Annotation extraction (`--extract-annotations`, `--copy-annotations`) for generating the SDK
+- Annotation extraction (`--extract-annotations`, `--include-annotation-classes`, `--rewrite-annotations`,
+`--copy-annotations`, `--include-source-retention`) for generating SDK
 - Generating SDK metadata (`--sdk-`values`)

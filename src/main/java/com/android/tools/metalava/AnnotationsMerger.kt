@@ -359,6 +359,7 @@ class AnnotationsMerger(
     )
 
     private fun mergeDocument(document: Document) {
+
         val root = document.documentElement
         val rootTag = root.tagName
         assert(rootTag == "root") { rootTag }
@@ -495,6 +496,7 @@ class AnnotationsMerger(
     }
 
     private fun mergeField(item: Element, containingClass: String, classItem: ClassItem, fieldName: String) {
+
         val fieldItem = classItem.findField(fieldName)
         if (fieldItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {
@@ -520,7 +522,7 @@ class AnnotationsMerger(
     private fun mergeAnnotations(xmlElement: Element, item: Item) {
         loop@ for (annotationElement in getChildren(xmlElement)) {
             val originalName = getAnnotationName(annotationElement)
-            val qualifiedName = AnnotationItem.mapName(originalName) ?: originalName
+            val qualifiedName = AnnotationItem.mapName(codebase, originalName) ?: originalName
             if (hasNullnessConflicts(item, qualifiedName)) {
                 continue@loop
             }
@@ -674,6 +676,7 @@ class AnnotationsMerger(
                 name == ANDROID_STRING_DEF ||
                 name == ANDROIDX_INT_DEF ||
                 name == ANDROID_INT_DEF -> {
+
                 val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
                 val parseChild: (Element) -> Unit = { child: Element ->
                     val elementName = child.getAttribute(ATTR_NAME)
@@ -798,10 +801,10 @@ class XmlBackedAnnotationItem(
     override val originalName: String,
     override val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
+    override val qualifiedName: String? = AnnotationItem.mapName(codebase, originalName)
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
-        val qualifiedName = AnnotationItem.mapName(qualifiedName, target) ?: return ""
+        val qualifiedName = AnnotationItem.mapName(codebase, qualifiedName, null, target) ?: return ""
 
         if (attributes.isEmpty()) {
             return "@$qualifiedName"

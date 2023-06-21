@@ -274,10 +274,6 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Test callbacks`() {
         check(
-            extraArguments = arrayOf(
-                ARG_ERROR,
-                "CallbackInterface"
-            ),
             apiLint = "", // enabled
             expectedIssues = """
                 src/android/pkg/MyCallback.java:9: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [See https://s.android.com/api-guidelines#callback-method-naming]
@@ -1469,141 +1465,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check boolean property accessor naming patterns in Kotlin`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues = """
-                    src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:22: error: Invalid name for boolean property setter `setIsVisibleBad`, should be `setVisibleSetterBad`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:37: error: Getter for boolean property `hasTransientStateGetterBad` is named `getHasTransientStateGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:39: error: Getter for boolean property `canRecordGetterBad` is named `getCanRecordGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
-                    src/android/pkg/MyClass.kt:41: error: Getter for boolean property `shouldFitWidthGetterBad` is named `getShouldFitWidthGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
-            """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package android.pkg
-
-                    class MyClass {
-                        // Correct
-                        var isVisible: Boolean = false
-
-                        @get:JvmName("hasTransientState")
-                        var hasTransientState: Boolean = false
-
-                        @get:JvmName("canRecord")
-                        var canRecord: Boolean = false
-
-                        @get:JvmName("shouldFitWidth")
-                        var shouldFitWidth: Boolean = false
-
-                        var isWiFiRoamingSettingEnabled: Boolean = false
-
-                        // Bad
-                        var visibleBad: Boolean = false
-
-                        @set:JvmName("setIsVisibleBad")
-                        var isVisibleSetterBad: Boolean = false
-
-                        @get:JvmName("hasTransientStateBad")
-                        var transientStateBad: Boolean = false
-
-                        var isHasTransientStateAlsoBad: Boolean = false
-
-                        var isCanRecordBad: Boolean = false
-
-                        var isShouldFitWidthBad: Boolean = false
-
-                        var wiFiRoamingSettingEnabledBad: Boolean = false
-
-                        var enabledBad: Boolean = false
-
-                        var hasTransientStateGetterBad: Boolean = false
-
-                        var canRecordGetterBad: Boolean = false
-
-                        var shouldFitWidthGetterBad: Boolean = false
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
-        check(
-            apiLint = "", // enabled
-            // TODO (b/278505954): missing errors for `isVisibleSetterBad`, `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
-            expectedIssues = """
-                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                              """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package android.pkg
-
-                    class MyClass(
-                        // Correct
-                        var isVisible: Boolean,
-
-                        @get:JvmName("hasTransientState")
-                        var hasTransientState: Boolean,
-
-                        @get:JvmName("canRecord")
-                        var canRecord: Boolean,
-
-                        @get:JvmName("shouldFitWidth")
-                        var shouldFitWidth: Boolean,
-
-                        var isWiFiRoamingSettingEnabled: Boolean,
-
-                        // Bad
-                        var visibleBad: Boolean,
-
-                        @set:JvmName("setIsVisibleBad")
-                        var isVisibleSetterBad: Boolean,
-
-                        @get:JvmName("hasTransientStateBad")
-                        var transientStateBad: Boolean,
-
-                        var isHasTransientStateAlsoBad: Boolean,
-
-                        var isCanRecordBad: Boolean,
-
-                        var isShouldFitWidthBad: Boolean,
-
-                        var wiFiRoamingSettingEnabledBad: Boolean,
-
-                        var enabledBad: Boolean,
-
-                        var hasTransientStateGetterBad: Boolean,
-
-                        var canRecordGetterBad: Boolean,
-
-                        var shouldFitWidthGetterBad: Boolean
-                    )
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `Check banned collections`() {
         check(
             apiLint = "", // enabled
@@ -2018,7 +1879,6 @@ class ApiLintTest : DriverTest() {
             expectedIssues = """
                 src/android/pkg/MyClass.java:11: error: Context is distinct, so it must be the first argument (method `wrong`) [ContextFirst]
                 src/android/pkg/MyClass.java:12: error: ContentResolver is distinct, so it must be the first argument (method `wrong`) [ContextFirst]
-                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -2037,15 +1897,6 @@ class ApiLintTest : DriverTest() {
                         public void wrong(int i, @Nullable Context context) { }
                         public void wrong(int i, @Nullable ContentResolver resolver) { }
                     }
-                    """
-                ),
-                kotlin(
-                    """
-                    package android.pkg
-                    import android.content.Context
-                    fun String.okCall(context: Context) {}
-                    fun String.okCall(context: Context, value: Int) {}
-                    fun String.badCall(value: Int, context: Context) {}
                     """
                 ),
                 androidxNullableSource
@@ -2087,38 +1938,6 @@ class ApiLintTest : DriverTest() {
                     """
                 ),
                 androidxNullableSource
-            )
-        )
-    }
-
-    @Test
-    fun `Check listener last for suspend functions`() {
-        check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
-            expectedIssues = """
-                src/android/pkg/MyClass.kt:6: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
-            """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package android.pkg;
-
-                    @SuppressWarnings("WeakerAccess")
-                    public abstract class MyCallback {
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package android.pkg
-                    import android.pkg.MyCallback
-
-                    class MyClass {
-                        suspend fun ok(i: Int, callback: MyCallback) {}
-                        suspend fun wrong(callback: MyCallback, i: Int) {}
-                    }
-                    """
-                )
             )
         )
     }
@@ -2474,8 +2293,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2534,8 +2353,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
             """,
             manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -3781,6 +3600,7 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
+
         check(
             expectedIssues = """
                 src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
@@ -4287,47 +4107,6 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                             default: Int = 0,
                             trailing: JavaInterface
                         )
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `No parameter ordering for sealed class constructor`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-
-                    sealed class Foo(
-                        default: Int = 0,
-                        required: () -> Unit,
-                    )
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `members in sealed class are not hidden abstract`() {
-        check(
-            expectedIssues = "",
-            apiLint = "",
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-
-                        sealed class ModifierLocalMap() {
-                            internal abstract operator fun <T> set(key: ModifierLocal<T>, value: T)
-                            internal abstract operator fun <T> get(key: ModifierLocal<T>): T?
-                            internal abstract operator fun contains(key: ModifierLocal<*>): Boolean
-                        }
                     """
                 )
             )

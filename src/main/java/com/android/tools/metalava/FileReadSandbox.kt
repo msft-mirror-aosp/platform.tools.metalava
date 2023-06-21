@@ -13,10 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// Suppress "SecurityManager is deprecated" warnings: FileReadSandboxTest verifies that the class
-// still works as expected
-@file:Suppress("DEPRECATION")
-
 package com.android.tools.metalava
 
 import java.io.File
@@ -41,7 +37,6 @@ import kotlin.concurrent.getOrSet
 internal object FileReadSandbox {
     private var installed = false
 
-    @Suppress("DEPRECATION")
     private var previousSecurityManager: SecurityManager? = null
     private val mySecurityManager = MySecurityManager()
 
@@ -108,9 +103,7 @@ internal object FileReadSandbox {
         if (installed) {
             throw IllegalStateException("Already activated")
         }
-        @Suppress("DEPRECATION")
         previousSecurityManager = System.getSecurityManager()
-        @Suppress("DEPRECATION")
         System.setSecurityManager(mySecurityManager)
         installed = true
         this.listener = listener
@@ -121,7 +114,6 @@ internal object FileReadSandbox {
         if (!installed) {
             throw IllegalStateException("Not activated")
         }
-        @Suppress("DEPRECATION")
         System.setSecurityManager(previousSecurityManager)
         previousSecurityManager = null
 
@@ -259,7 +251,6 @@ internal object FileReadSandbox {
         }
     }
 
-    @Suppress("DEPRECATION")
     private class MySecurityManager : SecurityManager() {
         override fun checkRead(file: String) {
             check(file)

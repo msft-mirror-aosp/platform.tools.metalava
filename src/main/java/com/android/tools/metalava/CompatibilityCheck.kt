@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -57,18 +56,20 @@ class CompatibilityCheck(
      * Request for compatibility checks.
      * [file] represents the signature file to be checked. [apiType] represents which
      * part of the API should be checked, [releaseType] represents what kind of codebase
-     * we are comparing it against.
+     * we are comparing it against. If [codebase] is specified, compare the signature file
+     * against the codebase instead of metalava's current source tree configured via the
+     * normal source path flags.
      */
     data class CheckRequest(
         val file: File,
-        val apiType: ApiType
+        val apiType: ApiType,
+        val codebase: File? = null
     ) {
         override fun toString(): String {
             return "--check-compatibility:${apiType.flagName}:released $file"
         }
     }
 
-    val oldFormat = (oldCodebase as? TextCodebase)?.format ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
     /** In old signature files, methods inherited from hidden super classes
      * are not included. An example of this is StringBuilder.setLength.
      * More details about this are listed in Compatibility.skipInheritedMethods.
@@ -76,7 +77,7 @@ class CompatibilityCheck(
      * so in these cases we want to ignore certain changes such as considering
      * StringBuilder.setLength a newly added method.
      */
-    private val comparingWithPartialSignatures = oldFormat == FileFormat.V1
+    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1
 
     var foundProblems = false
 
@@ -168,14 +169,6 @@ class CompatibilityCheck(
                 Issues.INFIX_REMOVAL,
                 new,
                 "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
-            )
-        }
-
-        if (!old.isCompatibilitySuppressed() && new.isCompatibilitySuppressed()) {
-            report(
-                Issues.BECAME_UNCHECKED,
-                old,
-                "Removed ${describe(old)} from compatibility checked API surface"
             )
         }
 
@@ -364,7 +357,7 @@ class CompatibilityCheck(
 
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
-        if (!new.isConstructor()) {
+        if (!new.isConstructor() && oldReturnType != null && newReturnType != null) {
             val oldTypeParameter = oldReturnType.asTypeParameter(old)
             val newTypeParameter = newReturnType.asTypeParameter(new)
             var compatible = true
@@ -516,16 +509,6 @@ class CompatibilityCheck(
                         Issues.ADDED_FINAL,
                         new,
                         "${describe(new, capitalize = true)} has added 'final' qualifier"
-                    )
-                } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
-                    // Disallowed removing final: If an app inherits the class and starts overriding
-                    // the method it's going to crash on earlier versions where the method is final
-                    // It doesn't break compatibility in the strict sense, but does make it very
-                    // difficult to extend this method in practice.
-                    report(
-                        Issues.REMOVED_FINAL_STRICT,
-                        new,
-                        "${describe(new, capitalize = true)} has removed 'final' qualifier"
                     )
                 }
             }
@@ -835,7 +818,7 @@ class CompatibilityCheck(
         }
 
         // In old signature files, annotation methods are missing! This will show up as an added method.
-        if (new.containingClass().isAnnotationType() && comparingWithPartialSignatures) {
+        if (new.containingClass().isAnnotationType() && oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1) {
             return
         }
 
@@ -845,14 +828,6 @@ class CompatibilityCheck(
         // Annotation types cannot implement other interfaces, however, so it is permitted to add
         // add new default methods to annotation types.
         if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
-            return
-        }
-
-        // It is ok to add a new abstract method to a class that has no public constructors
-        if (new.containingClass().isClass() &&
-            !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
-            new.modifiers.isAbstract()
-        ) {
             return
         }
 
@@ -938,12 +913,6 @@ class CompatibilityCheck(
         item: Item,
         message: String
     ) {
-        if (item.isCompatibilitySuppressed()) {
-            // Long-term, we should consider allowing meta-annotations to specify a different
-            // `configuration` so it can use a separate set of severities. For now, though, we'll
-            // treat all issues for all unchecked items as `Severity.IGNORE`.
-            return
-        }
         if (reporter.report(issue, item, message) && configuration.getSeverity(issue) == Severity.ERROR) {
             foundProblems = true
         }
@@ -951,31 +920,26 @@ class CompatibilityCheck(
 
     companion object {
         fun checkCompatibility(
-            newCodebase: Codebase,
-            oldCodebase: Codebase,
+            codebase: Codebase,
+            previous: Codebase,
             apiType: ApiType,
-            baseApi: Codebase? = null,
+            oldBase: Codebase? = null,
+            newBase: Codebase? = null
         ) {
             val filter = apiType.getReferenceFilter()
                 .or(apiType.getEmitFilter())
                 .or(ApiType.PUBLIC_API.getReferenceFilter())
                 .or(ApiType.PUBLIC_API.getEmitFilter())
+            val checker = CompatibilityCheck(filter, previous, apiType, newBase, options.reporterCompatibilityReleased)
+            // newBase is considered part of the current codebase
+            val currentFullCodebase = MergedCodebase(listOf(newBase, codebase).filterNotNull())
+            // oldBase is considered part of the previous codebase
+            val previousFullCodebase = MergedCodebase(listOf(oldBase, previous).filterNotNull())
 
-            val checker = CompatibilityCheck(filter, oldCodebase, apiType, baseApi, options.reporterCompatibilityReleased)
-
-            val oldFullCodebase = if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                MergedCodebase(listOfNotNull(oldCodebase, baseApi))
-            } else {
-                // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
-                // first parameter is master, so we don't change values of oldCodeBase
-                MergedCodebase(listOfNotNull(oldCodebase, newCodebase))
-            }
-            val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
-
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator().compare(checker, previousFullCodebase, currentFullCodebase, filter)
 
             val message = "Found compatibility problems checking " +
-                "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                "the ${apiType.displayName} API (${codebase.location}) against the API in ${previous.location}"
 
             if (checker.foundProblems) {
                 throw DriverException(exitCode = -1, stderr = message)
