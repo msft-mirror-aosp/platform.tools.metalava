@@ -28,21 +28,35 @@ import java.io.Writer
 
 interface ModifierList {
     val codebase: Codebase
+
     fun annotations(): List<AnnotationItem>
 
     fun owner(): Item
+
     fun getVisibilityLevel(): VisibilityLevel
+
     fun isPublic(): Boolean
+
     fun isProtected(): Boolean
+
     fun isPrivate(): Boolean
+
     fun isStatic(): Boolean
+
     fun isAbstract(): Boolean
+
     fun isFinal(): Boolean
+
     fun isNative(): Boolean
+
     fun isSynchronized(): Boolean
+
     fun isStrictFp(): Boolean
+
     fun isTransient(): Boolean
+
     fun isVolatile(): Boolean
+
     fun isDefault(): Boolean
 
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
@@ -50,18 +64,29 @@ interface ModifierList {
 
     // Kotlin
     fun isSealed(): Boolean = false
+
     fun isFunctional(): Boolean = false
+
     fun isCompanion(): Boolean = false
+
     fun isInfix(): Boolean = false
+
     fun isConst(): Boolean = false
+
     fun isSuspend(): Boolean = false
+
     fun isOperator(): Boolean = false
+
     fun isInline(): Boolean = false
+
     fun isValue(): Boolean = false
+
     fun isData(): Boolean = false
+
     fun isEmpty(): Boolean
 
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
+
     fun isPublicOrProtected() = isPublic() || isProtected()
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant

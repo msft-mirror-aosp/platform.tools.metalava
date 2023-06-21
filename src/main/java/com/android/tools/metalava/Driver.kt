@@ -191,6 +191,7 @@ internal fun maybeActivateSandbox() {
     FileReadSandbox.activate(
         object : FileReadSandbox.Listener {
             var seen = mutableSetOf<String>()
+
             override fun onViolation(absolutePath: String, isDirectory: Boolean) {
                 if (!seen.contains(absolutePath)) {
                     val suffix = if (isDirectory) "/" else ""
