@@ -1,6 +1,7 @@
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
 import com.android.tools.metalava.CREATE_BUILD_INFO_TASK
 import com.android.tools.metalava.configureBuildInfoTask
+import com.android.tools.metalava.configureKtfmt
 import com.android.tools.metalava.configurePublishingArchive
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -21,7 +22,7 @@ defaultTasks = mutableListOf(
     CREATE_ARCHIVE_TASK,
     CREATE_BUILD_INFO_TASK,
     "lint",
-    "ktfmtFormat",
+    "ktfmtCheck",
 )
 
 repositories {
@@ -39,7 +40,6 @@ repositories {
 plugins {
     alias(libs.plugins.kotlinJvm)
     id("com.android.lint") version "8.2.0-alpha08"
-    id("com.ncorti.ktfmt.gradle") version "0.12.0"
     id("application")
     id("java")
     id("maven-publish")
@@ -302,9 +302,7 @@ lint {
     baseline = File("lint-baseline.xml")
 }
 
-ktfmt {
-    kotlinLangStyle()
-}
+configureKtfmt()
 
 // Add a buildId into Gradle Metadata file so we can tell which build it is from.
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
