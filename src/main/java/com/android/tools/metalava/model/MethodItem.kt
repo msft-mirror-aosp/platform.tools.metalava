@@ -19,6 +19,7 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
+import org.jetbrains.kotlin.builtins.StandardNames
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
@@ -32,8 +33,8 @@ interface MethodItem : MemberItem {
     /** Whether this method is a constructor */
     fun isConstructor(): Boolean
 
-    /** The type of this field, or null for constructors */
-    fun returnType(): TypeItem?
+    /** The type of this field. Returns the containing class for constructors */
+    fun returnType(): TypeItem
 
     /** The list of parameters */
     fun parameters(): List<ParameterItem>
@@ -71,7 +72,7 @@ interface MethodItem : MemberItem {
         }
 
         sb.append(")")
-        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType()?.internalName() ?: "V")
+        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
         return sb.toString()
     }
 
@@ -120,7 +121,6 @@ interface MethodItem : MemberItem {
         predicate: Predicate<Item>,
         classes: LinkedHashSet<ClassItem>
     ): LinkedHashSet<ClassItem> {
-
         for (cls in throwsTypes()) {
             if (predicate.test(cls) || cls.isTypeParameter) {
                 classes.add(cls)
@@ -214,9 +214,7 @@ interface MethodItem : MemberItem {
 
         if (!isConstructor()) {
             val type = returnType()
-            if (type != null) { // always true when not a constructor
-                visitor.visitType(type, this)
-            }
+            visitor.visitType(type, this)
         }
 
         for (parameter in parameters()) {
@@ -229,20 +227,20 @@ interface MethodItem : MemberItem {
 
         if (!isConstructor()) {
             val type = returnType()
-            if (type != null) {
-                visitor.visitType(type, this)
-            }
+            visitor.visitType(type, this)
         }
     }
 
     companion object {
-        private fun compareMethods(o1: MethodItem, o2: MethodItem): Int {
+        private fun compareMethods(o1: MethodItem, o2: MethodItem, overloadsInSourceOrder: Boolean): Int {
             val name1 = o1.name()
             val name2 = o2.name()
             if (name1 == name2) {
-                val rankDelta = o1.sortingRank - o2.sortingRank
-                if (rankDelta != 0) {
-                    return rankDelta
+                if (overloadsInSourceOrder) {
+                    val rankDelta = o1.sortingRank - o2.sortingRank
+                    if (rankDelta != 0) {
+                        return rankDelta
+                    }
                 }
 
                 // Compare by the rest of the signature to ensure stable output (we don't need to sort
@@ -267,7 +265,7 @@ interface MethodItem : MemberItem {
             return name1.compareTo(name2)
         }
 
-        val comparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2) }
+        val comparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2, false) }
         val sourceOrderComparator: Comparator<MethodItem> = Comparator { o1, o2 ->
             val delta = o1.sortingRank - o2.sortingRank
             if (delta == 0) {
@@ -279,6 +277,7 @@ interface MethodItem : MemberItem {
                 delta
             }
         }
+        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2, true) }
 
         fun sameSignature(method: MethodItem, superMethod: MethodItem, compareRawTypes: Boolean = false): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
@@ -369,7 +368,7 @@ interface MethodItem : MemberItem {
         return when {
             modifiers.hasJvmSyntheticAnnotation() -> false
             isConstructor() -> false
-            (returnType()?.primitive != true) -> true
+            (!returnType().primitive) -> true
             parameters().any { !it.type().primitive } -> true
             else -> false
         }
@@ -380,7 +379,7 @@ interface MethodItem : MemberItem {
             return true
         }
 
-        if (!isConstructor() && returnType()?.primitive != true) {
+        if (!isConstructor() && !returnType().primitive) {
             if (!modifiers.hasNullnessInfo()) {
                 return false
             }
@@ -479,16 +478,14 @@ interface MethodItem : MemberItem {
         }
 
         val returnType = returnType()
-        if (returnType != null) {
-            val returnTypeClass = returnType.asClass()
-            if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
-                return true
-            }
-            if (returnType.hasTypeArguments()) {
-                for (argument in returnType.typeArgumentClasses()) {
-                    if (!filterReference.test(argument)) {
-                        return true
-                    }
+        val returnTypeClass = returnType.asClass()
+        if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
+            return true
+        }
+        if (returnType.hasTypeArguments()) {
+            for (argument in returnType.typeArgumentClasses()) {
+                if (!filterReference.test(argument)) {
+                    return true
                 }
             }
         }
@@ -526,12 +523,17 @@ interface MethodItem : MemberItem {
     fun isKotlinProperty(): Boolean = false
 
     /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean {
-        return containingClass().isEnum() &&
-            (
-                name() == "values" && parameters().isEmpty() ||
-                    name() == "valueOf" && parameters().size == 1 &&
-                    parameters()[0].type().isString()
-                )
-    }
+    fun isEnumSyntheticMethod(): Boolean =
+        isEnumSyntheticValues() || isEnumSyntheticValueOf()
+
+    fun isEnumSyntheticValues(): Boolean =
+        containingClass().isEnum() &&
+            name() == StandardNames.ENUM_VALUES.identifier &&
+            parameters().isEmpty()
+
+    fun isEnumSyntheticValueOf(): Boolean =
+        containingClass().isEnum() &&
+            name() == StandardNames.ENUM_VALUE_OF.identifier &&
+            parameters().size == 1 &&
+            parameters()[0].type().isString()
 }
