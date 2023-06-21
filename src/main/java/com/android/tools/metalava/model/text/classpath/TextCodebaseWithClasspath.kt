@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.text.TextCodebase
 import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
 
 /**
@@ -52,8 +51,6 @@ class TextCodebaseWithClasspath(
     private val javaPsiFacade = JavaPsiFacade.getInstance(project)
     private val searchScope = GlobalSearchScope.everythingScope(project)
 
-    override var units: List<PsiFile> = emptyList()
-
     private val packages: PackageList
 
     override fun getPackages(): PackageList = packages
@@ -67,7 +64,7 @@ class TextCodebaseWithClasspath(
             textCodebase.wrappedStubClasses.keys.mapNotNull {
                 javaPsiFacade.findClass(it, searchScope)
             }
-        units = psiClasses.map { it.containingFile }
+        val units = psiClasses.map { it.containingFile }
         classpathCodebase =
             PsiBasedCodebase(location, "Codebase from classpath", fromClasspath = true)
         val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())

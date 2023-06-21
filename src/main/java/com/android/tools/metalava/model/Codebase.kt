@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.android.tools.metalava.reporter
 import com.android.utils.XmlUtils.getFirstSubTagByName
 import com.android.utils.XmlUtils.getNextTagByName
-import com.intellij.psi.PsiFile
 import java.io.File
 import java.util.function.Predicate
 import kotlin.text.Charsets.UTF_8
@@ -107,16 +106,6 @@ interface Codebase {
         mapName: Boolean = true
     ): AnnotationItem = TextBackedAnnotationItem(this, source, mapName)
 
-    /** Returns true if the codebase contains one or more Kotlin files */
-    fun hasKotlin(): Boolean {
-        return units.any { it.fileType.name == "Kotlin" }
-    }
-
-    /** Returns true if the codebase contains one or more Java files */
-    fun hasJava(): Boolean {
-        return units.any { it.fileType.name == "JAVA" }
-    }
-
     /** The manifest to associate with this codebase, if any */
     var manifest: File?
 
@@ -145,12 +134,6 @@ interface Codebase {
 
     /** If this codebase was filtered from another codebase, this points to the original */
     var original: Codebase?
-
-    /**
-     * Returns the compilation units used in this codebase (may be empty when the codebase is not
-     * loaded from source, such as from .jar files or from signature files)
-     */
-    var units: List<PsiFile>
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
@@ -266,7 +249,6 @@ abstract class DefaultCodebase(override var location: File) : Codebase {
     private var permissions: Map<String, String>? = null
     private var minSdkVersion: MinSdkVersion? = null
     override var original: Codebase? = null
-    override var units: List<PsiFile> = emptyList()
     @Suppress("LeakingThis") override val printer = CodePrinter(this)
     @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
 
