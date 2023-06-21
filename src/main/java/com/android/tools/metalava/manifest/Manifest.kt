@@ -28,14 +28,69 @@ import java.io.File
 
 /**
  * An empty manifest. This is safe to share as while it is not strictly immutable it only mutates
- * the object when lazily initializing [Manifest.minSdkVersion].
+ * the object when lazily initializing [Manifest.info].
  */
 val emptyManifest: Manifest by lazy { Manifest(null) }
 
+private data class ManifestInfo(
+    val permissions: Map<String, String>,
+    val minSdkVersion: MinSdkVersion
+)
+
+private val defaultInfo = ManifestInfo(emptyMap(), UnsetMinSdkVersion)
+
 /** Provides access to information from an `AndroidManifest.xml` file. */
 class Manifest(private val manifest: File?) {
-    private var permissions: Map<String, String>? = null
-    private var minSdkVersion: MinSdkVersion? = null
+
+    private val info: ManifestInfo by lazy { readManifestInfo() }
+
+    private fun readManifestInfo(): ManifestInfo {
+        if (manifest == null) {
+            return defaultInfo
+        }
+
+        return try {
+            val doc = parseDocument(manifest.readText(Charsets.UTF_8), true)
+
+            // Extract permissions.
+            val map = HashMap<String, String>(600)
+            var current =
+                XmlUtils.getFirstSubTagByName(doc.documentElement, SdkConstants.TAG_PERMISSION)
+            while (current != null) {
+                val permissionName =
+                    current.getAttributeNS(SdkConstants.ANDROID_URI, SdkConstants.ATTR_NAME)
+                val protectionLevel =
+                    current.getAttributeNS(SdkConstants.ANDROID_URI, "protectionLevel")
+                map[permissionName] = protectionLevel
+                current = XmlUtils.getNextTagByName(current, SdkConstants.TAG_PERMISSION)
+            }
+
+            // Extract minSdkVersion.
+            val min: MinSdkVersion = run {
+                val usesSdk =
+                    XmlUtils.getFirstSubTagByName(doc.documentElement, SdkConstants.TAG_USES_SDK)
+                if (usesSdk == null) {
+                    UnsetMinSdkVersion
+                } else {
+                    val value =
+                        usesSdk.getAttributeNS(
+                            SdkConstants.ANDROID_URI,
+                            SdkConstants.ATTR_MIN_SDK_VERSION
+                        )
+                    if (value.isEmpty()) UnsetMinSdkVersion else SetMinSdkVersion(value.toInt())
+                }
+            }
+
+            ManifestInfo(map, min)
+        } catch (error: Throwable) {
+            reporter.report(
+                Issues.PARSE_ERROR,
+                manifest,
+                "Failed to parse $manifest: ${error.message}"
+            )
+            defaultInfo
+        }
+    }
 
     /** Check whether the manifest is empty or not. */
     fun isEmpty(): Boolean {
@@ -47,71 +102,15 @@ class Manifest(private val manifest: File?) {
      * method should only be called if the codebase has been configured with a manifest
      */
     fun getPermissionLevel(name: String): String? {
-        if (permissions == null) {
-            assert(manifest != null) {
-                "This method should only be called when a manifest has been configured on the codebase"
-            }
-            try {
-                val map = HashMap<String, String>(600)
-                val doc = parseDocument(manifest?.readText(Charsets.UTF_8) ?: "", true)
-                var current =
-                    XmlUtils.getFirstSubTagByName(doc.documentElement, SdkConstants.TAG_PERMISSION)
-                while (current != null) {
-                    val permissionName =
-                        current.getAttributeNS(SdkConstants.ANDROID_URI, SdkConstants.ATTR_NAME)
-                    val protectionLevel =
-                        current.getAttributeNS(SdkConstants.ANDROID_URI, "protectionLevel")
-                    map[permissionName] = protectionLevel
-                    current = XmlUtils.getNextTagByName(current, SdkConstants.TAG_PERMISSION)
-                }
-                permissions = map
-            } catch (error: Throwable) {
-                reporter.report(
-                    Issues.PARSE_ERROR,
-                    manifest,
-                    "Failed to parse $manifest: ${error.message}"
-                )
-                permissions = emptyMap()
-            }
+        assert(manifest != null) {
+            "This method should only be called when a manifest has been configured on the codebase"
         }
 
-        return permissions!![name]
+        return info.permissions[name]
     }
 
     fun getMinSdkVersion(): MinSdkVersion {
-        if (minSdkVersion == null) {
-            if (manifest == null) {
-                minSdkVersion = UnsetMinSdkVersion
-                return minSdkVersion!!
-            }
-            minSdkVersion =
-                try {
-                    val doc = parseDocument(manifest.readText(Charsets.UTF_8), true)
-                    val usesSdk =
-                        XmlUtils.getFirstSubTagByName(
-                            doc.documentElement,
-                            SdkConstants.TAG_USES_SDK
-                        )
-                    if (usesSdk == null) {
-                        UnsetMinSdkVersion
-                    } else {
-                        val value =
-                            usesSdk.getAttributeNS(
-                                SdkConstants.ANDROID_URI,
-                                SdkConstants.ATTR_MIN_SDK_VERSION
-                            )
-                        if (value.isEmpty()) UnsetMinSdkVersion else SetMinSdkVersion(value.toInt())
-                    }
-                } catch (error: Throwable) {
-                    reporter.report(
-                        Issues.PARSE_ERROR,
-                        manifest,
-                        "Failed to parse $manifest: ${error.message}"
-                    )
-                    UnsetMinSdkVersion
-                }
-        }
-        return minSdkVersion!!
+        return info.minSdkVersion
     }
 
     override fun toString(): String {
