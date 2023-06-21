@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava
 
+import java.io.ByteArrayOutputStream
+import java.io.File
+import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -30,23 +33,17 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
-import java.io.ByteArrayOutputStream
-import java.io.File
-import javax.inject.Inject
 
-/**
- * Create a configuration that includes all the dependencies required to run ktfmt.
- */
+/** Create a configuration that includes all the dependencies required to run ktfmt. */
 private fun Project.getKtfmtConfiguration(): Configuration {
-    return configurations.findByName("ktfmt") ?: configurations.create("ktfmt") {
-        val dependency = project.dependencies.create("com.facebook:ktfmt:0.44")
-        it.dependencies.add(dependency)
-    }
+    return configurations.findByName("ktfmt")
+        ?: configurations.create("ktfmt") {
+            val dependency = project.dependencies.create("com.facebook:ktfmt:0.44")
+            it.dependencies.add(dependency)
+        }
 }
 
-/**
- * Creates two tasks for checking and formatting kotlin sources.
- */
+/** Creates two tasks for checking and formatting kotlin sources. */
 fun Project.configureKtfmt() {
     tasks.register("ktfmtCheck", KtfmtCheckTask::class.java) {
         it.description = "Check Kotlin code style."
@@ -63,41 +60,30 @@ fun Project.configureKtfmt() {
 }
 
 abstract class KtfmtBaseTask : DefaultTask() {
-    @get:Inject
-    abstract val execOperations: ExecOperations
+    @get:Inject abstract val execOperations: ExecOperations
 
-    @get:Classpath
-    abstract val ktfmtClasspath: ConfigurableFileCollection
+    @get:Classpath abstract val ktfmtClasspath: ConfigurableFileCollection
 
-    @get:Inject
-    abstract val objects: ObjectFactory
+    @get:Inject abstract val objects: ObjectFactory
 
     @[InputFiles PathSensitive(PathSensitivity.RELATIVE)]
     fun getInputFiles(): FileTree {
-        return objects.fileTree().setDir("src").apply {
-            include("**/*.kt")
-        } + objects.fileTree().setDir("buildSrc/src").apply {
-            include("**/*.kt")
-        } + objects.fileTree().setDir(".").apply {
-            include("build.gradle.kts")
-        }
+        return objects.fileTree().setDir("src").apply { include("**/*.kt") } +
+            objects.fileTree().setDir("buildSrc/src").apply { include("**/*.kt") } +
+            objects.fileTree().setDir(".").apply { include("build.gradle.kts") }
     }
 
     fun getArgs(dryRun: Boolean): List<String> {
         return if (dryRun) {
-            listOf(
-                "--kotlinlang-style",
-                "--dry-run"
-            ) + getInputFiles().files.map { it.absolutePath }
+            listOf("--kotlinlang-style", "--dry-run") +
+                getInputFiles().files.map { it.absolutePath }
         } else {
             listOf("--kotlinlang-style") + getInputFiles().files.map { it.absolutePath }
         }
     }
 }
 
-/**
- * A task that formats the Kotlin code.
- */
+/** A task that formats the Kotlin code. */
 abstract class KtfmtFormatTask : KtfmtBaseTask() {
     // Output needs to be defined for this task as it rewrites these files
     @OutputFiles
@@ -115,9 +101,7 @@ abstract class KtfmtFormatTask : KtfmtBaseTask() {
     }
 }
 
-/**
- * A task that checks of the Kotlin code passes formatting checks.
- */
+/** A task that checks of the Kotlin code passes formatting checks. */
 abstract class KtfmtCheckTask : KtfmtBaseTask() {
     @TaskAction
     fun doChecking() {
@@ -130,10 +114,12 @@ abstract class KtfmtCheckTask : KtfmtBaseTask() {
         }
         val output = outputStream.toString()
         if (output.isNotEmpty()) {
-            throw Exception("""Failed check for the following files:
+            throw Exception(
+                """Failed check for the following files:
                 |$output
                 |
-                |Run ./gradlew ktfmtFormat to fix it.""".trimMargin()
+                |Run ./gradlew ktfmtFormat to fix it."""
+                    .trimMargin()
             )
         }
     }
@@ -145,7 +131,8 @@ fun Task.cacheEvenIfNoOutputs() {
 }
 
 // Returns a placeholder/unused output path that we can pass to Gradle to prevent Gradle from
-// thinking that we forgot to declare outputs of this task, and instead to skip this task if its inputs
+// thinking that we forgot to declare outputs of this task, and instead to skip this task if its
+// inputs
 // are unchanged
 fun Task.getPlaceholderOutput(): File {
     return File(project.buildDir, "placeholderOutput/" + name.replace(":", "-"))

@@ -108,6 +108,7 @@ val defaultCommonOptions by lazy {
     // A fake command that is used to correctly initialize the CommonOptions.
     class FakeCommand : CliktCommand() {
         val commonOptions by CommonOptions()
+
         override fun run() {}
     }
     val command = FakeCommand()
