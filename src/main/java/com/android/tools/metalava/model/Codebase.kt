@@ -24,7 +24,6 @@ import com.android.SdkConstants.TAG_USES_SDK
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.Issues
-import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
@@ -135,12 +134,6 @@ interface Codebase {
     /** If this codebase was filtered from another codebase, this points to the original */
     var original: Codebase?
 
-    /**
-     * Printer which can convert PSI, UAST and constants into source code, with ability to filter
-     * out elements that are not part of a codebase etc
-     */
-    val printer: CodePrinter
-
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
 
@@ -249,7 +242,6 @@ abstract class DefaultCodebase(override var location: File) : Codebase {
     private var permissions: Map<String, String>? = null
     private var minSdkVersion: MinSdkVersion? = null
     override var original: Codebase? = null
-    @Suppress("LeakingThis") override val printer = CodePrinter(this)
     @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
 
     override fun getPermissionLevel(name: String): String? {
