@@ -53,7 +53,7 @@ class TextModifiers(
         annotationSources.forEach { source ->
             val index = source.indexOf('(')
             val originalName = if (index == -1) source.substring(1) else source.substring(1, index)
-            val qualifiedName = AnnotationItem.mapName(codebase, originalName)
+            val qualifiedName = AnnotationItem.mapName(originalName)
 
             // @Deprecated is also treated as a "modifier"
             if (qualifiedName == JAVA_LANG_DEPRECATED) {
@@ -64,15 +64,21 @@ class TextModifiers(
                 if (index == -1) {
                     emptyList()
                 } else {
-                    DefaultAnnotationAttribute.createList(source.substring(index + 1, source.lastIndexOf(')')))
+                    DefaultAnnotationAttribute.createList(
+                        source.substring(index + 1, source.lastIndexOf(')'))
+                    )
                 }
             val codebase = codebase
-            val item = object : DefaultAnnotationItem(codebase) {
-                override val attributes: List<AnnotationAttribute> = attributes
-                override val originalName: String? = originalName
-                override val qualifiedName: String? = qualifiedName
-                override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String = source
-            }
+            val item =
+                object : DefaultAnnotationItem(codebase) {
+                    override val attributes: List<AnnotationAttribute> = attributes
+                    override val originalName: String? = originalName
+                    override val qualifiedName: String? = qualifiedName
+                    override fun toSource(
+                        target: AnnotationTarget,
+                        showDefaultAttrs: Boolean
+                    ): String = source
+                }
             annotations.add(item)
         }
         this.annotations = annotations

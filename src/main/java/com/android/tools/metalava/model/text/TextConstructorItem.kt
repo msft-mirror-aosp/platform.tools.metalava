@@ -17,18 +17,46 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 
 class TextConstructorItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: TextModifiers,
-    returnType: TextTypeItem?,
+    returnType: TextTypeItem,
     position: SourcePositionInfo
-) : TextMethodItem(codebase, name, containingClass, modifiers, returnType, position),
+) :
+    TextMethodItem(codebase, name, containingClass, modifiers, returnType, position),
     ConstructorItem {
 
     override var superConstructor: ConstructorItem? = null
 
     override fun isConstructor(): Boolean = true
+
+    companion object {
+        fun createDefaultConstructor(
+            codebase: TextCodebase,
+            containingClass: TextClassItem,
+            position: SourcePositionInfo,
+        ): TextConstructorItem {
+            val name = containingClass.name
+            // The default constructor is package private because while in Java a class without
+            // a constructor has a default public constructor in a signature file a class
+            // without a constructor has no public constructors.
+            val modifiers = TextModifiers(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+
+            val item =
+                TextConstructorItem(
+                    codebase = codebase,
+                    name = name,
+                    containingClass = containingClass,
+                    modifiers = modifiers,
+                    returnType = containingClass.asTypeInfo(),
+                    position = position,
+                )
+            modifiers.setOwner(item)
+            return item
+        }
+    }
 }
