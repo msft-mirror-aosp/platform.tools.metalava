@@ -194,7 +194,8 @@ interface ModifierList {
             return false
         }
         return annotations().any { annotation ->
-            options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
+            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+                options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
                 annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
         }
     }
@@ -454,6 +455,11 @@ interface ModifierList {
                 writer.write(if (separateLines) "\n" else " ")
             }
 
+            if (item.hasSuppressCompatibilityMetaAnnotation()) {
+                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+                writer.write(if (separateLines) "\n" else " ")
+            }
+
             writeAnnotations(
                 list = list,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
@@ -558,5 +564,25 @@ interface ModifierList {
                 }
             }
         }
+
+        /**
+         * Synthetic annotation used to mark an API as suppressed for compatibility checks.
+         *
+         * This is added automatically when an API has a meta-annotation that suppresses
+         * compatibility but is defined outside the source set and may not always be available on
+         * the classpath.
+         *
+         * Because this is used in API files, it needs to maintain compatibility.
+         */
+        private const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
+
+        /**
+         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+         *
+         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
+         * doesn't need to maintain compatibility.
+         */
+        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
     }
 }

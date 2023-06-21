@@ -4731,8 +4731,38 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Synthetic suppress compatibility annotation allows incompatible changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package androidx.benchmark.macro.junit4 {
+                  @RequiresApi(28) @SuppressCompatibility @androidx.benchmark.macro.ExperimentalBaselineProfilesApi public final class BaselineProfileRule implements org.junit.rules.TestRule {
+                    ctor public BaselineProfileRule();
+                    method public org.junit.runners.model.Statement apply(org.junit.runners.model.Statement base, org.junit.runner.Description description);
+                    method public void collectBaselineProfile(String packageName, kotlin.jvm.functions.Function1<? super androidx.benchmark.macro.MacrobenchmarkScope,kotlin.Unit> profileBlock);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package androidx.benchmark.macro.junit4 {
+                  @RequiresApi(28) public final class BaselineProfileRule implements org.junit.rules.TestRule {
+                    ctor public BaselineProfileRule();
+                    method public org.junit.runners.model.Statement apply(org.junit.runners.model.Statement base, org.junit.runner.Description description);
+                    method public void collect(String packageName, kotlin.jvm.functions.Function1<? super androidx.benchmark.macro.MacrobenchmarkScope,kotlin.Unit> profileBlock);
+                  }
+                }
+                package androidx.benchmark.macro {
+                  @kotlin.RequiresOptIn(message="The Baseline profile generation API is experimental.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBaselineProfilesApi {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
-    // overloaded
-    // methods and comparator getting confused!)
+    // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
 }
