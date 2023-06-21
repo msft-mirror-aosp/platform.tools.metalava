@@ -28,6 +28,7 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -262,7 +263,7 @@ internal fun processFlags() {
         } else {
             return
         }
-    options.manifest?.let { codebase.manifest = it }
+    codebase.manifest = options.manifest
 
     if (options.verbose) {
         progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
@@ -821,7 +822,7 @@ internal fun parseSources(
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-    manifest: File? = options.manifest
+    manifest: Manifest = options.manifest
 ): PsiBasedCodebase {
     val absoluteSources = sources.map { it.absoluteFile }
 
@@ -841,7 +842,7 @@ internal fun parseSources(
         absoluteClasspath,
         javaLanguageLevel,
         kotlinLanguageLevel,
-        manifest
+        manifest,
     )
 }
 
@@ -853,7 +854,7 @@ private fun parseAbsoluteSources(
     classpath: List<File>,
     javaLanguageLevel: LanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings,
-    manifest: File?
+    manifest: Manifest,
 ): PsiBasedCodebase {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel

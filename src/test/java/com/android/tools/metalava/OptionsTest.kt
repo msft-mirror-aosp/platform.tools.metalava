@@ -75,8 +75,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 --input-api-jar <file>
                                              A .jar file to read APIs from directly
---manifest <file>
-                                             A manifest file, used to for check permissions to cross check APIs
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
@@ -461,6 +459,8 @@ Options:
                                              --removed-api. `source` will preserve the order in which they appear in the
                                              source files. `signature` will sort them based on their signature.
                                              (default: signature)
+  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+                                             min_sdk_version. (default: no manifest)
     """
             .trimIndent()
 

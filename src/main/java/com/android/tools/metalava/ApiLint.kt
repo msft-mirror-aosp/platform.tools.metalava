@@ -2450,7 +2450,7 @@ class ApiLint(
         // AutoCloseable has been added in API 19, so libraries with minSdkVersion <19 cannot use
         // it. If the version
         // is not set, then keep the check enabled.
-        val minSdkVersion = codebase.getMinSdkVersion()
+        val minSdkVersion = codebase.manifest.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 19) {
             return
         }
@@ -2807,7 +2807,7 @@ class ApiLint(
         }
         // ICU types have been added in API 24, so libraries with minSdkVersion <24 cannot use them.
         // If the version is not set, then keep the check enabled.
-        val minSdkVersion = codebase.getMinSdkVersion()
+        val minSdkVersion = codebase.manifest.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 24) {
             return
         }

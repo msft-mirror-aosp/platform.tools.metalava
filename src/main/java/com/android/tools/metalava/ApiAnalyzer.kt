@@ -758,7 +758,7 @@ class ApiAnalyzer(
                 val missing = ArrayList<String>()
                 for (value in values) {
                     val perm = (value.value() ?: value.toSource()).toString()
-                    val level = codebase.getPermissionLevel(perm)
+                    val level = codebase.manifest.getPermissionLevel(perm)
                     if (level == null) {
                         if (any) {
                             missing.add(perm)
@@ -825,7 +825,7 @@ class ApiAnalyzer(
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
                 options.showAnnotations.matches(ANDROID_SYSTEM_API) &&
-                options.manifest != null
+                !options.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
                 options.showAnnotations.isNotEmpty()

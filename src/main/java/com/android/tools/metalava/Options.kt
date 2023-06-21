@@ -20,15 +20,19 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.manifest.Manifest
+import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
+import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
@@ -455,8 +459,20 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** For [ARG_COPY_ANNOTATIONS], the target directory to write converted stub annotations from */
     var privateAnnotationsTarget: File? = null
 
-    /** A manifest file to read to for example look up available permissions */
-    var manifest: File? = null
+    /** A [Manifest] object to look up available permissions and min_sdk_version. */
+    val manifest by
+        option(
+                ARG_MANIFEST,
+                "-manifest",
+                help =
+                    """
+        A manifest file, used to check permissions to cross check APIs and retrieve min_sdk_version.
+    """
+                        .trimIndent()
+            )
+            .file(mustExist = true, canBeDir = false, mustBeReadable = true)
+            .convert("<file>") { Manifest(it) }
+            .default(emptyManifest, defaultForHelp = "no manifest")
 
     /**
      * If set, a file to write a dex API file to. Corresponds to the
@@ -854,8 +870,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_API,
                 "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_MANIFEST,
-                "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION,
                 "-showAnnotation" -> mutableShowAnnotations.add(getValue(args, ++index))
                 ARG_SHOW_SINGLE_ANNOTATION -> {
@@ -1844,8 +1858,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
                 "$ARG_INPUT_API_JAR <file>",
                 "A .jar file to read APIs from directly",
-                "$ARG_MANIFEST <file>",
-                "A manifest file, used to for check permissions to cross check APIs",
                 "$ARG_HIDE_PACKAGE <package>",
                 "Remove the given packages from the API even if they have not been " +
                     "marked with @hide",
