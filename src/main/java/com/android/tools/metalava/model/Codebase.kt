@@ -18,8 +18,6 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.manifest.Manifest
-import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
@@ -90,9 +88,6 @@ interface Codebase {
         mapName: Boolean = true
     ): AnnotationItem
 
-    /** The manifest to associate with this codebase, may be empty. */
-    var manifest: Manifest
-
     /** Clear the [Item.tag] fields (prior to iteration like DFS) */
     fun clearTags() {
         getPackages().packages.forEach { pkg ->
@@ -126,7 +121,6 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 object UnsetMinSdkVersion : MinSdkVersion()
 
 abstract class DefaultCodebase(override var location: File) : Codebase {
-    override var manifest: Manifest = emptyManifest
     override var original: Codebase? = null
     @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
 

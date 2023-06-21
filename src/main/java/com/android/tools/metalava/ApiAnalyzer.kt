@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.ATTR_VALUE
+import com.android.tools.metalava.manifest.Manifest
+import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -44,7 +46,8 @@ import org.jetbrains.uast.UClass
  */
 class ApiAnalyzer(
     /** The code to analyze */
-    private val codebase: Codebase
+    private val codebase: Codebase,
+    private val manifest: Manifest = emptyManifest,
 ) {
     /** All packages in the API */
     private val packages: PackageList = codebase.getPackages()
@@ -758,7 +761,7 @@ class ApiAnalyzer(
                 val missing = ArrayList<String>()
                 for (value in values) {
                     val perm = (value.value() ?: value.toSource()).toString()
-                    val level = codebase.manifest.getPermissionLevel(perm)
+                    val level = manifest.getPermissionLevel(perm)
                     if (level == null) {
                         if (any) {
                             missing.add(perm)
@@ -768,7 +771,7 @@ class ApiAnalyzer(
                         reporter.report(
                             Issues.REQUIRES_PERMISSION,
                             method,
-                            "Permission '$perm' is not defined by manifest ${codebase.manifest}."
+                            "Permission '$perm' is not defined by manifest ${manifest}."
                         )
                         continue
                     }
@@ -787,7 +790,7 @@ class ApiAnalyzer(
                         Issues.REQUIRES_PERMISSION,
                         method,
                         "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${codebase.manifest}."
+                            "${manifest}."
                     )
                 }
 

@@ -28,7 +28,6 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -263,7 +262,6 @@ internal fun processFlags() {
         } else {
             return
         }
-    codebase.manifest = options.manifest
 
     if (options.verbose) {
         progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
@@ -490,7 +488,7 @@ private fun addMissingItemsRequiredForGeneratingStubs(textCodebase: TextCodebase
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(textCodebase)
+        val analyzer = ApiAnalyzer(textCodebase, options.manifest)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -751,7 +749,7 @@ private fun loadFromSources(): Codebase {
 
     progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(codebase)
+    val analyzer = ApiAnalyzer(codebase, options.manifest)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -821,8 +819,7 @@ internal fun parseSources(
     sourcePath: List<File> = options.sourcePath,
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
-    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-    manifest: Manifest = options.manifest
+    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel
 ): PsiBasedCodebase {
     val absoluteSources = sources.map { it.absoluteFile }
 
@@ -842,7 +839,6 @@ internal fun parseSources(
         absoluteClasspath,
         javaLanguageLevel,
         kotlinLanguageLevel,
-        manifest,
     )
 }
 
@@ -854,7 +850,6 @@ private fun parseAbsoluteSources(
     classpath: List<File>,
     javaLanguageLevel: LanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings,
-    manifest: Manifest,
 ): PsiBasedCodebase {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
@@ -900,7 +895,6 @@ private fun parseAbsoluteSources(
 
     val codebase = PsiBasedCodebase(rootDir, description)
     codebase.initialize(environment, units, packageDocs)
-    codebase.manifest = manifest
     return codebase
 }
 
