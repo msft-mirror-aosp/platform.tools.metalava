@@ -835,15 +835,12 @@ fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     return environment
 }
 
-fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
+fun loadFromJarFile(apiJar: File, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
     codebase.initialize(environment, apiJar, preFiltered)
-    if (manifest != null) {
-        codebase.manifest = options.manifest
-    }
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
     val analyzer = ApiAnalyzer(codebase)
