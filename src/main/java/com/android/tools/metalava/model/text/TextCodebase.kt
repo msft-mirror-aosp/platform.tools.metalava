@@ -54,12 +54,6 @@ class TextCodebase(
     location: File,
     val apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
 ) : DefaultCodebase(location) {
-    /**
-     * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
-     * suffix means unknown, and absence of a suffix means not nullable.
-     */
-    var kotlinStyleNulls = false
-
     private val mPackages = HashMap<String, TextPackageItem>(300)
     private val mAllClasses = HashMap<String, TextClassItem>(30000)
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
@@ -77,10 +71,7 @@ class TextCodebase(
 
     override fun trustedApi(): Boolean = true
 
-    /**
-     * Signature file format version, if found. Type "GradleVersion" is misleading; it's just a
-     * convenient version class.
-     */
+    /** Signature file format version, if found. */
     var format: FileFormat = FileFormat.V1 // not specifying format: assumed to be doclava, 1.0
 
     override fun getPackages(): PackageList {
