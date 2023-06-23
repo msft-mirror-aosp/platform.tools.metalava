@@ -52,7 +52,7 @@ import kotlin.math.min
 class TextCodebase(
     location: File,
     apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-) : DefaultCodebase(location) {
+) : DefaultCodebase(location), ResolverContext {
     private val mPackages = HashMap<String, TextPackageItem>(300)
     private val mAllClasses = HashMap<String, TextClassItem>(30000)
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
@@ -114,8 +114,15 @@ class TextCodebase(
         }
     }
 
+    /** Implements [ResolverContext] interface */
+    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = mClassToInterface[cl]
+
+    /** Implements [ResolverContext] interface */
+    override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
+
     /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
     class ReferenceResolver(
+        private val context: ResolverContext,
         private val codebase: TextCodebase,
     ) {
         /**
@@ -135,8 +142,8 @@ class TextCodebase(
         private val packages = codebase.mPackages.values.toList()
 
         companion object {
-            fun resolveReferences(codebase: TextCodebase) {
-                val resolver = ReferenceResolver(codebase)
+            fun resolveReferences(context: ResolverContext, codebase: TextCodebase) {
+                val resolver = ReferenceResolver(context, codebase)
                 resolver.resolveReferences()
             }
         }
@@ -154,7 +161,7 @@ class TextCodebase(
                 if (cl.isJavaLangObject()) {
                     continue
                 }
-                var scName: String? = codebase.mClassToSuper[cl]
+                var scName: String? = context.nameOfSuperClass(cl)
                 if (scName == null) {
                     scName =
                         when {
@@ -174,7 +181,7 @@ class TextCodebase(
 
         private fun resolveInterfaces() {
             for (cl in classes) {
-                val interfaces = codebase.mClassToInterface[cl] ?: continue
+                val interfaces = context.namesOfInterfaces(cl) ?: continue
                 for (interfaceName in interfaces) {
                     codebase.getOrCreateClass(interfaceName, isInterface = true)
                     cl.addInterface(codebase.obtainTypeFromString(interfaceName))
@@ -484,9 +491,18 @@ class TextCodebase(
                     ApiType.ALL.getReferenceFilter()
                 )
 
+            // As the delta has not been created by the parser there is no parser provided
+            // context to use so just use an empty context.
+            val context =
+                object : ResolverContext {
+                    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = null
+
+                    override fun nameOfSuperClass(cl: TextClassItem): String? = null
+                }
+
             // All this actually does is add in an appropriate super class depending on the class
             // type.
-            ReferenceResolver.resolveReferences(delta)
+            ReferenceResolver.resolveReferences(context, delta)
             return delta
         }
     }
@@ -560,4 +576,24 @@ class TextCodebase(
 
         protected abstract fun make(o: Any): Any
     }
+}
+
+/**
+ * Provides access to information that is needed by the [TextCodebase.ReferenceResolver].
+ *
+ * Currently, this is provided by the [TextCodebase] but the intention is for that to be moved to
+ * [ApiFile].
+ */
+interface ResolverContext {
+    /**
+     * Get the names of the interfaces implemented by the supplied class, returns null if there are
+     * no interfaces.
+     */
+    fun namesOfInterfaces(cl: TextClassItem): List<String>?
+
+    /**
+     * Get the name of the super class extended by the supplied class, returns null if there is no
+     * super class.
+     */
+    fun nameOfSuperClass(cl: TextClassItem): String?
 }

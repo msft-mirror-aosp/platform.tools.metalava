@@ -139,7 +139,9 @@ class ApiFile {
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess(api: TextCodebase) {
-        TextCodebase.ReferenceResolver.resolveReferences(api)
+        // Currently the TextCodebase provides the context for resolving references.
+        val context = api
+        TextCodebase.ReferenceResolver.resolveReferences(context, api)
     }
 
     @Throws(ApiParseException::class)
