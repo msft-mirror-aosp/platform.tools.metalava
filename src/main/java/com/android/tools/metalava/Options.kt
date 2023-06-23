@@ -86,7 +86,6 @@ const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:rele
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
-const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
@@ -262,14 +261,6 @@ class Options(
 
     /** The output format version being used */
     var outputFormat: FileFormat = FileFormat.recommended
-
-    /**
-     * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
-     * (e.g. ? means nullable, ! means unknown, empty means not null).
-     *
-     * Even when it's false, if the format supports Kotlin-style nulls, we'll still allow them.
-     */
-    var inputKotlinStyleNulls: Boolean = false
 
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
@@ -1252,13 +1243,6 @@ class Options(
                             } else {
                                 yesNo(arg.substring(ARG_OUTPUT_KOTLIN_NULLS.length + 1))
                             }
-                    } else if (arg.startsWith(ARG_INPUT_KOTLIN_NULLS)) {
-                        inputKotlinStyleNulls =
-                            if (arg == ARG_INPUT_KOTLIN_NULLS) {
-                                true
-                            } else {
-                                yesNo(arg.substring(ARG_INPUT_KOTLIN_NULLS.length + 1))
-                            }
                     } else if (arg.startsWith(ARG_OUTPUT_DEFAULT_VALUES)) {
                         outputDefaultValues =
                             if (arg == ARG_OUTPUT_DEFAULT_VALUES) {
@@ -1974,10 +1958,6 @@ class Options(
                 "Write the list of generated doc stub files into the given source " + "list file",
                 "",
                 "Diffs and Checks:",
-                "$ARG_INPUT_KOTLIN_NULLS[=yes|no]",
-                "Whether the signature file being read should be " +
-                    "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
-                    "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
                 "--check-compatibility:type:released <file>",
                 "Check compatibility. Type is one of 'api' " +
                     "and 'removed', which checks either the public api or the removed api.",

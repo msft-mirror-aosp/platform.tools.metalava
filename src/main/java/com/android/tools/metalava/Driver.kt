@@ -242,9 +242,7 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            mergeClasspathIntoTextCodebase(
-                SignatureFileLoader.loadFiles(sources, options.inputKotlinStyleNulls)
-            )
+            mergeClasspathIntoTextCodebase(SignatureFileLoader.loadFiles(sources))
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -307,8 +305,7 @@ internal fun processFlags() {
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
             apiVersionsJson,
-            apiVersionNames,
-            options.inputKotlinStyleNulls
+            apiVersionNames
         )
     }
 
@@ -408,10 +405,7 @@ internal fun processFlags() {
             if (previousApiFile.path.endsWith(DOT_JAR)) {
                 loadFromJarFile(previousApiFile)
             } else {
-                SignatureFileLoader.load(
-                    file = previousApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
+                SignatureFileLoader.load(file = previousApiFile)
             }
 
         // If configured, checks for newly added nullness information compared
@@ -514,11 +508,7 @@ fun processNonCodebaseFlags() {
     }
 
     for (convert in options.convertToXmlFiles) {
-        val signatureApi =
-            SignatureFileLoader.load(
-                file = convert.fromApiFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
+        val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
 
         val apiType = ApiType.ALL
         val apiEmit = apiType.getEmitFilter()
@@ -529,11 +519,7 @@ fun processNonCodebaseFlags() {
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi =
-                    SignatureFileLoader.load(
-                        file = baseFile,
-                        kotlinStyleNulls = options.inputKotlinStyleNulls
-                    )
+                val baseApi = SignatureFileLoader.load(file = baseFile)
                 TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
             } else {
                 signatureApi
@@ -562,12 +548,7 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            mergeClasspathIntoTextCodebase(
-                SignatureFileLoader.load(
-                    file = signatureFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
-            )
+            mergeClasspathIntoTextCodebase(SignatureFileLoader.load(file = signatureFile))
         }
 
     val oldFormat =
@@ -591,11 +572,7 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         }
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
-            baseApi =
-                SignatureFileLoader.load(
-                    file = baseApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
+            baseApi = SignatureFileLoader.load(file = baseApiFile)
         }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
@@ -689,11 +666,7 @@ private fun loadFromSources(): Codebase {
             when {
                 previousApiFile == null -> null
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
-                else ->
-                    SignatureFileLoader.load(
-                        file = previousApiFile,
-                        kotlinStyleNulls = options.inputKotlinStyleNulls
-                    )
+                else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint
         ApiLint.check(codebase, previous, apiLintReporter)

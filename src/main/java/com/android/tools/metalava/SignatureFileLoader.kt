@@ -25,21 +25,21 @@ import java.io.File
 object SignatureFileLoader {
     private val map = mutableMapOf<File, TextCodebase>()
 
-    fun load(file: File, kotlinStyleNulls: Boolean = false): TextCodebase {
+    fun load(file: File): TextCodebase {
         return map[file]
             ?: run {
-                val loaded = loadFiles(listOf(file), kotlinStyleNulls)
+                val loaded = loadFiles(listOf(file))
                 map[file] = loaded
                 loaded
             }
     }
 
-    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): TextCodebase {
+    fun loadFiles(files: List<File>): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
             val apiClassResolution = options.apiClassResolution
-            val codebase = ApiFile.parseApi(files, kotlinStyleNulls, apiClassResolution)
+            val codebase = ApiFile.parseApi(files, apiClassResolution)
 
             // Only add constructors if the codebase does not fall back to loading classes from the
             // classpath. This is needed because only the TextCodebase supports adding constructors

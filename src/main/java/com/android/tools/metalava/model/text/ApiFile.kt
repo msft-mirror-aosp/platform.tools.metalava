@@ -19,6 +19,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
+import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
@@ -38,27 +39,30 @@ import java.io.IOException
 import javax.annotation.Nonnull
 import kotlin.text.Charsets.UTF_8
 
-class ApiFile(
+class ApiFile {
+
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
      * suffix means unknown, and absence of a suffix means not nullable.
+     *
+     * Updated based on the header of the signature file being parsed.
      */
-    var kotlinStyleNulls: Boolean,
-) {
+    var kotlinStyleNulls: Boolean = false
+
+    /** The file format of the file being parsed. */
+    var format: FileFormat = FileFormat.UNKNOWN
+
     companion object {
         /**
          * Same as [.parseApi]}, but take a single file for convenience.
          *
          * @param file input signature file
-         * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability
-         *   markers (e.g. "?"). Even if false, we'll allow them if the file format supports them/
          */
         @Throws(ApiParseException::class)
         fun parseApi(
             @Nonnull file: File,
-            kotlinStyleNulls: Boolean,
             apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-        ) = parseApi(listOf(file), kotlinStyleNulls, apiClassResolution)
+        ) = parseApi(listOf(file), apiClassResolution)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -68,19 +72,16 @@ class ApiFile(
          * would correctly point out the source file of each item.
          *
          * @param files input signature files
-         * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability
-         *   markers (e.g. "?"). Even if false, we'll allow them if the file format supports them/
          */
         @Throws(ApiParseException::class)
         fun parseApi(
             @Nonnull files: List<File>,
-            kotlinStyleNulls: Boolean,
             apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], apiClassResolution = apiClassResolution)
             val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(kotlinStyleNulls)
+            val parser = ApiFile()
             var first = true
             for (file in files) {
                 if (!first) {
@@ -108,12 +109,11 @@ class ApiFile(
         fun parseApi(
             filename: String,
             apiText: String,
-            kotlinStyleNulls: Boolean?,
+            @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
         ): TextCodebase {
             return parseApi(
                 filename,
                 apiText,
-                kotlinStyleNulls != null && kotlinStyleNulls,
                 ApiClassResolution.API_CLASSPATH,
             )
         }
@@ -124,12 +124,11 @@ class ApiFile(
         fun parseApi(
             @Nonnull filename: String,
             @Nonnull apiText: String,
-            kotlinStyleNulls: Boolean,
             apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
         ): TextCodebase {
             val api = TextCodebase(File(filename), apiClassResolution)
             api.description = "Codebase loaded from $filename"
-            ApiFile(kotlinStyleNulls).parseApiSingleFile(api, false, filename, apiText)
+            ApiFile().parseApiSingleFile(api, false, filename, apiText)
             api.postProcess()
             return api
         }
@@ -143,7 +142,7 @@ class ApiFile(
         apiText: String,
     ) {
         // Infer the format.
-        val format = parseHeader(apiText)
+        format = parseHeader(apiText)
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
         // the prior files.
@@ -169,7 +168,7 @@ class ApiFile(
         }
 
         if (format.isSignatureFormat()) {
-            kotlinStyleNulls = kotlinStyleNulls || format.useKotlinStyleNulls()
+            kotlinStyleNulls = format.useKotlinStyleNulls()
         } else if (apiText.isBlank()) {
             // Sometimes, signature files are empty, and we do want to accept them.
         } else {
@@ -434,9 +433,7 @@ class ApiFile(
             }
         } else if (type.endsWith("?") || type.endsWith("!")) {
             throw ApiParseException(
-                "Did you forget to supply --input-kotlin-nulls? Found Kotlin-style null type suffix when parser was not configured " +
-                    "to interpret signature file that way: " +
-                    type
+                "Format $format does not support Kotlin-style null type syntax: $type"
             )
         }
         if (varArgs) {

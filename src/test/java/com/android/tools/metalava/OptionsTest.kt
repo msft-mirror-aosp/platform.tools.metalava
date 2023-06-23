@@ -226,11 +226,6 @@ Generating Stubs:
 
 
 Diffs and Checks:
---input-kotlin-nulls[=yes|no]
-                                             Whether the signature file being read should be interpreted as having
-                                             encoded its types using Kotlin style types: a suffix of "?" for nullable
-                                             types, no suffix for non nullable types, and "!" for unknown. The default
-                                             is no.
 --check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
                                              either the public api or the removed api.
