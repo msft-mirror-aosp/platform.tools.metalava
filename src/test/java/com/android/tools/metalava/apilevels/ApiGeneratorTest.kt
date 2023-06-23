@@ -898,7 +898,7 @@ class ApiGeneratorTest : DriverTest() {
 
         val api =
             """
-                // Signature format: 2.0
+                // Signature format: 3.0
                 package test.pkg {
                   public class Foo {
                     method public void foo(String?);
@@ -909,7 +909,6 @@ class ApiGeneratorTest : DriverTest() {
 
         check(
             signatureSource = api,
-            inputKotlinStyleNulls = true,
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
