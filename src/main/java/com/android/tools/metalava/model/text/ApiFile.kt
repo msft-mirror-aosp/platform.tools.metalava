@@ -23,15 +23,20 @@ import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
+import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_STRING
+import com.android.tools.metalava.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import com.android.tools.metalava.model.text.classpath.WrappedClassItem
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.io.Files
 import java.io.File
@@ -145,7 +150,7 @@ class ApiFile : ResolverContext {
      */
     private fun postProcess(api: TextCodebase) {
         // Use this as the context for resolving references.
-        TextCodebase.ReferenceResolver.resolveReferences(this, api)
+        ReferenceResolver.resolveReferences(this, api)
     }
 
     @Throws(ApiParseException::class)
@@ -1278,6 +1283,163 @@ class ApiFile : ResolverContext {
                 current = String(buffer, start, position - start)
                 return current
             }
+        }
+    }
+}
+
+/**
+ * Provides access to information that is needed by the [ReferenceResolver].
+ *
+ * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
+ * class implements/extends respectively before they are resolved.
+ */
+interface ResolverContext {
+    /**
+     * Get the names of the interfaces implemented by the supplied class, returns null if there are
+     * no interfaces.
+     */
+    fun namesOfInterfaces(cl: TextClassItem): List<String>?
+
+    /**
+     * Get the name of the super class extended by the supplied class, returns null if there is no
+     * super class.
+     */
+    fun nameOfSuperClass(cl: TextClassItem): String?
+}
+
+/** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
+class ReferenceResolver(
+    private val context: ResolverContext,
+    private val codebase: TextCodebase,
+) {
+    /**
+     * A list of all the classes in the text codebase.
+     *
+     * This takes a copy of the `values` collection rather than use it correctly to avoid
+     * [ConcurrentModificationException].
+     */
+    private val classes = codebase.mAllClasses.values.toList()
+
+    /**
+     * A list of all the packages in the text codebase.
+     *
+     * This takes a copy of the `values` collection rather than use it correctly to avoid
+     * [ConcurrentModificationException].
+     */
+    private val packages = codebase.mPackages.values.toList()
+
+    companion object {
+        fun resolveReferences(context: ResolverContext, codebase: TextCodebase) {
+            val resolver = ReferenceResolver(context, codebase)
+            resolver.resolveReferences()
+        }
+    }
+
+    fun resolveReferences() {
+        resolveSuperclasses()
+        resolveInterfaces()
+        resolveThrowsClasses()
+        resolveInnerClasses()
+    }
+
+    private fun resolveSuperclasses() {
+        for (cl in classes) {
+            // java.lang.Object has no superclass
+            if (cl.isJavaLangObject()) {
+                continue
+            }
+            var scName: String? = context.nameOfSuperClass(cl)
+            if (scName == null) {
+                scName =
+                    when {
+                        cl.isEnum() -> JAVA_LANG_ENUM
+                        cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
+                        else -> {
+                            val existing = cl.superClassType()?.toTypeString()
+                            existing ?: JAVA_LANG_OBJECT
+                        }
+                    }
+            }
+
+            val superclass = codebase.getOrCreateClass(scName)
+            cl.setSuperClass(superclass, codebase.obtainTypeFromString(scName))
+        }
+    }
+
+    private fun resolveInterfaces() {
+        for (cl in classes) {
+            val interfaces = context.namesOfInterfaces(cl) ?: continue
+            for (interfaceName in interfaces) {
+                codebase.getOrCreateClass(interfaceName, isInterface = true)
+                cl.addInterface(codebase.obtainTypeFromString(interfaceName))
+            }
+        }
+    }
+
+    private fun resolveThrowsClasses() {
+        for (cl in classes) {
+            for (methodItem in cl.constructors()) {
+                resolveThrowsClasses(methodItem)
+            }
+            for (methodItem in cl.methods()) {
+                resolveThrowsClasses(methodItem)
+            }
+        }
+    }
+
+    private fun resolveThrowsClasses(methodItem: MethodItem) {
+        val methodInfo = methodItem as TextMethodItem
+        val names = methodInfo.throwsTypeNames()
+        if (names.isNotEmpty()) {
+            val result = ArrayList<ClassItem>()
+            for (exception in names) {
+                var exceptionClass: ClassItem? = codebase.mAllClasses[exception]
+                if (exceptionClass == null) {
+                    // Exception not provided by this codebase. Inject a stub.
+                    exceptionClass = codebase.getOrCreateClass(exception)
+                    // Set super class to throwable?
+                    if (exception != JAVA_LANG_THROWABLE) {
+                        exceptionClass.setSuperClass(
+                            codebase.getOrCreateClass(JAVA_LANG_THROWABLE),
+                            TextTypeItem(codebase, JAVA_LANG_THROWABLE)
+                        )
+                    }
+                }
+                result.add(exceptionClass)
+            }
+            methodInfo.setThrowsList(result)
+        }
+    }
+
+    private fun resolveInnerClasses() {
+        for (pkg in packages) {
+            // make copy: we'll be removing non-top level classes during iteration
+            val classes = ArrayList(pkg.classList())
+            for (cls in classes) {
+                // WrappedClassItems which are inner classes are resolved when they're created
+                if (cls is WrappedClassItem) continue
+                val cl = cls as TextClassItem
+                val name = cl.name
+                var index = name.lastIndexOf('.')
+                if (index != -1) {
+                    cl.name = name.substring(index + 1)
+                    val qualifiedName = cl.qualifiedName
+                    index = qualifiedName.lastIndexOf('.')
+                    assert(index != -1) { qualifiedName }
+                    val outerClassName = qualifiedName.substring(0, index)
+                    // If the outer class doesn't exist in the text codebase, it should not be
+                    // resolved through the classpath--if it did exist there, this inner class
+                    // would be overridden by the version from the classpath.
+                    val outerClass =
+                        codebase.getOrCreateClass(outerClassName, canBeFromClasspath = false)
+                    cl.containingClass = outerClass
+                    outerClass.addInnerClass(cl)
+                }
+            }
+        }
+
+        for (pkg in packages) {
+            pkg.pruneClassList()
         }
     }
 }
