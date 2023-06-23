@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.TextCodebase
@@ -27,16 +27,16 @@ object SignatureFileLoader {
 
     /** Used by java file. */
     fun load(file: File): TextCodebase {
-        return load(file, options.apiClassResolution)
+        return load(file, null)
     }
 
     fun load(
         file: File,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API,
+        classResolver: ClassResolver? = null,
     ): TextCodebase {
         return map[file]
             ?: run {
-                val loaded = loadFiles(listOf(file), apiClassResolution)
+                val loaded = loadFiles(listOf(file), classResolver)
                 map[file] = loaded
                 loaded
             }
@@ -44,13 +44,12 @@ object SignatureFileLoader {
 
     fun loadFiles(
         files: List<File>,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API,
+        classResolver: ClassResolver? = null,
     ): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
-            val codebase = ApiFile.parseApi(files, apiClassResolution)
-            return codebase
+            return ApiFile.parseApi(files, classResolver)
         } catch (ex: ApiParseException) {
             throw DriverException("Unable to parse signature file: ${ex.message}")
         }
