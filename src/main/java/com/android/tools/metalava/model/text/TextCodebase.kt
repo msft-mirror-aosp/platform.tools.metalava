@@ -241,12 +241,7 @@ class TextCodebase(
             return cls
         }
 
-        val stubClass =
-            if (isInterface) {
-                TextClassItem.createInterfaceStub(this, name)
-            } else {
-                TextClassItem.createClassStub(this, name)
-            }
+        val stubClass = TextClassItem.createStubClass(this, name, isInterface)
 
         // If needed, wrap the class. Add the new class to the appropriate set
         val newClass =
