@@ -52,11 +52,9 @@ import kotlin.math.min
 class TextCodebase(
     location: File,
     apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-) : DefaultCodebase(location), ResolverContext {
+) : DefaultCodebase(location) {
     private val mPackages = HashMap<String, TextPackageItem>(300)
     private val mAllClasses = HashMap<String, TextClassItem>(30000)
-    private val mClassToSuper = HashMap<TextClassItem, String>(30000)
-    private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
 
     // Classes which are not part of the API surface but are referenced by other classes.
     // These are initialized as wrapped empty stubs, but may be switched out for PSI classes.
@@ -89,21 +87,6 @@ class TextCodebase(
 
     override fun supportsDocumentation(): Boolean = false
 
-    fun mapClassToSuper(classInfo: TextClassItem, superclass: String?) {
-        superclass?.let { mClassToSuper.put(classInfo, superclass) }
-    }
-
-    fun mapClassToInterface(classInfo: TextClassItem, iface: String) {
-        if (!mClassToInterface.containsKey(classInfo)) {
-            mClassToInterface[classInfo] = ArrayList()
-        }
-        mClassToInterface[classInfo]?.let { if (!it.contains(iface)) it.add(iface) }
-    }
-
-    fun implementsInterface(classInfo: TextClassItem, iface: String): Boolean {
-        return mClassToInterface[classInfo]?.contains(iface) ?: false
-    }
-
     fun addPackage(pInfo: TextPackageItem) {
         // track the set of organized packages in the API
         mPackages[pInfo.name()] = pInfo
@@ -113,12 +96,6 @@ class TextCodebase(
             mAllClasses[cl.qualifiedName()] = cl as TextClassItem
         }
     }
-
-    /** Implements [ResolverContext] interface */
-    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = mClassToInterface[cl]
-
-    /** Implements [ResolverContext] interface */
-    override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
 
     /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
     class ReferenceResolver(
@@ -581,8 +558,8 @@ class TextCodebase(
 /**
  * Provides access to information that is needed by the [TextCodebase.ReferenceResolver].
  *
- * Currently, this is provided by the [TextCodebase] but the intention is for that to be moved to
- * [ApiFile].
+ * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
+ * class implements/extends respectively before they are resolved.
  */
 interface ResolverContext {
     /**

@@ -36,10 +36,12 @@ import com.google.common.annotations.VisibleForTesting
 import com.google.common.io.Files
 import java.io.File
 import java.io.IOException
+import java.util.ArrayList
+import java.util.HashMap
 import javax.annotation.Nonnull
 import kotlin.text.Charsets.UTF_8
 
-class ApiFile {
+class ApiFile : ResolverContext {
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -47,10 +49,13 @@ class ApiFile {
      *
      * Updated based on the header of the signature file being parsed.
      */
-    var kotlinStyleNulls: Boolean = false
+    private var kotlinStyleNulls: Boolean = false
 
     /** The file format of the file being parsed. */
     var format: FileFormat = FileFormat.UNKNOWN
+
+    private val mClassToSuper = HashMap<TextClassItem, String>(30000)
+    private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
 
     companion object {
         /**
@@ -139,9 +144,8 @@ class ApiFile {
      * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
      */
     private fun postProcess(api: TextCodebase) {
-        // Currently the TextCodebase provides the context for resolving references.
-        val context = api
-        TextCodebase.ReferenceResolver.resolveReferences(context, api)
+        // Use this as the context for resolving references.
+        TextCodebase.ReferenceResolver.resolveReferences(this, api)
     }
 
     @Throws(ApiParseException::class)
@@ -267,6 +271,27 @@ class ApiFile {
         api.addPackage(pkg)
     }
 
+    private fun mapClassToSuper(classInfo: TextClassItem, superclass: String?) {
+        superclass?.let { mClassToSuper.put(classInfo, superclass) }
+    }
+
+    private fun mapClassToInterface(classInfo: TextClassItem, iface: String) {
+        if (!mClassToInterface.containsKey(classInfo)) {
+            mClassToInterface[classInfo] = ArrayList()
+        }
+        mClassToInterface[classInfo]?.let { if (!it.contains(iface)) it.add(iface) }
+    }
+
+    private fun implementsInterface(classInfo: TextClassItem, iface: String): Boolean {
+        return mClassToInterface[classInfo]?.contains(iface) ?: false
+    }
+
+    /** Implements [ResolverContext] interface */
+    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = mClassToInterface[cl]
+
+    /** Implements [ResolverContext] interface */
+    override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
+
     @Throws(ApiParseException::class)
     private fun parseClass(
         api: TextCodebase,
@@ -357,14 +382,14 @@ class ApiFile {
             token = tokenizer.requireToken()
         }
         // Resolve superclass after done parsing
-        api.mapClassToSuper(cl, ext)
+        mapClassToSuper(cl, ext)
         if (
             "implements" == token ||
                 "extends" == token ||
                 isInterface && ext != null && token != "{"
         ) {
             if (token != "implements" && token != "extends") {
-                api.mapClassToInterface(cl, token)
+                mapClassToInterface(cl, token)
             }
             while (true) {
                 token = tokenizer.requireToken()
@@ -373,7 +398,7 @@ class ApiFile {
                 } else {
                     // / TODO
                     if ("," != token) {
-                        api.mapClassToInterface(cl, token)
+                        mapClassToInterface(cl, token)
                     }
                 }
             }
@@ -385,8 +410,8 @@ class ApiFile {
                 cl.modifiers.setStatic(false)
             }
         } else if (isAnnotation) {
-            api.mapClassToInterface(cl, JAVA_LANG_ANNOTATION)
-        } else if (api.implementsInterface(cl, JAVA_LANG_ANNOTATION)) {
+            mapClassToInterface(cl, JAVA_LANG_ANNOTATION)
+        } else if (implementsInterface(cl, JAVA_LANG_ANNOTATION)) {
             cl.setIsAnnotationType(true)
         }
         if ("{" != token) {
