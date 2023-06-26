@@ -76,34 +76,9 @@ class TextCodebaseWithClasspath(
             }
         }
 
-        // Packages with stubbed classes will exist in both codebases, use the version from the
-        // [textCodebase], but with any extra classes from the [classpathCodebase] added in.
-        val (duplicateClasspathPackages, uniqueClasspathPackages) =
-            classpathCodebase.getPackages().packages.partition { classpathPackage ->
-                textCodebase.findPackage(classpathPackage.qualifiedName()) != null
-            }
-
-        for (duplicatePackage in duplicateClasspathPackages) {
-            // Based on the partition above, [textCodebase] is guaranteed to have a matching
-            // package.
-            val matchingPackage = textCodebase.findPackage(duplicatePackage.qualifiedName())!!
-            for (duplicateClass in duplicatePackage.allClasses()) {
-                // If the class does not already exist in the text-based package, add it.
-                if (
-                    matchingPackage.classList().none {
-                        it.qualifiedName() == duplicateClass.qualifiedName()
-                    }
-                ) {
-                    matchingPackage.addClass(duplicateClass)
-                }
-            }
-        }
-
-        val allPackages =
-            (textCodebase.getPackages().packages + uniqueClasspathPackages).sortedWith(
-                PackageItem.comparator
-            )
-        packages = PackageList(this, allPackages)
+        // The packages for the combined codebase is the same as the text codebase as each
+        // WrappedClassItem has already been added to the package.
+        packages = textCodebase.getPackages()
     }
 
     override fun createAnnotation(
