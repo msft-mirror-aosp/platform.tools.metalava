@@ -61,23 +61,18 @@ class TextCodebaseWithClasspath(
     override fun size(): Int = packages.packages.size
 
     init {
-        // For each stubbed class, try to find from classpath. Use the containing [PsiFile]s of the
-        // found [PsiClass]es to initialize a [PsiCodebase].
-        val psiClasses =
-            textCodebase.wrappedStubClasses.keys.mapNotNull {
-                javaPsiFacade.findClass(it, searchScope)
-            }
-        val units = psiClasses.map { it.containingFile }
         classpathCodebase =
             PsiBasedCodebase(location, "Codebase from classpath", fromClasspath = true)
         val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())
-        classpathCodebase.initialize(classpathEnvironment, units, emptyPackageDocs)
+        classpathCodebase.initialize(classpathEnvironment, emptyList(), emptyPackageDocs)
 
-        // Go through the generated PSI classes and swap them into the wrapper classes.
-        for (psiBasedClass in classpathCodebase.getTopLevelClassesFromSource()) {
-            val stubClass = textCodebase.wrappedStubClasses[psiBasedClass.qualifiedName()]
-            if (stubClass != null) {
-                stubClass.wrappedItem = psiBasedClass
+        // For each wrapped class, try to find class from classpath.
+        for ((erasedName, wrappedStubClass) in textCodebase.wrappedStubClasses) {
+            val psiClass = javaPsiFacade.findClass(erasedName, searchScope)
+            if (psiClass != null) {
+                // The class was found on the classpath so find or create a PsiClassItem for it.
+                val psiClassItem = classpathCodebase.findOrCreateClass(psiClass)
+                wrappedStubClass.wrappedItem = psiClassItem
             }
         }
 
