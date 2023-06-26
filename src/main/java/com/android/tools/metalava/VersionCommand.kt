@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava
 
-interface TypeParameterItem : ClassItem {
-    @Deprecated(
-        message = "Please use typeBounds() instead.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
-    )
-    fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
-
-    fun typeBounds(): List<TypeItem>
-
-    fun isReified(): Boolean
+/**
+ * Sub-command for outputting the version.
+ *
+ * Similar to running `metalava --version`.
+ */
+class VersionCommand : MetalavaSubCommand(help = "Show the version") {
+    override fun run() {
+        echo("$commandName version: ${Version.VERSION}")
+    }
 }

@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
+import com.github.ajalt.clikt.core.NoSuchOption
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
@@ -44,14 +45,10 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 /** Global options for the metadata extraction tool */
 var options = Options(emptyArray())
 
-private const val MAX_LINE_WIDTH = 120
 private const val INDENT_WIDTH = 45
 
 const val ARG_FORMAT = "--format"
 const val ARG_HELP = "--help"
-const val ARG_VERSION = "--version"
-const val ARG_QUIET = "--quiet"
-const val ARG_VERBOSE = "--verbose"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
@@ -89,7 +86,6 @@ const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:rele
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
-const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
@@ -101,9 +97,6 @@ const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
-const val ARG_COLOR = "--color"
-const val ARG_NO_COLOR = "--no-color"
-const val ARG_NO_BANNER = "--no-banner"
 const val ARG_ERROR = "--error"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
@@ -178,7 +171,8 @@ class Options(
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     /** Writer to direct error messages to */
-    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err))
+    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+    commonOptions: CommonOptions = defaultCommonOptions,
 ) {
 
     /** Internal list backing [sources] */
@@ -268,14 +262,6 @@ class Options(
     /** The output format version being used */
     var outputFormat: FileFormat = FileFormat.recommended
 
-    /**
-     * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
-     * (e.g. ? means nullable, ! means unknown, empty means not null).
-     *
-     * Even when it's false, if the format supports Kotlin-style nulls, we'll still allow them.
-     */
-    var inputKotlinStyleNulls: Boolean = false
-
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
 
@@ -360,13 +346,13 @@ class Options(
     var allowClassesFromClasspath = true
 
     /** Whether to report warnings and other diagnostics along the way */
-    var quiet = false
+    var quiet = commonOptions.verbosity.quiet
 
     /**
      * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
      * quiet)
      */
-    var verbose = false
+    var verbose = commonOptions.verbosity.verbose
 
     /** If set, a directory to write stub files to. Corresponds to the --stubs/-stubs flag. */
     var stubsDir: File? = null
@@ -443,7 +429,7 @@ class Options(
     var removedApiFile: File? = null
 
     /** Whether output should be colorized */
-    var color = System.getenv("TERM")?.startsWith("xterm") ?: (System.getenv("COLORTERM") != null)
+    var terminal = commonOptions.terminal
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -722,31 +708,6 @@ class Options(
     var useK2Uast = false
 
     init {
-        // Pre-check whether --color/--no-color is present and use that to decide how
-        // to emit the banner even before we emit errors
-        if (args.contains(ARG_NO_COLOR)) {
-            color = false
-        } else if (args.contains(ARG_COLOR)) {
-            color = true
-        }
-        // empty args: only when building initial default Options (options field
-        // at the top of this file; replaced once the driver runs and passes in
-        // a real argv. Don't print a banner when initializing the default options.)
-        if (
-            args.isNotEmpty() &&
-                !args.contains(ARG_QUIET) &&
-                !args.contains(ARG_NO_BANNER) &&
-                !args.contains(ARG_VERSION)
-        ) {
-            if (color) {
-                stdout.print(colorized(BANNER.trimIndent(), TerminalColor.BLUE))
-            } else {
-                stdout.println(BANNER.trimIndent())
-            }
-            stdout.println()
-            stdout.flush()
-        }
-
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
         reporter = Reporter(null, null)
@@ -773,23 +734,6 @@ class Options(
         while (index < args.size) {
 
             when (val arg = args[index]) {
-                ARG_HELP,
-                "-h",
-                "-?" -> {
-                    helpAndQuit(color)
-                }
-                ARG_QUIET -> {
-                    quiet = true
-                    verbose = false
-                }
-                ARG_VERBOSE -> {
-                    verbose = true
-                    quiet = false
-                }
-                ARG_VERSION -> {
-                    throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
-                }
-
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH,
                 "-classpath",
@@ -1124,11 +1068,6 @@ class Options(
                 ARG_API_LINT_IGNORE_PREFIX -> {
                     checkApiIgnorePrefix.add(getValue(args, ++index))
                 }
-                ARG_COLOR -> color = true
-                ARG_NO_COLOR -> color = false
-                ARG_NO_BANNER -> {
-                    // Already processed above but don't flag it here as invalid
-                }
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
@@ -1304,13 +1243,6 @@ class Options(
                             } else {
                                 yesNo(arg.substring(ARG_OUTPUT_KOTLIN_NULLS.length + 1))
                             }
-                    } else if (arg.startsWith(ARG_INPUT_KOTLIN_NULLS)) {
-                        inputKotlinStyleNulls =
-                            if (arg == ARG_INPUT_KOTLIN_NULLS) {
-                                true
-                            } else {
-                                yesNo(arg.substring(ARG_INPUT_KOTLIN_NULLS.length + 1))
-                            }
                     } else if (arg.startsWith(ARG_OUTPUT_DEFAULT_VALUES)) {
                         outputDefaultValues =
                             if (arg == ARG_OUTPUT_DEFAULT_VALUES) {
@@ -1340,8 +1272,7 @@ class Options(
                         outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
-                        val usage = getUsage(includeHeader = false, colorize = color)
-                        throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
+                        throw NoSuchOption(givenName = arg)
                     } else {
                         // All args that don't start with "-" are taken to be filenames
                         mutableSources.addAll(stringToExistingFiles(arg))
@@ -1620,10 +1551,6 @@ class Options(
         }
     }
 
-    private fun helpAndQuit(colorize: Boolean = color) {
-        throw DriverException(stdout = getUsage(colorize = colorize))
-    }
-
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
             throw DriverException("Missing argument for ${args[index - 1]}")
@@ -1835,44 +1762,22 @@ class Options(
         return File(path).absoluteFile
     }
 
-    private fun getUsage(includeHeader: Boolean = true, colorize: Boolean = color): String {
+    fun getUsage(terminal: Terminal): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
-        usage(printWriter, includeHeader, colorize)
+        usage(printWriter, terminal)
         return usage.toString()
     }
 
-    private fun usage(out: PrintWriter, includeHeader: Boolean = true, colorize: Boolean = color) {
-        if (includeHeader) {
-            out.println(wrap(HELP_PROLOGUE, MAX_LINE_WIDTH, ""))
-        }
-
-        if (colorize) {
-            out.println("Usage: ${colorized(PROGRAM_NAME, TerminalColor.BLUE)} <flags>")
-        } else {
-            out.println("Usage: $PROGRAM_NAME <flags>")
-        }
-
+    private fun usage(out: PrintWriter, terminal: Terminal) {
         val args =
             arrayOf(
                 "",
-                "\nGeneral:",
-                ARG_HELP,
-                "This message.",
-                ARG_VERSION,
-                "Show the version of $PROGRAM_NAME.",
-                ARG_QUIET,
-                "Only include vital output",
-                ARG_VERBOSE,
-                "Include extra diagnostic output",
-                ARG_COLOR,
-                "Attempt to colorize the output (defaults to true if \$TERM is xterm)",
-                ARG_NO_COLOR,
-                "Do not attempt to colorize the output",
+                "General:",
                 "$ARG_REPEAT_ERRORS_MAX <N>",
                 "When specified, repeat at most N errors before finishing.",
                 "",
-                "\nAPI sources:",
+                "API sources:",
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
@@ -1972,7 +1877,7 @@ class Options(
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
                 "",
-                "\nDocumentation:",
+                "Documentation:",
                 ARG_PUBLIC,
                 "Only include elements that are public",
                 ARG_PROTECTED,
@@ -1984,7 +1889,7 @@ class Options(
                 ARG_HIDDEN,
                 "Include all elements, including hidden",
                 "",
-                "\nExtracting Signature Files:",
+                "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
                 "$ARG_API <file>",
                 "Generate a signature descriptor file",
@@ -2014,7 +1919,7 @@ class Options(
                 "$ARG_SDK_VALUES <dir>",
                 "Write SDK values files to the given directory",
                 "",
-                "\nGenerating Stubs:",
+                "Generating Stubs:",
                 "$ARG_STUBS <dir>",
                 "Generate stub source files for the API",
                 "$ARG_DOC_STUBS <dir>",
@@ -2052,11 +1957,7 @@ class Options(
                 "$ARG_DOC_STUBS_SOURCE_LIST <file>",
                 "Write the list of generated doc stub files into the given source " + "list file",
                 "",
-                "\nDiffs and Checks:",
-                "$ARG_INPUT_KOTLIN_NULLS[=yes|no]",
-                "Whether the signature file being read should be " +
-                    "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
-                    "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
+                "Diffs and Checks:",
                 "--check-compatibility:type:released <file>",
                 "Check compatibility. Type is one of 'api' " +
                     "and 'removed', which checks either the public api or the removed api.",
@@ -2131,7 +2032,7 @@ class Options(
                 "If set, $PROGRAM_NAME shows it " +
                     "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
                 "",
-                "\nJDiff:",
+                "JDiff:",
                 "$ARG_XML_API <file>",
                 "Like $ARG_API, but emits the API in the JDiff XML format instead",
                 "$ARG_CONVERT_TO_JDIFF <sig> <xml>",
@@ -2141,7 +2042,7 @@ class Options(
                 "Reads in the given old and new api files, " +
                     "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
                 "",
-                "\nExtracting Annotations:",
+                "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
@@ -2158,12 +2059,12 @@ class Options(
                     "not apply to signature files. Source retention annotations are extracted into the external " +
                     "annotations files instead.",
                 "",
-                "\nInjecting API Levels:",
+                "Injecting API Levels:",
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
                 "",
-                "\nExtracting API Levels:",
+                "Extracting API Levels:",
                 "$ARG_GENERATE_API_LEVELS <xmlfile>",
                 "Reads android.jar SDK files and generates an XML file recording " +
                     "the API level for each class, method and field",
@@ -2206,7 +2107,7 @@ class Options(
                     "The special pattern \"*\" refers to all APIs in the given mainline module. " +
                     "Lines beginning with # are comments.",
                 "",
-                "\nGenerating API version history:",
+                "Generating API version history:",
                 "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
                 "Reads API signature files and generates a JSON file recording the API version each " +
                     "class, method, and field was added in and (if applicable) deprecated in. " +
@@ -2221,7 +2122,7 @@ class Options(
                     "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
                     "Required to generate API version JSON.",
                 "",
-                "\nSandboxing:",
+                "Sandboxing:",
                 ARG_NO_IMPLICIT_ROOT,
                 "Disable implicit root directory detection. " +
                     "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
@@ -2241,7 +2142,7 @@ class Options(
                     "access to files and/or directories (separated by `${File.pathSeparator}). Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files and/or directories.",
                 "",
-                "\nEnvironment Variables:",
+                "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
                 "Set to true to have metalava emit all the arguments it was invoked with. " +
                     "Helpful when debugging or reproducing under a debugger what the build system is doing.",
@@ -2258,37 +2159,29 @@ class Options(
             sb.append(' ')
         }
         val indent = sb.toString()
-        val formatString = "%1$-" + INDENT_WIDTH + "s%2\$s"
 
         var i = 0
         while (i < args.size) {
             val arg = args[i]
-            val description = "\n" + args[i + 1]
             if (arg.isEmpty()) {
-                if (colorize) {
-                    out.println(colorized(description, TerminalColor.YELLOW))
-                } else {
-                    out.println(description)
-                }
+                val groupTitle = args[i + 1]
+                out.println("\n")
+                out.println(terminal.colorize(groupTitle, TerminalColor.YELLOW))
             } else {
-                val output =
-                    if (colorize) {
-                        val colorArg = bold(arg)
-                        val invisibleChars = colorArg.length - arg.length
-                        // +invisibleChars: the extra chars in the above are counted but don't
-                        // contribute to width
-                        // so allow more space
-                        val colorFormatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
+                val description = "\n" + args[i + 1]
+                val formattedArg = terminal.bold(arg)
+                val invisibleChars = formattedArg.length - arg.length
+                // +invisibleChars: the extra chars in the above are counted but don't
+                // contribute to width so allow more space
+                val formatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
 
-                        wrap(
-                            String.format(colorFormatString, colorArg, description),
-                            MAX_LINE_WIDTH + invisibleChars,
-                            MAX_LINE_WIDTH,
-                            indent
-                        )
-                    } else {
-                        wrap(String.format(formatString, arg, description), MAX_LINE_WIDTH, indent)
-                    }
+                val output =
+                    wrap(
+                        String.format(formatString, formattedArg, description),
+                        MAX_LINE_WIDTH + invisibleChars,
+                        MAX_LINE_WIDTH,
+                        indent
+                    )
 
                 // Remove trailing whitespace
                 val lines = output.lines()

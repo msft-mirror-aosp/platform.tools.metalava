@@ -61,22 +61,8 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 
 const val PROGRAM_NAME = "metalava"
-const val HELP_PROLOGUE =
-    "$PROGRAM_NAME extracts metadata from source code to generate artifacts such as the " +
-        "signature files, the SDK stub files, external annotations etc."
 const val PACKAGE_HTML = "package.html"
 const val OVERVIEW_HTML = "overview.html"
-
-@Suppress("PropertyName") // Can't mark const because trimIndent() :-(
-val BANNER: String =
-    """
-                _        _
- _ __ ___   ___| |_ __ _| | __ ___   ____ _
-| '_ ` _ \ / _ \ __/ _` | |/ _` \ \ / / _` |
-| | | | | |  __/ || (_| | | (_| |\ V / (_| |
-|_| |_| |_|\___|\__\__,_|_|\__,_| \_/ \__,_|
-"""
-        .trimIndent()
 
 fun main(args: Array<String>) {
     run(args, setExitCode = true)
@@ -205,6 +191,7 @@ internal fun maybeActivateSandbox() {
     FileReadSandbox.activate(
         object : FileReadSandbox.Listener {
             var seen = mutableSetOf<String>()
+
             override fun onViolation(absolutePath: String, isDirectory: Boolean) {
                 if (!seen.contains(absolutePath)) {
                     val suffix = if (isDirectory) "/" else ""
@@ -255,9 +242,7 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            mergeClasspathIntoTextCodebase(
-                SignatureFileLoader.loadFiles(sources, options.inputKotlinStyleNulls)
-            )
+            mergeClasspathIntoTextCodebase(SignatureFileLoader.loadFiles(sources))
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -320,8 +305,7 @@ internal fun processFlags() {
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
             apiVersionsJson,
-            apiVersionNames,
-            options.inputKotlinStyleNulls
+            apiVersionNames
         )
     }
 
@@ -421,10 +405,7 @@ internal fun processFlags() {
             if (previousApiFile.path.endsWith(DOT_JAR)) {
                 loadFromJarFile(previousApiFile)
             } else {
-                SignatureFileLoader.load(
-                    file = previousApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
+                SignatureFileLoader.load(file = previousApiFile)
             }
 
         // If configured, checks for newly added nullness information compared
@@ -527,11 +508,7 @@ fun processNonCodebaseFlags() {
     }
 
     for (convert in options.convertToXmlFiles) {
-        val signatureApi =
-            SignatureFileLoader.load(
-                file = convert.fromApiFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
+        val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
 
         val apiType = ApiType.ALL
         val apiEmit = apiType.getEmitFilter()
@@ -542,11 +519,7 @@ fun processNonCodebaseFlags() {
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi =
-                    SignatureFileLoader.load(
-                        file = baseFile,
-                        kotlinStyleNulls = options.inputKotlinStyleNulls
-                    )
+                val baseApi = SignatureFileLoader.load(file = baseFile)
                 TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
             } else {
                 signatureApi
@@ -575,12 +548,7 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            mergeClasspathIntoTextCodebase(
-                SignatureFileLoader.load(
-                    file = signatureFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
-            )
+            mergeClasspathIntoTextCodebase(SignatureFileLoader.load(file = signatureFile))
         }
 
     val oldFormat =
@@ -604,11 +572,7 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         }
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
-            baseApi =
-                SignatureFileLoader.load(
-                    file = baseApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
+            baseApi = SignatureFileLoader.load(file = baseApiFile)
         }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
@@ -702,11 +666,7 @@ private fun loadFromSources(): Codebase {
             when {
                 previousApiFile == null -> null
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
-                else ->
-                    SignatureFileLoader.load(
-                        file = previousApiFile,
-                        kotlinStyleNulls = options.inputKotlinStyleNulls
-                    )
+                else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint
         ApiLint.check(codebase, previous, apiLintReporter)
@@ -849,15 +809,12 @@ fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     return environment
 }
 
-fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
+fun loadFromJarFile(apiJar: File, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
     codebase.initialize(environment, apiJar, preFiltered)
-    if (manifest != null) {
-        codebase.manifest = options.manifest
-    }
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
     val analyzer = ApiAnalyzer(codebase)
