@@ -104,6 +104,34 @@ class CommandTestConfig(private val test: BaseCommandTest) {
     fun folder(): File = test.temporaryFolder.newFolder()
 
     /**
+     * Create a file that can be passed as an input to a command.
+     *
+     * @param name the name of the file, relative to parentDir.
+     * @param contents the contents of the file.
+     * @param parentDir the optional parent directory within which the file will be created. If it
+     *   is not provided then the file will just be created in a test specific temporary folder.
+     */
+    fun inputFile(name: String, contents: String, parentDir: File? = null): File {
+        val f = parentDir?.resolve(name) ?: test.temporaryFolder.newFile(name)
+        f.writeText(contents)
+        return f
+    }
+
+    /**
+     * Get the path to a file that can be passed as an output from a command.
+     *
+     * @param name the name of the file, relative to parentDir.
+     * @param parentDir the optional parent directory within which the output file will be created.
+     *   If it is not provided then the file will just be created in a test specific temporary
+     *   folder.
+     */
+    fun outputFile(name: String, parentDir: File? = null): File {
+        val f = parentDir?.resolve(name) ?: test.temporaryFolder.newFile(name)
+        f.parentFile.mkdirs()
+        return f
+    }
+
+    /**
      * Add a lambda function verifier that will check some result of the test to the list of
      * verifiers that will be invoked after the command has been run.
      *

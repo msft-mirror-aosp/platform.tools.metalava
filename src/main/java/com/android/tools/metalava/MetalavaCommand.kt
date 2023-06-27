@@ -90,6 +90,7 @@ class MetalavaCommand(
 
         subcommands(
             AndroidJarsToSignaturesCommand(),
+            SignatureToJDiffCommand(),
             VersionCommand(),
         )
     }
