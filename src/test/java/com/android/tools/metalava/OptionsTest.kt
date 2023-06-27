@@ -455,6 +455,12 @@ Options:
                                              `api:classpath` will look for classes in the API signature files first and
                                              then in the classpath. Any classes that cannot be found will be treated as
                                              empty.", (default: api:classpath)
+  --api-overloaded-method-order [source|signature]
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `signature`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `source` will preserve the order in which they appear in the
+                                             source files. `signature` will sort them based on their signature.
+                                             (default: signature)
     """
             .trimIndent()
 

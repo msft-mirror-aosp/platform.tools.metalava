@@ -417,7 +417,22 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
      * files.
      */
-    var apiOverloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE
+    val apiOverloadedMethodOrder by
+        option(
+                help =
+                    """
+                Specifies the order of overloaded methods in signature files (default `signature`).
+                Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API.
+                `source` will preserve the order in which they appear in the source files.
+                `signature` will sort them based on their signature.
+            """
+                        .trimIndent()
+            )
+            .choice(OverloadedMethodOrder.values().associateBy { it.name.lowercase() })
+            .default(
+                OverloadedMethodOrder.SIGNATURE,
+                defaultForHelp = OverloadedMethodOrder.SIGNATURE.name.lowercase(),
+            )
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -839,16 +854,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_API,
                 "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_API_OVERLOADED_METHOD_ORDER -> {
-                    val order = getValue(args, ++index)
-                    val orders = OverloadedMethodOrder.values()
-                    apiOverloadedMethodOrder =
-                        orders.find { order == it.name.lowercase() }
-                            ?: throw DriverException(
-                                stderr =
-                                    "$ARG_API_OVERLOADED_METHOD_ORDER must be one of ${orders.joinToString { it.name.lowercase() }}; was $order"
-                            )
-                }
                 ARG_MANIFEST,
                 "-manifest" -> manifest = stringToExistingFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION,
