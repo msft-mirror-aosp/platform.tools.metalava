@@ -57,7 +57,13 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
  * the actual options to use, either created from the command line arguments for the main process or
  * with arguments supplied by tests.
  */
-var options = Options()
+var options =
+    Options().let {
+        // Call parse with an empty array to ensure that the properties are set to the correct
+        // defaults.
+        it.parse(emptyArray())
+        it
+    }
 
 private const val INDENT_WIDTH = 45
 
