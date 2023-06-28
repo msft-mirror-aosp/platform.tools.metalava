@@ -20,7 +20,7 @@ import com.github.ajalt.clikt.output.CliktHelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.output.Localization
 
-const val MAX_LINE_WIDTH = 120
+private const val MAX_LINE_WIDTH = 120
 
 /**
  * The following value was chosen to produce the same indentation for option descriptions as is
