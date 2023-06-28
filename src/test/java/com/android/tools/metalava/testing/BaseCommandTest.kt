@@ -17,11 +17,13 @@
 package com.android.tools.metalava.testing
 
 import com.android.tools.metalava.run
+import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
+import org.junit.rules.TemporaryFolder
 
 /**
  * Base class for command related tests.
@@ -40,6 +42,9 @@ abstract class BaseCommandTest {
      * tests.
      */
     @get:Rule val errorCollector = ErrorCollector()
+
+    /** Provides access to temporary files. */
+    @get:Rule val temporaryFolder = TemporaryFolder()
 
     /**
      * Type safe builder for configuring and running a command related test.
@@ -92,6 +97,9 @@ class CommandTestConfig(private val test: BaseCommandTest) {
 
     /** The list of lambdas that are invoked after the command has been run. */
     val verifiers = mutableListOf<() -> Unit>()
+
+    /** Create a temporary folder. */
+    fun folder(): File = test.temporaryFolder.newFolder()
 
     /**
      * Add a lambda function verifier that will check some result of the test to the list of

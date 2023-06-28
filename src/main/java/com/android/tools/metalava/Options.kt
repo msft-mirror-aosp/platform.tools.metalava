@@ -666,9 +666,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var omitLocations = false
 
-    /** Directory to write signature files to, if any. */
-    var androidJarSignatureFiles: File? = null
-
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
 
@@ -1190,15 +1187,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     mutableConvertToXmlFiles.add(
                         ConvertFile(signatureFile, jDiffFile, baseFile, strip)
                     )
-                }
-                "--write-android-jar-signatures" -> {
-                    val root = stringToExistingDir(getValue(args, ++index))
-                    if (!File(root, "prebuilts/sdk").isDirectory) {
-                        throw DriverException(
-                            "$androidJarSignatureFiles does not point to an Android source tree"
-                        )
-                    }
-                    androidJarSignatureFiles = root
                 }
                 "-encoding" -> {
                     val value = getValue(args, ++index)

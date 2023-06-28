@@ -619,12 +619,6 @@ fun processNonCodebaseFlags() {
         }
     }
 
-    // Convert android.jar files?
-    options.androidJarSignatureFiles?.let { root ->
-        // Generate API signature files for all the historical JAR files
-        ConvertJarsToSignatureFiles().convertJars(root)
-    }
-
     for (convert in options.convertToXmlFiles) {
         val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
 

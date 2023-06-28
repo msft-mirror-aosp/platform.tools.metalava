@@ -468,6 +468,8 @@ Options:
     private val SUB_COMMANDS =
         """
 Sub-commands:
+  android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
+                                             source tree by
   version                                    Show the version
         """
             .trimIndent()
