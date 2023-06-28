@@ -244,7 +244,7 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val textCodebase = SignatureFileLoader.loadFiles(sources)
+            val textCodebase = SignatureFileLoader.loadFiles(sources, options.apiClassResolution)
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
@@ -665,7 +665,9 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            mergeClasspathIntoTextCodebase(SignatureFileLoader.load(file = signatureFile))
+            mergeClasspathIntoTextCodebase(
+                SignatureFileLoader.load(signatureFile, options.apiClassResolution)
+            )
         }
 
     val oldFormat =
