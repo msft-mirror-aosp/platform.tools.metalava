@@ -620,34 +620,7 @@ fun processNonCodebaseFlags() {
     }
 
     for (convert in options.convertToXmlFiles) {
-        val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
-
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val strip = convert.strip
-        val apiReference = if (strip) apiType.getEmitFilter() else apiType.getReferenceFilter()
-        val baseFile = convert.baseApiFile
-
-        val outputApi =
-            if (baseFile != null) {
-                // Convert base on a diff
-                val baseApi = SignatureFileLoader.load(file = baseFile)
-                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
-            } else {
-                signatureApi
-            }
-
-        // See JDiff's XMLToAPI#nameAPI
-        val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(outputApi, convert.outputFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName
-            )
-        }
+        convert.process()
     }
 }
 
