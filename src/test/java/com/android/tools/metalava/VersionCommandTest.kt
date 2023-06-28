@@ -43,7 +43,7 @@ Usage: metalava version [options]
   Show the version
 
 Options:
-  -h, -?, --help  Show this message and exit
+  -h, -?, --help                             Show this message and exit
 
             """
                 .trimIndent(),
