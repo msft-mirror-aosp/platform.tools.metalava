@@ -131,13 +131,16 @@ class Reporter(
         return report(severity, location.forReport(), message, id)
     }
 
-    fun report(id: Issues.Issue, item: Item?, message: String, psi: PsiElement? = null): Boolean {
+    fun report(
+        id: Issues.Issue,
+        item: Item?,
+        message: String,
+        location: Location = Location.defaultLocation
+    ): Boolean {
         val severity = configuration.getSeverity(id)
         if (severity == HIDDEN) {
             return false
         }
-
-        val location = PsiLocationProvider.elementToLocation(psi)
 
         fun dispatch(
             which:
