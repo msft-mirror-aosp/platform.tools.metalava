@@ -24,21 +24,9 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.configuration
-import com.intellij.openapi.vfs.VfsUtilCore
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiParameter
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.containingClass
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
@@ -71,12 +59,6 @@ class Baseline(
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
     fun mark(element: Item, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(element)
-        return mark(elementId, message, issue)
-    }
-
-    /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(element: PsiElement, message: String, issue: Issues.Issue): Boolean {
         val elementId = getBaselineKey(element)
         return mark(elementId, message, issue)
     }
@@ -141,59 +123,6 @@ class Baseline(
             is ParameterItem ->
                 getBaselineKey(element.containingMethod()) + " parameter #" + element.parameterIndex
             else -> element.describe(false)
-        }
-    }
-
-    private fun getBaselineKey(element: PsiElement): String {
-        return when (element) {
-            is PsiClass -> element.qualifiedName ?: element.name ?: "?"
-            is KtClass -> element.fqName?.asString() ?: element.name ?: "?"
-            is PsiMethod -> {
-                val containingClass = element.containingClass
-                val name = element.name
-                val parameterList =
-                    "(" +
-                        element.parameterList.parameters.joinToString { it.type.canonicalText } +
-                        ")"
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name + parameterList
-                } else {
-                    name + parameterList
-                }
-            }
-            is PsiField -> {
-                val containingClass = element.containingClass
-                val name = element.name
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name
-                } else {
-                    name
-                }
-            }
-            is KtProperty -> {
-                val containingClass = element.containingClass()
-                val name = element.nameAsSafeName.asString()
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name
-                } else {
-                    name
-                }
-            }
-            is PsiPackage -> element.qualifiedName
-            is PsiParameter -> {
-                val method = element.declarationScope.parent
-                if (method is PsiMethod) {
-                    getBaselineKey(method) + " parameter #" + element.parameterIndex()
-                } else {
-                    "?"
-                }
-            }
-            is PsiFile -> {
-                val virtualFile = element.virtualFile
-                val file = VfsUtilCore.virtualToIoFile(virtualFile)
-                return getBaselineKey(file)
-            }
-            else -> element.toString()
         }
     }
 
