@@ -673,6 +673,11 @@ $FLAGS
             FileReadSandbox.reset()
         }
     }
+
+    @Test
+    fun `Test for @ usage on command line`() {
+        check(showAnnotations = arrayOf("@foo.Show"))
+    }
 }
 
 /**
