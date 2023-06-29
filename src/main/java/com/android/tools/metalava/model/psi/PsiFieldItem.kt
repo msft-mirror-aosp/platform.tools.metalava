@@ -75,11 +75,13 @@ class PsiFieldItem(
 
     override fun name(): String = name
 
-    override fun containingClass(): ClassItem = containingClass
+    override fun containingClass(): PsiClassItem = containingClass
+
+    override fun psi(): PsiField = psiField
 
     override fun isCloned(): Boolean {
         val psiClass = run {
-            val p = containingClass().psi() as? PsiClass ?: return false
+            val p = containingClass().psi()
             if (p is UClass) {
                 p.sourcePsi as? PsiClass ?: return false
             } else {

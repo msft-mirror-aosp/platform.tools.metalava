@@ -114,7 +114,7 @@ class PsiConstructorItem(
         // grab the parent class' PSI element instead for file/location purposes
         val element =
             if (implicitConstructor && element.containingFile?.virtualFile == null) {
-                containingClass().psi()
+                (containingClass() as PsiClassItem).psi()
             } else {
                 element
             }

@@ -21,7 +21,6 @@ import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
-import com.intellij.psi.PsiElement
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -238,9 +237,6 @@ interface Item {
 
         return null
     }
-
-    /** Returns the PSI element for this item, if any */
-    fun psi(): PsiElement? = null
 
     /** Returns the [Location] for this item, if any. */
     fun location(): Location = Location.unknownLocationAndBaselineKey

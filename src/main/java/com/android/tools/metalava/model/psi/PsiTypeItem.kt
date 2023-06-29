@@ -321,7 +321,7 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
         val s = convertTypeString(replacementMap)
-        return create(codebase, codebase.createPsiType(s, owner?.psi()))
+        return create(codebase, codebase.createPsiType(s, (owner as? PsiItem)?.psi()))
     }
 
     override fun hasTypeArguments(): Boolean {

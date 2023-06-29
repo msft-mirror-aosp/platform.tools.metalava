@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
@@ -528,7 +529,7 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = cls.psi()
+            val psi = (cls as? PsiClassItem)?.psi()
             if (
                 psi != null &&
                     isKotlin(psi) &&

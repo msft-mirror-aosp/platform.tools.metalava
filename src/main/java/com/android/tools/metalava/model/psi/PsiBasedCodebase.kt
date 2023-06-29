@@ -848,7 +848,7 @@ open class PsiBasedCodebase(
         context: Item?,
         mapName: Boolean
     ): PsiAnnotationItem {
-        val psiAnnotation = createPsiAnnotation(source, context?.psi())
+        val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
 

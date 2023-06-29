@@ -89,7 +89,8 @@ abstract class PsiItem(
         originallyHidden && !modifiers.hasShowAnnotation()
     }
 
-    override fun psi(): PsiElement? = element
+    /** Returns the PSI element for this item */
+    open fun psi(): PsiElement = element
 
     override fun location(): Location {
         return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
