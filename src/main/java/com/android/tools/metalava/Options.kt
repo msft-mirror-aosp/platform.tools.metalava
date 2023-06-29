@@ -57,7 +57,13 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
  * the actual options to use, either created from the command line arguments for the main process or
  * with arguments supplied by tests.
  */
-var options = Options()
+var options =
+    Options().let {
+        // Call parse with an empty array to ensure that the properties are set to the correct
+        // defaults.
+        it.parse(emptyArray())
+        it
+    }
 
 private const val INDENT_WIDTH = 45
 
@@ -1803,14 +1809,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         return File(path).absoluteFile
     }
 
-    fun getUsage(terminal: Terminal): String {
+    fun getUsage(terminal: Terminal, width: Int): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
-        usage(printWriter, terminal)
+        usage(printWriter, terminal, width)
         return usage.toString()
     }
 
-    private fun usage(out: PrintWriter, terminal: Terminal) {
+    private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
         val args =
             arrayOf(
                 "",
@@ -2188,11 +2194,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     "end of the command line, after the generate documentation flags."
             )
 
-        val sb = StringBuilder(INDENT_WIDTH)
-        for (indent in 0 until INDENT_WIDTH) {
-            sb.append(' ')
-        }
-        val indent = sb.toString()
+        val indent = " ".repeat(INDENT_WIDTH)
 
         var i = 0
         while (i < args.size) {
@@ -2212,8 +2214,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 val output =
                     wrap(
                         String.format(formatString, formattedArg, description),
-                        MAX_LINE_WIDTH + invisibleChars,
-                        MAX_LINE_WIDTH,
+                        width + invisibleChars,
+                        width,
                         indent
                     )
 
