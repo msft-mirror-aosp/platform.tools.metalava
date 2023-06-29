@@ -17,12 +17,18 @@
 package com.android.tools.metalava
 
 import com.github.ajalt.clikt.completion.CompletionCandidates
+import com.github.ajalt.clikt.core.ParameterHolder
+import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.parameters.arguments.ProcessedArgument
 import com.github.ajalt.clikt.parameters.arguments.RawArgument
 import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.NullableOption
+import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.RawOption
 import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 
 // This contains extensions methods for creating custom Clikt options.
@@ -148,4 +154,155 @@ internal fun stringToNewFile(value: String): File {
     }
 
     return FileReadSandbox.allowAccess(output)
+}
+
+// Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
+// collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
+const val HARD_NEWLINE = "\u0085"
+
+/**
+ * Create a property delegate for an enum.
+ *
+ * This will generate help text that:
+ * * uses lower case version of the enum value name (with `_` replaced with `-`) as the value to
+ *   supply on the command line.
+ * * formats the help for each enum value in its own block separated from surrounding blocks by
+ *   blank lines.
+ * * will tag the default enum value in the help.
+ *
+ * @param help the help for the option, does not need to include information about the default or
+ *   the individual options as they will be added automatically.
+ * @param enumValueHelpGetter given an enum value return the help for it.
+ * @param key given an enum value return the value that must be specified on the command line. This
+ *   is used to create a bidirectional mapping so that command line option can be mapped to the enum
+ *   value and the default enum value mapped back to the default command line option. Defaults to
+ *   using the lowercase version of the name with `_` replaced with `-`.
+ * @param default the default value, must be provided to ensure correct type inference.
+ */
+internal inline fun <reified T : Enum<T>> ParameterHolder.enumOption(
+    help: String,
+    noinline enumValueHelpGetter: (T) -> String,
+    noinline key: (T) -> String = { it.name.lowercase().replace("_", "-") },
+    default: T,
+): OptionWithValues<T, T, T> {
+    // Create a choice mapping from option to enum value using the `key` function.
+    val enumValues = enumValues<T>()
+    return nonInlineEnumOption(enumValues, help, enumValueHelpGetter, key, default)
+}
+
+/**
+ * Extract the majority of the work into a non-inline function to avoid it creating too much bloat
+ * in the call sites.
+ */
+internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
+    enumValues: Array<T>,
+    help: String,
+    enumValueHelpGetter: (T) -> String,
+    key: (T) -> String,
+    default: T
+): OptionWithValues<T, T, T> {
+    val optionToValue = enumValues.associateBy { key(it) }
+
+    // Create a reverse mapping from enum value to option. This may break if two enum value uses
+    // the same name in different cases, but that is highly unlikely as it breaks all coding
+    // standards.
+    val valueToOption = optionToValue.entries.associateBy({ it.value }, { it.key })
+    val defaultForHelp =
+        valueToOption.get(default) ?: throw IllegalStateException("Unknown enum value $default")
+
+    val constructedHelp = buildString {
+        append(help)
+        append(HARD_NEWLINE)
+        for (enumValue in enumValues) {
+            val value = key(enumValue)
+            // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
+            // which is used to deconstruct this.
+            append(constructStyleableChoiceOption(value))
+            append(" - ")
+            append(enumValueHelpGetter(enumValue))
+            append(HARD_NEWLINE)
+        }
+    }
+
+    return option(help = constructedHelp)
+        .choice(optionToValue)
+        .default(default, defaultForHelp = defaultForHelp)
+}
+
+/**
+ * Construct a styleable choice option.
+ *
+ * This prefixes and suffixes the choice option with `**` (like Markdown) so that they can be found
+ * in the help text using [deconstructStyleableChoiceOption] and replaced with actual styling
+ * sequences if needed.
+ */
+private fun constructStyleableChoiceOption(value: String) = "$HARD_NEWLINE**$value**"
+
+/**
+ * A regular expression that will match choice options created using
+ * [constructStyleableChoiceOption].
+ */
+private val deconstructStyleableChoiceOption = """$HARD_NEWLINE\*\*([^*]+)\*\*""".toRegex()
+
+/**
+ * Replace the choice option (i.e. the value passed to [constructStyleableChoiceOption]) with the
+ * result of calling the [transformer] on it.
+ *
+ * This must only be called on a [MatchResult] found using the [deconstructStyleableChoiceOption]
+ * regular expression.
+ */
+private fun MatchResult.replaceChoiceOption(
+    builder: StringBuilder,
+    transformer: (String) -> String
+) {
+    val group = groups[1] ?: throw IllegalStateException("group 1 not found in $this")
+    val choiceOption = group.value
+    val replacementText = transformer(choiceOption)
+    // Replace the choice option and the surrounding style markers but not the leading NEL.
+    builder.replace(range.first + 1, range.last + 1, replacementText)
+}
+
+/**
+ * Scan [help] using [deconstructStyleableChoiceOption] for enum value help created using
+ * [constructStyleableChoiceOption] and if it was found then style it using the [terminal].
+ *
+ * If an enum value is found that matches the value of the [HelpFormatter.Tags.DEFAULT] tag in
+ * [tags] then annotate is as the default and remove the tag, so it is not added by the default help
+ * formatter.
+ */
+internal fun styleEnumHelpTextIfNeeded(
+    help: String,
+    tags: MutableMap<String, String>,
+    terminal: Terminal
+): String {
+    val defaultForHelp = tags[HelpFormatter.Tags.DEFAULT]
+
+    // Find all styleable choice options in the help text. If there are none then just return
+    // and use the default rendering.
+    val matchResults = deconstructStyleableChoiceOption.findAll(help).toList()
+    if (matchResults.isEmpty()) {
+        return help
+    }
+
+    val styledHelp = buildString {
+        append(help)
+
+        // Iterate over the matches in reverse order replacing any styleable choice options
+        // with styled versions.
+        for (matchResult in matchResults.reversed()) {
+            matchResult.replaceChoiceOption(this) { optionValue ->
+                val styledOptionValue = terminal.bold(optionValue)
+                if (optionValue == defaultForHelp) {
+                    // Remove the default value from the tags so it is not included in the help.
+                    tags.remove(HelpFormatter.Tags.DEFAULT)
+
+                    "$styledOptionValue (default)"
+                } else {
+                    styledOptionValue
+                }
+            }
+        }
+    }
+
+    return styledHelp
 }

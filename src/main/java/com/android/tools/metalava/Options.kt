@@ -34,7 +34,6 @@ import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -292,21 +291,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var sources: List<File> = mutableSources
 
     val apiClassResolution by
-        option(
-                help =
-                    """
-                Determines how class resolution is performed when loading API signature files. `api`
-                will only look for classes in the API signature files. `api:classpath` will look for
-                classes in the API signature files first and then in the classpath. Any classes that
-                cannot be found will be treated as empty.",
+        enumOption(
+            help =
+                """
+                Determines how class resolution is performed when loading API signature files. Any
+                classes that cannot be found will be treated as empty.",
             """
-                        .trimIndent()
-            )
-            .choice(ApiClassResolution.values().associateBy { it.optionValue })
-            .default(
-                ApiClassResolution.API_CLASSPATH,
-                defaultForHelp = ApiClassResolution.API_CLASSPATH.optionValue
-            )
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = ApiClassResolution.API_CLASSPATH,
+            key = { it.optionValue },
+        )
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
@@ -426,12 +421,30 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>, val help: String) {
         /** Sort overloaded methods according to source order. */
-        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+        SOURCE(
+            MethodItem.sourceOrderForOverloadedMethodsComparator,
+            help =
+                """
+            preserves the order in which overloaded methods appear in the source files. This means
+            that refactorings of the source files which change the order but not the API can cause
+            unnecessary changes in the API signature files.
+        """
+                    .trimIndent()
+        ),
 
         /** Sort overloaded methods by their signature. */
-        SIGNATURE(MethodItem.comparator)
+        SIGNATURE(
+            MethodItem.comparator,
+            help =
+                """
+            sorts overloaded methods by their signature. This means that refactorings of the source
+            files which change the order but not the API will have no effect on the API signature
+            files.
+        """
+                    .trimIndent()
+        )
     }
 
     /**
@@ -439,21 +452,16 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * files.
      */
     val apiOverloadedMethodOrder by
-        option(
-                help =
-                    """
-                Specifies the order of overloaded methods in signature files (default `signature`).
+        enumOption(
+            help =
+                """
+                Specifies the order of overloaded methods in signature files.
                 Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API.
-                `source` will preserve the order in which they appear in the source files.
-                `signature` will sort them based on their signature.
             """
-                        .trimIndent()
-            )
-            .choice(OverloadedMethodOrder.values().associateBy { it.name.lowercase() })
-            .default(
-                OverloadedMethodOrder.SIGNATURE,
-                defaultForHelp = OverloadedMethodOrder.SIGNATURE.name.lowercase(),
-            )
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = OverloadedMethodOrder.SIGNATURE,
+        )
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
