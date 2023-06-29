@@ -98,7 +98,7 @@ class ApiFile {
                 first = false
             }
             api.description = description.toString()
-            api.postProcess()
+            parser.postProcess(api)
             return api
         }
 
@@ -128,10 +128,18 @@ class ApiFile {
         ): TextCodebase {
             val api = TextCodebase(File(filename), apiClassResolution)
             api.description = "Codebase loaded from $filename"
-            ApiFile().parseApiSingleFile(api, false, filename, apiText)
-            api.postProcess()
+            val parser = ApiFile()
+            parser.parseApiSingleFile(api, false, filename, apiText)
+            parser.postProcess(api)
             return api
         }
+    }
+
+    /**
+     * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
+     */
+    private fun postProcess(api: TextCodebase) {
+        TextCodebase.ReferenceResolver.resolveReferences(api)
     }
 
     @Throws(ApiParseException::class)
