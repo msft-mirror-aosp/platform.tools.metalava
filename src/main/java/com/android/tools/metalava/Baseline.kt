@@ -16,13 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.configuration
 import java.io.File
 import java.io.PrintWriter
@@ -55,12 +49,6 @@ class Baseline(
             // We've set a baseline for a nonexistent file: read it
             read()
         }
-    }
-
-    /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(element: Item, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(element)
-        return mark(elementId, message, issue)
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
@@ -106,24 +94,6 @@ class Baseline(
         }
 
         return false
-    }
-
-    private fun getBaselineKey(element: Item): String {
-        return when (element) {
-            is ClassItem -> element.qualifiedName()
-            is MethodItem ->
-                element.containingClass().qualifiedName() +
-                    "#" +
-                    element.name() +
-                    "(" +
-                    element.parameters().joinToString { it.type().toSimpleType() } +
-                    ")"
-            is FieldItem -> element.containingClass().qualifiedName() + "#" + element.name()
-            is PackageItem -> element.qualifiedName()
-            is ParameterItem ->
-                getBaselineKey(element.containingMethod()) + " parameter #" + element.parameterIndex
-            else -> element.describe(false)
-        }
     }
 
     private fun getBaselineKey(file: File): String {

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MutableModifierList
 
 abstract class TextItem(
@@ -48,4 +49,8 @@ abstract class TextItem(
     override var deprecated = false
 
     override fun isCloned(): Boolean = false
+
+    override fun location(): Location {
+        return Location(null, 0, Location.getBaselineKeyForItem(this))
+    }
 }

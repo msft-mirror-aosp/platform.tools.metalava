@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.configuration
-import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.text.TextItem
 import com.google.common.annotations.VisibleForTesting
@@ -150,9 +149,9 @@ class Reporter(
         ) =
             when {
                 location.path != null -> which(severity, location.forReport(), message, id)
-                item is PsiItem -> which(severity, elementToLocation(item.psi()), message, id)
                 item is TextItem ->
                     which(severity, (item as? TextItem)?.position.toString(), message, id)
+                item != null -> which(severity, item.location().forReport(), message, id)
                 else -> which(severity, null as String?, message, id)
             }
 
@@ -176,7 +175,7 @@ class Reporter(
         }
 
         val baseline = getBaseline()
-        if (item != null && baseline != null && baseline.mark(item, message, id)) {
+        if (item != null && baseline != null && baseline.mark(item.location(), message, id)) {
             return false
         } else if (
             location.path != null && baseline != null && baseline.mark(location, message, id)
@@ -254,11 +253,6 @@ class Reporter(
         // either both of them are absolute paths or both of them are not absolute paths.
         val path = rootFolder?.toPath()?.relativize(absolutePath) ?: absolutePath
         return path.toString()
-    }
-
-    private fun elementToLocation(element: PsiElement?): String? {
-        val location = PsiLocationProvider.elementToLocation(element)
-        return location.forReport()
     }
 
     /**
