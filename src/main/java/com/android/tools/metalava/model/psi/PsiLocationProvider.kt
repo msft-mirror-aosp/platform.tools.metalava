@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.Issues
+import com.android.tools.metalava.Reporter
 import com.android.tools.metalava.model.BaselineKey
 import com.android.tools.metalava.model.Location
 import com.intellij.openapi.util.TextRange
@@ -187,4 +189,9 @@ class PsiLocationProvider {
             }
         }
     }
+}
+
+fun Reporter.report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
+    val location = PsiLocationProvider.elementToLocation(element)
+    return report(id, null, message, location)
 }

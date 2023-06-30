@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.PsiParameterItem
+import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.lang.java.lexer.JavaLexer
 import org.jetbrains.kotlin.lexer.KtTokens

@@ -26,9 +26,7 @@ import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.configuration
-import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.google.common.annotations.VisibleForTesting
-import com.intellij.psi.PsiElement
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -82,8 +80,6 @@ class Reporter(
 ) {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
-    val totalCount
-        get() = errors.size + warningCount
 
     /** The number of errors. */
     val errorCount
@@ -96,39 +92,17 @@ class Reporter(
     // options.baseline will be initialized after the global [Reporter] is instantiated.
     private fun getBaseline(): Baseline? = customBaseline ?: options.baseline
 
-    fun report(id: Issues.Issue, element: PsiElement?, message: String): Boolean {
-        val severity = configuration.getSeverity(id)
-
-        if (severity == HIDDEN) {
-            return false
-        }
-
-        val baseline = getBaseline()
-        val location = PsiLocationProvider.elementToLocation(element)
-        if (location.path != null && baseline != null && baseline.mark(location, message, id)) {
-            return false
-        }
-
-        return report(severity, location.forReport(), message, id)
-    }
-
     fun report(id: Issues.Issue, file: File?, message: String): Boolean {
-        val severity = configuration.getSeverity(id)
-
-        if (severity == HIDDEN) {
-            return false
-        }
-
-        val baseline = getBaseline()
-
         val location = Location.forFile(file)
-        if (location.path != null && baseline != null && baseline.mark(location, message, id)) {
-            return false
-        }
-
-        return report(severity, location.forReport(), message, id)
+        return report(id, null, message, location)
     }
 
+    /**
+     * Report an issue.
+     *
+     * @param id the id of the issue.
+     * @param item the optional item for which the issue is reported.
+     */
     fun report(
         id: Issues.Issue,
         item: Item?,
