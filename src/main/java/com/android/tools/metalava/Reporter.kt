@@ -37,6 +37,7 @@ import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.impl.light.LightElement
 import java.io.File
 import java.io.PrintWriter
+import java.nio.file.Path
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
@@ -260,6 +261,19 @@ class Reporter(
         return range
     }
 
+    /**
+     * Relativize the [absolutePath] against the [rootFolder] if specified.
+     *
+     * Tests will set [rootFolder] to the temporary directory so that this can remove that from any
+     * paths that are reported to avoid the test having to be aware of the temporary directory.
+     */
+    private fun relativizeLocationPath(absolutePath: Path): String {
+        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
+        // either both of them are absolute paths or both of them are not absolute paths.
+        val path = rootFolder?.toPath()?.relativize(absolutePath) ?: absolutePath
+        return path.toString()
+    }
+
     private fun elementToLocation(element: PsiElement?): String? {
         element ?: return null
         val psiFile = element.containingFile ?: return null
@@ -270,12 +284,6 @@ class Reporter(
             } catch (e: UnsupportedOperationException) {
                 return null
             }
-
-        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
-        // either both of them are absolute paths or both of them are not absolute paths.
-        val path =
-            rootFolder?.toPath()?.relativize(virtualFileAbsolutePath) ?: virtualFileAbsolutePath
-        val pathString = path.toString()
 
         // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets sometimes)
         val sourceElement = (element as? UElement)?.sourcePsi ?: element
@@ -288,6 +296,7 @@ class Reporter(
                 ?: (sourceElement as? KtModifierListOwner)?.modifierList
                     ?: (sourceElement as? PsiModifierListOwner)?.modifierList ?: sourceElement
 
+        val pathString = relativizeLocationPath(virtualFileAbsolutePath)
         val range = getTextRange(rangeElement)
         val lineNumber =
             if (range == null) {
@@ -311,10 +320,14 @@ class Reporter(
         return line
     }
 
-    /** Convert the [Location] to an optional string representation suitable for use in a report. */
+    /**
+     * Convert the [Location] to an optional string representation suitable for use in a report.
+     *
+     * See [relativizeLocationPath].
+     */
     private fun Location.forReport(): String? {
         path ?: return null
-        val pathString = path.toString()
+        val pathString = relativizeLocationPath(path)
         return if (line > 0) "$pathString:$line" else pathString
     }
 
