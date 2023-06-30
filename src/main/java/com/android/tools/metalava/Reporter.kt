@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiLocationProvider
-import com.android.tools.metalava.model.text.TextItem
 import com.google.common.annotations.VisibleForTesting
 import com.intellij.psi.PsiElement
 import java.io.File
@@ -149,8 +148,6 @@ class Reporter(
         ) =
             when {
                 location.path != null -> which(severity, location.forReport(), message, id)
-                item is TextItem ->
-                    which(severity, (item as? TextItem)?.position.toString(), message, id)
                 item != null -> which(severity, item.location().forReport(), message, id)
                 else -> which(severity, null as String?, message, id)
             }
