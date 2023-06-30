@@ -24,6 +24,7 @@ import com.android.tools.metalava.Severity.LINT
 import com.android.tools.metalava.Severity.WARNING
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextItem
@@ -126,11 +127,13 @@ class Reporter(
         }
 
         val baseline = getBaseline()
-        if (file != null && baseline != null && baseline.mark(file, message, id)) {
+
+        val location = Location.forFile(file)
+        if (location.path != null && baseline != null && baseline.mark(location, message, id)) {
             return false
         }
 
-        return report(severity, file?.path, message, id)
+        return report(severity, location.forReport(), message, id)
     }
 
     fun report(id: Issues.Issue, item: Item?, message: String, psi: PsiElement? = null): Boolean {
@@ -306,6 +309,13 @@ class Reporter(
             }
         }
         return line
+    }
+
+    /** Convert the [Location] to an optional string representation suitable for use in a report. */
+    private fun Location.forReport(): String? {
+        path ?: return null
+        val pathString = path.toString()
+        return if (line > 0) "$pathString:$line" else pathString
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */

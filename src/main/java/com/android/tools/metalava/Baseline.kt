@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -81,16 +82,13 @@ class Baseline(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(file: File, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(file)
+    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
+        val elementId =
+            location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
     }
 
-    private fun mark(
-        elementId: String,
-        @Suppress("UNUSED_PARAMETER") message: String,
-        issue: Issues.Issue
-    ): Boolean {
+    private fun mark(elementId: String, message: String, issue: Issues.Issue): Boolean {
         val idMap: MutableMap<String, String>? =
             map[issue]
                 ?: run {
@@ -200,7 +198,15 @@ class Baseline(
     }
 
     private fun getBaselineKey(file: File): String {
-        val path = file.path
+        return transformBaselinePath(file.path)
+    }
+
+    /**
+     * Transform the path (which is absolute) so that it is relative to one of the source roots, and
+     * make sure that it uses `/` consistently as the file separator so that the generated files are
+     * platform independent.
+     */
+    private fun transformBaselinePath(path: String): String {
         for (sourcePath in options.sourcePath) {
             if (path.startsWith(sourcePath.path)) {
                 return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")
