@@ -16,12 +16,7 @@
 
 package com.android.tools.metalava
 
-const val JAVA_LANG_PREFIX = "java.lang."
-const val JAVA_LANG_OBJECT = "java.lang.Object"
-const val JAVA_LANG_STRING = "java.lang.String"
-const val JAVA_LANG_ENUM = "java.lang.Enum"
 const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
-const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"
 const val JAVA_LANG_DEPRECATED = "java.lang.Deprecated"
 const val ORG_JETBRAINS_ANNOTATIONS_PREFIX = "org.jetbrains.annotations."
 const val ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX = "org.intellij.lang.annotations."

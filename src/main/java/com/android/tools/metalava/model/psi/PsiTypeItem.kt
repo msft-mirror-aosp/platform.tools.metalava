@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem

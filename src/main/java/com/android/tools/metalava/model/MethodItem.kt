@@ -18,7 +18,6 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.text.TextCodebase
 import java.util.function.Predicate
-import org.jetbrains.kotlin.builtins.StandardNames
 
 interface MethodItem : MemberItem {
     /**
@@ -526,13 +525,11 @@ interface MethodItem : MemberItem {
     fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
 
     fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() &&
-            name() == StandardNames.ENUM_VALUES.identifier &&
-            parameters().isEmpty()
+        containingClass().isEnum() && name() == JAVA_ENUM_VALUES && parameters().isEmpty()
 
     fun isEnumSyntheticValueOf(): Boolean =
         containingClass().isEnum() &&
-            name() == StandardNames.ENUM_VALUE_OF.identifier &&
+            name() == JAVA_ENUM_VALUE_OF &&
             parameters().size == 1 &&
             parameters()[0].type().isString()
 }

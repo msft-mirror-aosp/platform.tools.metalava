@@ -21,10 +21,6 @@ import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
-import com.android.tools.metalava.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.JAVA_LANG_ENUM
-import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
@@ -32,6 +28,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE

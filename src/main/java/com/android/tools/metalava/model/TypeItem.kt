@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.JAVA_LANG_PREFIX
-import com.android.tools.metalava.JAVA_LANG_STRING
 import java.util.function.Predicate
 
 /**
