@@ -44,12 +44,18 @@ data class Location(
     val baselineKey: BaselineKey,
 ) {
     companion object {
-        private val unknownBaselineKey = getBaselineKeyForElementId("?")
+        val unknownBaselineKey = getBaselineKeyForElementId("?")
 
-        val defaultLocation = Location(null, 0, unknownBaselineKey)
+        fun unknownLocationWithBaselineKey(
+            baselineKey: BaselineKey = unknownBaselineKey
+        ): Location {
+            return Location(null, 0, baselineKey)
+        }
+
+        val unknownLocationAndBaselineKey = Location(null, 0, unknownBaselineKey)
 
         fun forFile(file: File?): Location {
-            file ?: return defaultLocation
+            file ?: return unknownLocationAndBaselineKey
             return Location(file.toPath(), 0, getBaselineKeyForFile(file))
         }
 

@@ -187,11 +187,10 @@ class ApiLintBaselineTest : DriverTest() {
         check(
             apiLint = "", // enabled
             baselineApiLint = "",
-            // This baseline is incorrect and just serves to show that the code is broken.
             updateBaselineApiLint =
                 """
                 // Baseline format: 1.0
-                MissingGetterMatchingBuilder: ?:
+                MissingGetterMatchingBuilder: test.Foo.Builder#setField(int):
                     test.Foo does not declare a `getField()` method matching method test.Foo.Builder.setField(int)
                 """,
             hideAnnotations =

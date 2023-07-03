@@ -198,7 +198,7 @@ class ApiLint(
         id: Issue,
         item: Item,
         message: String,
-        location: Location = Location.defaultLocation
+        location: Location = Location.unknownLocationAndBaselineKey
     ) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
