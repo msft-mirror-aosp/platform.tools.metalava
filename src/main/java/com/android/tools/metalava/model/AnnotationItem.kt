@@ -34,7 +34,6 @@ import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiField
@@ -153,15 +152,10 @@ interface AnnotationItem {
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
-            val name = qualifiedName
-            if (name != null) {
-                val cls =
-                    codebase.findClass(name)
-                        ?: (codebase as? PsiBasedCodebase)?.findOrCreateClass(name)
-                if (cls != null) {
-                    if (cls.isAnnotationType()) {
-                        return cls.getRetention()
-                    }
+            val cls = resolve()
+            if (cls != null) {
+                if (cls.isAnnotationType()) {
+                    return cls.getRetention()
                 }
             }
 
