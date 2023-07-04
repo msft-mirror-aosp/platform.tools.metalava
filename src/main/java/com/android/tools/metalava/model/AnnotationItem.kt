@@ -553,78 +553,87 @@ interface AnnotationItem {
         /**
          * If the given element has an *implicit* nullness, return it. This returns true for
          * implicitly nullable elements, such as the parameter to the equals method, false for
-         * implicitly non null elements (such as annotation type members), and null if there is no
+         * implicitly non-null elements (such as annotation type members), and null if there is no
          * implicit nullness.
          */
         fun getImplicitNullness(item: Item): Boolean? {
-            var nullable: Boolean? = null
-
-            // Is this a Kotlin object declaration (such as a companion object) ?
-            // If so, it is always non null.
-            val sourcePsi = item.psi()
-            if (sourcePsi is UElement && sourcePsi.sourcePsi is KtObjectDeclaration) {
-                nullable = false
-            }
-
-            // Constant field not initialized to null?
-            if (
-                item is FieldItem &&
-                    (item.isEnumConstant() ||
-                        item.modifiers.isFinal() && item.initialValue(false) != null)
-            ) {
-                // Assigned to constant: not nullable
-                nullable = false
-            } else if (item is FieldItem && item.modifiers.isFinal()) {
-                // If we're looking at a final field, look at the right hand side
-                // of the field to the field initialization. If that right hand side
-                // for example represents a method call, and the method we're calling
-                // is annotated with @NonNull, then the field (since it is final) will
-                // always be @NonNull as well.
-                val initializer = (item.psi() as? PsiField)?.initializer
-                if (initializer != null && initializer is PsiReference) {
-                    val resolved = initializer.resolve()
-                    if (
-                        resolved is PsiModifierListOwner &&
-                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
-                    ) {
-                        nullable = false
+            if (item is MemberItem) {
+                // Annotation type members cannot be null
+                if (item.containingClass().isAnnotationType()) {
+                    return false
+                } else if (item is FieldItem) {
+                    // Is this a Kotlin object declaration (such as a companion object) ?
+                    // If so, it is always non-null.
+                    val sourcePsi = item.psi()
+                    if (sourcePsi is UElement && sourcePsi.sourcePsi is KtObjectDeclaration) {
+                        return false
                     }
-                } else if (initializer != null && initializer is PsiCallExpression) {
-                    val resolved = initializer.resolveMethod()
+
+                    // Constant field not initialized to null?
                     if (
-                        resolved != null &&
-                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
+                        item.isEnumConstant() ||
+                            item.modifiers.isFinal() && item.initialValue(false) != null
                     ) {
-                        nullable = false
+                        // Assigned to constant: not nullable
+                        return false
+                    } else if (item.modifiers.isFinal()) {
+                        // If we're looking at a final field, look on the right hand side
+                        // of the field to the field initialization. If that right hand side
+                        // for example represents a method call, and the method we're calling
+                        // is annotated with @NonNull, then the field (since it is final) will
+                        // always be @NonNull as well.
+                        val initializer = (item.psi() as? PsiField)?.initializer
+                        if (initializer != null && initializer is PsiReference) {
+                            val resolved = initializer.resolve()
+                            if (
+                                resolved is PsiModifierListOwner &&
+                                    resolved.annotations.any {
+                                        isNonNullAnnotation(it.qualifiedName ?: "")
+                                    }
+                            ) {
+                                return false
+                            }
+                        } else if (initializer != null && initializer is PsiCallExpression) {
+                            val resolved = initializer.resolveMethod()
+                            if (
+                                resolved != null &&
+                                    resolved.annotations.any {
+                                        isNonNullAnnotation(it.qualifiedName ?: "")
+                                    }
+                            ) {
+                                return false
+                            }
+                        }
+                    }
+                } else if (item is MethodItem) {
+                    if (item.synthetic && item.isEnumSyntheticMethod()) {
+                        // Workaround the fact that the Kotlin synthetic enum methods
+                        // do not have nullness information
+                        return false
+                    }
+
+                    // toString has known nullness
+                    if (item.name() == "toString" && item.parameters().isEmpty()) {
+                        return false
                     }
                 }
-            } else if (
-                item.synthetic &&
-                    (item is MethodItem && item.isEnumSyntheticMethod() ||
-                        item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
-            ) {
-                // Workaround the fact that the Kotlin synthetic enum methods
-                // do not have nullness information
-                nullable = false
-            }
+            } else if (item is ParameterItem) {
+                if (item.synthetic && item.containingMethod().isEnumSyntheticMethod()) {
+                    // Workaround the fact that the Kotlin synthetic enum methods
+                    // do not have nullness information
+                    return false
+                }
 
-            // Annotation type members cannot be null
-            if (item is MemberItem && item.containingClass().isAnnotationType()) {
-                nullable = false
-            }
-
-            // Equals and toString have known nullness
-            if (item is MethodItem && item.name() == "toString" && item.parameters().isEmpty()) {
-                nullable = false
-            } else if (
-                item is ParameterItem &&
+                // Equals has known nullness
+                if (
                     item.containingMethod().name() == "equals" &&
-                    item.containingMethod().parameters().size == 1
-            ) {
-                nullable = true
+                        item.containingMethod().parameters().size == 1
+                ) {
+                    return true
+                }
             }
 
-            return nullable
+            return null
         }
     }
 }
