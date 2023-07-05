@@ -607,31 +607,6 @@ interface AnnotationItem {
                         }
                     }
                 }
-            } else if (item is MethodItem) {
-                if (item.synthetic && item.isEnumSyntheticMethod()) {
-                    // Workaround the fact that the Kotlin synthetic enum methods
-                    // do not have nullness information
-                    return false
-                }
-
-                // toString has known nullness
-                if (item.name() == "toString" && item.parameters().isEmpty()) {
-                    return false
-                }
-            } else if (item is ParameterItem) {
-                if (item.synthetic && item.containingMethod().isEnumSyntheticMethod()) {
-                    // Workaround the fact that the Kotlin synthetic enum methods
-                    // do not have nullness information
-                    return false
-                }
-
-                // Equals has known nullness
-                if (
-                    item.containingMethod().name() == "equals" &&
-                        item.containingMethod().parameters().size == 1
-                ) {
-                    return true
-                }
             }
 
             return null

@@ -417,6 +417,27 @@ interface MethodItem : MemberItem {
         return true
     }
 
+    override fun implicitNullness(): Boolean? {
+        // Delegate to the super class, only dropping through if it did not determine an implicit
+        // nullness.
+        super.implicitNullness()?.let { nullable ->
+            return nullable
+        }
+
+        if (synthetic && isEnumSyntheticMethod()) {
+            // Workaround the fact that the Kotlin synthetic enum methods
+            // do not have nullness information
+            return false
+        }
+
+        // toString has known nullness
+        if (name() == "toString" && parameters().isEmpty()) {
+            return false
+        }
+
+        return null
+    }
+
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }
