@@ -35,12 +35,6 @@ import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
 import com.android.tools.metalava.options
-import com.intellij.psi.PsiCallExpression
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiModifierListOwner
-import com.intellij.psi.PsiReference
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
-import org.jetbrains.uast.UElement
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -556,61 +550,7 @@ interface AnnotationItem {
          * implicitly non-null elements (such as annotation type members), and null if there is no
          * implicit nullness.
          */
-        fun getImplicitNullness(item: Item): Boolean? {
-            // Delegate to the item itself, only dropping through if it did not determine an
-            // implicit nullness.
-            item.implicitNullness()?.let { nullable ->
-                return nullable
-            }
-
-            if (item is FieldItem) {
-                // Is this a Kotlin object declaration (such as a companion object) ?
-                // If so, it is always non-null.
-                val sourcePsi = item.psi()
-                if (sourcePsi is UElement && sourcePsi.sourcePsi is KtObjectDeclaration) {
-                    return false
-                }
-
-                // Constant field not initialized to null?
-                if (
-                    item.isEnumConstant() ||
-                        item.modifiers.isFinal() && item.initialValue(false) != null
-                ) {
-                    // Assigned to constant: not nullable
-                    return false
-                } else if (item.modifiers.isFinal()) {
-                    // If we're looking at a final field, look on the right hand side
-                    // of the field to the field initialization. If that right hand side
-                    // for example represents a method call, and the method we're calling
-                    // is annotated with @NonNull, then the field (since it is final) will
-                    // always be @NonNull as well.
-                    val initializer = (item.psi() as? PsiField)?.initializer
-                    if (initializer != null && initializer is PsiReference) {
-                        val resolved = initializer.resolve()
-                        if (
-                            resolved is PsiModifierListOwner &&
-                                resolved.annotations.any {
-                                    isNonNullAnnotation(it.qualifiedName ?: "")
-                                }
-                        ) {
-                            return false
-                        }
-                    } else if (initializer != null && initializer is PsiCallExpression) {
-                        val resolved = initializer.resolveMethod()
-                        if (
-                            resolved != null &&
-                                resolved.annotations.any {
-                                    isNonNullAnnotation(it.qualifiedName ?: "")
-                                }
-                        ) {
-                            return false
-                        }
-                    }
-                }
-            }
-
-            return null
-        }
+        fun getImplicitNullness(item: Item): Boolean? = item.implicitNullness()
     }
 }
 
