@@ -543,14 +543,6 @@ interface AnnotationItem {
                 }
             }
         }
-
-        /**
-         * If the given element has an *implicit* nullness, return it. This returns true for
-         * implicitly nullable elements, such as the parameter to the equals method, false for
-         * implicitly non-null elements (such as annotation type members), and null if there is no
-         * implicit nullness.
-         */
-        fun getImplicitNullness(item: Item): Boolean? = item.implicitNullness()
     }
 }
 
