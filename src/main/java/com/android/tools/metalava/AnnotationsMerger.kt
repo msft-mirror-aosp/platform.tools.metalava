@@ -552,7 +552,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
     private fun mergeAnnotations(xmlElement: Element, item: Item) {
         loop@ for (annotationElement in getChildren(xmlElement)) {
             val originalName = getAnnotationName(annotationElement)
-            val qualifiedName = AnnotationItem.mapName(originalName) ?: originalName
+            val qualifiedName = codebase.annotationManager.mapName(originalName) ?: originalName
             if (hasNullnessConflicts(item, qualifiedName)) {
                 continue@loop
             }
@@ -847,10 +847,10 @@ class XmlBackedAnnotationItem(
     override val originalName: String,
     override val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
+    override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
-        val qualifiedName = AnnotationItem.mapName(qualifiedName, target) ?: return ""
+        val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
 
         if (attributes.isEmpty()) {
             return "@$qualifiedName"

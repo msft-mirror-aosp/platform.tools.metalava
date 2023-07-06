@@ -25,7 +25,6 @@ import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.ANDROIDX_INT_DEF
 import com.android.tools.metalava.ANDROIDX_LONG_DEF
 import com.android.tools.metalava.ANDROIDX_STRING_DEF
-import com.android.tools.metalava.options
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -155,21 +154,6 @@ interface AnnotationItem {
         fun simpleName(item: AnnotationItem): String {
             return item.qualifiedName?.let { "@${it.substringAfterLast('.')}" }.orEmpty()
         }
-
-        /**
-         * Maps an annotation name to the name to be used in signatures/stubs/external annotation
-         * files. Annotations that should not be exported are mapped to null.
-         */
-        fun mapName(
-            qualifiedName: String?,
-            target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-        ): String? = options.annotationManager.mapName(qualifiedName, target)
-
-        /** The applicable targets for this annotation */
-        fun computeTargets(
-            annotation: AnnotationItem,
-            classFinder: (String) -> ClassItem?
-        ): Set<AnnotationTarget> = options.annotationManager.computeTargets(annotation, classFinder)
 
         /**
          * Given a "full" annotation name, shortens it by removing redundant package names. This is
