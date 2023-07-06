@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -63,9 +62,7 @@ class CompatibilityCheck(
         }
     }
 
-    val oldFormat =
-        (oldCodebase as? TextCodebase)?.format
-            ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
+    val oldFormat = (oldCodebase as? TextCodebase)?.format
     /**
      * In old signature files, methods inherited from hidden super classes are not included. An
      * example of this is StringBuilder.setLength. More details about this are listed in
