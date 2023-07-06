@@ -35,9 +35,9 @@ import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.defaultConfiguration
-import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
 import com.google.common.io.ByteStreams

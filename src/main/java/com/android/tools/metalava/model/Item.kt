@@ -233,6 +233,9 @@ interface Item {
     /** Returns the PSI element for this item, if any */
     fun psi(): PsiElement? = null
 
+    /** Returns the [Location] for this item, if any. */
+    fun location(): Location = Location.defaultLocation
+
     /** Tag field used for DFS etc */
     var tag: Boolean
 
