@@ -20,6 +20,7 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
+import com.android.tools.metalava.options
 import java.io.File
 import java.util.function.Predicate
 
@@ -36,6 +37,9 @@ interface Codebase {
      * files, or a jar file, etc.
      */
     var location: File
+
+    /** The manager of annotations within this codebase. */
+    val annotationManager: AnnotationManager
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -120,7 +124,10 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
 
-abstract class DefaultCodebase(override var location: File) : Codebase {
+abstract class DefaultCodebase(
+    override var location: File,
+    override val annotationManager: AnnotationManager = options.annotationManager,
+) : Codebase {
     override var original: Codebase? = null
     @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
 

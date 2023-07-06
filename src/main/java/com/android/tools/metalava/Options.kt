@@ -22,6 +22,8 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
@@ -354,6 +356,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
+
+    val annotationManager: AnnotationManager by lazy { DefaultAnnotationManager(this) }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations

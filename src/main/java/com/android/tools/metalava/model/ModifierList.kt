@@ -235,7 +235,7 @@ interface ModifierList {
      * list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
-        val mappedName = AnnotationItem.mapName(qualifiedName)
+        val mappedName = codebase.annotationManager.mapName(qualifiedName)
         return annotations().firstOrNull { mappedName == it.qualifiedName }
     }
 
