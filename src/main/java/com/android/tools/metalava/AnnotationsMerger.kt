@@ -222,7 +222,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
 
     private fun mergeAnnotationsSignatureFile(path: String) {
         try {
-            val signatureCodebase = ApiFile.parseApi(File(path))
+            val signatureCodebase = ApiFile.parseApi(File(path), codebase.annotationManager)
             signatureCodebase.description =
                 "Signature files for annotation merger: loaded from $path"
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)

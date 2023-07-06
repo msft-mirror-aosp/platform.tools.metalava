@@ -21,6 +21,7 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -47,7 +48,8 @@ import kotlin.math.min
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
 class TextCodebase(
     location: File,
-) : DefaultCodebase(location) {
+    annotationManager: AnnotationManager,
+) : DefaultCodebase(location, annotationManager) {
     internal val mPackages = HashMap<String, TextPackageItem>(300)
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
 
@@ -242,7 +244,7 @@ class TextCodebase(
     companion object {
         fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): TextCodebase {
             // Compute just the delta
-            val delta = TextCodebase(baseFile)
+            val delta = TextCodebase(baseFile, signatureApi.annotationManager)
             delta.description = "Delta between $baseApi and $signatureApi"
 
             CodebaseComparator()
