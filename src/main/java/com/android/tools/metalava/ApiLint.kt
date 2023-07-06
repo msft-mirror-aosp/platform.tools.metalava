@@ -151,14 +151,12 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -194,12 +192,7 @@ class ApiLint(
         // No need to check "for stubs only APIs" (== "implicit" APIs)
         includeApisForStubPurposes = false
     ) {
-    private fun report(
-        id: Issue,
-        item: Item,
-        message: String,
-        location: Location = Location.unknownLocationAndBaselineKey
-    ) {
+    private fun report(id: Issue, item: Item, message: String, element: PsiElement? = null) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
         if (item.deprecated) {
@@ -216,7 +209,7 @@ class ApiLint(
             return
         }
 
-        reporter.report(id, item, message, location)
+        reporter.report(id, item, message, element)
     }
 
     private fun check() {
@@ -930,8 +923,7 @@ class ApiLint(
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiLocationProvider.elementToLocation(psi)
-            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
+            report(VISIBLY_SYNCHRONIZED, method, message.toString(), psi)
         }
 
         if (method.modifiers.isSynchronized()) {

@@ -29,17 +29,16 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
-import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
+import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
@@ -245,15 +244,15 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val classResolver = getClassResolver()
-            val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
+            val textCodebase = SignatureFileLoader.loadFiles(sources)
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
                 addMissingItemsRequiredForGeneratingStubs(textCodebase)
             }
-            textCodebase
+
+            mergeClasspathIntoTextCodebase(textCodebase)
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -666,11 +665,12 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            val classResolver = getClassResolver()
-            SignatureFileLoader.load(signatureFile, classResolver)
+            mergeClasspathIntoTextCodebase(SignatureFileLoader.load(file = signatureFile))
         }
 
-    val oldFormat = (oldCodebase as? TextCodebase)?.format
+    val oldFormat =
+        (oldCodebase as? TextCodebase)?.format
+            ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
     if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
         throw DriverException(
             "Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat"
@@ -898,13 +898,17 @@ private fun parseAbsoluteSources(
     return codebase
 }
 
-private fun getClassResolver(): ClassResolver? {
-    val apiClassResolution = options.apiClassResolution
-    val classpath = options.classpath
-    return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        PsiBasedClassResolver(classpath)
+/** If classpath jars are present, merges classes loaded from the jars into the [textCodebase]. */
+fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
+    return if (
+        options.apiClassResolution == ApiClassResolution.API_CLASSPATH &&
+            options.classpath.isNotEmpty()
+    ) {
+        progress("Processing classpath: ")
+        val uastEnvironment = loadUastFromJars(options.classpath)
+        TextCodebaseWithClasspath(textCodebase, uastEnvironment)
     } else {
-        null
+        textCodebase
     }
 }
 

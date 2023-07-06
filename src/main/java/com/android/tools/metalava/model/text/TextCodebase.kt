@@ -22,7 +22,6 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -34,6 +33,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.text.classpath.WrappedClassItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
@@ -47,11 +47,17 @@ import kotlin.math.min
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
 class TextCodebase(
     location: File,
+    apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
 ) : DefaultCodebase(location) {
     internal val mPackages = HashMap<String, TextPackageItem>(300)
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
 
-    val externalClasses = HashMap<String, ClassItem>()
+    // Classes which are not part of the API surface but are referenced by other classes.
+    // These are initialized as wrapped empty stubs, but may be switched out for PSI classes.
+    val wrappedStubClasses = HashMap<String, WrappedClassItem>()
+
+    /** True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes. */
+    val addWrappersForUnknownClasses = apiClassResolution == ApiClassResolution.API_CLASSPATH
 
     override var description = "Codebase"
     override var preFiltered: Boolean = true
@@ -92,56 +98,52 @@ class TextCodebase(
     }
 
     /**
-     * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
-     * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
-     * empty stub class (or interface, if [isInterface] is true).
+     * Tries to find [name] in [mAllClasses]. If not found, creates an empty stub class (or
+     * interface, if [isInterface] is true). If [canBeFromClasspath] is true, creates a
+     * [WrappedClassItem] with the stub class inside, which might later be switched out for a PSI
+     * class. Otherwise, just uses the stub class.
      *
      * Initializes outer classes and packages for the created class as needed.
      */
     fun getOrCreateClass(
         name: String,
         isInterface: Boolean = false,
-        classResolver: ClassResolver? = null,
+        canBeFromClasspath: Boolean = addWrappersForUnknownClasses,
     ): ClassItem {
         val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased] ?: externalClasses[erased]
+        val cls = mAllClasses[erased] ?: wrappedStubClasses[erased]
         if (cls != null) {
             return cls
         }
 
-        if (classResolver != null) {
-            val classItem = classResolver.resolveClass(erased)
-            if (classItem != null) {
-                // Save the class item, so it can be retrieved the next time this is loaded. This is
-                // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[erased] = classItem
-                return classItem
-            }
-        }
-
         val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[erased] = stubClass
-        stubClass.emit = false
 
-        val fullName = stubClass.fullName()
+        // If needed, wrap the class. Add the new class to the appropriate set
+        val newClass =
+            if (canBeFromClasspath) {
+                val wrappedClass = WrappedClassItem(stubClass)
+                wrappedStubClasses[erased] = wrappedClass
+                wrappedClass
+            } else {
+                mAllClasses[erased] = stubClass
+                stubClass
+            }
+        newClass.emit = false
+
+        val fullName = newClass.fullName()
         if (fullName.contains('.')) {
             // We created a new inner class stub. We need to fully initialize it with outer classes,
-            // themselves possibly stubs
+            // themselves
+            // possibly stubs
             val outerName = erased.substring(0, erased.lastIndexOf('.'))
-            // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, isInterface = false, classResolver = null)
-
-            // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
-            // another.
-            if (outerClass.codebase != stubClass.codebase) {
-                throw IllegalStateException(
-                    "Outer class $outerClass is from ${outerClass.codebase} but" +
-                        " inner class $stubClass is from ${stubClass.codebase}"
+            val outerClass =
+                getOrCreateClass(
+                    outerName,
+                    isInterface = false,
+                    canBeFromClasspath = canBeFromClasspath
                 )
-            }
-
             stubClass.containingClass = outerClass
-            outerClass.addInnerClass(stubClass)
+            outerClass.addInnerClass(newClass)
         } else {
             // Add to package
             val endIndex = erased.lastIndexOf('.')
@@ -161,9 +163,10 @@ class TextCodebase(
                         newPkg
                     }
             stubClass.setContainingPackage(pkg)
-            pkg.addClass(stubClass)
+            pkg.addClass(newClass)
         }
-        return stubClass
+
+        return newClass
     }
 
     override fun findPackage(pkgName: String): TextPackageItem? {
@@ -331,8 +334,6 @@ class TextCodebase(
                     override fun namesOfInterfaces(cl: TextClassItem): List<String>? = null
 
                     override fun nameOfSuperClass(cl: TextClassItem): String? = null
-
-                    override val classResolver: ClassResolver? = null
                 }
 
             // All this actually does is add in an appropriate super class depending on the class

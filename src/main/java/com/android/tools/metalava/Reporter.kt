@@ -24,15 +24,21 @@ import com.android.tools.metalava.Severity.LINT
 import com.android.tools.metalava.Severity.WARNING
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.configuration
-import com.android.tools.metalava.model.psi.PsiLocationProvider
+import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextItem
 import com.google.common.annotations.VisibleForTesting
+import com.intellij.openapi.util.TextRange
+import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiNameIdentifierOwner
+import com.intellij.psi.impl.light.LightElement
 import java.io.File
 import java.io.PrintWriter
-import java.nio.file.Path
+import org.jetbrains.kotlin.psi.KtModifierListOwner
+import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UElement
 
 /**
  * "Global" [Reporter] used by most operations. Certain operations, such as api-lint and
@@ -105,12 +111,11 @@ class Reporter(
         }
 
         val baseline = getBaseline()
-        val location = PsiLocationProvider.elementToLocation(element)
-        if (location.path != null && baseline != null && baseline.mark(location, message, id)) {
+        if (element != null && baseline != null && baseline.mark(element, message, id)) {
             return false
         }
 
-        return report(severity, location.forReport(), message, id)
+        return report(severity, elementToLocation(element), message, id)
     }
 
     fun report(id: Issues.Issue, file: File?, message: String): Boolean {
@@ -121,21 +126,14 @@ class Reporter(
         }
 
         val baseline = getBaseline()
-
-        val location = Location.forFile(file)
-        if (location.path != null && baseline != null && baseline.mark(location, message, id)) {
+        if (file != null && baseline != null && baseline.mark(file, message, id)) {
             return false
         }
 
-        return report(severity, location.forReport(), message, id)
+        return report(severity, file?.path, message, id)
     }
 
-    fun report(
-        id: Issues.Issue,
-        item: Item?,
-        message: String,
-        location: Location = Location.unknownLocationAndBaselineKey
-    ): Boolean {
+    fun report(id: Issues.Issue, item: Item?, message: String, psi: PsiElement? = null): Boolean {
         val severity = configuration.getSeverity(id)
         if (severity == HIDDEN) {
             return false
@@ -148,10 +146,10 @@ class Reporter(
                 ) -> Boolean
         ) =
             when {
-                location.path != null -> which(severity, location.forReport(), message, id)
+                psi != null -> which(severity, elementToLocation(psi), message, id)
+                item is PsiItem -> which(severity, elementToLocation(item.psi()), message, id)
                 item is TextItem ->
                     which(severity, (item as? TextItem)?.position.toString(), message, id)
-                item != null -> which(severity, item.location().forReport(), message, id)
                 else -> which(severity, null as String?, message, id)
             }
 
@@ -175,11 +173,9 @@ class Reporter(
         }
 
         val baseline = getBaseline()
-        if (item != null && baseline != null && baseline.mark(item.location(), message, id)) {
+        if (item != null && baseline != null && baseline.mark(item, message, id)) {
             return false
-        } else if (
-            location.path != null && baseline != null && baseline.mark(location, message, id)
-        ) {
+        } else if (psi != null && baseline != null && baseline.mark(psi, message, id)) {
             return false
         }
 
@@ -242,28 +238,74 @@ class Reporter(
         return false
     }
 
-    /**
-     * Relativize the [absolutePath] against the [rootFolder] if specified.
-     *
-     * Tests will set [rootFolder] to the temporary directory so that this can remove that from any
-     * paths that are reported to avoid the test having to be aware of the temporary directory.
-     */
-    private fun relativizeLocationPath(absolutePath: Path): String {
-        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
-        // either both of them are absolute paths or both of them are not absolute paths.
-        val path = rootFolder?.toPath()?.relativize(absolutePath) ?: absolutePath
-        return path.toString()
+    private fun getTextRange(element: PsiElement): TextRange? {
+        var range: TextRange? = null
+
+        if (element is UClass) {
+            range = element.sourcePsi?.textRange
+        } else if (element is PsiCompiledElement) {
+            if (element is LightElement) {
+                range = (element as PsiElement).textRange
+            }
+            if (range == null || TextRange.EMPTY_RANGE == range) {
+                return null
+            }
+        } else {
+            range = element.textRange
+        }
+
+        return range
     }
 
-    /**
-     * Convert the [Location] to an optional string representation suitable for use in a report.
-     *
-     * See [relativizeLocationPath].
-     */
-    private fun Location.forReport(): String? {
-        path ?: return null
-        val pathString = relativizeLocationPath(path)
-        return if (line > 0) "$pathString:$line" else pathString
+    private fun elementToLocation(element: PsiElement?): String? {
+        element ?: return null
+        val psiFile = element.containingFile ?: return null
+        val virtualFile = psiFile.virtualFile ?: return null
+        val virtualFileAbsolutePath =
+            try {
+                virtualFile.toNioPath().toAbsolutePath()
+            } catch (e: UnsupportedOperationException) {
+                return null
+            }
+
+        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
+        // either both of them are absolute paths or both of them are not absolute paths.
+        val path =
+            rootFolder?.toPath()?.relativize(virtualFileAbsolutePath) ?: virtualFileAbsolutePath
+        val pathString = path.toString()
+
+        // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets sometimes)
+        val sourceElement = (element as? UElement)?.sourcePsi ?: element
+
+        // Skip doc comments for classes, methods and fields by pointing at the line where the
+        // element's name is or falling back to the first line of its modifier list (which may
+        // include annotations) or lastly to the start of the element itself
+        val rangeElement =
+            (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
+                ?: (sourceElement as? KtModifierListOwner)?.modifierList
+                    ?: (sourceElement as? PsiModifierListOwner)?.modifierList ?: sourceElement
+
+        val range = getTextRange(rangeElement)
+        val lineNumber =
+            if (range == null) {
+                -1 // No source offsets, use invalid line number
+            } else {
+                getLineNumber(psiFile.text, range.startOffset) + 1
+            }
+        return if (lineNumber > 0) "$pathString:$lineNumber" else pathString
+    }
+
+    /** Returns the 0-based line number of character position <offset> in <text> */
+    private fun getLineNumber(text: String, offset: Int): Int {
+        var line = 0
+        var curr = 0
+        val target = offset.coerceAtMost(text.length)
+        while (curr < target) {
+            if (text[curr++] == '\n') {
+                line++
+            }
+        }
+        return line
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */

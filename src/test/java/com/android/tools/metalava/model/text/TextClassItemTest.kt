@@ -192,6 +192,7 @@ class TextClassItemTest {
             }
             """
                     .trimIndent(),
+                apiClassResolution = ApiClassResolution.API,
             )
 
         val getAdapter1 =
@@ -239,6 +240,7 @@ class TextClassItemTest {
             }
             """
                     .trimIndent(),
+                apiClassResolution = ApiClassResolution.API,
             )
 
         val compareTo1 =

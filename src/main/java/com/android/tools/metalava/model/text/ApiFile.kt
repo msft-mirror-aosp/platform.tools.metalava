@@ -28,7 +28,6 @@ import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -37,17 +36,17 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import com.android.tools.metalava.model.text.classpath.WrappedClassItem
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.io.Files
 import java.io.File
 import java.io.IOException
+import java.util.ArrayList
+import java.util.HashMap
 import javax.annotation.Nonnull
 import kotlin.text.Charsets.UTF_8
 
-class ApiFile(
-    /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?
-) : ResolverContext {
+class ApiFile : ResolverContext {
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -69,7 +68,11 @@ class ApiFile(
          *
          * @param file input signature file
          */
-        @Throws(ApiParseException::class) fun parseApi(@Nonnull file: File) = parseApi(listOf(file))
+        @Throws(ApiParseException::class)
+        fun parseApi(
+            @Nonnull file: File,
+            apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        ) = parseApi(listOf(file), apiClassResolution)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -83,12 +86,12 @@ class ApiFile(
         @Throws(ApiParseException::class)
         fun parseApi(
             @Nonnull files: List<File>,
-            classResolver: ClassResolver? = null,
+            apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
-            val api = TextCodebase(files[0])
+            val api = TextCodebase(files[0], apiClassResolution = apiClassResolution)
             val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile()
             var first = true
             for (file in files) {
                 if (!first) {
@@ -121,6 +124,7 @@ class ApiFile(
             return parseApi(
                 filename,
                 apiText,
+                ApiClassResolution.API_CLASSPATH,
             )
         }
 
@@ -130,11 +134,11 @@ class ApiFile(
         fun parseApi(
             @Nonnull filename: String,
             @Nonnull apiText: String,
-            classResolver: ClassResolver? = null,
+            apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
         ): TextCodebase {
-            val api = TextCodebase(File(filename))
+            val api = TextCodebase(File(filename), apiClassResolution)
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile()
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -1301,12 +1305,6 @@ interface ResolverContext {
      * super class.
      */
     fun nameOfSuperClass(cl: TextClassItem): String?
-
-    /**
-     * The optional [ClassResolver] that is used to resolve unknown classes within the
-     * [TextCodebase].
-     */
-    val classResolver: ClassResolver?
 }
 
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
@@ -1344,31 +1342,6 @@ class ReferenceResolver(
         resolveInnerClasses()
     }
 
-    /**
-     * Gets an existing, or creates a new [ClassItem].
-     *
-     * @param name the name of the class, may include generics.
-     * @param isInterface true if the class must be an interface, i.e. is referenced from an
-     *   `implements` list (or Kotlin equivalent).
-     * @param mustBeFromThisCodebase true if the class must be from the same codebase as this class
-     *   is currently resolving.
-     */
-    private fun getOrCreateClass(
-        name: String,
-        isInterface: Boolean = false,
-        mustBeFromThisCodebase: Boolean = false
-    ): ClassItem {
-        return if (mustBeFromThisCodebase) {
-            codebase.getOrCreateClass(name, isInterface = isInterface, classResolver = null)
-        } else {
-            codebase.getOrCreateClass(
-                name,
-                isInterface = isInterface,
-                classResolver = context.classResolver
-            )
-        }
-    }
-
     private fun resolveSuperclasses() {
         for (cl in classes) {
             // java.lang.Object has no superclass
@@ -1388,7 +1361,7 @@ class ReferenceResolver(
                     }
             }
 
-            val superclass = getOrCreateClass(scName)
+            val superclass = codebase.getOrCreateClass(scName)
             cl.setSuperClass(superclass, codebase.obtainTypeFromString(scName))
         }
     }
@@ -1397,7 +1370,7 @@ class ReferenceResolver(
         for (cl in classes) {
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
-                getOrCreateClass(interfaceName, isInterface = true)
+                codebase.getOrCreateClass(interfaceName, isInterface = true)
                 cl.addInterface(codebase.obtainTypeFromString(interfaceName))
             }
         }
@@ -1423,11 +1396,11 @@ class ReferenceResolver(
                 var exceptionClass: ClassItem? = codebase.mAllClasses[exception]
                 if (exceptionClass == null) {
                     // Exception not provided by this codebase. Inject a stub.
-                    exceptionClass = getOrCreateClass(exception)
+                    exceptionClass = codebase.getOrCreateClass(exception)
                     // Set super class to throwable?
                     if (exception != JAVA_LANG_THROWABLE) {
                         exceptionClass.setSuperClass(
-                            getOrCreateClass(JAVA_LANG_THROWABLE),
+                            codebase.getOrCreateClass(JAVA_LANG_THROWABLE),
                             TextTypeItem(codebase, JAVA_LANG_THROWABLE)
                         )
                     }
@@ -1443,8 +1416,8 @@ class ReferenceResolver(
             // make copy: we'll be removing non-top level classes during iteration
             val classes = ArrayList(pkg.classList())
             for (cls in classes) {
-                // External classes are already resolved.
-                if (cls.codebase != codebase) continue
+                // WrappedClassItems which are inner classes are resolved when they're created
+                if (cls is WrappedClassItem) continue
                 val cl = cls as TextClassItem
                 val name = cl.name
                 var index = name.lastIndexOf('.')
@@ -1457,7 +1430,8 @@ class ReferenceResolver(
                     // If the outer class doesn't exist in the text codebase, it should not be
                     // resolved through the classpath--if it did exist there, this inner class
                     // would be overridden by the version from the classpath.
-                    val outerClass = getOrCreateClass(outerClassName, mustBeFromThisCodebase = true)
+                    val outerClass =
+                        codebase.getOrCreateClass(outerClassName, canBeFromClasspath = false)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }
