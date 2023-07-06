@@ -118,13 +118,6 @@ API sources:
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the
                                              subtraction only applies to classes; it does not subtract members.
---typedefs-in-signatures <ref|inline>
-                                             Whether to include typedef annotations in signature files.
-                                             `--typedefs-in-signatures ref` will include just a reference to the typedef
-                                             class, which is not itself part of the API and is not included as a class,
-                                             and `--typedefs-in-signatures inline` will include the constants themselves
-                                             into each usage site. You can also supply `--typedefs-in-signatures none`
-                                             to explicitly turn it off, if the default ever changes.
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
@@ -456,6 +449,15 @@ Options:
                                              the API will have no effect on the API signature files.
   -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
+  --typedefs-in-signatures [none|ref|inline]
+                                             Whether to include typedef annotations in signature files.
+
+                                             none (default) - will not include typedef annotations in signature.
+
+                                             ref - will include just a reference to the typedef class, which is not
+                                             itself part of the API and is not included as a class
+
+                                             inline - will include the constants themselves into each usage site
     """
             .trimIndent()
 

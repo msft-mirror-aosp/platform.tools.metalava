@@ -717,7 +717,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
      */
-    var typedefMode = TypedefMode.NONE
+    val typedefMode by
+        enumOption(
+            ARG_TYPEDEFS_IN_SIGNATURES,
+            help = """Whether to include typedef annotations in signature files.""",
+            enumValueHelpGetter = { it.help },
+            default = TypedefMode.NONE,
+            key = { it.optionValue },
+        )
 
     /** Allow implicit root detection (which is the default behavior). See [ARG_NO_IMPLICIT_ROOT] */
     var allowImplicitRoot = true
@@ -957,20 +964,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "--skip-emit-packages" -> {
                     val packages = getValue(args, ++index)
                     mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
-                }
-                ARG_TYPEDEFS_IN_SIGNATURES -> {
-                    val type = getValue(args, ++index)
-                    typedefMode =
-                        when (type) {
-                            "ref" -> TypedefMode.REFERENCE
-                            "inline" -> TypedefMode.INLINE
-                            "none" -> TypedefMode.NONE
-                            else ->
-                                throw DriverException(
-                                    stderr =
-                                        "$ARG_TYPEDEFS_IN_SIGNATURES must be one of ref, inline, none; was $type"
-                                )
-                        }
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -1825,13 +1818,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "Subtracts the API in the given signature or jar file from the " +
                     "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
                     "Note that the subtraction only applies to classes; it does not subtract members.",
-                "$ARG_TYPEDEFS_IN_SIGNATURES <ref|inline>",
-                "Whether to include typedef annotations in signature " +
-                    "files. `$ARG_TYPEDEFS_IN_SIGNATURES ref` will include just a reference to the typedef class, " +
-                    "which is not itself part of the API and is not included as a class, and " +
-                    "`$ARG_TYPEDEFS_IN_SIGNATURES inline` will include the constants themselves into each usage " +
-                    "site. You can also supply `$ARG_TYPEDEFS_IN_SIGNATURES none` to explicitly turn it off, if the " +
-                    "default ever changes.",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",

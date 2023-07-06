@@ -170,6 +170,7 @@ const val HARD_NEWLINE = "\u0085"
  *   blank lines.
  * * will tag the default enum value in the help.
  *
+ * @param names the possible names for the option that can be used on the command line.
  * @param help the help for the option, does not need to include information about the default or
  *   the individual options as they will be added automatically.
  * @param enumValueHelpGetter given an enum value return the help for it.
@@ -180,6 +181,7 @@ const val HARD_NEWLINE = "\u0085"
  * @param default the default value, must be provided to ensure correct type inference.
  */
 internal inline fun <reified T : Enum<T>> ParameterHolder.enumOption(
+    vararg names: String,
     help: String,
     noinline enumValueHelpGetter: (T) -> String,
     noinline key: (T) -> String = { it.name.lowercase().replace("_", "-") },
@@ -187,7 +189,7 @@ internal inline fun <reified T : Enum<T>> ParameterHolder.enumOption(
 ): OptionWithValues<T, T, T> {
     // Create a choice mapping from option to enum value using the `key` function.
     val enumValues = enumValues<T>()
-    return nonInlineEnumOption(enumValues, help, enumValueHelpGetter, key, default)
+    return nonInlineEnumOption(names, enumValues, help, enumValueHelpGetter, key, default)
 }
 
 /**
@@ -195,6 +197,7 @@ internal inline fun <reified T : Enum<T>> ParameterHolder.enumOption(
  * in the call sites.
  */
 internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
+    names: Array<out String>,
     enumValues: Array<T>,
     help: String,
     enumValueHelpGetter: (T) -> String,
@@ -224,7 +227,7 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
         }
     }
 
-    return option(help = constructedHelp)
+    return option(names = names, help = constructedHelp)
         .choice(optionToValue)
         .default(default, defaultForHelp = defaultForHelp)
 }
