@@ -74,15 +74,31 @@ class PsiLocationProvider {
             return line
         }
 
-        fun elementToLocation(element: PsiElement?, baselineKey: BaselineKey? = null): Location {
-            element ?: return Location.defaultLocation
-            val psiFile = element.containingFile ?: return Location.defaultLocation
-            val virtualFile = psiFile.virtualFile ?: return Location.defaultLocation
+        /**
+         * Compute a [Location] (including [BaselineKey]) from a [PsiElement]
+         *
+         * @param element the optional element from which the path, line and [BaselineKey] will be
+         *   computed.
+         * @param overridingBaselineKey the optional [BaselineKey] to use instead of the
+         *   [BaselineKey] computed from the element.
+         */
+        fun elementToLocation(
+            element: PsiElement?,
+            overridingBaselineKey: BaselineKey? = null
+        ): Location {
+            element ?: return Location.unknownLocationAndBaselineKey
+            val actualBaselineKey = overridingBaselineKey ?: getBaselineKey(element)
+            val psiFile =
+                element.containingFile
+                    ?: return Location.unknownLocationWithBaselineKey(actualBaselineKey)
+            val virtualFile =
+                psiFile.virtualFile
+                    ?: return Location.unknownLocationWithBaselineKey(actualBaselineKey)
             val virtualFileAbsolutePath =
                 try {
                     virtualFile.toNioPath().toAbsolutePath()
                 } catch (e: UnsupportedOperationException) {
-                    return Location.defaultLocation
+                    return Location.unknownLocationWithBaselineKey(actualBaselineKey)
                 }
 
             // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets
@@ -104,7 +120,6 @@ class PsiLocationProvider {
                 } else {
                     getLineNumber(psiFile.text, range.startOffset) + 1
                 }
-            val actualBaselineKey = baselineKey ?: getBaselineKey(element)
             return Location(virtualFileAbsolutePath, lineNumber, actualBaselineKey)
         }
 

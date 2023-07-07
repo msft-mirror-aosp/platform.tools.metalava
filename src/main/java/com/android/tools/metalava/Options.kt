@@ -22,7 +22,12 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.AnnotationFilter
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MutableAnnotationFilter
+import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
@@ -355,6 +360,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
 
+    val annotationManager: AnnotationManager by lazy { DefaultAnnotationManager(this) }
+
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
 
@@ -666,9 +673,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var omitLocations = false
 
-    /** Directory to write signature files to, if any. */
-    var androidJarSignatureFiles: File? = null
-
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
 
@@ -699,12 +703,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /** List of signature files to export as JDiff files */
     val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
-
-    enum class TypedefMode {
-        NONE,
-        REFERENCE,
-        INLINE
-    }
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -1190,15 +1188,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     mutableConvertToXmlFiles.add(
                         ConvertFile(signatureFile, jDiffFile, baseFile, strip)
                     )
-                }
-                "--write-android-jar-signatures" -> {
-                    val root = stringToExistingDir(getValue(args, ++index))
-                    if (!File(root, "prebuilts/sdk").isDirectory) {
-                        throw DriverException(
-                            "$androidJarSignatureFiles does not point to an Android source tree"
-                        )
-                    }
-                    androidJarSignatureFiles = root
                 }
                 "-encoding" -> {
                     val value = getValue(args, ++index)

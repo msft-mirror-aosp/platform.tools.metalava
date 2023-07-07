@@ -145,7 +145,6 @@ import com.android.tools.metalava.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationItem.Companion.getImplicitNullness
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -198,7 +197,7 @@ class ApiLint(
         id: Issue,
         item: Item,
         message: String,
-        location: Location = Location.defaultLocation
+        location: Location = Location.unknownLocationAndBaselineKey
     ) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
@@ -1743,7 +1742,7 @@ class ApiLint(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && getImplicitNullness(item) == null) {
+        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
             val type = item.type()
             val inherited =
                 when (item) {

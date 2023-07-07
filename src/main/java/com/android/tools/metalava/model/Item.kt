@@ -166,6 +166,15 @@ interface Item {
     fun hasNullnessInfo(): Boolean = false
 
     /**
+     * Get this element's *implicit* nullness, if any.
+     *
+     * This returns true for implicitly nullable elements, such as the parameter to the
+     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
+     * members), and null if there is no implicit nullness.
+     */
+    fun implicitNullness(): Boolean? = null
+
+    /**
      * Returns true if this item has generic type whose nullability is determined at subclass
      * declaration site.
      */
@@ -234,7 +243,7 @@ interface Item {
     fun psi(): PsiElement? = null
 
     /** Returns the [Location] for this item, if any. */
-    fun location(): Location = Location.defaultLocation
+    fun location(): Location = Location.unknownLocationAndBaselineKey
 
     /** Tag field used for DFS etc */
     var tag: Boolean

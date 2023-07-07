@@ -109,7 +109,7 @@ class CompatibilityCheck(
         if (oldNullnessAnnotation != null) {
             val newNullnessAnnotation = findNullnessAnnotation(new)
             if (newNullnessAnnotation == null) {
-                val implicitNullness = AnnotationItem.getImplicitNullness(new)
+                val implicitNullness = new.implicitNullness()
                 if (implicitNullness == true && isNullable(old)) {
                     return
                 }

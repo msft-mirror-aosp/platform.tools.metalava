@@ -27,8 +27,10 @@ import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -69,7 +71,11 @@ class ApiFile(
          *
          * @param file input signature file
          */
-        @Throws(ApiParseException::class) fun parseApi(@Nonnull file: File) = parseApi(listOf(file))
+        @Throws(ApiParseException::class)
+        fun parseApi(
+            @Nonnull file: File,
+            annotationManager: AnnotationManager,
+        ) = parseApi(listOf(file), null, annotationManager)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -84,9 +90,10 @@ class ApiFile(
         fun parseApi(
             @Nonnull files: List<File>,
             classResolver: ClassResolver? = null,
+            annotationManager: AnnotationManager,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
-            val api = TextCodebase(files[0])
+            val api = TextCodebase(files[0], annotationManager)
             val description = StringBuilder("Codebase loaded from ")
             val parser = ApiFile(classResolver)
             var first = true
@@ -132,7 +139,7 @@ class ApiFile(
             @Nonnull apiText: String,
             classResolver: ClassResolver? = null,
         ): TextCodebase {
-            val api = TextCodebase(File(filename))
+            val api = TextCodebase(File(filename), DefaultAnnotationManager())
             api.description = "Codebase loaded from $filename"
             val parser = ApiFile(classResolver)
             parser.parseApiSingleFile(api, false, filename, apiText)

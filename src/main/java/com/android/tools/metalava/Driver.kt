@@ -619,12 +619,6 @@ fun processNonCodebaseFlags() {
         }
     }
 
-    // Convert android.jar files?
-    options.androidJarSignatureFiles?.let { root ->
-        // Generate API signature files for all the historical JAR files
-        ConvertJarsToSignatureFiles().convertJars(root)
-    }
-
     for (convert in options.convertToXmlFiles) {
         val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
 
@@ -893,7 +887,7 @@ private fun parseAbsoluteSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description)
+    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager)
     codebase.initialize(environment, units, packageDocs)
     return codebase
 }
@@ -902,7 +896,7 @@ private fun getClassResolver(): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        PsiBasedClassResolver(classpath)
+        PsiBasedClassResolver(classpath, options.annotationManager)
     } else {
         null
     }
@@ -922,7 +916,8 @@ fun loadFromJarFile(apiJar: File, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
-    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
+    val codebase =
+        PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", options.annotationManager)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)

@@ -49,7 +49,7 @@ object SignatureFileLoader {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseApi(files, classResolver)
+            return ApiFile.parseApi(files, classResolver, options.annotationManager)
         } catch (ex: ApiParseException) {
             throw DriverException("Unable to parse signature file: ${ex.message}")
         }

@@ -1157,7 +1157,7 @@ abstract class DriverTest {
             val actualText = readFile(apiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(api, format), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(apiFile)
+            ApiFile.parseApi(apiFile, options.annotationManager)
         }
 
         if (apiXml != null && apiXmlFile != null) {
@@ -1253,7 +1253,7 @@ abstract class DriverTest {
             val actualText = readFile(removedApiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(removedApi, format), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(removedApiFile)
+            ApiFile.parseApi(removedApiFile, options.annotationManager)
         }
 
         if (proguard != null && proguardFile != null) {

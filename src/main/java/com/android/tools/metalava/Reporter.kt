@@ -134,7 +134,7 @@ class Reporter(
         id: Issues.Issue,
         item: Item?,
         message: String,
-        location: Location = Location.defaultLocation
+        location: Location = Location.unknownLocationAndBaselineKey
     ): Boolean {
         val severity = configuration.getSeverity(id)
         if (severity == HIDDEN) {

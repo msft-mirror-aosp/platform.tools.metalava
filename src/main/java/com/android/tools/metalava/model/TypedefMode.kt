@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model
 
-/**
- * Sub-command for outputting the version.
- *
- * Similar to running `metalava --version`.
- */
-class VersionCommand :
-    MetalavaSubCommand(
-        help = "Show the version",
-        printHelpOnEmptyArgs = false,
-    ) {
-    override fun run() {
-        echo("$commandName version: ${Version.VERSION}")
-    }
+enum class TypedefMode {
+    NONE,
+    REFERENCE,
+    INLINE
 }
