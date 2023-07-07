@@ -377,6 +377,14 @@ interface AnnotationItem {
                 "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
+                // These optimization-related annotations shouldn't be exported.
+                "dalvik.annotation.optimization.CriticalNative",
+                "dalvik.annotation.optimization.FastNative",
+                "dalvik.annotation.optimization.NeverCompile",
+                "dalvik.annotation.optimization.NeverInline",
+                "dalvik.annotation.optimization.ReachabilitySensitive" ->
+                    return NO_ANNOTATION_TARGETS
+
                 // TODO(aurimas): consider using annotation directly instead of modifiers
                 "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
                 "android.annotation.DeprecatedForSdk",
@@ -442,10 +450,6 @@ interface AnnotationItem {
             // habit of loading all annotation classes it encounters.)
 
             if (qualifiedName.startsWith("androidx.annotation.")) {
-                if (options.includeSourceRetentionAnnotations) {
-                    return ANNOTATION_IN_ALL_STUBS
-                }
-
                 if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
                     // Right now, nullness annotations (other than @RecentlyNullable and @RecentlyNonNull)
                     // have to go in external annotations since they aren't in the class path for
@@ -506,10 +510,14 @@ interface AnnotationItem {
         fun unshortenAnnotation(source: String): String {
             return when {
                 source == "@Deprecated" -> "@java.lang.Deprecated"
-                // These 3 annotations are in the android.annotation. package, not androidx.annotation
+                // The first 3 annotations are in the android.annotation. package, not androidx.annotation
+                // Nullability annotations are written as @NonNull and @Nullable in API text files,
+                // and these should be linked no android.annotation package when generating stubs.
                 source.startsWith("@SystemService") ||
                     source.startsWith("@TargetApi") ||
-                    source.startsWith("@SuppressLint") ->
+                    source.startsWith("@SuppressLint") ||
+                    source.startsWith("@Nullable") ||
+                    source.startsWith("@NonNull") ->
                     "@android.annotation." + source.substring(1)
                 // If the first character of the name (after "@") is lower-case, then
                 // assume it's a package name, so no need to shorten it.
