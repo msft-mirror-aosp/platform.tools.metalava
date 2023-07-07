@@ -360,7 +360,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
 
-    val annotationManager: AnnotationManager by lazy { DefaultAnnotationManager(this) }
+    val annotationManager: AnnotationManager by lazy {
+        DefaultAnnotationManager(
+            DefaultAnnotationManager.Config(
+                passThroughAnnotations = passThroughAnnotations,
+                showAnnotations = showAnnotations,
+                hideAnnotations = hideAnnotations,
+                excludeAnnotations = excludeAnnotations,
+                typedefMode = typedefMode,
+            )
+        )
+    }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
