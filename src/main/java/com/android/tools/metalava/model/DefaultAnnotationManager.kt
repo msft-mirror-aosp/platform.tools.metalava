@@ -189,8 +189,7 @@ class DefaultAnnotationManager(val options: Options = Options()) : AnnotationMan
 
     private val TYPEDEF_ANNOTATION_TARGETS =
         if (
-            options.typedefMode == Options.TypedefMode.INLINE ||
-                options.typedefMode == Options.TypedefMode.NONE
+            options.typedefMode == TypedefMode.INLINE || options.typedefMode == TypedefMode.NONE
         ) // just here for compatibility purposes
          ANNOTATION_EXTERNAL
         else ANNOTATION_EXTERNAL_ONLY
@@ -331,7 +330,7 @@ class DefaultAnnotationManager(val options: Options = Options()) : AnnotationMan
         // not, skip it.
         val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
         if (!ApiPredicate().test(cls)) {
-            if (options.typedefMode != Options.TypedefMode.NONE) {
+            if (options.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
                     return ANNOTATION_SIGNATURE_ONLY
                 }

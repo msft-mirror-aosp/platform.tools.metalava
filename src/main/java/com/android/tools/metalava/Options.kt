@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableAnnotationFilter
+import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
@@ -702,12 +703,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /** List of signature files to export as JDiff files */
     val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
-
-    enum class TypedefMode {
-        NONE,
-        REFERENCE,
-        INLINE
-    }
 
     /**
      * How to handle typedef annotations in signature files; corresponds to

@@ -535,13 +535,13 @@ interface ModifierList {
                     } else if (annotation.qualifiedName == "java.lang.Deprecated") {
                         // Special cased in stubs and signature files: emitted first
                         continue
-                    } else if (options.typedefMode == Options.TypedefMode.INLINE) {
+                    } else if (options.typedefMode == TypedefMode.INLINE) {
                         val typedef = annotation.findTypedefAnnotation()
                         if (typedef != null) {
                             printAnnotation = typedef
                         }
                     } else if (
-                        options.typedefMode == Options.TypedefMode.REFERENCE &&
+                        options.typedefMode == TypedefMode.REFERENCE &&
                             annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
                             annotation.findTypedefAnnotation() != null
                     ) {
