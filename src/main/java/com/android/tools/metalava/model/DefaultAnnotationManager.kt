@@ -21,10 +21,10 @@ import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
+import java.util.function.Predicate
 
 class DefaultAnnotationManager(private val config: Config = Config()) : AnnotationManager {
 
@@ -34,6 +34,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
+        val apiPredicate: Predicate<Item> = Predicate { true },
     )
 
     override fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
@@ -337,7 +338,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         // See if the annotation is pointing to an annotation class that is part of the API; if
         // not, skip it.
         val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
-        if (!ApiPredicate().test(cls)) {
+        if (!config.apiPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
                     return ANNOTATION_SIGNATURE_ONLY

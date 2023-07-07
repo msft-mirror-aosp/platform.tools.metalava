@@ -368,6 +368,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 hideAnnotations = hideAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
+                apiPredicate = ApiPredicate(),
             )
         )
     }
