@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.testing
 
+import com.android.tools.metalava.Options
+import com.android.tools.metalava.options
 import com.android.tools.metalava.run
 import java.io.File
 import java.io.PrintWriter
@@ -143,16 +145,24 @@ class CommandTestConfig(private val test: BaseCommandTest) {
     }
 
     /** Run the test defined by the configuration. */
-    fun runTest() {
+    internal fun runTest() {
         val stdout = StringWriter()
         val stderr = StringWriter()
 
+        val printOut = PrintWriter(stdout)
+        val printErr = PrintWriter(stderr)
+
+        // Make sure that the global options is reset before each test. This is needed because the
+        // options are used throughout the code and extracting it is a time-consuming process. As a
+        // result even though some code being tested does not require options being parsed they do
+        // use code that accesses the options and so the code being tested relies on the options
+        // being set to their default value. This ensures that even if another test that modifies
+        // the global options is run that it does not affect this code.
+        options = Options()
+        options.parse(emptyArray(), printOut, printErr)
+
         // Runs Driver.run as that is the entrypoint that makes the test as realistic as possible.
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        run(originalArgs = args.toTypedArray(), stdout = printOut, stderr = printErr)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
         verify(0) { Assert.assertEquals(expectedStderr, stderr.toString()) }
