@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
-import java.util.function.Predicate
 import kotlin.math.min
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
@@ -178,14 +177,6 @@ class TextCodebase(
 
     override fun acceptTypes(visitor: TypeVisitor) {
         getPackages().acceptTypes(visitor)
-    }
-
-    override fun compareWith(
-        visitor: ComparisonVisitor,
-        other: Codebase,
-        filter: Predicate<Item>?
-    ) {
-        CodebaseComparator().compare(visitor, this, other, filter)
     }
 
     override fun createAnnotation(

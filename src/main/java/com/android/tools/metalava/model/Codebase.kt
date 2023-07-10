@@ -81,7 +81,7 @@ interface Codebase {
      * correlations and differences that it finds
      */
     fun compareWith(visitor: ComparisonVisitor, other: Codebase, filter: Predicate<Item>? = null) {
-        CodebaseComparator().compare(visitor, other, this, filter)
+        CodebaseComparator().compare(visitor, this, other, filter)
     }
 
     /** Creates an annotation item for the given (fully qualified) Java source */
