@@ -361,4 +361,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
 
         return ANNOTATION_EXTERNAL
     }
+
+    override val typedefMode: TypedefMode = config.typedefMode
 }
