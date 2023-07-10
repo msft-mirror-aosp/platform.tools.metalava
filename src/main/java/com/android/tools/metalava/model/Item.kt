@@ -222,10 +222,6 @@ interface Item {
      */
     fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
 
-    fun checkLevel(): Boolean {
-        return modifiers.checkLevel()
-    }
-
     fun sourceFile(): SourceFileItem? {
         var curr: Item? = this
         while (curr != null) {

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
@@ -1484,5 +1485,28 @@ private fun String.capitalize(): String {
         } else {
             it.toString()
         }
+    }
+}
+
+private fun Item.checkLevel(): Boolean {
+    return modifiers.checkLevel(options.docLevel)
+}
+
+/**
+ * Returns true if this modifier list has access modifiers that are adequate for the given
+ * documentation level
+ */
+fun ModifierList.checkLevel(level: DocLevel): Boolean {
+    if (level == DocLevel.HIDDEN) {
+        return true
+    } else if (owner().isHiddenOrRemoved()) {
+        return false
+    }
+    return when (level) {
+        DocLevel.PUBLIC -> isPublic()
+        DocLevel.PROTECTED -> isPublic() || isProtected()
+        DocLevel.PACKAGE -> !isPrivate()
+        DocLevel.PRIVATE,
+        DocLevel.HIDDEN -> true
     }
 }
