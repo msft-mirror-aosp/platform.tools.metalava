@@ -678,6 +678,9 @@ class DocAnalyzer(
             object : ApiVisitor(visitConstructorsAsMethods = true) {
                 override fun visitMethod(method: MethodItem) {
                     val psiMethod = method.psi() as? PsiMethod ?: return
+                    if (psiMethod.containingClass == null) {
+                        return
+                    }
                     @Suppress("DEPRECATION")
                     addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
                     elementToSdkExtSinceMap[
