@@ -132,13 +132,13 @@ interface MethodItem : MemberItem {
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
                 // include those
-                var curr = cls.publicSuperClass()
+                var curr = cls.superClass()
                 while (curr != null) {
                     if (predicate.test(curr)) {
                         classes.add(curr)
                         break
                     }
-                    curr = curr.publicSuperClass()
+                    curr = curr.superClass()
                 }
             }
         }

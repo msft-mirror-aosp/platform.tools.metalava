@@ -117,16 +117,6 @@ interface ClassItem : Item {
      */
     fun superClassType(): TypeItem?
 
-    /** Finds the public super class of this class, if any */
-    fun publicSuperClass(): ClassItem? {
-        var superClass = superClass()
-        while (superClass != null && !superClass.checkLevel()) {
-            superClass = superClass.superClass()
-        }
-
-        return superClass
-    }
-
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
         if (qualifiedName() == qualifiedName) {
