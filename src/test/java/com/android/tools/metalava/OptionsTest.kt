@@ -130,19 +130,6 @@ API sources:
                                              generated stub files.
 
 
-Documentation:
---public
-                                             Only include elements that are public
---protected
-                                             Only include elements that are public or protected
---package
-                                             Only include elements that are public, protected or package protected
---private
-                                             Include all elements except those that are marked hidden
---hidden
-                                             Include all elements, including hidden
-
-
 Extracting Signature Files:
 --api <file>
                                              Generate a signature descriptor file

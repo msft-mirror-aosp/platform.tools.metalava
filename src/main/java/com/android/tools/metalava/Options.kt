@@ -142,11 +142,6 @@ const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
-const val ARG_PUBLIC = "--public"
-const val ARG_PROTECTED = "--protected"
-const val ARG_PACKAGE = "--package"
-const val ARG_PRIVATE = "--private"
-const val ARG_HIDDEN = "--hidden"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -596,9 +591,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var apiVersionNames: List<String>? = null
 
-    /** Level to include for javadoc */
-    var docLevel = DocLevel.PROTECTED
-
     /** Whether to include the signature file format version header in most signature files */
     var includeSignatureFormatVersion: Boolean = true
 
@@ -1013,16 +1005,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
-                ARG_PUBLIC,
-                "-public" -> docLevel = DocLevel.PUBLIC
-                ARG_PROTECTED,
-                "-protected" -> docLevel = DocLevel.PROTECTED
-                ARG_PACKAGE,
-                "-package" -> docLevel = DocLevel.PACKAGE
-                ARG_PRIVATE,
-                "-private" -> docLevel = DocLevel.PRIVATE
-                ARG_HIDDEN,
-                "-hidden" -> docLevel = DocLevel.HIDDEN
                 ARG_INPUT_API_JAR -> apiJar = stringToExistingFile(getValue(args, ++index))
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
@@ -1907,18 +1889,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
-                "",
-                "Documentation:",
-                ARG_PUBLIC,
-                "Only include elements that are public",
-                ARG_PROTECTED,
-                "Only include elements that are public or protected",
-                ARG_PACKAGE,
-                "Only include elements that are public, protected or package protected",
-                ARG_PRIVATE,
-                "Include all elements except those that are marked hidden",
-                ARG_HIDDEN,
-                "Include all elements, including hidden",
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
