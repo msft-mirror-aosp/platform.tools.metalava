@@ -171,6 +171,18 @@ open class ItemVisitor(
         afterVisitItem(property)
     }
 
+    open fun visit(sourceFile: SourceFileItem) {
+        if (skip(sourceFile)) return
+
+        visitItem(sourceFile)
+        visitSourceFile(sourceFile)
+
+        sourceFile.classes().forEach { it.accept(this) }
+
+        afterVisitSourceFile(sourceFile)
+        afterVisitItem(sourceFile)
+    }
+
     open fun skip(item: Item): Boolean = false
 
     /**
