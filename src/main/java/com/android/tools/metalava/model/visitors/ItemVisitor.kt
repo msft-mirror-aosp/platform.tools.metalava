@@ -159,6 +159,18 @@ open class ItemVisitor(
         afterVisitItem(parameter)
     }
 
+    open fun visit(property: PropertyItem) {
+        if (skip(property)) {
+            return
+        }
+
+        visitItem(property)
+        visitProperty(property)
+
+        afterVisitProperty(property)
+        afterVisitItem(property)
+    }
+
     open fun skip(item: Item): Boolean = false
 
     /**

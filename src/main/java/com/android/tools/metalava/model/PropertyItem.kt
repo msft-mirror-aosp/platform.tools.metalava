@@ -43,15 +43,7 @@ interface PropertyItem : MemberItem {
     override fun type(): TypeItem
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitProperty(this)
-
-        visitor.afterVisitProperty(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
