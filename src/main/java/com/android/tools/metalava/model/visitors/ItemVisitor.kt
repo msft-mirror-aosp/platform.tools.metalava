@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFileItem
@@ -145,6 +146,12 @@ open class ItemVisitor(
 
         afterVisitPackage(pkg)
         afterVisitItem(pkg)
+    }
+
+    open fun visit(packageList: PackageList) {
+        visitCodebase(packageList.codebase)
+        packageList.packages.forEach { it.accept(this) }
+        afterVisitCodebase(packageList.codebase)
     }
 
     open fun visit(parameter: ParameterItem) {

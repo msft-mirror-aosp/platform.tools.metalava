@@ -21,9 +21,7 @@ import com.android.tools.metalava.model.visitors.TypeVisitor
 
 class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
     fun accept(visitor: ItemVisitor) {
-        visitor.visitCodebase(codebase)
-        packages.forEach { it.accept(visitor) }
-        visitor.afterVisitCodebase(codebase)
+        visitor.visit(this)
     }
 
     fun acceptTypes(visitor: TypeVisitor) {
