@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.JAVA_RETENTION
+import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.KT_RETENTION
 import com.android.tools.metalava.isRetention
 import com.android.tools.metalava.model.AnnotationRetention
@@ -211,6 +212,9 @@ open class PsiClassItem(
     override fun typeArgumentClasses(): List<ClassItem> {
         return PsiTypeItem.typeParameterClasses(codebase, psiClass.typeParameterList)
     }
+
+    override fun annotatedWithJvmDefaultWithCompatibility(): Boolean =
+        psiClass.hasAnnotation(JVM_DEFAULT_WITH_COMPATIBILITY)
 
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter

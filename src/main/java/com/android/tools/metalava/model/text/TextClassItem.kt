@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -143,6 +144,9 @@ open class TextClassItem(
 
         return typeParameterList!!
     }
+
+    override fun annotatedWithJvmDefaultWithCompatibility(): Boolean =
+        annotations?.contains("@$JVM_DEFAULT_WITH_COMPATIBILITY") ?: false
 
     override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
         return containingClass as? TypeParameterListOwner
