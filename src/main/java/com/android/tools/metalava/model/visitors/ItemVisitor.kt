@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
@@ -28,219 +25,20 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFileItem
 
-open class ItemVisitor(
-    /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    val visitConstructorsAsMethods: Boolean = true,
-    /**
-     * Whether inner classes should be visited "inside" a class; when this property is true, inner
-     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
-     * afterwards. Defaults to false.
-     */
-    val nestInnerClasses: Boolean = false,
-) {
-    open fun visit(cls: ClassItem) {
-        if (skip(cls)) {
-            return
-        }
+interface ItemVisitor {
+    fun visit(cls: ClassItem)
 
-        visitItem(cls)
-        visitClass(cls)
+    fun visit(field: FieldItem)
 
-        for (constructor in cls.constructors()) {
-            constructor.accept(this)
-        }
+    fun visit(method: MethodItem)
 
-        for (method in cls.methods()) {
-            method.accept(this)
-        }
+    fun visit(pkg: PackageItem)
 
-        for (property in cls.properties()) {
-            property.accept(this)
-        }
+    fun visit(packageList: PackageList)
 
-        if (cls.isEnum()) {
-            // In enums, visit the enum constants first, then the fields
-            for (field in cls.fields()) {
-                if (field.isEnumConstant()) {
-                    field.accept(this)
-                }
-            }
-            for (field in cls.fields()) {
-                if (!field.isEnumConstant()) {
-                    field.accept(this)
-                }
-            }
-        } else {
-            for (field in cls.fields()) {
-                field.accept(this)
-            }
-        }
+    fun visit(parameter: ParameterItem)
 
-        if (nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
-            }
-        } // otherwise done below
+    fun visit(property: PropertyItem)
 
-        afterVisitClass(cls)
-        afterVisitItem(cls)
-
-        if (!nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
-            }
-        }
-    }
-
-    open fun visit(field: FieldItem) {
-        if (skip(field)) {
-            return
-        }
-
-        visitItem(field)
-        visitField(field)
-
-        afterVisitField(field)
-        afterVisitItem(field)
-    }
-
-    open fun visit(method: MethodItem) {
-        if (skip(method)) {
-            return
-        }
-
-        visitItem(method)
-        if (method.isConstructor()) {
-            visitConstructor(method as ConstructorItem)
-        } else {
-            visitMethod(method)
-        }
-
-        for (parameter in method.parameters()) {
-            parameter.accept(this)
-        }
-
-        if (method.isConstructor()) {
-            afterVisitConstructor(method as ConstructorItem)
-        } else {
-            afterVisitMethod(method)
-        }
-        afterVisitItem(method)
-    }
-
-    open fun visit(pkg: PackageItem) {
-        if (skip(pkg)) {
-            return
-        }
-
-        visitItem(pkg)
-        visitPackage(pkg)
-
-        for (cls in pkg.topLevelClasses()) {
-            cls.accept(this)
-        }
-
-        afterVisitPackage(pkg)
-        afterVisitItem(pkg)
-    }
-
-    open fun visit(packageList: PackageList) {
-        visitCodebase(packageList.codebase)
-        packageList.packages.forEach { it.accept(this) }
-        afterVisitCodebase(packageList.codebase)
-    }
-
-    open fun visit(parameter: ParameterItem) {
-        if (skip(parameter)) {
-            return
-        }
-
-        visitItem(parameter)
-        visitParameter(parameter)
-
-        afterVisitParameter(parameter)
-        afterVisitItem(parameter)
-    }
-
-    open fun visit(property: PropertyItem) {
-        if (skip(property)) {
-            return
-        }
-
-        visitItem(property)
-        visitProperty(property)
-
-        afterVisitProperty(property)
-        afterVisitItem(property)
-    }
-
-    open fun visit(sourceFile: SourceFileItem) {
-        if (skip(sourceFile)) return
-
-        visitItem(sourceFile)
-        visitSourceFile(sourceFile)
-
-        sourceFile.classes().forEach { it.accept(this) }
-
-        afterVisitSourceFile(sourceFile)
-        afterVisitItem(sourceFile)
-    }
-
-    open fun skip(item: Item): Boolean = false
-
-    /**
-     * Visits the item. This is always called before other more specialized visit methods, such as
-     * [visitClass].
-     */
-    open fun visitItem(item: Item) {}
-
-    open fun visitCodebase(codebase: Codebase) {}
-
-    open fun visitPackage(pkg: PackageItem) {}
-
-    open fun visitSourceFile(sourceFile: SourceFileItem) {}
-
-    open fun visitClass(cls: ClassItem) {}
-
-    open fun visitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            visitMethod(constructor)
-        }
-    }
-
-    open fun visitField(field: FieldItem) {}
-
-    open fun visitMethod(method: MethodItem) {}
-
-    open fun visitParameter(parameter: ParameterItem) {}
-
-    open fun visitProperty(property: PropertyItem) {}
-
-    open fun afterVisitItem(item: Item) {}
-
-    open fun afterVisitCodebase(codebase: Codebase) {}
-
-    open fun afterVisitPackage(pkg: PackageItem) {}
-
-    open fun afterVisitSourceFile(sourceFile: SourceFileItem) {}
-
-    open fun afterVisitClass(cls: ClassItem) {}
-
-    open fun afterVisitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            afterVisitMethod(constructor)
-        }
-    }
-
-    open fun afterVisitField(field: FieldItem) {}
-
-    open fun afterVisitMethod(method: MethodItem) {}
-
-    open fun afterVisitParameter(parameter: ParameterItem) {}
-
-    open fun afterVisitProperty(property: PropertyItem) {}
+    fun visit(sourceFile: SourceFileItem)
 }
