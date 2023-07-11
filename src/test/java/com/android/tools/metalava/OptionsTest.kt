@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.defaultConfiguration
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter

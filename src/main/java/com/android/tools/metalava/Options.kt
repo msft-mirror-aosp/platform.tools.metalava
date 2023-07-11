@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableAnnotationFilter
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
