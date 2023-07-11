@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -25,16 +26,12 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 
 /**
- * Performs null migration analysis, looking at previous API signature
- * files and new signature files, and replacing new @Nullable and @NonNull
- * annotations with @RecentlyNullable and @RecentlyNonNull.
+ * Performs null migration analysis, looking at previous API signature files and new signature
+ * files, and replacing new @Nullable and @NonNull annotations with @RecentlyNullable
+ * and @RecentlyNonNull.
  *
- * TODO: Enforce compatibility across type use annotations, e.g.
- * changing parameter value from
- *    {@code @NonNull List<@Nullable String>}
- * to
- *    {@code @NonNull List<@NonNull String>}
- * is forbidden.
+ * TODO: Enforce compatibility across type use annotations, e.g. changing parameter value from
+ *   {@code @NonNull List<@Nullable String>} to {@code @NonNull List<@NonNull String>} is forbidden.
  */
 class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     override fun compare(old: Item, new: Item) {
@@ -50,8 +47,8 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     override fun compare(old: MethodItem, new: MethodItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-            val newType = new.returnType() ?: return
-            val oldType = old.returnType() ?: return
+            val newType = new.returnType()
+            val oldType = old.returnType()
             checkType(oldType, newType)
         }
     }
@@ -87,8 +84,9 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     private fun checkType(old: TypeItem, new: TypeItem) {
         if (hasNullnessInformation(new)) {
             assert(SUPPORT_TYPE_USE_ANNOTATIONS)
-            if (old.toTypeString(outerAnnotations = false, innerAnnotations = true) !=
-                new.toTypeString(outerAnnotations = false, innerAnnotations = true)
+            if (
+                old.toTypeString(outerAnnotations = false, innerAnnotations = true) !=
+                    new.toTypeString(outerAnnotations = false, innerAnnotations = true)
             ) {
                 new.markRecent()
             }
@@ -96,6 +94,10 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     }
 
     companion object {
+        fun migrateNulls(codebase: Codebase, previous: Codebase) {
+            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+        }
+
         fun hasNullnessInformation(item: Item): Boolean {
             return isNullable(item) || isNonNull(item)
         }
