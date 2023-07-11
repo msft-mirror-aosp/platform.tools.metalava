@@ -107,6 +107,30 @@ open class ItemVisitor(
         afterVisitItem(field)
     }
 
+    open fun visit(method: MethodItem) {
+        if (skip(method)) {
+            return
+        }
+
+        visitItem(method)
+        if (method.isConstructor()) {
+            visitConstructor(method as ConstructorItem)
+        } else {
+            visitMethod(method)
+        }
+
+        for (parameter in method.parameters()) {
+            parameter.accept(this)
+        }
+
+        if (method.isConstructor()) {
+            afterVisitConstructor(method as ConstructorItem)
+        } else {
+            afterVisitMethod(method)
+        }
+        afterVisitItem(method)
+    }
+
     open fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
             return
