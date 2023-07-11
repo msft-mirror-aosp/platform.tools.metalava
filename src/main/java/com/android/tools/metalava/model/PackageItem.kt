@@ -16,10 +16,8 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
-import com.android.tools.metalava.tick
 
 interface PackageItem : Item {
     /** The qualified name of this package */
@@ -58,27 +56,6 @@ interface PackageItem : Item {
     fun empty() = topLevelClasses().none()
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor is ApiVisitor) {
-            if (!emit) {
-                return
-            }
-
-            // For the API visitor packages are visited lazily; only when we encounter
-            // an unfiltered item within the class
-            topLevelClasses().asSequence().sortedWith(ClassItem.classNameSorter()).forEach {
-                tick()
-                it.accept(visitor)
-            }
-
-            if (visitor.visitingPackage) {
-                visitor.visitingPackage = false
-                visitor.afterVisitPackage(this)
-                visitor.afterVisitItem(this)
-            }
-
-            return
-        }
-
         visitor.visit(this)
     }
 

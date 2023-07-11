@@ -22,8 +22,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.options
+import com.android.tools.metalava.tick
 import java.util.function.Predicate
 
 open class ApiVisitor(
@@ -131,6 +133,25 @@ open class ApiVisitor(
         // results in the outer class being described in the signature file.
         val candidate = VisitCandidate(cls, this)
         candidate.accept()
+    }
+
+    override fun visit(pkg: PackageItem) {
+        if (!pkg.emit) {
+            return
+        }
+
+        // For the API visitor packages are visited lazily; only when we encounter
+        // an unfiltered item within the class
+        pkg.topLevelClasses().asSequence().sortedWith(ClassItem.classNameSorter()).forEach {
+            tick()
+            it.accept(this)
+        }
+
+        if (visitingPackage) {
+            visitingPackage = false
+            afterVisitPackage(pkg)
+            afterVisitItem(pkg)
+        }
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
