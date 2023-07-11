@@ -95,6 +95,18 @@ open class ItemVisitor(
         }
     }
 
+    open fun visit(field: FieldItem) {
+        if (skip(field)) {
+            return
+        }
+
+        visitItem(field)
+        visitField(field)
+
+        afterVisitField(field)
+        afterVisitItem(field)
+    }
+
     open fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
             return
