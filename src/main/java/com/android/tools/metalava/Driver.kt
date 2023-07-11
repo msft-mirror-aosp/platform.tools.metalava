@@ -423,7 +423,7 @@ internal fun processFlags() {
         // as migrated (which will cause the Kotlin compiler to treat problems
         // as warnings instead of errors
 
-        migrateNulls(codebase, previous)
+        NullnessMigration.migrateNulls(codebase, previous)
 
         previous.dispose()
     }
@@ -709,10 +709,6 @@ fun createTempFile(namePrefix: String, nameSuffix: String): File {
     } else {
         File.createTempFile(namePrefix, nameSuffix)
     }
-}
-
-private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase)
 }
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
