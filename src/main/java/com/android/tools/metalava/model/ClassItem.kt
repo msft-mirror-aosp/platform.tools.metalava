@@ -269,57 +269,7 @@ interface ClassItem : Item {
             return
         }
 
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitClass(this)
-
-        for (constructor in constructors()) {
-            constructor.accept(visitor)
-        }
-
-        for (method in methods()) {
-            method.accept(visitor)
-        }
-
-        for (property in properties()) {
-            property.accept(visitor)
-        }
-
-        if (isEnum()) {
-            // In enums, visit the enum constants first, then the fields
-            for (field in fields()) {
-                if (field.isEnumConstant()) {
-                    field.accept(visitor)
-                }
-            }
-            for (field in fields()) {
-                if (!field.isEnumConstant()) {
-                    field.accept(visitor)
-                }
-            }
-        } else {
-            for (field in fields()) {
-                field.accept(visitor)
-            }
-        }
-
-        if (visitor.nestInnerClasses) {
-            for (cls in innerClasses()) {
-                cls.accept(visitor)
-            }
-        } // otherwise done below
-
-        visitor.afterVisitClass(this)
-        visitor.afterVisitItem(this)
-
-        if (!visitor.nestInnerClasses) {
-            for (cls in innerClasses()) {
-                cls.accept(visitor)
-            }
-        }
+        visitor.visit(this)
     }
 
     fun accept(visitor: ApiVisitor) {
