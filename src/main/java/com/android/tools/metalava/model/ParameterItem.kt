@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
-
 interface ParameterItem : Item {
     /** The name of this field */
     fun name(): String

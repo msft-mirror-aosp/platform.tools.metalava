@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList

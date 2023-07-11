@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
-
 interface PropertyItem : MemberItem {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?

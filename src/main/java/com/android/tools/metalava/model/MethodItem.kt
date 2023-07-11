@@ -17,8 +17,6 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.util.function.Predicate
 import org.jetbrains.kotlin.builtins.StandardNames
 

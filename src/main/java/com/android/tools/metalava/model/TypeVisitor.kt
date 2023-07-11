@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
-
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
+package com.android.tools.metalava.model
 
 open class TypeVisitor(val includeInterfaces: Boolean = false) {
     open fun skip(item: Item): Boolean = false

@@ -14,16 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
-
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFileItem
+package com.android.tools.metalava.model
 
 interface ItemVisitor {
     fun visit(cls: ClassItem)

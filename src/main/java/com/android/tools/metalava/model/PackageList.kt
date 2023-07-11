@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
-
 class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
     fun accept(visitor: ItemVisitor) {
         visitor.visit(this)

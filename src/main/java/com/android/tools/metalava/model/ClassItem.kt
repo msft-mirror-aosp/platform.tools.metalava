@@ -21,8 +21,6 @@ import com.android.tools.metalava.ApiAnalyzer
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.google.common.base.Splitter
 import java.util.ArrayList
 import java.util.LinkedHashSet
