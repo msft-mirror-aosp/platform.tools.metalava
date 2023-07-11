@@ -147,6 +147,18 @@ open class ItemVisitor(
         afterVisitItem(pkg)
     }
 
+    open fun visit(parameter: ParameterItem) {
+        if (skip(parameter)) {
+            return
+        }
+
+        visitItem(parameter)
+        visitParameter(parameter)
+
+        afterVisitParameter(parameter)
+        afterVisitItem(parameter)
+    }
+
     open fun skip(item: Item): Boolean = false
 
     /**
