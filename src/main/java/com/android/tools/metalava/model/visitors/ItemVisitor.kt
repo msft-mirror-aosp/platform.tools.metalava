@@ -95,6 +95,22 @@ open class ItemVisitor(
         }
     }
 
+    open fun visit(pkg: PackageItem) {
+        if (skip(pkg)) {
+            return
+        }
+
+        visitItem(pkg)
+        visitPackage(pkg)
+
+        for (cls in pkg.topLevelClasses()) {
+            cls.accept(this)
+        }
+
+        afterVisitPackage(pkg)
+        afterVisitItem(pkg)
+    }
+
     open fun skip(item: Item): Boolean = false
 
     /**

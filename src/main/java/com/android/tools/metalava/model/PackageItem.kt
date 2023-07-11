@@ -79,19 +79,7 @@ interface PackageItem : Item {
             return
         }
 
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitPackage(this)
-
-        for (cls in topLevelClasses()) {
-            cls.accept(visitor)
-        }
-
-        visitor.afterVisitPackage(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
