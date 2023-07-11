@@ -360,7 +360,18 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
 
-    val annotationManager: AnnotationManager by lazy { DefaultAnnotationManager(this) }
+    val annotationManager: AnnotationManager by lazy {
+        DefaultAnnotationManager(
+            DefaultAnnotationManager.Config(
+                passThroughAnnotations = passThroughAnnotations,
+                showAnnotations = showAnnotations,
+                hideAnnotations = hideAnnotations,
+                excludeAnnotations = excludeAnnotations,
+                typedefMode = typedefMode,
+                apiPredicate = ApiPredicate(),
+            )
+        )
+    }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
@@ -702,7 +713,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private var compileSdkVersion: String? = null
 
     /** List of signature files to export as JDiff files */
-    val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
+    internal val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -746,14 +757,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     var strictInputViolationsFile: File? = null
     var strictInputViolationsPrintWriter: PrintWriter? = null
-
-    /** File conversion tasks */
-    data class ConvertFile(
-        val fromApiFile: File,
-        val outputFile: File,
-        val baseApiFile: File? = null,
-        val strip: Boolean = false
-    )
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null

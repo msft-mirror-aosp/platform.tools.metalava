@@ -38,6 +38,10 @@ interface AnnotationFilter {
     fun isNotEmpty(): Boolean
     // Returns the fully-qualified class name of the first annotation matched by this filter
     fun firstQualifiedName(): String
+
+    companion object {
+        fun emptyFilter(): AnnotationFilter = MutableAnnotationFilter()
+    }
 }
 
 // Mutable implementation of AnnotationFilter

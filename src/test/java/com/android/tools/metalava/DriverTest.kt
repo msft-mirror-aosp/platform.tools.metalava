@@ -826,7 +826,7 @@ abstract class DriverTest {
                 emptyArray()
             }
 
-        val convertFiles = mutableListOf<Options.ConvertFile>()
+        val convertFiles = mutableListOf<ConvertFile>()
         val convertArgs =
             if (convertToJDiff.isNotEmpty()) {
                 val args = mutableListOf<String>()
@@ -847,7 +847,7 @@ abstract class DriverTest {
                         } else {
                             null
                         }
-                    convertFiles += Options.ConvertFile(convertSig, output, baseFile, strip = true)
+                    convertFiles += ConvertFile(convertSig, output, baseFile, strip = true)
                     index++
 
                     if (baseFile != null) {
