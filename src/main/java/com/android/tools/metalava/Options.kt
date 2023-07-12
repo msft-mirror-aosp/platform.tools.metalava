@@ -24,7 +24,6 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationFilter
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableAnnotationFilter
 import com.android.tools.metalava.model.TypedefMode
