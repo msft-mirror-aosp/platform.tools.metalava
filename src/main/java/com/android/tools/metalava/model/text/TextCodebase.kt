@@ -27,8 +27,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -161,14 +159,6 @@ class TextCodebase(
 
     override fun findPackage(pkgName: String): TextPackageItem? {
         return mPackages[pkgName]
-    }
-
-    override fun accept(visitor: ItemVisitor) {
-        getPackages().accept(visitor)
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        getPackages().acceptTypes(visitor)
     }
 
     override fun createAnnotation(
