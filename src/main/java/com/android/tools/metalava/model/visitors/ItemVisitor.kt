@@ -40,8 +40,6 @@ open class ItemVisitor(
      * afterwards. Defaults to false.
      */
     val nestInnerClasses: Boolean = false,
-    /** Whether to skip empty packages */
-    val skipEmptyPackages: Boolean = false
 ) {
 
     open fun skip(item: Item): Boolean = false

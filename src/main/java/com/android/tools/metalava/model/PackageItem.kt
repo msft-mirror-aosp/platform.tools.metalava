@@ -58,10 +58,6 @@ interface PackageItem : Item {
     fun empty() = topLevelClasses().none()
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skipEmptyPackages && empty()) {
-            return
-        }
-
         if (visitor is ApiVisitor) {
             if (!emit) {
                 return
