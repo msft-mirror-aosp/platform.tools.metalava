@@ -416,6 +416,10 @@ interface TypeItem {
         fun toSlashFormat(typeName: String): String {
             var name = typeName
             var dimension = ""
+            if (name.endsWith("...")) {
+                dimension += "["
+                name = name.substring(0, name.length - 3)
+            }
             while (name.endsWith("[]")) {
                 dimension += "["
                 name = name.substring(0, name.length - 2)
