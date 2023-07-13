@@ -32,4 +32,7 @@ interface AnnotationManager {
         annotation: AnnotationItem,
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget>
+
+    /** Determine how to handle typedef annotations, i.e. annotations like `@IntDef`. */
+    val typedefMode: TypedefMode
 }

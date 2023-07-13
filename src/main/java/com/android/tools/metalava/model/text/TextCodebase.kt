@@ -16,31 +16,22 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
-import java.util.function.Predicate
 import kotlin.math.min
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
@@ -180,14 +171,6 @@ class TextCodebase(
         getPackages().acceptTypes(visitor)
     }
 
-    override fun compareWith(
-        visitor: ComparisonVisitor,
-        other: Codebase,
-        filter: Predicate<Item>?
-    ) {
-        CodebaseComparator().compare(visitor, this, other, filter)
-    }
-
     override fun createAnnotation(
         source: String,
         context: Item?,
@@ -239,109 +222,6 @@ class TextCodebase(
         }
 
         return obtainTypeFromString(type)
-    }
-
-    companion object {
-        fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): TextCodebase {
-            // Compute just the delta
-            val delta = TextCodebase(baseFile, signatureApi.annotationManager)
-            delta.description = "Delta between $baseApi and $signatureApi"
-
-            CodebaseComparator()
-                .compare(
-                    object : ComparisonVisitor() {
-                        override fun added(new: PackageItem) {
-                            delta.addPackage(new as TextPackageItem)
-                        }
-
-                        override fun added(new: ClassItem) {
-                            val pkg = getOrAddPackage(new.containingPackage().qualifiedName())
-                            pkg.addClass(new as TextClassItem)
-                        }
-
-                        override fun added(new: ConstructorItem) {
-                            val cls = getOrAddClass(new.containingClass())
-                            cls.addConstructor(new as TextConstructorItem)
-                        }
-
-                        override fun added(new: MethodItem) {
-                            val cls = getOrAddClass(new.containingClass())
-                            cls.addMethod(new as TextMethodItem)
-                        }
-
-                        override fun added(new: FieldItem) {
-                            val cls = getOrAddClass(new.containingClass())
-                            cls.addField(new as TextFieldItem)
-                        }
-
-                        override fun added(new: PropertyItem) {
-                            val cls = getOrAddClass(new.containingClass())
-                            cls.addProperty(new as TextPropertyItem)
-                        }
-
-                        private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
-                            val cls = delta.findClass(fullClass.qualifiedName())
-                            if (cls != null) {
-                                return cls
-                            }
-                            val textClass = fullClass as TextClassItem
-                            val newClass =
-                                TextClassItem(
-                                    delta,
-                                    SourcePositionInfo.UNKNOWN,
-                                    textClass.modifiers,
-                                    textClass.isInterface(),
-                                    textClass.isEnum(),
-                                    textClass.isAnnotationType(),
-                                    textClass.qualifiedName,
-                                    textClass.qualifiedName,
-                                    textClass.name,
-                                    textClass.annotations
-                                )
-                            val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-                            pkg.addClass(newClass)
-                            newClass.setContainingPackage(pkg)
-                            delta.registerClass(newClass)
-                            return newClass
-                        }
-
-                        private fun getOrAddPackage(pkgName: String): TextPackageItem {
-                            val pkg = delta.findPackage(pkgName)
-                            if (pkg != null) {
-                                return pkg
-                            }
-                            val newPkg =
-                                TextPackageItem(
-                                    delta,
-                                    pkgName,
-                                    TextModifiers(delta, DefaultModifierList.PUBLIC),
-                                    SourcePositionInfo.UNKNOWN
-                                )
-                            delta.addPackage(newPkg)
-                            return newPkg
-                        }
-                    },
-                    baseApi,
-                    signatureApi,
-                    ApiType.ALL.getReferenceFilter()
-                )
-
-            // As the delta has not been created by the parser there is no parser provided
-            // context to use so just use an empty context.
-            val context =
-                object : ResolverContext {
-                    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = null
-
-                    override fun nameOfSuperClass(cl: TextClassItem): String? = null
-
-                    override val classResolver: ClassResolver? = null
-                }
-
-            // All this actually does is add in an appropriate super class depending on the class
-            // type.
-            ReferenceResolver.resolveReferences(context, delta)
-            return delta
-        }
     }
 
     // Copied from Converter:

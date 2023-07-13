@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -93,6 +94,10 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     }
 
     companion object {
+        fun migrateNulls(codebase: Codebase, previous: Codebase) {
+            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+        }
+
         fun hasNullnessInformation(item: Item): Boolean {
             return isNullable(item) || isNonNull(item)
         }
