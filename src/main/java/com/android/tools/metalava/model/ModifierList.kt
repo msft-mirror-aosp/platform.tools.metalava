@@ -16,12 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.DocLevel
-import com.android.tools.metalava.DocLevel.HIDDEN
-import com.android.tools.metalava.DocLevel.PACKAGE
-import com.android.tools.metalava.DocLevel.PRIVATE
-import com.android.tools.metalava.DocLevel.PROTECTED
-import com.android.tools.metalava.DocLevel.PUBLIC
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.options
 import java.io.Writer
@@ -235,7 +229,7 @@ interface ModifierList {
      * list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
-        val mappedName = AnnotationItem.mapName(qualifiedName)
+        val mappedName = codebase.annotationManager.mapName(qualifiedName)
         return annotations().firstOrNull { mappedName == it.qualifiedName }
     }
 
@@ -247,28 +241,6 @@ interface ModifierList {
      */
     fun findExactAnnotation(qualifiedName: String): AnnotationItem? {
         return annotations().firstOrNull { qualifiedName == it.originalName }
-    }
-
-    /** Returns true if this modifier list has adequate access */
-    fun checkLevel() = checkLevel(options.docLevel)
-
-    /**
-     * Returns true if this modifier list has access modifiers that are adequate for the given
-     * documentation level
-     */
-    fun checkLevel(level: DocLevel): Boolean {
-        if (level == HIDDEN) {
-            return true
-        } else if (owner().isHiddenOrRemoved()) {
-            return false
-        }
-        return when (level) {
-            PUBLIC -> isPublic()
-            PROTECTED -> isPublic() || isProtected()
-            PACKAGE -> !isPrivate()
-            PRIVATE,
-            HIDDEN -> true
-        }
     }
 
     /**
@@ -535,13 +507,13 @@ interface ModifierList {
                     } else if (annotation.qualifiedName == "java.lang.Deprecated") {
                         // Special cased in stubs and signature files: emitted first
                         continue
-                    } else if (options.typedefMode == Options.TypedefMode.INLINE) {
+                    } else if (options.typedefMode == TypedefMode.INLINE) {
                         val typedef = annotation.findTypedefAnnotation()
                         if (typedef != null) {
                             printAnnotation = typedef
                         }
                     } else if (
-                        options.typedefMode == Options.TypedefMode.REFERENCE &&
+                        options.typedefMode == TypedefMode.REFERENCE &&
                             annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
                             annotation.findTypedefAnnotation() != null
                     ) {
