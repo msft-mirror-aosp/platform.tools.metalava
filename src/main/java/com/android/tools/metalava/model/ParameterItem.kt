@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
-
 interface ParameterItem : Item {
     /** The name of this field */
     fun name(): String
@@ -81,15 +78,7 @@ interface ParameterItem : Item {
     override fun parent(): MethodItem? = containingMethod()
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitParameter(this)
-
-        visitor.afterVisitParameter(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {

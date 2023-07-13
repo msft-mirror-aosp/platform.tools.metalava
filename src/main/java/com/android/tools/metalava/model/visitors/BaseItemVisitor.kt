@@ -21,13 +21,15 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFileItem
 
-open class ItemVisitor(
+open class BaseItemVisitor(
     /**
      * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
      * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
@@ -40,8 +42,8 @@ open class ItemVisitor(
      * afterwards. Defaults to false.
      */
     val nestInnerClasses: Boolean = false,
-) {
-    open fun visit(cls: ClassItem) {
+) : ItemVisitor {
+    override fun visit(cls: ClassItem) {
         if (skip(cls)) {
             return
         }
@@ -95,7 +97,7 @@ open class ItemVisitor(
         }
     }
 
-    open fun visit(field: FieldItem) {
+    override fun visit(field: FieldItem) {
         if (skip(field)) {
             return
         }
@@ -107,7 +109,7 @@ open class ItemVisitor(
         afterVisitItem(field)
     }
 
-    open fun visit(method: MethodItem) {
+    override fun visit(method: MethodItem) {
         if (skip(method)) {
             return
         }
@@ -131,7 +133,7 @@ open class ItemVisitor(
         afterVisitItem(method)
     }
 
-    open fun visit(pkg: PackageItem) {
+    override fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
             return
         }
@@ -145,6 +147,48 @@ open class ItemVisitor(
 
         afterVisitPackage(pkg)
         afterVisitItem(pkg)
+    }
+
+    override fun visit(packageList: PackageList) {
+        visitCodebase(packageList.codebase)
+        packageList.packages.forEach { it.accept(this) }
+        afterVisitCodebase(packageList.codebase)
+    }
+
+    override fun visit(parameter: ParameterItem) {
+        if (skip(parameter)) {
+            return
+        }
+
+        visitItem(parameter)
+        visitParameter(parameter)
+
+        afterVisitParameter(parameter)
+        afterVisitItem(parameter)
+    }
+
+    override fun visit(property: PropertyItem) {
+        if (skip(property)) {
+            return
+        }
+
+        visitItem(property)
+        visitProperty(property)
+
+        afterVisitProperty(property)
+        afterVisitItem(property)
+    }
+
+    override fun visit(sourceFile: SourceFileItem) {
+        if (skip(sourceFile)) return
+
+        visitItem(sourceFile)
+        visitSourceFile(sourceFile)
+
+        sourceFile.classes().forEach { it.accept(this) }
+
+        afterVisitSourceFile(sourceFile)
+        afterVisitItem(sourceFile)
     }
 
     open fun skip(item: Item): Boolean = false
