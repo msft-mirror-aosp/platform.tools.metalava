@@ -75,6 +75,10 @@ class MetalavaCommand(
 
             // Override the help formatter to add in documentation for the legacy flags.
             helpFormatter = LegacyHelpFormatter({ common.terminal }, localization)
+
+            // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
+            // that prefix annotation names with `@`, e.g. `--show-annotation @foo.Show`.
+            expandArgumentFiles = false
         }
 
         // Print the version number if requested.
@@ -85,6 +89,7 @@ class MetalavaCommand(
         )
 
         subcommands(
+            AndroidJarsToSignaturesCommand(),
             VersionCommand(),
         )
     }
