@@ -43,7 +43,7 @@ const val ARG_VERSION = "--version"
  * @param parseOptionsOnly true if this command should just parse the options, false if it should
  *   perform the legacy behavior.
  */
-class MetalavaCommand(
+internal open class MetalavaCommand(
     private val stdout: PrintWriter,
     private val stderr: PrintWriter,
     private val parseOptionsOnly: Boolean = false,
@@ -90,6 +90,7 @@ class MetalavaCommand(
 
         subcommands(
             AndroidJarsToSignaturesCommand(),
+            SignatureToJDiffCommand(),
             VersionCommand(),
         )
     }
