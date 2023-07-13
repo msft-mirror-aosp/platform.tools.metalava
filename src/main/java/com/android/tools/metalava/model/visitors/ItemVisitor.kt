@@ -40,9 +40,112 @@ open class ItemVisitor(
      * afterwards. Defaults to false.
      */
     val nestInnerClasses: Boolean = false,
-    /** Whether to skip empty packages */
-    val skipEmptyPackages: Boolean = false
 ) {
+    open fun visit(cls: ClassItem) {
+        if (skip(cls)) {
+            return
+        }
+
+        visitItem(cls)
+        visitClass(cls)
+
+        for (constructor in cls.constructors()) {
+            constructor.accept(this)
+        }
+
+        for (method in cls.methods()) {
+            method.accept(this)
+        }
+
+        for (property in cls.properties()) {
+            property.accept(this)
+        }
+
+        if (cls.isEnum()) {
+            // In enums, visit the enum constants first, then the fields
+            for (field in cls.fields()) {
+                if (field.isEnumConstant()) {
+                    field.accept(this)
+                }
+            }
+            for (field in cls.fields()) {
+                if (!field.isEnumConstant()) {
+                    field.accept(this)
+                }
+            }
+        } else {
+            for (field in cls.fields()) {
+                field.accept(this)
+            }
+        }
+
+        if (nestInnerClasses) {
+            for (innerCls in cls.innerClasses()) {
+                innerCls.accept(this)
+            }
+        } // otherwise done below
+
+        afterVisitClass(cls)
+        afterVisitItem(cls)
+
+        if (!nestInnerClasses) {
+            for (innerCls in cls.innerClasses()) {
+                innerCls.accept(this)
+            }
+        }
+    }
+
+    open fun visit(field: FieldItem) {
+        if (skip(field)) {
+            return
+        }
+
+        visitItem(field)
+        visitField(field)
+
+        afterVisitField(field)
+        afterVisitItem(field)
+    }
+
+    open fun visit(method: MethodItem) {
+        if (skip(method)) {
+            return
+        }
+
+        visitItem(method)
+        if (method.isConstructor()) {
+            visitConstructor(method as ConstructorItem)
+        } else {
+            visitMethod(method)
+        }
+
+        for (parameter in method.parameters()) {
+            parameter.accept(this)
+        }
+
+        if (method.isConstructor()) {
+            afterVisitConstructor(method as ConstructorItem)
+        } else {
+            afterVisitMethod(method)
+        }
+        afterVisitItem(method)
+    }
+
+    open fun visit(pkg: PackageItem) {
+        if (skip(pkg)) {
+            return
+        }
+
+        visitItem(pkg)
+        visitPackage(pkg)
+
+        for (cls in pkg.topLevelClasses()) {
+            cls.accept(this)
+        }
+
+        afterVisitPackage(pkg)
+        afterVisitItem(pkg)
+    }
 
     open fun skip(item: Item): Boolean = false
 
