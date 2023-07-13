@@ -60,15 +60,7 @@ interface FieldItem : MemberItem {
     fun duplicate(targetContainingClass: ClassItem): FieldItem
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitField(this)
-
-        visitor.afterVisitField(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
