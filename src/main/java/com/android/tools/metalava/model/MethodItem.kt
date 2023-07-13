@@ -132,13 +132,13 @@ interface MethodItem : MemberItem {
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
                 // include those
-                var curr = cls.publicSuperClass()
+                var curr = cls.superClass()
                 while (curr != null) {
                     if (predicate.test(curr)) {
                         classes.add(curr)
                         break
                     }
-                    curr = curr.publicSuperClass()
+                    curr = curr.superClass()
                 }
             }
         }
@@ -415,6 +415,27 @@ interface MethodItem : MemberItem {
         }
 
         return true
+    }
+
+    override fun implicitNullness(): Boolean? {
+        // Delegate to the super class, only dropping through if it did not determine an implicit
+        // nullness.
+        super.implicitNullness()?.let { nullable ->
+            return nullable
+        }
+
+        if (synthetic && isEnumSyntheticMethod()) {
+            // Workaround the fact that the Kotlin synthetic enum methods
+            // do not have nullness information
+            return false
+        }
+
+        // toString has known nullness
+        if (name() == "toString" && parameters().isEmpty()) {
+            return false
+        }
+
+        return null
     }
 
     fun isImplicitConstructor(): Boolean {
