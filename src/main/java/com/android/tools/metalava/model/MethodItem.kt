@@ -188,27 +188,7 @@ interface MethodItem : MemberItem {
     }
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        if (isConstructor()) {
-            visitor.visitConstructor(this as ConstructorItem)
-        } else {
-            visitor.visitMethod(this)
-        }
-
-        for (parameter in parameters()) {
-            parameter.accept(visitor)
-        }
-
-        if (isConstructor()) {
-            visitor.afterVisitConstructor(this as ConstructorItem)
-        } else {
-            visitor.afterVisitMethod(this)
-        }
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
