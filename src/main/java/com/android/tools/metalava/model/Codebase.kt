@@ -16,12 +16,9 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
-import java.util.function.Predicate
 
 /**
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
@@ -74,14 +71,6 @@ interface Codebase {
 
     fun acceptTypes(visitor: TypeVisitor) {
         getPackages().acceptTypes(visitor)
-    }
-
-    /**
-     * Visits this codebase and compares it with another codebase, informing the visitors about the
-     * correlations and differences that it finds
-     */
-    fun compareWith(visitor: ComparisonVisitor, other: Codebase, filter: Predicate<Item>? = null) {
-        CodebaseComparator().compare(visitor, other, this, filter)
     }
 
     /** Creates an annotation item for the given (fully qualified) Java source */

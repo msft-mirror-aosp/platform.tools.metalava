@@ -21,23 +21,32 @@ import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.JAVA_LANG_PREFIX
-import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
+import java.util.function.Predicate
 
-class DefaultAnnotationManager(val options: Options = Options()) : AnnotationManager {
+class DefaultAnnotationManager(private val config: Config = Config()) : AnnotationManager {
+
+    data class Config(
+        val passThroughAnnotations: Set<String> = emptySet(),
+        val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val excludeAnnotations: Set<String> = emptySet(),
+        val typedefMode: TypedefMode = TypedefMode.NONE,
+        val apiPredicate: Predicate<Item> = Predicate { true },
+    )
+
     override fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
         qualifiedName ?: return null
         if (
-            options.passThroughAnnotations.contains(qualifiedName) ||
-                options.showAnnotations.matches(qualifiedName) ||
-                options.hideAnnotations.matches(qualifiedName)
+            config.passThroughAnnotations.contains(qualifiedName) ||
+                config.showAnnotations.matches(qualifiedName) ||
+                config.hideAnnotations.matches(qualifiedName)
         ) {
             return qualifiedName
         }
-        if (options.excludeAnnotations.contains(qualifiedName)) {
+        if (config.excludeAnnotations.contains(qualifiedName)) {
             return null
         }
 
@@ -189,7 +198,7 @@ class DefaultAnnotationManager(val options: Options = Options()) : AnnotationMan
 
     private val TYPEDEF_ANNOTATION_TARGETS =
         if (
-            options.typedefMode == TypedefMode.INLINE || options.typedefMode == TypedefMode.NONE
+            config.typedefMode == TypedefMode.INLINE || config.typedefMode == TypedefMode.NONE
         ) // just here for compatibility purposes
          ANNOTATION_EXTERNAL
         else ANNOTATION_EXTERNAL_ONLY
@@ -200,7 +209,7 @@ class DefaultAnnotationManager(val options: Options = Options()) : AnnotationMan
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget> {
         val qualifiedName = annotation.qualifiedName ?: return NO_ANNOTATION_TARGETS
-        if (options.passThroughAnnotations.contains(qualifiedName)) {
+        if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
         }
         when (qualifiedName) {
@@ -329,8 +338,8 @@ class DefaultAnnotationManager(val options: Options = Options()) : AnnotationMan
         // See if the annotation is pointing to an annotation class that is part of the API; if
         // not, skip it.
         val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
-        if (!ApiPredicate().test(cls)) {
-            if (options.typedefMode != TypedefMode.NONE) {
+        if (!config.apiPredicate.test(cls)) {
+            if (config.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
                     return ANNOTATION_SIGNATURE_ONLY
                 }
@@ -352,4 +361,6 @@ class DefaultAnnotationManager(val options: Options = Options()) : AnnotationMan
 
         return ANNOTATION_EXTERNAL
     }
+
+    override val typedefMode: TypedefMode = config.typedefMode
 }
