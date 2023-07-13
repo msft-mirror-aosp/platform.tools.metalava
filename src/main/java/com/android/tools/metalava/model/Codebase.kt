@@ -37,6 +37,9 @@ interface Codebase {
      */
     var location: File
 
+    /** The manager of annotations within this codebase. */
+    val annotationManager: AnnotationManager
+
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
 
@@ -120,7 +123,10 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
 
-abstract class DefaultCodebase(override var location: File) : Codebase {
+abstract class DefaultCodebase(
+    override var location: File,
+    override val annotationManager: AnnotationManager,
+) : Codebase {
     override var original: Codebase? = null
     @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
 
