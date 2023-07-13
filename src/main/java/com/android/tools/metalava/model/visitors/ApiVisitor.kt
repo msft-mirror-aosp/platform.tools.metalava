@@ -71,7 +71,7 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     val showUnannotated: Boolean = true
-) : ItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
+) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
     constructor(
         /**
          * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
