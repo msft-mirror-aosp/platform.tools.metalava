@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.tools.lint.annotations.Extractor
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -343,7 +343,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
     }
 
     private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
-        val constants = annotation.findAttributeValue(SdkConstants.ATTR_VALUE) ?: return emptyList()
+        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
         if (constants is UCallExpression) {
             return constants.valueArguments
                 .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
@@ -569,7 +569,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
             attributes =
                 attributes.sortedWith(
                     compareBy(
-                        { (it.name ?: SdkConstants.ATTR_VALUE) != SdkConstants.ATTR_VALUE },
+                        { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
                         { it.name }
                     )
                 )
@@ -615,7 +615,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
             empty = false
             var name = pair.name
             if (name == null) {
-                name = SdkConstants.ATTR_VALUE // default name
+                name = ANNOTATION_ATTR_VALUE // default name
             }
 
             // Platform typedef annotations now declare a prefix attribute for

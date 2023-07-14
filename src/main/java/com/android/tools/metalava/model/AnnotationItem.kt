@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import com.android.SdkConstants
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_LONG_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
@@ -116,7 +115,7 @@ interface AnnotationItem {
 
     /** Returns the given named attribute if specified */
     fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ATTR_VALUE
+        val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
     }
 
@@ -213,6 +212,9 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
         return qualifiedName == other.qualifiedName && attributes == other.attributes
     }
 }
+
+/** The default annotation attribute name when no name is provided. */
+const val ANNOTATION_ATTR_VALUE = "value"
 
 /** An attribute of an annotation, such as "value" */
 interface AnnotationAttribute {

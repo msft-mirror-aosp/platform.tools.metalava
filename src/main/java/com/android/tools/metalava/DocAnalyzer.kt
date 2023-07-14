@@ -1,6 +1,5 @@
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
@@ -8,6 +7,7 @@ import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -231,7 +231,7 @@ class DocAnalyzer(
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     val text =
                         (annotation.findAttribute("message")
-                                ?: annotation.findAttribute(ATTR_VALUE))
+                                ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
                             ?.value
                             ?.value()
                             ?.toString()
