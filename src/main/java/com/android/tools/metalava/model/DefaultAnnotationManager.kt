@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.ANDROID_NONNULL
@@ -180,7 +179,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                     qualifiedName.startsWith(JAVA_LANG_PREFIX) -> return qualifiedName
 
                     // Unknown Android platform annotations
-                    qualifiedName.startsWith("android.annotation.") -> {
+                    qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
                         return null
                     }
                     else -> qualifiedName

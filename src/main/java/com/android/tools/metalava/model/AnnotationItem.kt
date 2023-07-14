@@ -16,14 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
-import com.android.tools.lint.annotations.Extractor.ANDROID_LONG_DEF
-import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
-import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
-import com.android.tools.metalava.ANDROIDX_INT_DEF
-import com.android.tools.metalava.ANDROIDX_LONG_DEF
-import com.android.tools.metalava.ANDROIDX_STRING_DEF
-
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -163,11 +155,11 @@ interface AnnotationItem {
         fun shortenAnnotation(source: String): String {
             return when {
                 source == "@java.lang.Deprecated" -> "@Deprecated"
-                source.startsWith("android.annotation.", 1) -> {
-                    "@" + source.substring("@android.annotation.".length)
+                source.startsWith(ANDROID_ANNOTATION_PREFIX, 1) -> {
+                    "@" + source.substring(ANDROID_ANNOTATION_PREFIX.length + 1)
                 }
                 source.startsWith(ANDROIDX_ANNOTATION_PREFIX, 1) -> {
-                    "@" + source.substring("@androidx.annotation.".length)
+                    "@" + source.substring(ANDROIDX_ANNOTATION_PREFIX.length + 1)
                 }
                 else -> source
             }
