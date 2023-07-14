@@ -383,8 +383,8 @@ class CompatibilityCheck(
         }
 
         if (
-            old.annotatedWithJvmDefaultWithCompatibility() &&
-                !new.annotatedWithJvmDefaultWithCompatibility()
+            old.modifiers.isAnnotatedWith(JVM_DEFAULT_WITH_COMPATIBILITY) &&
+                !new.modifiers.isAnnotatedWith(JVM_DEFAULT_WITH_COMPATIBILITY)
         ) {
             report(
                 Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,

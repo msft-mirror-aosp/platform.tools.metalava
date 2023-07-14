@@ -231,12 +231,6 @@ interface ClassItem : Item {
         return modifiers.isAbstract()
     }
 
-    /**
-     * Whether the class is annotated with @JvmDefaultWithCompatibility, which is a class-specific
-     * annotation.
-     */
-    fun annotatedWithJvmDefaultWithCompatibility(): Boolean
-
     // Mutation APIs: Used to "fix up" the API hierarchy (in [ApiAnalyzer]) to only expose
     // visible parts of the API)
 
