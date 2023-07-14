@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.SdkConstants
 import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_LONG_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
@@ -234,6 +233,9 @@ interface AnnotationAttribute {
     }
 }
 
+const val ANNOTATION_VALUE_FALSE = "false"
+const val ANNOTATION_VALUE_TRUE = "true"
+
 /** An annotation value */
 interface AnnotationAttributeValue {
     /** Generates source code for this annotation value */
@@ -395,8 +397,8 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
     @Suppress("IMPLICIT_CAST_TO_ANY")
     override val value =
         when {
-            valueSource == SdkConstants.VALUE_TRUE -> true
-            valueSource == SdkConstants.VALUE_FALSE -> false
+            valueSource == ANNOTATION_VALUE_TRUE -> true
+            valueSource == ANNOTATION_VALUE_FALSE -> false
             valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
             valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
             else ->
