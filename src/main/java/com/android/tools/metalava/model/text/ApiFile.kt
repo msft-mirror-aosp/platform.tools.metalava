@@ -21,6 +21,7 @@ import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
+import com.android.tools.metalava.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
@@ -1503,4 +1504,21 @@ internal class NoOpAnnotationManager : AnnotationManager {
     ): Set<AnnotationTarget> = ANNOTATION_IN_ALL_STUBS
 
     override val typedefMode: TypedefMode = TypedefMode.NONE
+}
+
+private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) {
+    if (annotationSources.isEmpty()) {
+        return
+    }
+
+    annotationSources.forEach { source ->
+        val item = codebase.createAnnotation(source)
+
+        // @Deprecated is also treated as a "modifier"
+        if (item.qualifiedName == JAVA_LANG_DEPRECATED) {
+            setDeprecated(true)
+        }
+
+        addAnnotation(item)
+    }
 }
