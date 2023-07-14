@@ -566,7 +566,9 @@ class ApiFile(
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        cl.addConstructor(method)
+        if (!cl.constructors().contains(method)) {
+            cl.addConstructor(method)
+        }
     }
 
     @Throws(ApiParseException::class)
