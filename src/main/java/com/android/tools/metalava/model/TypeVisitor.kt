@@ -16,22 +16,10 @@
 
 package com.android.tools.metalava.model
 
-class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
-    fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
-    }
+open class TypeVisitor(val includeInterfaces: Boolean = false) {
+    open fun skip(item: Item): Boolean = false
 
-    fun acceptTypes(visitor: TypeVisitor) {
-        packages.forEach { it.acceptTypes(visitor) }
-    }
+    open fun visitType(type: TypeItem, owner: Item) {}
 
-    /** All top level classes in all packages */
-    fun allTopLevelClasses(): Sequence<ClassItem> {
-        return packages.asSequence().flatMap { it.topLevelClasses() }
-    }
-
-    /** All top level classes **and inner classes** in all packages */
-    fun allClasses(): Sequence<ClassItem> {
-        return packages.asSequence().flatMap { it.allClasses() }
-    }
+    open fun afterVisitType(type: TypeItem, owner: Item) {}
 }

@@ -35,7 +35,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -572,7 +572,7 @@ class ApiAnalyzer(
      */
     private fun propagateHiddenRemovedAndDocOnly(includingFields: Boolean) {
         packages.accept(
-            object : ItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
+            object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         options.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
