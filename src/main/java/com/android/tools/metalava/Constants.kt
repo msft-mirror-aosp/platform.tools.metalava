@@ -44,6 +44,8 @@ const val ENV_VAR_METALAVA_DUMP_ARGV = "METALAVA_DUMP_ARGV"
 const val ENV_VAR_METALAVA_PREPEND_ARGS = "METALAVA_PREPEND_ARGS"
 const val ENV_VAR_METALAVA_APPEND_ARGS = "METALAVA_APPEND_ARGS"
 
+const val JVM_DEFAULT_WITH_COMPATIBILITY = "kotlin.jvm.JvmDefaultWithCompatibility"
+
 const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"
 

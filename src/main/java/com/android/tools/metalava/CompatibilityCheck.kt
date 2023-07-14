@@ -381,6 +381,18 @@ class CompatibilityCheck(
                 )
             }
         }
+
+        if (
+            old.annotatedWithJvmDefaultWithCompatibility() &&
+                !new.annotatedWithJvmDefaultWithCompatibility()
+        ) {
+            report(
+                Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,
+                new,
+                "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
+                    "${describe(new)}: Incompatible change"
+            )
+        }
     }
 
     override fun compare(old: MethodItem, new: MethodItem) {
