@@ -1578,14 +1578,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         return args[index]
     }
 
-    private fun stringToExistingDir(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.isDirectory) {
-            throw DriverException("$file is not a directory")
-        }
-        return FileReadSandbox.allowAccess(file)
-    }
-
     @Suppress("unused")
     private fun stringToExistingDirs(value: String): List<File> {
         val files = mutableListOf<File>()
@@ -1624,14 +1616,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             files.add(file)
         }
         return FileReadSandbox.allowAccess(files)
-    }
-
-    private fun stringToExistingFile(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.isFile) {
-            throw DriverException("$file is not a file")
-        }
-        return FileReadSandbox.allowAccess(file)
     }
 
     @Suppress("unused")
@@ -1690,27 +1674,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         return FileReadSandbox.allowAccess(files)
     }
 
-    private fun stringToNewFile(value: String): File {
-        val output = fileForPathInner(value)
-
-        if (output.exists()) {
-            if (output.isDirectory) {
-                throw DriverException("$output is a directory")
-            }
-            val deleted = output.delete()
-            if (!deleted) {
-                throw DriverException("Could not delete previous version of $output")
-            }
-        } else if (output.parentFile != null && !output.parentFile.exists()) {
-            val ok = output.parentFile.mkdirs()
-            if (!ok) {
-                throw DriverException("Could not create ${output.parentFile}")
-            }
-        }
-
-        return FileReadSandbox.allowAccess(output)
-    }
-
     private fun stringToNewOrExistingDir(value: String): File {
         val dir = fileForPathInner(value)
         if (!dir.isDirectory) {
@@ -1756,30 +1719,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
 
         return FileReadSandbox.allowAccess(output)
-    }
-
-    /**
-     * Converts a path to a [File] that represents the absolute path, with the following special
-     * behavior:
-     * - "~" will be expanded into the home directory path.
-     * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
-     *
-     * Note, unlike the other "stringToXxx" methods, this method won't register the given path to
-     * [FileReadSandbox].
-     */
-    private fun fileForPathInner(path: String): File {
-        // java.io.File doesn't automatically handle ~/ -> home directory expansion.
-        // This isn't necessary when metalava is run via the command line driver
-        // (since shells will perform this expansion) but when metalava is run
-        // directly, not from a shell.
-        if (path.startsWith("~/")) {
-            val home = System.getProperty("user.home") ?: return File(path)
-            return File(home + path.substring(1))
-        } else if (path.startsWith("@")) {
-            return File("@" + File(path.substring(1)).absolutePath)
-        }
-
-        return File(path).absoluteFile
     }
 
     fun getUsage(terminal: Terminal, width: Int): String {
