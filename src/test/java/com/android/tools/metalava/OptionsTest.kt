@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.defaultConfiguration
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
@@ -129,19 +128,6 @@ API sources:
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
-
-
-Documentation:
---public
-                                             Only include elements that are public
---protected
-                                             Only include elements that are public or protected
---package
-                                             Only include elements that are public, protected or package protected
---private
-                                             Include all elements except those that are marked hidden
---hidden
-                                             Include all elements, including hidden
 
 
 Extracting Signature Files:

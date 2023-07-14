@@ -115,3 +115,19 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
         }
     }
 }
+
+/**
+ * Marks the nullability of this Item as Recent. That is, replaces @Nullable/@NonNull
+ * with @RecentlyNullable/@RecentlyNonNull
+ */
+fun Item.markRecent() {
+    val annotation = NullnessMigration.findNullnessAnnotation(this) ?: return
+    // Nullness information change: Add migration annotation
+    val annotationClass = if (annotation.isNullable()) RECENTLY_NULLABLE else RECENTLY_NONNULL
+
+    val modifiers = mutableModifiers()
+    modifiers.removeAnnotation(annotation)
+
+    // Don't map annotation names - this would turn newly non null back into non null
+    modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this, mapName = false))
+}

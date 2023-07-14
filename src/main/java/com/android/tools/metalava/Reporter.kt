@@ -25,7 +25,6 @@ import com.android.tools.metalava.Severity.WARNING
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
-import com.android.tools.metalava.model.configuration
 import com.google.common.annotations.VisibleForTesting
 import java.io.File
 import java.io.PrintWriter

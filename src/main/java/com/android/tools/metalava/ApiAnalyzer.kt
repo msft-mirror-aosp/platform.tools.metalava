@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
@@ -1056,7 +1055,7 @@ class ApiAnalyzer(
         // then we can't strip it
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
-            .filter { it.checkLevel() && it.emit && !it.hidden() }
+            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
             .forEach { cantStripThis(it, filter, notStrippable, stubImportPackages, it, "self") }
 
         // complain about anything that looks includeable but is not supposed to
@@ -1064,9 +1063,9 @@ class ApiAnalyzer(
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
-                    !cl.modifiers.isSealed() && cl.constructors().any { it.checkLevel() }
+                    !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in cl.methods()) {
-                    if (!m.checkLevel()) {
+                    if (!m.isApiCandidate()) {
                         // TODO: enable this check for options.showSingleAnnotations
                         if (
                             options.showSingleAnnotations.isEmpty() &&
@@ -1228,7 +1227,7 @@ class ApiAnalyzer(
         }
 
         if (
-            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.checkLevel()) &&
+            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
                 !cl.isTypeParameter
         ) {
             reporter.report(
@@ -1488,25 +1487,7 @@ private fun String.capitalize(): String {
     }
 }
 
-private fun Item.checkLevel(): Boolean {
-    return modifiers.checkLevel(options.docLevel)
-}
-
-/**
- * Returns true if this modifier list has access modifiers that are adequate for the given
- * documentation level
- */
-fun ModifierList.checkLevel(level: DocLevel): Boolean {
-    if (level == DocLevel.HIDDEN) {
-        return true
-    } else if (owner().isHiddenOrRemoved()) {
-        return false
-    }
-    return when (level) {
-        DocLevel.PUBLIC -> isPublic()
-        DocLevel.PROTECTED -> isPublic() || isProtected()
-        DocLevel.PACKAGE -> !isPrivate()
-        DocLevel.PRIVATE,
-        DocLevel.HIDDEN -> true
-    }
+/** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
+private fun Item.isApiCandidate(): Boolean {
+    return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
 }
