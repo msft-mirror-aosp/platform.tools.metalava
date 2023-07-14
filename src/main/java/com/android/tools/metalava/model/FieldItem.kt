@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.intellij.psi.PsiField
 import java.io.PrintWriter
 
