@@ -18,13 +18,13 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
-import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
@@ -73,7 +73,7 @@ private constructor(
         return super.isNonNull()
     }
 
-    override val attributes: List<UAnnotationAttribute> by lazy {
+    override val attributes by lazy {
         uAnnotation.attributeValues
             .map { attribute ->
                 UAnnotationAttribute(
@@ -283,22 +283,12 @@ private constructor(
     }
 }
 
-class UAnnotationAttribute(
-    codebase: PsiBasedCodebase,
-    override val name: String,
-    psiValue: UExpression
-) : AnnotationAttribute {
-    override val value: AnnotationAttributeValue = UAnnotationValue.create(codebase, psiValue)
+class UAnnotationAttribute(codebase: PsiBasedCodebase, name: String, psiValue: UExpression) :
+    DefaultAnnotationAttribute(name, UAnnotationValue.create(codebase, psiValue))
 
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationAttribute) return false
-        return name == other.name && value == other.value
-    }
-}
-
-abstract class UAnnotationValue : AnnotationAttributeValue {
+private class UAnnotationValue {
     companion object {
-        fun create(codebase: PsiBasedCodebase, value: UExpression): UAnnotationValue {
+        fun create(codebase: PsiBasedCodebase, value: UExpression): AnnotationAttributeValue {
             return if (value.isArrayInitializer()) {
                 UAnnotationArrayAttributeValue(codebase, value as UCallExpression)
             } else {
@@ -306,17 +296,15 @@ abstract class UAnnotationValue : AnnotationAttributeValue {
             }
         }
     }
-
-    override fun toString(): String = toSource()
 }
 
 class UAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: UExpression
-) : UAnnotationValue(), AnnotationSingleAttributeValue {
-    override val valueSource: String = getText(psiValue)
-    override val value: Any?
-        get() {
+) : DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
+
+    companion object {
+        private fun getValue(psiValue: UExpression): Any? {
             if (psiValue is ULiteralExpression) {
                 val value = psiValue.value
                 if (value != null) {
@@ -345,6 +333,7 @@ class UAnnotationSingleAttributeValue(
 
             return getText(psiValue).removeSurrounding("\"")
         }
+    }
 
     override fun resolve(): Item? {
         if (psiValue is UReferenceExpression) {
@@ -356,26 +345,13 @@ class UAnnotationSingleAttributeValue(
         }
         return null
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationSingleAttributeValue) return false
-        return value == other.value
-    }
 }
 
-class UAnnotationArrayAttributeValue(
-    codebase: PsiBasedCodebase,
-    private val value: UCallExpression
-) : UAnnotationValue(), AnnotationArrayAttributeValue {
-    override val values = value.valueArguments.map { create(codebase, it) }.toList()
-
-    override fun toSource(): String = getText(value)
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationArrayAttributeValue) return false
-        return values == other.values
-    }
-}
+class UAnnotationArrayAttributeValue(codebase: PsiBasedCodebase, value: UCallExpression) :
+    DefaultAnnotationArrayAttributeValue(
+        { getText(value) },
+        { value.valueArguments.map { UAnnotationValue.create(codebase, it) }.toList() }
+    )
 
 private fun getText(element: UElement): String {
     return element.sourcePsi?.text ?: element.asSourceString()

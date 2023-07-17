@@ -292,7 +292,7 @@ interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     override fun value() = values.mapNotNull { it.value() }.toTypedArray()
 }
 
-class DefaultAnnotationAttribute(
+open class DefaultAnnotationAttribute(
     override val name: String,
     override val value: AnnotationAttributeValue
 ) : AnnotationAttribute {
@@ -433,8 +433,10 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
     override fun toString(): String = toSource()
 }
 
-class DefaultAnnotationSingleAttributeValue(sourceGetter: () -> String, valueGetter: () -> Any?) :
-    DefaultAnnotationValue(), AnnotationSingleAttributeValue {
+open class DefaultAnnotationSingleAttributeValue(
+    sourceGetter: () -> String,
+    valueGetter: () -> Any?
+) : DefaultAnnotationValue(), AnnotationSingleAttributeValue {
 
     override val valueSource by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
 
@@ -452,7 +454,7 @@ class DefaultAnnotationSingleAttributeValue(sourceGetter: () -> String, valueGet
     }
 }
 
-class DefaultAnnotationArrayAttributeValue(
+open class DefaultAnnotationArrayAttributeValue(
     sourceGetter: () -> String,
     valuesGetter: () -> List<AnnotationAttributeValue>
 ) : DefaultAnnotationValue(), AnnotationArrayAttributeValue {
