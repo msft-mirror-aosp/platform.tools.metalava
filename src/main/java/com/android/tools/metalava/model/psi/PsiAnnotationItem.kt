@@ -77,7 +77,10 @@ private constructor(
         psiAnnotation.parameterList.attributes
             .mapNotNull { attribute ->
                 attribute.value?.let { value ->
-                    PsiAnnotationAttribute(codebase, attribute.name ?: ANNOTATION_ATTR_VALUE, value)
+                    DefaultAnnotationAttribute(
+                        attribute.name ?: ANNOTATION_ATTR_VALUE,
+                        createValue(codebase, value),
+                    )
                 }
             }
             .toList()
@@ -278,24 +281,17 @@ private constructor(
     }
 }
 
-class PsiAnnotationAttribute(
+private fun createValue(
     codebase: PsiBasedCodebase,
-    name: String,
-    psiValue: PsiAnnotationMemberValue
-) : DefaultAnnotationAttribute(name, PsiAnnotationValue.create(codebase, psiValue))
-
-private class PsiAnnotationValue {
-    companion object {
-        fun create(
-            codebase: PsiBasedCodebase,
-            value: PsiAnnotationMemberValue
-        ): AnnotationAttributeValue {
-            return if (value is PsiArrayInitializerMemberValue) {
-                PsiAnnotationArrayAttributeValue(codebase, value)
-            } else {
-                PsiAnnotationSingleAttributeValue(codebase, value)
-            }
-        }
+    value: PsiAnnotationMemberValue
+): AnnotationAttributeValue {
+    return if (value is PsiArrayInitializerMemberValue) {
+        DefaultAnnotationArrayAttributeValue(
+            { value.text },
+            { value.initializers.map { createValue(codebase, it) }.toList() }
+        )
+    } else {
+        PsiAnnotationSingleAttributeValue(codebase, value)
     }
 }
 
@@ -336,12 +332,3 @@ class PsiAnnotationSingleAttributeValue(
         return null
     }
 }
-
-class PsiAnnotationArrayAttributeValue(
-    codebase: PsiBasedCodebase,
-    private val value: PsiArrayInitializerMemberValue
-) :
-    DefaultAnnotationArrayAttributeValue(
-        { value.text },
-        { value.initializers.map { PsiAnnotationValue.create(codebase, it) }.toList() }
-    ) {}

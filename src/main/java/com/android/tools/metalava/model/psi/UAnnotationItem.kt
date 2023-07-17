@@ -76,10 +76,9 @@ private constructor(
     override val attributes by lazy {
         uAnnotation.attributeValues
             .map { attribute ->
-                UAnnotationAttribute(
-                    codebase,
+                DefaultAnnotationAttribute(
                     attribute.name ?: ANNOTATION_ATTR_VALUE,
-                    attribute.expression
+                    createValue(codebase, attribute.expression)
                 )
             }
             .toList()
@@ -283,18 +282,15 @@ private constructor(
     }
 }
 
-class UAnnotationAttribute(codebase: PsiBasedCodebase, name: String, psiValue: UExpression) :
-    DefaultAnnotationAttribute(name, UAnnotationValue.create(codebase, psiValue))
-
-private class UAnnotationValue {
-    companion object {
-        fun create(codebase: PsiBasedCodebase, value: UExpression): AnnotationAttributeValue {
-            return if (value.isArrayInitializer()) {
-                UAnnotationArrayAttributeValue(codebase, value as UCallExpression)
-            } else {
-                UAnnotationSingleAttributeValue(codebase, value)
-            }
-        }
+private fun createValue(codebase: PsiBasedCodebase, value: UExpression): AnnotationAttributeValue {
+    return if (value.isArrayInitializer()) {
+        val uCallExpression = value as UCallExpression
+        DefaultAnnotationArrayAttributeValue(
+            { getText(uCallExpression) },
+            { uCallExpression.valueArguments.map { createValue(codebase, it) }.toList() }
+        )
+    } else {
+        UAnnotationSingleAttributeValue(codebase, value)
     }
 }
 
@@ -346,12 +342,6 @@ class UAnnotationSingleAttributeValue(
         return null
     }
 }
-
-class UAnnotationArrayAttributeValue(codebase: PsiBasedCodebase, value: UCallExpression) :
-    DefaultAnnotationArrayAttributeValue(
-        { getText(value) },
-        { value.valueArguments.map { UAnnotationValue.create(codebase, it) }.toList() }
-    )
 
 private fun getText(element: UElement): String {
     return element.sourcePsi?.text ?: element.asSourceString()
