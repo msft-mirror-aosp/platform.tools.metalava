@@ -16,11 +16,7 @@
 
 package com.android.tools.metalava.model
 
-import com.android.SdkConstants
 import com.android.tools.metalava.ApiAnalyzer
-import com.android.tools.metalava.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.JAVA_LANG_ENUM
-import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.google.common.base.Splitter
 import java.util.ArrayList
 import java.util.LinkedHashSet
@@ -305,7 +301,7 @@ interface ClassItem : Item {
             val annotation =
                 modifiers.findAnnotation("java.lang.annotation.Retention")
                     ?: modifiers.findAnnotation("kotlin.annotation.Retention")
-            val value = annotation?.findAttribute(SdkConstants.ATTR_VALUE)
+            val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)
             val source = value?.value?.toSource()
             return when {
                 source == null -> AnnotationRetention.getDefault(cls)
