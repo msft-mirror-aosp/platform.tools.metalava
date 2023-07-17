@@ -213,6 +213,35 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
     override fun hashCode(): Int {
         return Objects.hashCode(qualifiedName, attributes)
     }
+
+    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
+        val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
+
+        return buildString {
+            append("@")
+            append(qualifiedName)
+            if (attributes.isNotEmpty()) {
+                val suppressDefaultAnnotationAttribute = attributes.size == 1
+                append("(")
+                attributes.forEachIndexed { i, attribute ->
+                    if (i != 0) {
+                        append(", ")
+                    }
+                    if (
+                        !suppressDefaultAnnotationAttribute ||
+                            attribute.name != ANNOTATION_ATTR_VALUE
+                    ) {
+                        append(attribute.name)
+                        append("=")
+                    }
+                    append(attribute.value)
+                }
+                append(")")
+            }
+        }
+    }
+
+    final override fun toString() = toSource()
 }
 
 /** The default annotation attribute name when no name is provided. */

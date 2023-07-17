@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -26,7 +25,6 @@ class TextBackedAnnotationItem(codebase: Codebase, source: String, mapName: Bool
     DefaultAnnotationItem(codebase) {
     override val originalName: String
     override val qualifiedName: String?
-    private val full: String
     override val attributes: List<AnnotationAttribute>
 
     init {
@@ -38,12 +36,6 @@ class TextBackedAnnotationItem(codebase: Codebase, source: String, mapName: Bool
         originalName = annotationClass
         qualifiedName =
             if (mapName) codebase.annotationManager.mapName(annotationClass) else annotationClass
-        full =
-            when {
-                qualifiedName == null -> ""
-                index == -1 -> "@$qualifiedName"
-                else -> "@" + qualifiedName + source.substring(index)
-            }
 
         attributes =
             if (index == -1) {
@@ -54,6 +46,4 @@ class TextBackedAnnotationItem(codebase: Codebase, source: String, mapName: Bool
                 )
             }
     }
-
-    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String = full
 }

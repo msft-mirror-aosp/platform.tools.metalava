@@ -46,7 +46,6 @@ import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -842,19 +841,4 @@ class XmlBackedAnnotationItem(
     override val attributes: List<AnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
     override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
-
-    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
-        if (attributes.isEmpty()) {
-            return "@$qualifiedName"
-        }
-
-        val sb = StringBuilder(30)
-        sb.append("@")
-        sb.append(qualifiedName)
-        sb.append("(")
-        attributes.joinTo(sb)
-        sb.append(")")
-
-        return sb.toString()
-    }
 }

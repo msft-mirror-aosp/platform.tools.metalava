@@ -65,7 +65,7 @@ class TextBackedAnnotationItemTest {
                 placeholderCodebase,
                 "@androidx.annotation.IntRange(from = 20, to = 40)"
             )
-        assertEquals("@androidx.annotation.IntRange(from = 20, to = 40)", annotation.toSource())
+        assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
         assertEquals("from", annotation.findAttribute("from")?.name)

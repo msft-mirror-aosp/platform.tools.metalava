@@ -53,8 +53,6 @@ private constructor(
 ) : DefaultAnnotationItem(codebase) {
     override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
-    override fun toString(): String = toSource()
-
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
         appendAnnotation(codebase, sb, uAnnotation, originalName, target, showDefaultAttrs)
