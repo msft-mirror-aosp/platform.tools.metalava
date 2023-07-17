@@ -14,16 +14,29 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava
 
-import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
-import com.android.tools.metalava.ANDROIDX_NONNULL
-import com.android.tools.metalava.ANDROIDX_NULLABLE
-import com.android.tools.metalava.ANDROID_NONNULL
-import com.android.tools.metalava.ANDROID_NULLABLE
-import com.android.tools.metalava.JAVA_LANG_PREFIX
-import com.android.tools.metalava.RECENTLY_NONNULL
-import com.android.tools.metalava.RECENTLY_NULLABLE
+import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
+import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
+import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
+import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
+import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
+import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
+import com.android.tools.metalava.model.AnnotationFilter
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.isNonNullAnnotation
+import com.android.tools.metalava.model.isNullableAnnotation
 import java.util.function.Predicate
 
 class DefaultAnnotationManager(private val config: Config = Config()) : AnnotationManager {
@@ -181,7 +194,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                     qualifiedName.startsWith(JAVA_LANG_PREFIX) -> return qualifiedName
 
                     // Unknown Android platform annotations
-                    qualifiedName.startsWith("android.annotation.") -> {
+                    qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
                         return null
                     }
                     else -> qualifiedName
