@@ -270,14 +270,9 @@ interface AnnotationAttributeValue {
 
 /** An annotation value (for a single item, not an array) */
 interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
-    /** The annotation value, expressed as source code */
-    val valueSource: String
-    /** The annotation value */
     val value: Any?
 
     override fun value() = value
-
-    override fun toSource() = valueSource
 }
 
 /** An annotation value for an array of items */
@@ -387,7 +382,7 @@ open class DefaultAnnotationAttribute(
     }
 }
 
-abstract class DefaultAnnotationValue : AnnotationAttributeValue {
+abstract class DefaultAnnotationValue(sourceGetter: () -> String) : AnnotationAttributeValue {
     companion object {
         fun create(valueSource: String): DefaultAnnotationValue {
             return if (valueSource.startsWith("{")) { // Array
@@ -430,15 +425,18 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
         }
     }
 
+    /** The annotation value, expressed as source code */
+    private val valueSource: String by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
+
+    override fun toSource() = valueSource
+
     override fun toString(): String = toSource()
 }
 
 open class DefaultAnnotationSingleAttributeValue(
     sourceGetter: () -> String,
     valueGetter: () -> Any?
-) : DefaultAnnotationValue(), AnnotationSingleAttributeValue {
-
-    override val valueSource by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
+) : DefaultAnnotationValue(sourceGetter), AnnotationSingleAttributeValue {
 
     override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
 
@@ -457,13 +455,9 @@ open class DefaultAnnotationSingleAttributeValue(
 open class DefaultAnnotationArrayAttributeValue(
     sourceGetter: () -> String,
     valuesGetter: () -> List<AnnotationAttributeValue>
-) : DefaultAnnotationValue(), AnnotationArrayAttributeValue {
-
-    private val valueSource by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
+) : DefaultAnnotationValue(sourceGetter), AnnotationArrayAttributeValue {
 
     override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
-
-    override fun toSource() = valueSource
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false
