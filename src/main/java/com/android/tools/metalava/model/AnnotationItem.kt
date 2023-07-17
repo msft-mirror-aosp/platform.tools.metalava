@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.google.common.base.Objects
+
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -48,7 +50,7 @@ interface AnnotationItem {
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
 
-    /** Attributes of the annotation (may be empty) */
+    /** Attributes of the annotation; may be empty. */
     val attributes: List<AnnotationAttribute>
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
@@ -207,6 +209,10 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
         if (other !is AnnotationItem) return false
         return qualifiedName == other.qualifiedName && attributes == other.attributes
     }
+
+    override fun hashCode(): Int {
+        return Objects.hashCode(qualifiedName, attributes)
+    }
 }
 
 /** The default annotation attribute name when no name is provided. */
@@ -242,7 +248,7 @@ interface AnnotationAttributeValue {
     fun value(): Any?
 
     /**
-     * If the annotation declaration references a field (or class etc), return the resolved class
+     * If the annotation declaration references a field (or class etc.), return the resolved class
      */
     fun resolve(): Item?
 
@@ -352,7 +358,7 @@ class DefaultAnnotationAttribute(
             val valueBegin: Int
             val valueEnd: Int
             if (split == -1) {
-                valueBegin = split + 1
+                valueBegin = 0
                 valueEnd = to
                 name = "value"
             } else {
@@ -361,7 +367,7 @@ class DefaultAnnotationAttribute(
                 valueEnd = to
             }
             value = source.substring(valueBegin, valueEnd).trim()
-            list.add(DefaultAnnotationAttribute.create(name, value))
+            list.add(create(name, value))
         }
     }
 
@@ -372,6 +378,10 @@ class DefaultAnnotationAttribute(
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationAttribute) return false
         return name == other.name && value == other.value
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hashCode(name, value)
     }
 }
 
@@ -391,7 +401,6 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
 
 class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
     DefaultAnnotationValue(), AnnotationSingleAttributeValue {
-    @Suppress("IMPLICIT_CAST_TO_ANY")
     override val value =
         when {
             valueSource == ANNOTATION_VALUE_TRUE -> true
@@ -418,6 +427,10 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
         if (other !is AnnotationSingleAttributeValue) return false
         return value == other.value
     }
+
+    override fun hashCode(): Int {
+        return value.hashCode()
+    }
 }
 
 class DefaultAnnotationArrayAttributeValue(val value: String) :
@@ -427,16 +440,16 @@ class DefaultAnnotationArrayAttributeValue(val value: String) :
     }
 
     override val values =
-        value
-            .substring(1, value.length - 1)
-            .split(",")
-            .map { DefaultAnnotationValue.create(it.trim()) }
-            .toList()
+        value.substring(1, value.length - 1).split(",").map { create(it.trim()) }.toList()
 
     override fun toSource() = value
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false
         return values == other.values
+    }
+
+    override fun hashCode(): Int {
+        return values.hashCode()
     }
 }
