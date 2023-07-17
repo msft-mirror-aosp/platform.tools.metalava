@@ -49,9 +49,8 @@ class UAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    override val originalName: String?
-) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
+    originalName: String?
+) : DefaultAnnotationItem(codebase, originalName) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)

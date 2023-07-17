@@ -837,8 +837,6 @@ class AnnotationsMerger(private val codebase: Codebase) {
 // TODO: Replace with usage of DefaultAnnotationAttribute?
 class XmlBackedAnnotationItem(
     codebase: Codebase,
-    override val originalName: String,
+    originalName: String,
     override val attributes: List<AnnotationAttribute> = emptyList()
-) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
-}
+) : DefaultAnnotationItem(codebase, originalName)

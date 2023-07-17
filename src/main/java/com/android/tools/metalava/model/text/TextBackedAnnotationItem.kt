@@ -24,12 +24,10 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 
 class TextBackedAnnotationItem(
     codebase: Codebase,
-    override val originalName: String,
+    originalName: String,
     override val attributes: List<AnnotationAttribute>,
-    mapName: Boolean = true
-) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? =
-        if (mapName) codebase.annotationManager.mapName(originalName) else originalName
+    mapName: Boolean = true,
+) : DefaultAnnotationItem(codebase, originalName, mapName = mapName) {
 
     companion object {
         fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {

@@ -185,13 +185,37 @@ interface AnnotationItem {
 }
 
 /** Default implementation of an annotation item */
-abstract class DefaultAnnotationItem(override val codebase: Codebase) : AnnotationItem {
+abstract class DefaultAnnotationItem
+/** The primary constructor is private to force sub-classes to use the secondary constructor. */
+private constructor(
+    override val codebase: Codebase,
+
+    /** Fully qualified name of the annotation (prior to name mapping) */
+    protected val originalName: String?,
+
+    /** Fully qualified name of the annotation (after name mapping) */
+    final override val qualifiedName: String?,
+) : AnnotationItem {
+
+    /**
+     * This constructor is needed to initialize [qualifiedName] using the [codebase] parameter
+     * instead of the [DefaultAnnotationItem.codebase] property which is overridden by sub-classes
+     * and will not be initialized at the time it is used.
+     */
+    constructor(
+        codebase: Codebase,
+        originalName: String?,
+        mapName: Boolean = true,
+    ) : this(
+        codebase,
+        originalName,
+        qualifiedName =
+            if (mapName) codebase.annotationManager.mapName(originalName) else originalName,
+    )
+
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findClass)
     }
-
-    /** Fully qualified name of the annotation (prior to name mapping) */
-    abstract val originalName: String?
 
     override fun resolve(): ClassItem? {
         return codebase.findClass(originalName ?: return null)
