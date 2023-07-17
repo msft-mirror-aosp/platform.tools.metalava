@@ -369,7 +369,7 @@ open class DefaultAnnotationAttribute(
     }
 
     override fun toString(): String {
-        return "DefaultAnnotationAttribute(name='$name', value=$value)"
+        return "$name=$value"
     }
 
     override fun equals(other: Any?): Boolean {

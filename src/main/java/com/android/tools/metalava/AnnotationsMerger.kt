@@ -45,13 +45,12 @@ import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -618,11 +617,11 @@ class AnnotationsMerger(private val codebase: Codebase) {
                             // Add "L" suffix to ensure that we don't for example interpret "-1" as
                             // an integer -1 and then end up recording it as "ffffffff" instead of
                             // -1L
-                            XmlBackedAnnotationAttribute(
+                            DefaultAnnotationAttribute.create(
                                 valName1,
                                 value1 + (if (value1.last().isDigit()) "L" else "")
                             ),
-                            XmlBackedAnnotationAttribute(
+                            DefaultAnnotationAttribute.create(
                                 valName2,
                                 value2 + (if (value2.last().isDigit()) "L" else "")
                             )
@@ -694,11 +693,14 @@ class AnnotationsMerger(private val codebase: Codebase) {
                     }
                 }
 
-                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
-                attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
+                val attributes = mutableListOf<AnnotationAttribute>()
+                attributes.add(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value))
                 if (flag) {
                     attributes.add(
-                        XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, ANNOTATION_VALUE_TRUE)
+                        DefaultAnnotationAttribute.create(
+                            TYPE_DEF_FLAG_ATTRIBUTE,
+                            ANNOTATION_VALUE_TRUE
+                        )
                     )
                 }
                 return PsiAnnotationItem.create(
@@ -714,20 +716,20 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 name == ANDROID_STRING_DEF ||
                 name == ANDROIDX_INT_DEF ||
                 name == ANDROID_INT_DEF -> {
-                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
+                val attributes = mutableListOf<AnnotationAttribute>()
                 val parseChild: (Element) -> Unit = { child: Element ->
                     val elementName = child.getAttribute(ATTR_NAME)
                     val value = child.getAttribute(ATTR_VAL)
                     when (elementName) {
                         TYPE_DEF_VALUE_ATTRIBUTE -> {
                             attributes.add(
-                                XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value)
+                                DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)
                             )
                         }
                         TYPE_DEF_FLAG_ATTRIBUTE -> {
                             if (ANNOTATION_VALUE_TRUE == value) {
                                 attributes.add(
-                                    XmlBackedAnnotationAttribute(
+                                    DefaultAnnotationAttribute.create(
                                         TYPE_DEF_FLAG_ATTRIBUTE,
                                         ANNOTATION_VALUE_TRUE
                                     )
@@ -766,8 +768,8 @@ class AnnotationsMerger(private val codebase: Codebase) {
                             codebase,
                             name,
                             listOf(
-                                XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value),
-                                XmlBackedAnnotationAttribute(ATTR_PURE, pure)
+                                DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value),
+                                DefaultAnnotationAttribute.create(ATTR_PURE, pure)
                             )
                         )
                     )
@@ -777,7 +779,9 @@ class AnnotationsMerger(private val codebase: Codebase) {
                         XmlBackedAnnotationItem(
                             codebase,
                             name,
-                            listOf(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
+                            listOf(
+                                DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)
+                            )
                         )
                     )
                 }
@@ -789,10 +793,10 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 if (children.isEmpty()) {
                     return codebase.createAnnotation("@$name")
                 }
-                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
+                val attributes = mutableListOf<AnnotationAttribute>()
                 for (valueElement in children) {
                     attributes.add(
-                        XmlBackedAnnotationAttribute(
+                        DefaultAnnotationAttribute.create(
                             valueElement.getAttribute(ATTR_NAME) ?: continue,
                             valueElement.getAttribute(ATTR_VAL) ?: continue
                         )
@@ -831,23 +835,11 @@ class AnnotationsMerger(private val codebase: Codebase) {
     }
 }
 
-// TODO: Replace with usage of DefaultAnnotationValue?
-data class XmlBackedAnnotationAttribute(
-    override val name: String,
-    private val valueLiteral: String
-) : AnnotationAttribute {
-    override val value: AnnotationAttributeValue = DefaultAnnotationValue.create(valueLiteral)
-
-    override fun toString(): String {
-        return "$name=$valueLiteral"
-    }
-}
-
 // TODO: Replace with usage of DefaultAnnotationAttribute?
 class XmlBackedAnnotationItem(
     codebase: Codebase,
     override val originalName: String,
-    override val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
+    override val attributes: List<AnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
     override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
