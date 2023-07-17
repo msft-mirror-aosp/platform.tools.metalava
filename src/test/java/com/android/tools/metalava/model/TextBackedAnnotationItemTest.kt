@@ -52,7 +52,7 @@ class TextBackedAnnotationItemTest {
     @Test
     fun testSimple() {
         val annotation =
-            TextBackedAnnotationItem(placeholderCodebase, "@androidx.annotation.Nullable")
+            TextBackedAnnotationItem.create(placeholderCodebase, "@androidx.annotation.Nullable")
         assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
@@ -61,7 +61,7 @@ class TextBackedAnnotationItemTest {
     @Test
     fun testIntRange() {
         val annotation =
-            TextBackedAnnotationItem(
+            TextBackedAnnotationItem.create(
                 placeholderCodebase,
                 "@androidx.annotation.IntRange(from = 20, to = 40)"
             )
@@ -77,7 +77,7 @@ class TextBackedAnnotationItemTest {
     @Test
     fun testIntDef() {
         val annotation =
-            TextBackedAnnotationItem(
+            TextBackedAnnotationItem.create(
                 placeholderCodebase,
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )

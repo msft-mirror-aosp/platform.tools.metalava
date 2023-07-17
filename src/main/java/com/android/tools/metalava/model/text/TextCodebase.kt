@@ -166,7 +166,7 @@ class TextCodebase(
         context: Item?,
         mapName: Boolean
     ): AnnotationItem {
-        return TextBackedAnnotationItem(this, source, mapName)
+        return TextBackedAnnotationItem.create(this, source, mapName)
     }
 
     override fun toString(): String {

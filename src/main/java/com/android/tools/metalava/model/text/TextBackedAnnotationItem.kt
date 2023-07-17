@@ -17,33 +17,36 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 
-class TextBackedAnnotationItem(codebase: Codebase, source: String, mapName: Boolean = true) :
-    DefaultAnnotationItem(codebase) {
-    override val originalName: String
-    override val qualifiedName: String?
-    override val attributes: List<AnnotationAttribute>
+class TextBackedAnnotationItem(
+    codebase: Codebase,
+    override val originalName: String,
+    override val attributes: List<AnnotationAttribute>,
+    mapName: Boolean = true
+) : DefaultAnnotationItem(codebase) {
+    override val qualifiedName: String? =
+        if (mapName) codebase.annotationManager.mapName(originalName) else originalName
 
-    init {
-        val index = source.indexOf("(")
-        val annotationClass =
-            if (index == -1) source.substring(1) // Strip @
-            else source.substring(1, index)
+    companion object {
+        fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {
+            val index = source.indexOf("(")
+            val originalName =
+                if (index == -1) source.substring(1) // Strip @
+                else source.substring(1, index)
 
-        originalName = annotationClass
-        qualifiedName =
-            if (mapName) codebase.annotationManager.mapName(annotationClass) else annotationClass
-
-        attributes =
-            if (index == -1) {
-                emptyList()
-            } else {
-                DefaultAnnotationAttribute.createList(
-                    source.substring(index + 1, source.lastIndexOf(')'))
-                )
-            }
+            val attributes =
+                if (index == -1) {
+                    emptyList()
+                } else {
+                    DefaultAnnotationAttribute.createList(
+                        source.substring(index + 1, source.lastIndexOf(')'))
+                    )
+                }
+            return TextBackedAnnotationItem(codebase, originalName, attributes, mapName)
+        }
     }
 }
