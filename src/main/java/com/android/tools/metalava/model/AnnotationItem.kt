@@ -112,7 +112,7 @@ interface AnnotationItem {
 
     /** Find the class declaration for the given annotation */
     fun resolve(): ClassItem? {
-        return codebase.findClass(qualifiedName ?: return null)
+        return codebase.findClass(originalName ?: return null)
     }
 
     /** If this annotation has a typedef annotation associated with it, return it */
