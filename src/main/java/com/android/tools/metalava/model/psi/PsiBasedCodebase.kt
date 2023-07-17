@@ -776,8 +776,8 @@ open class PsiBasedCodebase(
      *
      * Do not cache returned binding context for longer than the lifetime of this codebase
      */
-    fun bindingContext(element: KtElement): BindingContext? {
-        return project.getService(KotlinUastResolveProviderService::class.java)
-            ?.getBindingContext(element)
+    fun bindingContext(element: KtElement): BindingContext {
+        return checkNotNull(project.getService(KotlinUastResolveProviderService::class.java))
+            .getBindingContext(element)
     }
 }

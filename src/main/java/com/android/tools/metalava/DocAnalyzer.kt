@@ -664,9 +664,7 @@ class DocAnalyzer(
         codebase.accept(object : ApiVisitor(visitConstructorsAsMethods = true) {
             override fun visitMethod(method: MethodItem) {
                 val psiMethod = method.psi() as? PsiMethod ?: return
-                @Suppress("DEPRECATION")
                 addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
-                @Suppress("DEPRECATION")
                 addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
             }
 
@@ -771,7 +769,6 @@ class DocAnalyzer(
     }
 }
 
-@Suppress("DEPRECATION") // replace with getClassVersions(...).min() when Lint is upgraded
 fun ApiLookup.getClassVersion(cls: PsiClass): Int {
     val owner = cls.qualifiedName ?: return -1
     return getClassVersion(owner)
@@ -779,7 +776,6 @@ fun ApiLookup.getClassVersion(cls: PsiClass): Int {
 
 val defaultEvaluator = DefaultJavaEvaluator(null, null)
 
-@Suppress("DEPRECATION") // replace with getMethonVersions(...).min() when Lint is upgraded
 fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
     val containingClass = method.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
@@ -791,20 +787,17 @@ fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
     return getMethodVersion(owner, if (method.isConstructor) "<init>" else method.name, desc)
 }
 
-@Suppress("DEPRECATION") // replace with getFieldVersions(...).min() when Lint is upgraded
 fun ApiLookup.getFieldVersion(field: PsiField): Int {
     val containingClass = field.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
     return getFieldVersion(owner, field.name)
 }
 
-@Suppress("DEPRECATION")
 fun ApiLookup.getClassDeprecatedIn(cls: PsiClass): Int {
     val owner = cls.qualifiedName ?: return -1
     return getClassDeprecatedIn(owner)
 }
 
-@Suppress("DEPRECATION")
 fun ApiLookup.getMethodDeprecatedIn(method: PsiMethod): Int {
     val containingClass = method.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
@@ -816,7 +809,6 @@ fun ApiLookup.getMethodDeprecatedIn(method: PsiMethod): Int {
     return getMethodDeprecatedIn(owner, method.name, desc)
 }
 
-@Suppress("DEPRECATION")
 fun ApiLookup.getFieldDeprecatedIn(field: PsiField): Int {
     val containingClass = field.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
