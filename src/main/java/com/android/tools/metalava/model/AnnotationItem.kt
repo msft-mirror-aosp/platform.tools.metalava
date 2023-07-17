@@ -294,7 +294,7 @@ interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
 
 class DefaultAnnotationAttribute(
     override val name: String,
-    override val value: DefaultAnnotationValue
+    override val value: AnnotationAttributeValue
 ) : AnnotationAttribute {
     companion object {
         fun create(name: String, value: String): DefaultAnnotationAttribute {
@@ -389,11 +389,43 @@ class DefaultAnnotationAttribute(
 
 abstract class DefaultAnnotationValue : AnnotationAttributeValue {
     companion object {
-        fun create(value: String): DefaultAnnotationValue {
-            return if (value.startsWith("{")) { // Array
-                DefaultAnnotationArrayAttributeValue(value)
+        fun create(valueSource: String): DefaultAnnotationValue {
+            return if (valueSource.startsWith("{")) { // Array
+                DefaultAnnotationArrayAttributeValue(
+                    { valueSource },
+                    {
+                        assert(valueSource.startsWith("{") && valueSource.endsWith("}")) {
+                            valueSource
+                        }
+                        valueSource
+                            .substring(1, valueSource.length - 1)
+                            .split(",")
+                            .map { create(it.trim()) }
+                            .toList()
+                    },
+                )
             } else {
-                DefaultAnnotationSingleAttributeValue(value)
+                DefaultAnnotationSingleAttributeValue(
+                    { valueSource },
+                    {
+                        when {
+                            valueSource == ANNOTATION_VALUE_TRUE -> true
+                            valueSource == ANNOTATION_VALUE_FALSE -> false
+                            valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
+                            valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
+                            else ->
+                                try {
+                                    if (valueSource.contains(".")) {
+                                        valueSource.toDouble()
+                                    } else {
+                                        valueSource.toLong()
+                                    }
+                                } catch (e: NumberFormatException) {
+                                    valueSource
+                                }
+                        }
+                    },
+                )
             }
         }
     }
@@ -401,25 +433,12 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
     override fun toString(): String = toSource()
 }
 
-class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
+class DefaultAnnotationSingleAttributeValue(sourceGetter: () -> String, valueGetter: () -> Any?) :
     DefaultAnnotationValue(), AnnotationSingleAttributeValue {
-    override val value =
-        when {
-            valueSource == ANNOTATION_VALUE_TRUE -> true
-            valueSource == ANNOTATION_VALUE_FALSE -> false
-            valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
-            valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
-            else ->
-                try {
-                    if (valueSource.contains(".")) {
-                        valueSource.toDouble()
-                    } else {
-                        valueSource.toLong()
-                    }
-                } catch (e: NumberFormatException) {
-                    valueSource
-                }
-        }
+
+    override val valueSource by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
+
+    override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
 
     override fun resolve(): Item? = null
 
@@ -433,16 +452,16 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
     }
 }
 
-class DefaultAnnotationArrayAttributeValue(val value: String) :
-    DefaultAnnotationValue(), AnnotationArrayAttributeValue {
-    init {
-        assert(value.startsWith("{") && value.endsWith("}")) { value }
-    }
+class DefaultAnnotationArrayAttributeValue(
+    sourceGetter: () -> String,
+    valuesGetter: () -> List<AnnotationAttributeValue>
+) : DefaultAnnotationValue(), AnnotationArrayAttributeValue {
 
-    override val values =
-        value.substring(1, value.length - 1).split(",").map { create(it.trim()) }.toList()
+    private val valueSource by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
 
-    override fun toSource() = value
+    override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
+
+    override fun toSource() = valueSource
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false
