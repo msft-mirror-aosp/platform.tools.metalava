@@ -28,15 +28,19 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
+import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
+import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
@@ -242,7 +246,15 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            mergeClasspathIntoTextCodebase(SignatureFileLoader.loadFiles(sources))
+            val classResolver = getClassResolver()
+            val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
+
+            // If this codebase was loaded in order to generate stubs then they will need some
+            // additional items to be added that were purposely removed from the signature files.
+            if (options.stubsDir != null) {
+                addMissingItemsRequiredForGeneratingStubs(textCodebase)
+            }
+            textCodebase
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -252,7 +264,6 @@ internal fun processFlags() {
         } else {
             return
         }
-    options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
         progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
@@ -413,7 +424,7 @@ internal fun processFlags() {
         // as migrated (which will cause the Kotlin compiler to treat problems
         // as warnings instead of errors
 
-        migrateNulls(codebase, previous)
+        NullnessMigration.migrateNulls(codebase, previous)
 
         previous.dispose()
     }
@@ -462,6 +473,114 @@ internal fun processFlags() {
     }
 }
 
+/**
+ * When generate stubs from text signature files some additional items are needed.
+ *
+ * Those items are:
+ * * Constructors - in the signature file a missing constructor means no publicly visible
+ *   constructor but the stub classes still need a constructor.
+ * * Concrete methods - in the signature file concrete implementations of inherited abstract methods
+ *   are not listed on concrete classes but the stub concrete classes need those implementations.
+ */
+private fun addMissingItemsRequiredForGeneratingStubs(textCodebase: TextCodebase) {
+    // Only add constructors if the codebase does not fall back to loading classes from the
+    // classpath. This is needed because only the TextCodebase supports adding constructors
+    // in this way.
+    if (options.apiClassResolution == ApiClassResolution.API) {
+        // Reuse the existing ApiAnalyzer support for adding constructors that is used in
+        // [loadFromSources], to make sure that the constructors are correct when generating stubs
+        // from source files.
+        val analyzer = ApiAnalyzer(textCodebase, options.manifest)
+        analyzer.addConstructors { _ -> true }
+
+        addMissingConcreteMethods(
+            textCodebase.getPackages().allClasses().map { it as TextClassItem }.toList()
+        )
+    }
+}
+
+/**
+ * Add concrete implementations of inherited abstract methods to non-abstract class when generating
+ * from-text stubs. Iterate through the hierarchy and collect all super abstract methods that need
+ * to be added. These are not included in the signature files but omitting these methods will lead
+ * to compile error.
+ */
+fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
+    for (cl in allClasses) {
+        // If class is interface, naively iterate through all parent class and interfaces
+        // and resolve inheritance of override equivalent signatures
+        // Find intersection of super class/interface default methods
+        // Resolve conflict by adding signature
+        // https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
+        if (cl.isInterface()) {
+            // We only need to track one method item(value) with the signature(key),
+            // since the containing class does not matter if a method to be added is found
+            // as method.duplicate(cl) sets containing class to cl.
+            // Therefore, the value of methodMap can be overwritten.
+            val methodMap = mutableMapOf<String, TextMethodItem>()
+            val methodCount = mutableMapOf<String, Int>()
+            val hasDefault = mutableMapOf<String, Boolean>()
+            for (superInterfaceOrClass in cl.getParentAndInterfaces()) {
+                val methods = superInterfaceOrClass.methods().map { it as TextMethodItem }
+                for (method in methods) {
+                    val signature = method.toSignatureString()
+                    val isDefault = method.modifiers.isDefault()
+                    val newCount = methodCount.getOrDefault(signature, 0) + 1
+                    val newHasDefault = hasDefault.getOrDefault(signature, false) || isDefault
+
+                    methodMap[signature] = method
+                    methodCount[signature] = newCount
+                    hasDefault[signature] = newHasDefault
+
+                    // If the method has appeared more than once, there may be a potential
+                    // conflict
+                    // thus add the method to the interface
+                    if (
+                        newHasDefault && newCount == 2 && !cl.containsMethodInClassContext(method)
+                    ) {
+                        val m = method.duplicate(cl) as TextMethodItem
+                        m.modifiers.setAbstract(true)
+                        m.modifiers.setDefault(false)
+                        cl.addMethod(m)
+                    }
+                }
+            }
+        }
+
+        // If class is a concrete class, iterate through all hierarchy and
+        // find all missing abstract methods.
+        // Only add methods that are not implemented in the hierarchy and not included
+        else if (!cl.isAbstractClass() && !cl.isEnum()) {
+            val superMethodsToBeOverridden = mutableListOf<TextMethodItem>()
+            val hierarchyClassesList = cl.getAllSuperClassesAndInterfaces().toMutableList()
+            while (hierarchyClassesList.isNotEmpty()) {
+                val ancestorClass = hierarchyClassesList.removeLast()
+                val abstractMethods = ancestorClass.methods().filter { it.modifiers.isAbstract() }
+                for (method in abstractMethods) {
+                    // We do not compare this against all ancestors of cl,
+                    // because an abstract method cannot be overridden at its ancestor class.
+                    // Thus, we compare against hierarchyClassesList.
+                    if (
+                        hierarchyClassesList.all { !it.containsMethodInClassContext(method) } &&
+                            !cl.containsMethodInClassContext(method)
+                    ) {
+                        superMethodsToBeOverridden.add(method as TextMethodItem)
+                    }
+                }
+            }
+            for (superMethod in superMethodsToBeOverridden) {
+                // MethodItem.duplicate() sets the containing class of
+                // the duplicated method item as the input parameter.
+                // Thus, the method items to be overridden are duplicated here after the
+                // ancestor classes iteration so that the method items are correctly compared.
+                val m = superMethod.duplicate(cl) as TextMethodItem
+                m.modifiers.setAbstract(false)
+                cl.addMethod(m)
+            }
+        }
+    }
+}
+
 fun subtractApi(codebase: Codebase, subtractApiFile: File) {
     val path = subtractApiFile.path
     val oldCodebase =
@@ -501,41 +620,8 @@ fun processNonCodebaseFlags() {
         }
     }
 
-    // Convert android.jar files?
-    options.androidJarSignatureFiles?.let { root ->
-        // Generate API signature files for all the historical JAR files
-        ConvertJarsToSignatureFiles().convertJars(root)
-    }
-
     for (convert in options.convertToXmlFiles) {
-        val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
-
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val strip = convert.strip
-        val apiReference = if (strip) apiType.getEmitFilter() else apiType.getReferenceFilter()
-        val baseFile = convert.baseApiFile
-
-        val outputApi =
-            if (baseFile != null) {
-                // Convert base on a diff
-                val baseApi = SignatureFileLoader.load(file = baseFile)
-                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
-            } else {
-                signatureApi
-            }
-
-        // See JDiff's XMLToAPI#nameAPI
-        val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(outputApi, convert.outputFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName
-            )
-        }
+        convert.process()
     }
 }
 
@@ -548,12 +634,11 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            mergeClasspathIntoTextCodebase(SignatureFileLoader.load(file = signatureFile))
+            val classResolver = getClassResolver()
+            SignatureFileLoader.load(signatureFile, classResolver)
         }
 
-    val oldFormat =
-        (oldCodebase as? TextCodebase)?.format
-            ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
+    val oldFormat = (oldCodebase as? TextCodebase)?.format
     if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
         throw DriverException(
             "Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat"
@@ -600,10 +685,6 @@ fun createTempFile(namePrefix: String, nameSuffix: String): File {
     }
 }
 
-private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase)
-}
-
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
     if (filter != null) {
         // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
@@ -632,7 +713,7 @@ private fun loadFromSources(): Codebase {
 
     progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(codebase)
+    val analyzer = ApiAnalyzer(codebase, options.manifest)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -702,8 +783,7 @@ internal fun parseSources(
     sourcePath: List<File> = options.sourcePath,
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
-    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-    manifest: File? = options.manifest
+    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel
 ): PsiBasedCodebase {
     val absoluteSources = sources.map { it.absoluteFile }
 
@@ -723,7 +803,6 @@ internal fun parseSources(
         absoluteClasspath,
         javaLanguageLevel,
         kotlinLanguageLevel,
-        manifest
     )
 }
 
@@ -735,7 +814,6 @@ private fun parseAbsoluteSources(
     classpath: List<File>,
     javaLanguageLevel: LanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings,
-    manifest: File?
 ): PsiBasedCodebase {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
@@ -779,23 +857,18 @@ private fun parseAbsoluteSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description)
+    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager)
     codebase.initialize(environment, units, packageDocs)
-    codebase.manifest = manifest
     return codebase
 }
 
-/** If classpath jars are present, merges classes loaded from the jars into the [textCodebase]. */
-fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
-    return if (
-        options.apiClassResolution == ApiClassResolution.API_CLASSPATH &&
-            options.classpath.isNotEmpty()
-    ) {
-        progress("Processing classpath: ")
-        val uastEnvironment = loadUastFromJars(options.classpath)
-        TextCodebaseWithClasspath(textCodebase, uastEnvironment)
+private fun getClassResolver(): ClassResolver? {
+    val apiClassResolution = options.apiClassResolution
+    val classpath = options.classpath
+    return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+        PsiBasedClassResolver(classpath, options.annotationManager)
     } else {
-        textCodebase
+        null
     }
 }
 
@@ -809,11 +882,15 @@ fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     return environment
 }
 
-fun loadFromJarFile(apiJar: File, preFiltered: Boolean = false): Codebase {
+fun loadFromJarFile(
+    apiJar: File,
+    preFiltered: Boolean = false,
+    annotationManager: AnnotationManager = options.annotationManager,
+): Codebase {
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
-    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
+    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)

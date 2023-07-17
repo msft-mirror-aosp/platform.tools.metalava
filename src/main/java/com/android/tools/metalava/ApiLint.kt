@@ -143,19 +143,21 @@ import com.android.tools.metalava.Issues.USER_HANDLE_NAME
 import com.android.tools.metalava.Issues.USE_ICU
 import com.android.tools.metalava.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.Issues.VISIBLY_SYNCHRONIZED
+import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationItem.Companion.getImplicitNullness
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -180,7 +182,8 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
-    private val reporter: Reporter
+    private val reporter: Reporter,
+    private val manifest: Manifest = options.manifest,
 ) :
     ApiVisitor(
         // Sort by source order such that warnings follow source line number order
@@ -190,7 +193,12 @@ class ApiLint(
         // No need to check "for stubs only APIs" (== "implicit" APIs)
         includeApisForStubPurposes = false
     ) {
-    private fun report(id: Issue, item: Item, message: String, element: PsiElement? = null) {
+    private fun report(
+        id: Issue,
+        item: Item,
+        message: String,
+        location: Location = Location.unknownLocationAndBaselineKey
+    ) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
         if (item.deprecated) {
@@ -207,7 +215,7 @@ class ApiLint(
             return
         }
 
-        reporter.report(id, item, message, element)
+        reporter.report(id, item, message, location)
     }
 
     private fun check() {
@@ -921,7 +929,8 @@ class ApiLint(
             }
             message.append(": ")
             message.append(method.describe())
-            report(VISIBLY_SYNCHRONIZED, method, message.toString(), psi)
+            val location = PsiLocationProvider.elementToLocation(psi)
+            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
         if (method.modifiers.isSynchronized()) {
@@ -1733,7 +1742,7 @@ class ApiLint(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && getImplicitNullness(item) == null) {
+        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
             val type = item.type()
             val inherited =
                 when (item) {
@@ -2450,7 +2459,7 @@ class ApiLint(
         // AutoCloseable has been added in API 19, so libraries with minSdkVersion <19 cannot use
         // it. If the version
         // is not set, then keep the check enabled.
-        val minSdkVersion = codebase.getMinSdkVersion()
+        val minSdkVersion = manifest.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 19) {
             return
         }
@@ -2807,7 +2816,7 @@ class ApiLint(
         }
         // ICU types have been added in API 24, so libraries with minSdkVersion <24 cannot use them.
         // If the version is not set, then keep the check enabled.
-        val minSdkVersion = codebase.getMinSdkVersion()
+        val minSdkVersion = manifest.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 24) {
             return
         }

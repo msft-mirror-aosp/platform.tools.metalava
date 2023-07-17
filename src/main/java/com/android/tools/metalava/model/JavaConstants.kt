@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
+const val JAVA_ENUM_VALUES = "values"
+const val JAVA_ENUM_VALUE_OF = "valueOf"
 
-open class TypeVisitor(val includeInterfaces: Boolean = false) {
-    open fun skip(item: Item): Boolean = false
-
-    open fun visitType(type: TypeItem, owner: Item) {}
-
-    open fun afterVisitType(type: TypeItem, owner: Item) {}
-}
+const val JAVA_LANG_PREFIX = "java.lang."
+const val JAVA_LANG_OBJECT = "java.lang.Object"
+const val JAVA_LANG_STRING = "java.lang.String"
+const val JAVA_LANG_ENUM = "java.lang.Enum"
+const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"

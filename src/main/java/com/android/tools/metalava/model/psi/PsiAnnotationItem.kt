@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.XmlBackedAnnotationItem
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -52,7 +51,7 @@ private constructor(
     val psiAnnotation: PsiAnnotation,
     override val originalName: String?
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
+    override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
     override fun toString(): String = toSource()
 
@@ -78,14 +77,14 @@ private constructor(
         psiAnnotation.parameterList.attributes
             .mapNotNull { attribute ->
                 attribute.value?.let { value ->
-                    PsiAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, value)
+                    PsiAnnotationAttribute(codebase, attribute.name ?: ANNOTATION_ATTR_VALUE, value)
                 }
             }
             .toList()
     }
 
     override val targets: Set<AnnotationTarget> by lazy {
-        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
+        codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
@@ -144,7 +143,7 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = AnnotationItem.mapName(originalName, target) ?: return
+            val qualifiedName = codebase.annotationManager.mapName(originalName, target) ?: return
 
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
@@ -157,7 +156,7 @@ private constructor(
             sb.append("(")
             if (
                 attributes.size == 1 &&
-                    (attributes[0].first == null || attributes[0].first == ATTR_VALUE)
+                    (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
             ) {
                 // Special case: omit "value" if it's the only attribute
                 appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
@@ -169,7 +168,7 @@ private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: ATTR_VALUE)
+                    sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
                     appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
                 }

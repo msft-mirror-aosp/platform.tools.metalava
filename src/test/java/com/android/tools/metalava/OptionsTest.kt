@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.defaultConfiguration
 import java.io.File
+import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
@@ -48,13 +48,6 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
---api-class-resolution <api|api:classpath>
-                                             Determines how class resolution is performed when loading API signature
-                                             files (default `api:classpath`). `--api-class-resolution api` will only
-                                             look for classes in the API signature files. `--api-class-resolution
-                                             api:classpath` will look for classes in the API signature files first and
-                                             then in the classpath. Any classes that cannot be found will be treated as
-                                             empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -81,8 +74,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 --input-api-jar <file>
                                              A .jar file to read APIs from directly
---manifest <file>
-                                             A manifest file, used to for check permissions to cross check APIs
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
@@ -127,29 +118,9 @@ API sources:
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the
                                              subtraction only applies to classes; it does not subtract members.
---typedefs-in-signatures <ref|inline>
-                                             Whether to include typedef annotations in signature files.
-                                             `--typedefs-in-signatures ref` will include just a reference to the typedef
-                                             class, which is not itself part of the API and is not included as a class,
-                                             and `--typedefs-in-signatures inline` will include the constants themselves
-                                             into each usage site. You can also supply `--typedefs-in-signatures none`
-                                             to explicitly turn it off, if the default ever changes.
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
-
-
-Documentation:
---public
-                                             Only include elements that are public
---protected
-                                             Only include elements that are public or protected
---package
-                                             Only include elements that are public, protected or package protected
---private
-                                             Include all elements except those that are marked hidden
---hidden
-                                             Include all elements, including hidden
 
 
 Extracting Signature Files:
@@ -442,25 +413,75 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
             .trimIndent()
 
-    private val COMMON_OPTIONS =
+    /** The options from [CommonOptions] plus Clikt defined opiotns from [Options]. */
+    private val CLIKT_OPTIONS =
         """
 Options:
-  --version            Show the version and exit
-  --color, --no-color  Determine whether to use terminal capabilities to colorize and otherwise style the output.
-                       (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM is set)
-  --no-banner          A banner is never output so this has no effect (deprecated: please remove)
-  --quiet, --verbose   Set the verbosity of the output.
-                       --quiet - Only include vital output.
-                       --verbose - Include extra diagnostic output.
-                       (default: Neither --quiet or --verbose)
-  -h, --help           Show this message and exit
+  --version                                  Show the version and exit
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
+  --quiet, --verbose                         Set the verbosity of the output.
+                                             --quiet - Only include vital output.
+                                             --verbose - Include extra diagnostic output.
+                                             (default: Neither --quiet or --verbose)
+  -h, --help                                 Show this message and exit
+  --api-class-resolution [api|api:classpath]
+                                             Determines how class resolution is performed when loading API signature
+                                             files. Any classes that cannot be found will be treated as empty.",
+
+                                             api - will only look for classes in the API signature files.
+
+                                             api:classpath (default) - will look for classes in the API signature files
+                                             first and then in the classpath.
+  --api-overloaded-method-order [source|signature]
+                                             Specifies the order of overloaded methods in signature files. Applies to
+                                             the contents of the files specified on --api and --removed-api.
+
+                                             source - preserves the order in which overloaded methods appear in the
+                                             source files. This means that refactorings of the source files which change
+                                             the order but not the API can cause unnecessary changes in the API
+                                             signature files.
+
+                                             signature (default) - sorts overloaded methods by their signature. This
+                                             means that refactorings of the source files which change the order but not
+                                             the API will have no effect on the API signature files.
+  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+                                             min_sdk_version. (default: no manifest)
+  --typedefs-in-signatures [none|ref|inline]
+                                             Whether to include typedef annotations in signature files.
+
+                                             none (default) - will not include typedef annotations in signature.
+
+                                             ref - will include just a reference to the typedef class, which is not
+                                             itself part of the API and is not included as a class
+
+                                             inline - will include the constants themselves into each usage site
     """
             .trimIndent()
 
     private val SUB_COMMANDS =
         """
 Sub-commands:
-  version  Show the version
+  android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
+                                             source tree by
+  signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  version                                    Show the version
+        """
+            .trimIndent()
+
+    private val MAIN_HELP_BODY =
+        """
+$CLIKT_OPTIONS
+
+Arguments:
+  flags                                      See below.
+
+$SUB_COMMANDS
+
+
+$FLAGS
         """
             .trimIndent()
 
@@ -483,15 +504,7 @@ Aborting: Error: no such option: "--blah-blah-blah"
 
 $USAGE
 
-$COMMON_OPTIONS
-
-Arguments:
-  flags  See below.
-
-$SUB_COMMANDS
-
-
-$FLAGS
+$MAIN_HELP_BODY
             """
                 .trimIndent(),
             stderr.toString()
@@ -513,7 +526,9 @@ $FLAGS
         assertEquals(
             """
 
-Aborting: --api-class-resolution must be one of api, api:classpath; was foo
+Aborting: Usage: metalava [options] [flags]... <sub-command>? ...
+
+Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
 
             """
                 .trimIndent(),
@@ -541,15 +556,7 @@ $USAGE
   Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
   annotations etc.
 
-$COMMON_OPTIONS
-
-Arguments:
-  flags  See below.
-
-$SUB_COMMANDS
-
-
-$FLAGS
+$MAIN_HELP_BODY
             """
                 .trimIndent(),
             stdout.toString()
@@ -664,4 +671,28 @@ $FLAGS
             FileReadSandbox.reset()
         }
     }
+
+    @Test
+    fun `Test for @ usage on command line`() {
+        check(showAnnotations = arrayOf("@foo.Show"))
+    }
+}
+
+/**
+ * Update the global [options] from the supplied arguments.
+ *
+ * This is for use by tests which do not use [Driver.run]. It does not support any of the
+ * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
+ */
+internal fun updateGlobalOptionsForTest(
+    args: Array<String>,
+    /** Writer to direct output to */
+    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    /** Writer to direct error messages to */
+    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) {
+    // Create a special command that will ensure that the Clikt based properties in Options have
+    // been initialized correctly before updating the global options.
+    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
+    command.parse(args)
 }

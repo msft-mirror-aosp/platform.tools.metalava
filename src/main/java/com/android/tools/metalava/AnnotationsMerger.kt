@@ -28,7 +28,6 @@ import com.android.SdkConstants.LT_ENTITY
 import com.android.SdkConstants.QUOT_ENTITY
 import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
 import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
-import com.android.SdkConstants.VALUE_TRUE
 import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_NOTNULL
 import com.android.tools.lint.annotations.Extractor.ANDROID_NULLABLE
@@ -42,6 +41,9 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
+import com.android.tools.metalava.model.ANDROIDX_INT_DEF
+import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
+import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -54,13 +56,13 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.xml.parseDocument
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
 import com.google.common.io.Files
@@ -222,7 +224,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
 
     private fun mergeAnnotationsSignatureFile(path: String) {
         try {
-            val signatureCodebase = ApiFile.parseApi(File(path))
+            val signatureCodebase = ApiFile.parseApi(File(path), codebase.annotationManager)
             signatureCodebase.description =
                 "Signature files for annotation merger: loaded from $path"
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
@@ -552,7 +554,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
     private fun mergeAnnotations(xmlElement: Element, item: Item) {
         loop@ for (annotationElement in getChildren(xmlElement)) {
             val originalName = getAnnotationName(annotationElement)
-            val qualifiedName = AnnotationItem.mapName(originalName) ?: originalName
+            val qualifiedName = codebase.annotationManager.mapName(originalName) ?: originalName
             if (hasNullnessConflicts(item, qualifiedName)) {
                 continue@loop
             }
@@ -696,7 +698,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
                 if (flag) {
                     attributes.add(
-                        XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE)
+                        XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, ANNOTATION_VALUE_TRUE)
                     )
                 }
                 return PsiAnnotationItem.create(
@@ -723,11 +725,11 @@ class AnnotationsMerger(private val codebase: Codebase) {
                             )
                         }
                         TYPE_DEF_FLAG_ATTRIBUTE -> {
-                            if (VALUE_TRUE == value) {
+                            if (ANNOTATION_VALUE_TRUE == value) {
                                 attributes.add(
                                     XmlBackedAnnotationAttribute(
                                         TYPE_DEF_FLAG_ATTRIBUTE,
-                                        VALUE_TRUE
+                                        ANNOTATION_VALUE_TRUE
                                     )
                                 )
                             }
@@ -847,10 +849,10 @@ class XmlBackedAnnotationItem(
     override val originalName: String,
     override val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
+    override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
-        val qualifiedName = AnnotationItem.mapName(qualifiedName, target) ?: return ""
+        val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
 
         if (attributes.isEmpty()) {
             return "@$qualifiedName"

@@ -1,11 +1,20 @@
-package com.android.tools.metalava
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.android.SdkConstants.ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
-import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationSingleAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
+package com.android.tools.metalava.model
 
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
@@ -27,6 +36,10 @@ interface AnnotationFilter {
     fun isNotEmpty(): Boolean
     // Returns the fully-qualified class name of the first annotation matched by this filter
     fun firstQualifiedName(): String
+
+    companion object {
+        fun emptyFilter(): AnnotationFilter = MutableAnnotationFilter()
+    }
 }
 
 // Mutable implementation of AnnotationFilter
@@ -146,7 +159,7 @@ private class AnnotationFilterEntry(
     val attributes: List<AnnotationAttribute>
 ) {
     fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ATTR_VALUE
+        val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
     }
 
@@ -182,7 +195,7 @@ private class AnnotationFilterEntry(
             // @SystemApi actually is converted into @android.annotation.SystemApi(\
             // client=android.annotation.SystemApi.Client.PRIVILEGED_APPS,\
             // process=android.annotation.SystemApi.Process.ALL)
-            return AnnotationFilterEntry.fromSource(annotationItem.toSource())
+            return fromSource(annotationItem.toSource())
         }
     }
 }
