@@ -16,16 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.SdkConstants
-import com.android.SdkConstants.ATTR_VALUE
-import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
-import com.android.tools.lint.annotations.Extractor.ANDROID_LONG_DEF
-import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
-import com.android.tools.metalava.ANDROIDX_ANNOTATION_PREFIX
-import com.android.tools.metalava.ANDROIDX_INT_DEF
-import com.android.tools.metalava.ANDROIDX_LONG_DEF
-import com.android.tools.metalava.ANDROIDX_STRING_DEF
-
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -116,7 +106,7 @@ interface AnnotationItem {
 
     /** Returns the given named attribute if specified */
     fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ATTR_VALUE
+        val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
     }
 
@@ -165,11 +155,11 @@ interface AnnotationItem {
         fun shortenAnnotation(source: String): String {
             return when {
                 source == "@java.lang.Deprecated" -> "@Deprecated"
-                source.startsWith("android.annotation.", 1) -> {
-                    "@" + source.substring("@android.annotation.".length)
+                source.startsWith(ANDROID_ANNOTATION_PREFIX, 1) -> {
+                    "@" + source.substring(ANDROID_ANNOTATION_PREFIX.length + 1)
                 }
                 source.startsWith(ANDROIDX_ANNOTATION_PREFIX, 1) -> {
-                    "@" + source.substring("@androidx.annotation.".length)
+                    "@" + source.substring(ANDROIDX_ANNOTATION_PREFIX.length + 1)
                 }
                 else -> source
             }
@@ -214,6 +204,9 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
     }
 }
 
+/** The default annotation attribute name when no name is provided. */
+const val ANNOTATION_ATTR_VALUE = "value"
+
 /** An attribute of an annotation, such as "value" */
 interface AnnotationAttribute {
     /** The name of the annotation */
@@ -231,6 +224,9 @@ interface AnnotationAttribute {
         return result
     }
 }
+
+const val ANNOTATION_VALUE_FALSE = "false"
+const val ANNOTATION_VALUE_TRUE = "true"
 
 /** An annotation value */
 interface AnnotationAttributeValue {
@@ -393,8 +389,8 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
     @Suppress("IMPLICIT_CAST_TO_ANY")
     override val value =
         when {
-            valueSource == SdkConstants.VALUE_TRUE -> true
-            valueSource == SdkConstants.VALUE_FALSE -> false
+            valueSource == ANNOTATION_VALUE_TRUE -> true
+            valueSource == ANNOTATION_VALUE_FALSE -> false
             valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
             valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
             else ->

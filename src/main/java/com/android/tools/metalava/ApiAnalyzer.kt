@@ -16,9 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -876,7 +877,7 @@ class ApiAnalyzer(
                                     "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
                                 )
                             } else {
-                                val value = deprecatedForSdk.findAttribute(ATTR_VALUE)
+                                val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
                                 val message = value?.value?.value()?.toString() ?: ""
                                 item.appendDocumentation(message, "@deprecated")
                             }
