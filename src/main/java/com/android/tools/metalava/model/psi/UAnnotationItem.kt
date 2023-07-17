@@ -346,10 +346,6 @@ class UAnnotationSingleAttributeValue(
             return getText(psiValue).removeSurrounding("\"")
         }
 
-    override fun value(): Any? = value
-
-    override fun toSource(): String = getText(psiValue)
-
     override fun resolve(): Item? {
         if (psiValue is UReferenceExpression) {
             when (val resolved = psiValue.resolve()) {

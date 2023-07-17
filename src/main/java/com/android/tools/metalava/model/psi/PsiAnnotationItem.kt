@@ -333,10 +333,6 @@ class PsiAnnotationSingleAttributeValue(
             return psiValue.text ?: psiValue.text.removeSurrounding("\"")
         }
 
-    override fun value(): Any? = value
-
-    override fun toSource(): String = psiValue.text
-
     override fun resolve(): Item? {
         if (psiValue is PsiReference) {
             when (val resolved = psiValue.resolve()) {

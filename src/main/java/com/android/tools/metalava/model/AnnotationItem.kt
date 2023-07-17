@@ -276,6 +276,8 @@ interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
     val value: Any?
 
     override fun value() = value
+
+    override fun toSource() = valueSource
 }
 
 /** An annotation value for an array of items */
@@ -420,8 +422,6 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
         }
 
     override fun resolve(): Item? = null
-
-    override fun toSource() = valueSource
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationSingleAttributeValue) return false
