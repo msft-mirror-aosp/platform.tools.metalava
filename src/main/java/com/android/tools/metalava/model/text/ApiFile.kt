@@ -1522,3 +1522,28 @@ private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) 
         addAnnotation(item)
     }
 }
+
+/**
+ * Checks if the [cls] from different signature file can be merged with this [TextClassItem]. For
+ * instance, `current.txt` and `system-current.txt` may contain equal class definitions with
+ * different class methods. This method is used to determine if the two [TextClassItem]s can be
+ * safely merged in such scenarios.
+ *
+ * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
+ * @return a Boolean value representing if [cls] is compatible with [this]
+ */
+private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
+    if (this === cls) {
+        return true
+    }
+    if (fullName() != cls.fullName()) {
+        return false
+    }
+
+    return modifiers.toString() == cls.modifiers.toString() &&
+        isInterface() == cls.isInterface() &&
+        isEnum() == cls.isEnum() &&
+        isAnnotation == cls.isAnnotation &&
+        superClass() == cls.superClass() &&
+        allInterfaces().toSet() == cls.allInterfaces().toSet()
+}
