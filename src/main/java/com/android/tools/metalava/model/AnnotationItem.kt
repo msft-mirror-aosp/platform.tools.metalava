@@ -185,7 +185,7 @@ interface AnnotationItem {
 }
 
 /** Default implementation of an annotation item */
-abstract class DefaultAnnotationItem
+open class DefaultAnnotationItem
 /** The primary constructor is private to force sub-classes to use the secondary constructor. */
 private constructor(
     override val codebase: Codebase,
@@ -273,6 +273,26 @@ private constructor(
     }
 
     final override fun toString() = toSource()
+
+    companion object {
+        fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {
+            val index = source.indexOf("(")
+            val originalName =
+                if (index == -1) source.substring(1) // Strip @
+                else source.substring(1, index)
+
+            fun attributes(): List<AnnotationAttribute> =
+                if (index == -1) {
+                    emptyList()
+                } else {
+                    DefaultAnnotationAttribute.createList(
+                        source.substring(index + 1, source.lastIndexOf(')'))
+                    )
+                }
+
+            return DefaultAnnotationItem(codebase, originalName, ::attributes, mapName)
+        }
+    }
 }
 
 /** The default annotation attribute name when no name is provided. */
