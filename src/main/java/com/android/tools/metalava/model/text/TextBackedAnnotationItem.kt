@@ -25,9 +25,9 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 class TextBackedAnnotationItem(
     codebase: Codebase,
     originalName: String,
-    override val attributes: List<AnnotationAttribute>,
+    attributesGetter: () -> List<AnnotationAttribute>,
     mapName: Boolean = true,
-) : DefaultAnnotationItem(codebase, originalName, mapName = mapName) {
+) : DefaultAnnotationItem(codebase, originalName, attributesGetter, mapName = mapName) {
 
     companion object {
         fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {
@@ -36,7 +36,7 @@ class TextBackedAnnotationItem(
                 if (index == -1) source.substring(1) // Strip @
                 else source.substring(1, index)
 
-            val attributes =
+            fun attributes(): List<AnnotationAttribute> =
                 if (index == -1) {
                     emptyList()
                 } else {
@@ -44,7 +44,8 @@ class TextBackedAnnotationItem(
                         source.substring(index + 1, source.lastIndexOf(')'))
                     )
                 }
-            return TextBackedAnnotationItem(codebase, originalName, attributes, mapName)
+
+            return TextBackedAnnotationItem(codebase, originalName, ::attributes, mapName)
         }
     }
 }

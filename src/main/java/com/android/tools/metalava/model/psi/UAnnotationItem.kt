@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -50,7 +51,12 @@ private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
     originalName: String?
-) : DefaultAnnotationItem(codebase, originalName) {
+) :
+    DefaultAnnotationItem(
+        codebase,
+        originalName,
+        { getAnnotationAttributes(codebase, uAnnotation) }
+    ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
@@ -70,22 +76,24 @@ private constructor(
         return super.isNonNull()
     }
 
-    override val attributes by lazy {
-        uAnnotation.attributeValues
-            .map { attribute ->
-                DefaultAnnotationAttribute(
-                    attribute.name ?: ANNOTATION_ATTR_VALUE,
-                    createValue(codebase, attribute.expression)
-                )
-            }
-            .toList()
-    }
-
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
+        private fun getAnnotationAttributes(
+            codebase: PsiBasedCodebase,
+            uAnnotation: UAnnotation
+        ): List<AnnotationAttribute> =
+            uAnnotation.attributeValues
+                .map { attribute ->
+                    DefaultAnnotationAttribute(
+                        attribute.name ?: ANNOTATION_ATTR_VALUE,
+                        createValue(codebase, attribute.expression)
+                    )
+                }
+                .toList()
+
         fun create(
             codebase: PsiBasedCodebase,
             uAnnotation: UAnnotation,

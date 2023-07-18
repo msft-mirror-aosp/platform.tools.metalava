@@ -838,5 +838,5 @@ class AnnotationsMerger(private val codebase: Codebase) {
 class XmlBackedAnnotationItem(
     codebase: Codebase,
     originalName: String,
-    override val attributes: List<AnnotationAttribute> = emptyList()
-) : DefaultAnnotationItem(codebase, originalName)
+    attributes: List<AnnotationAttribute> = emptyList()
+) : DefaultAnnotationItem(codebase, originalName, { attributes })

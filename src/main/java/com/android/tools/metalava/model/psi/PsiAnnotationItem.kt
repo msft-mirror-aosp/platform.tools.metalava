@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.XmlBackedAnnotationItem
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -50,7 +51,12 @@ private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
     originalName: String?
-) : DefaultAnnotationItem(codebase, originalName) {
+) :
+    DefaultAnnotationItem(
+        codebase,
+        originalName,
+        { getAnnotationAttributes(codebase, psiAnnotation) }
+    ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
@@ -70,24 +76,26 @@ private constructor(
         return super.isNonNull()
     }
 
-    override val attributes by lazy {
-        psiAnnotation.parameterList.attributes
-            .mapNotNull { attribute ->
-                attribute.value?.let { value ->
-                    DefaultAnnotationAttribute(
-                        attribute.name ?: ANNOTATION_ATTR_VALUE,
-                        createValue(codebase, value),
-                    )
-                }
-            }
-            .toList()
-    }
-
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
+        private fun getAnnotationAttributes(
+            codebase: PsiBasedCodebase,
+            psiAnnotation: PsiAnnotation
+        ): List<AnnotationAttribute> =
+            psiAnnotation.parameterList.attributes
+                .mapNotNull { attribute ->
+                    attribute.value?.let { value ->
+                        DefaultAnnotationAttribute(
+                            attribute.name ?: ANNOTATION_ATTR_VALUE,
+                            createValue(codebase, value),
+                        )
+                    }
+                }
+                .toList()
+
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,

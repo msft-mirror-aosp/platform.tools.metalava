@@ -195,6 +195,9 @@ private constructor(
 
     /** Fully qualified name of the annotation (after name mapping) */
     final override val qualifiedName: String?,
+
+    /** Possibly empty list of attributes. */
+    attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
     /**
@@ -205,17 +208,21 @@ private constructor(
     constructor(
         codebase: Codebase,
         originalName: String?,
+        attributesGetter: () -> List<AnnotationAttribute>,
         mapName: Boolean = true,
     ) : this(
         codebase,
         originalName,
         qualifiedName =
             if (mapName) codebase.annotationManager.mapName(originalName) else originalName,
+        attributesGetter,
     )
 
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findClass)
     }
+
+    final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
 
     override fun resolve(): ClassItem? {
         return codebase.findClass(originalName ?: return null)
