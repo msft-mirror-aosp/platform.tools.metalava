@@ -377,7 +377,7 @@ class UAnnotationArrayAttributeValue(
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false
-        return values.containsAll(other.values)
+        return values == other.values
     }
 }
 
