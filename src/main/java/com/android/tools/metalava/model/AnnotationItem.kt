@@ -248,33 +248,40 @@ private constructor(
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
 
-        return buildString {
-            append("@")
-            append(qualifiedName)
-            if (attributes.isNotEmpty()) {
-                val suppressDefaultAnnotationAttribute = attributes.size == 1
-                append("(")
-                attributes.forEachIndexed { i, attribute ->
-                    if (i != 0) {
-                        append(", ")
-                    }
-                    if (
-                        !suppressDefaultAnnotationAttribute ||
-                            attribute.name != ANNOTATION_ATTR_VALUE
-                    ) {
-                        append(attribute.name)
-                        append("=")
-                    }
-                    append(attribute.value)
-                }
-                append(")")
-            }
-        }
+        return formatAnnotationItem(qualifiedName, attributes)
     }
 
     final override fun toString() = toSource()
 
     companion object {
+        fun formatAnnotationItem(
+            qualifiedName: String,
+            attributes: List<AnnotationAttribute>,
+        ): String {
+            return buildString {
+                append("@")
+                append(qualifiedName)
+                if (attributes.isNotEmpty()) {
+                    val suppressDefaultAnnotationAttribute = attributes.size == 1
+                    append("(")
+                    attributes.forEachIndexed { i, attribute ->
+                        if (i != 0) {
+                            append(", ")
+                        }
+                        if (
+                            !suppressDefaultAnnotationAttribute ||
+                                attribute.name != ANNOTATION_ATTR_VALUE
+                        ) {
+                            append(attribute.name)
+                            append("=")
+                        }
+                        append(attribute.value)
+                    }
+                    append(")")
+                }
+            }
+        }
+
         fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {
             val index = source.indexOf("(")
             val originalName =

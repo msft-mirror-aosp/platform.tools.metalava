@@ -114,10 +114,8 @@ private constructor(
             context: Item? = null
         ): PsiAnnotationItem {
             if (codebase is PsiBasedCodebase) {
-                // TODO: Inline this such that instead of constructing DefaultAnnotationItem
-                // and then producing source and parsing it, produce source directly
-                val intermediate = DefaultAnnotationItem(codebase, originalName, { attributes })
-                return codebase.createAnnotation(intermediate.toSource(), context)
+                val source = formatAnnotationItem(originalName, attributes)
+                return codebase.createAnnotation(source, context)
             } else {
                 codebase.unsupported("Converting to PSI annotation requires PSI codebase")
             }
