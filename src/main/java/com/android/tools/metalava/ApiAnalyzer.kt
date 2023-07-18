@@ -856,8 +856,7 @@ class ApiAnalyzer(
                             // and expected to *not* combine this with @deprecated in the text;
                             // here,
                             // the text comes from an annotation attribute.
-                            item.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.originalName !=
-                                ANDROID_DEPRECATED_FOR_SDK
+                            item.modifiers.isAnnotatedWith(JAVA_LANG_DEPRECATED)
                     ) {
                         reporter.report(
                             Issues.DEPRECATION_MISMATCH,
@@ -867,7 +866,7 @@ class ApiAnalyzer(
                         // TODO: Check opposite (doc tag but no annotation)
                     } else {
                         val deprecatedForSdk =
-                            item.modifiers.findExactAnnotation(ANDROID_DEPRECATED_FOR_SDK)
+                            item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
                             item.deprecated = true
                             if (item.documentation.contains("@deprecated")) {
