@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.DefaultModifierList
@@ -38,25 +37,6 @@ class TextModifiers(
                 annotations.toMutableList()
             }
         return TextModifiers(codebase, flags, newAnnotations)
-    }
-
-    fun addAnnotations(annotationSources: List<String>) {
-        if (annotationSources.isEmpty()) {
-            return
-        }
-
-        val annotations = ArrayList<AnnotationItem>(annotationSources.size)
-        annotationSources.forEach { source ->
-            val item = codebase.createAnnotation(source)
-
-            // @Deprecated is also treated as a "modifier"
-            if (item.qualifiedName == JAVA_LANG_DEPRECATED) {
-                setDeprecated(true)
-            }
-
-            annotations.add(item)
-        }
-        this.annotations = annotations
     }
 
     override fun toString(): String {
