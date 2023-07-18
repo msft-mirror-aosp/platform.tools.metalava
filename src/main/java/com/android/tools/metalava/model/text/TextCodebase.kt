@@ -145,7 +145,7 @@ class TextCodebase(
                             TextPackageItem(
                                 this,
                                 pkgPath,
-                                TextModifiers(this, DefaultModifierList.PUBLIC),
+                                DefaultModifierList(this, DefaultModifierList.PUBLIC),
                                 SourcePositionInfo.UNKNOWN
                             )
                         addPackage(newPkg)
