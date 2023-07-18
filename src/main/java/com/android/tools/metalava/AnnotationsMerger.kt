@@ -844,8 +844,6 @@ class XmlBackedAnnotationItem(
     override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
-        val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
-
         if (attributes.isEmpty()) {
             return "@$qualifiedName"
         }
