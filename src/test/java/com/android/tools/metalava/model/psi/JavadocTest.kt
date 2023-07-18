@@ -31,7 +31,6 @@ class JavadocTest : DriverTest() {
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        includeSourceRetentionAnnotations: Boolean = true,
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         sourceFiles: Array<TestFile>
     ) {
@@ -44,7 +43,6 @@ class JavadocTest : DriverTest() {
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
-            includeSourceRetentionAnnotations = includeSourceRetentionAnnotations,
             skipEmitPackages = skipEmitPackages
         )
     }
@@ -52,7 +50,8 @@ class JavadocTest : DriverTest() {
     @Test
     fun `Test package to package info`() {
         @Language("HTML")
-        val html = """
+        val html =
+            """
             <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
             <!-- not a body tag: <body> -->
             <html>
@@ -67,7 +66,8 @@ class JavadocTest : DriverTest() {
 
         @Suppress("DanglingJavadoc")
         @Language("JAVA")
-        val java = """
+        val java =
+            """
             /**
              * My package docs<br>
              * <!-- comment -->
@@ -83,9 +83,10 @@ class JavadocTest : DriverTest() {
     fun `Relative documentation links in stubs`() {
         checkStubs(
             docStubs = false,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import java.io.IOException;
                     import test.pkg2.OtherClass;
@@ -117,9 +118,9 @@ class JavadocTest : DriverTest() {
                        public boolean importance;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg2;
 
                     @SuppressWarnings("all")
@@ -130,19 +131,20 @@ class JavadocTest : DriverTest() {
                         public void bar(int baz, boolean bar);
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
 
                     @SuppressWarnings("all")
                     public class LocalClass {
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                     package test.pkg1;
                     import test.pkg2.OtherClass;
                     import java.io.IOException;
@@ -184,9 +186,10 @@ class JavadocTest : DriverTest() {
     fun `Rewrite relative documentation links in doc-stubs`() {
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import java.io.IOException;
                     import test.pkg2.OtherClass;
@@ -218,9 +221,9 @@ class JavadocTest : DriverTest() {
                        public boolean importance;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg2;
 
                     @SuppressWarnings("all")
@@ -231,19 +234,20 @@ class JavadocTest : DriverTest() {
                         public void bar(int baz, boolean bar);
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
 
                     @SuppressWarnings("all")
                     public class LocalClass {
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package test.pkg1;
                 import test.pkg2.OtherClass;
                 import java.io.IOException;
@@ -286,9 +290,10 @@ class JavadocTest : DriverTest() {
         // Properly handle links to inherited methods
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import java.io.IOException;
 
@@ -308,18 +313,18 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.os;
 
                     @SuppressWarnings("all")
                     public class Bundle extends BaseBundle {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.os;
 
                     @SuppressWarnings("all")
@@ -333,10 +338,11 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package test.pkg1;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class R {
@@ -364,9 +370,10 @@ class JavadocTest : DriverTest() {
     fun `Rewrite relative documentation links in doc-stubs 3`() {
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.accessibilityservice;
 
                     import android.view.accessibility.AccessibilityEvent;
@@ -383,18 +390,18 @@ class JavadocTest : DriverTest() {
                     public abstract class AccessibilityService {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view.accessibility;
 
                     @SuppressWarnings("all")
                     public final class AccessibilityEvent extends AccessibilityRecord {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view.accessibility;
 
                     @SuppressWarnings("all")
@@ -404,16 +411,17 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view.accessibility;
                     public class AccessibilityNodeInfo {}
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package android.accessibilityservice;
                 import android.view.accessibility.AccessibilityEvent;
                 /**
@@ -435,9 +443,10 @@ class JavadocTest : DriverTest() {
     fun `Rewrite relative documentation links in doc-stubs but preserve custom link text`() {
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.accessibilityservice;
 
                     import android.view.accessibility.AccessibilityEvent;
@@ -454,18 +463,18 @@ class JavadocTest : DriverTest() {
                     public abstract class AccessibilityService {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view.accessibility;
 
                     @SuppressWarnings("all")
                     public final class AccessibilityEvent extends AccessibilityRecord {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view.accessibility;
 
                     @SuppressWarnings("all")
@@ -475,16 +484,17 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.view.accessibility;
                     public class AccessibilityNodeInfo {}
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package android.accessibilityservice;
                 import android.view.accessibility.AccessibilityEvent;
                 /**
@@ -506,9 +516,10 @@ class JavadocTest : DriverTest() {
     fun `Rewrite relative documentation links in doc-stubs 4`() {
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.content;
 
                     import android.os.OperationCanceledException;
@@ -558,9 +569,9 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.os;
 
 
@@ -578,10 +589,11 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package android.content;
                 import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -634,9 +646,10 @@ class JavadocTest : DriverTest() {
         // Properly handle links to inherited methods
         checkStubs(
             docStubs = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package org.xmlpull.v1;
 
                     /**
@@ -652,10 +665,11 @@ class JavadocTest : DriverTest() {
                         void setInput();
                     }
                     """
-                )
-            ),
+                    )
+                ),
             warnings = "",
-            source = """
+            source =
+                """
                 package org.xmlpull.v1;
                 /**
                  * Example docs.
@@ -678,9 +692,10 @@ class JavadocTest : DriverTest() {
         checkStubs(
             docStubs = true,
             warnings = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import test.pkg2.MyChild;
 
@@ -705,18 +720,18 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
                     @SuppressWarnings("all")
                     interface MyConstants {
                         long CONSTANT1 = 12345;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
                     import java.io.Closeable;
                     @SuppressWarnings("all")
@@ -726,9 +741,9 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg2;
 
                     import test.pkg1.MyParent;
@@ -738,9 +753,10 @@ class JavadocTest : DriverTest() {
                         public void close() {}
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg1;
                 import test.pkg2.MyChild;
                 /**
@@ -775,9 +791,10 @@ class JavadocTest : DriverTest() {
         checkStubs(
             docStubs = true,
             warnings = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
 
                     @SuppressWarnings("all")
@@ -794,9 +811,10 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg1;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test {
@@ -819,9 +837,10 @@ class JavadocTest : DriverTest() {
         checkStubs(
             docStubs = true,
             warnings = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import test.pkg2.OtherClass1;
                     import test.pkg2.OtherClass2;
@@ -837,9 +856,9 @@ class JavadocTest : DriverTest() {
                         public void test() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg2;
 
                     @SuppressWarnings("all")
@@ -848,18 +867,19 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg2;
 
                     @SuppressWarnings("all")
                     public class OtherClass2 {
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg1;
                 import test.pkg2.OtherClass2;
                 /**
@@ -882,9 +902,10 @@ class JavadocTest : DriverTest() {
         checkStubs(
             docStubs = true,
             warnings = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import java.nio.ByteBuffer;
 
@@ -903,9 +924,10 @@ class JavadocTest : DriverTest() {
                             int length, ByteBuffer dst);
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg1;
                 import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -931,17 +953,18 @@ class JavadocTest : DriverTest() {
         checkStubs(
             docStubs = true,
             warnings =
-            if (REPORT_UNRESOLVED_SYMBOLS) {
-                """
+                if (REPORT_UNRESOLVED_SYMBOLS) {
+                    """
                 src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: SomethingMissing [UnresolvedLink]
                 src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: OtherMissing [UnresolvedLink]
             """
-            } else {
-                ""
-            },
-            sourceFiles = arrayOf(
-                java(
-                    """
+                } else {
+                    ""
+                },
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg1;
                     import java.nio.ByteBuffer;
 
@@ -956,9 +979,10 @@ class JavadocTest : DriverTest() {
                         public void test() { }
                     }
                     """
-                )
-            ),
-            source = """
+                    )
+                ),
+            source =
+                """
                 package test.pkg1;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test {
@@ -978,9 +1002,10 @@ class JavadocTest : DriverTest() {
     @Test
     fun `Javadoc link to innerclass constructor`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.view;
                     import android.graphics.Insets;
 
@@ -1015,19 +1040,20 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.graphics;
                     public class Insets {
                     }
                     """
-                )
-            ),
+                    )
+                ),
             docStubs = true,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.view;
                     import android.graphics.Insets;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1055,17 +1081,18 @@ class JavadocTest : DriverTest() {
                     }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Ensure references to classes in JavaDoc of hidden members do not affect imports`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import test.pkg.bar.Bar;
                     import test.pkg.baz.Baz;
@@ -1084,9 +1111,9 @@ class JavadocTest : DriverTest() {
                         public void bar() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg.bar;
                     import test.pkg.Foo;
                     import test.pkg.baz.Baz;
@@ -1097,18 +1124,19 @@ class JavadocTest : DriverTest() {
                         public void foo(Foo foo) {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg.baz;
                     public class Baz {
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import test.pkg.bar.Bar;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1120,9 +1148,9 @@ class JavadocTest : DriverTest() {
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg.bar;
                     import test.pkg.baz.Baz;
                     import test.pkg.Foo;
@@ -1135,17 +1163,17 @@ class JavadocTest : DriverTest() {
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg.baz;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Baz {
                     public Baz() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 }

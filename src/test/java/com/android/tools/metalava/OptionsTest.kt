@@ -17,46 +17,20 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.defaultConfiguration
+import java.io.File
+import java.io.OutputStreamWriter
+import java.io.PrintWriter
+import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val DESCRIPTION = """
-$PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
-external annotations etc.
-    """.trimIndent()
-
-    private val FLAGS = """
-Usage: metalava <flags>
-
-
+    private val FLAGS =
+        """
 General:
---help
-                                             This message.
---version
-                                             Show the version of metalava.
---quiet
-                                             Only include vital output
---verbose
-                                             Include extra diagnostic output
---color
-                                             Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
---no-color
-                                             Do not attempt to colorize the output
---only-update-api
-                                             Cancel any other "action" flags other than generating signature files. This
-                                             is here to make it easier customize build system tasks, particularly for
-                                             the "make update-api" task.
---only-check-api
-                                             Cancel any other "action" flags other than checking signature files. This
-                                             is here to make it easier customize build system tasks, particularly for
-                                             the "make checkapi" task.
 --repeat-errors-max <N>
                                              When specified, repeat at most N errors before finishing.
 
@@ -101,8 +75,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 --input-api-jar <file>
                                              A .jar file to read APIs from directly
---manifest <file>
-                                             A manifest file, used to for check permissions to cross check APIs
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
@@ -122,12 +94,15 @@ API sources:
 --hide-meta-annotation <meta-annotation class>
                                              Treat as hidden any elements annotated with an annotation which is itself
                                              annotated with the given meta-annotation
+--suppress-compatibility-meta-annotation <meta-annotation class>
+                                             Suppress compatibility checks for any elements within the scope of an
+                                             annotation which is itself annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.7.
+                                             Sets the source level for Kotlin source files; default is 1.9.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -176,6 +151,13 @@ Extracting Signature Files:
                                              Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
+--api-overloaded-method-order <source|signature>
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `signature`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `--api-overloaded-method-order source` will preserve the
+                                             order in which they appear in the source files.
+                                             `--api-overloaded-method-order signature` will sort them based on their
+                                             signature.
 --format=<v1,v2,v3,...>
                                              Sets the output signature file format to be the given version.
 --output-kotlin-nulls[=yes|no]
@@ -236,11 +218,6 @@ Generating Stubs:
 
 
 Diffs and Checks:
---input-kotlin-nulls[=yes|no]
-                                             Whether the signature file being read should be interpreted as having
-                                             encoded its types using Kotlin style types: a suffix of "?" for nullable
-                                             types, no suffix for non nullable types, and "!" for unknown. The default
-                                             is no.
 --check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
                                              either the public api or the removed api.
@@ -272,9 +249,17 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>
                                              Hide/skip issues of the given id
+--error-category <name>
+                                             Report all issues in the given category as errors
+--warning-category <name>
+                                             Report all issues in the given category as warnings
+--lint-category <name>
+                                             Report all issues in the given category as having lint-severity
+--hide-category <name>
+                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide')
+                                             baseline) but not if hidden (by '--hide' or '--hide-category')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
@@ -327,12 +312,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---include-annotation-classes <dir>
-                                             Copies the given stub annotation source files into the generated stub
-                                             sources; <dir> is typically metalava/stub-annotations/src/main/java/.
---rewrite-annotations <dir/jar>
-                                             For a bytecode folder or output jar, rewrites the androidx annotations to
-                                             be package private
 --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by
@@ -357,6 +336,11 @@ Extracting API Levels:
 --generate-api-levels <xmlfile>
                                              Reads android.jar SDK files and generates an XML file recording the API
                                              level for each class, method and field
+--remove-missing-class-references-in-api-levels
+                                             Removes references to missing classes when generating the API levels XML
+                                             file. This can happen when generating the XML file for the non-updatable
+                                             portions of the module-lib sdk, as those non-updatable portions can
+                                             reference classes that are part of an updatable apex.
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
@@ -368,6 +352,44 @@ Extracting API Levels:
                                              Sets the code name for the current source code
 --current-jar
                                              Points to the current API jar, if any
+--sdk-extensions-root
+                                             Points to root of prebuilt extension SDK jars, if any. This directory is
+                                             expected to contain snapshots of historical extension SDK versions in the
+                                             form of stub jars. The paths should be on the format
+                                             "<int>/public/<module-name>.jar", where <int> corresponds to the extension
+                                             SDK version, and <module-name> to the name of the mainline module.
+--sdk-extensions-info
+                                             Points to map of extension SDK APIs to include, if any. The file is a plain
+                                             text file and describes, per extension SDK, what APIs from that extension
+                                             to include in the file created via --generate-api-levels. The format of
+                                             each line is one of the following: "<module-name> <pattern> <ext-name>
+                                             [<ext-name> [...]]", where <module-name> is the name of the mainline module
+                                             this line refers to, <pattern> is a common Java name prefix of the APIs
+                                             this line refers to, and <ext-name> is a list of extension SDK names in
+                                             which these SDKs first appeared, or "<ext-name> <ext-id> <type>", where
+                                             <ext-name> is the name of an SDK, <ext-id> its numerical ID and <type> is
+                                             one of "platform" (the Android platform SDK), "platform-ext" (an extension
+                                             to the Android platform SDK), "standalone" (a separate SDK). Fields are
+                                             separated by whitespace. A mainline module may be listed multiple times.
+                                             The special pattern "*" refers to all APIs in the given mainline module.
+                                             Lines beginning with # are comments.
+
+
+Generating API version history:
+--generate-api-version-history <jsonfile>
+                                             Reads API signature files and generates a JSON file recording the API
+                                             version each class, method, and field was added in and (if applicable)
+                                             deprecated in. Required to generate API version JSON.
+--api-version-signature-files <files>
+                                             An ordered list of text API signature files. The oldest API version should
+                                             be first, the newest last. This should not include a signature file for the
+                                             current API version, which will be parsed from the provided source files.
+                                             Not required to generate API version JSON if the current version is the
+                                             only version.
+--api-version-names <strings>
+                                             An ordered list of strings with the names to use for the API versions from
+                                             --api-version-signature-files, and the name of the current API version.
+                                             Required to generate API version JSON.
 
 
 Sandboxing:
@@ -403,7 +425,66 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-    """.trimIndent()
+    """
+            .trimIndent()
+
+    private val USAGE =
+        """
+Usage: metalava [options] [flags]... <sub-command>? ...
+        """
+            .trimIndent()
+
+    /** The options from [CommonOptions] plus Clikt defined opiotns from [Options]. */
+    private val CLIKT_OPTIONS =
+        """
+Options:
+  --version                                  Show the version and exit
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
+  --quiet, --verbose                         Set the verbosity of the output.
+                                             --quiet - Only include vital output.
+                                             --verbose - Include extra diagnostic output.
+                                             (default: Neither --quiet or --verbose)
+  -h, --help                                 Show this message and exit
+  --api-class-resolution [api|api:classpath]
+                                             Determines how class resolution is performed when loading API signature
+                                             files. `api` will only look for classes in the API signature files.
+                                             `api:classpath` will look for classes in the API signature files first and
+                                             then in the classpath. Any classes that cannot be found will be treated as
+                                             empty.", (default: api:classpath)
+  --api-overloaded-method-order [source|signature]
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `signature`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `source` will preserve the order in which they appear in the
+                                             source files. `signature` will sort them based on their signature.
+                                             (default: signature)
+  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+                                             min_sdk_version. (default: no manifest)
+    """
+            .trimIndent()
+
+    private val SUB_COMMANDS =
+        """
+Sub-commands:
+  version                                    Show the version
+        """
+            .trimIndent()
+
+    private val MAIN_HELP_BODY =
+        """
+$CLIKT_OPTIONS
+
+Arguments:
+  flags                                      See below.
+
+$SUB_COMMANDS
+
+
+$FLAGS
+        """
+            .trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -416,15 +497,42 @@ METALAVA_APPEND_ARGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n\n", stdout.toString())
+        assertEquals("", stdout.toString())
         assertEquals(
             """
 
-Aborting: Invalid argument --blah-blah-blah
+Aborting: Error: no such option: "--blah-blah-blah"
 
-$FLAGS
+$USAGE
 
-            """.trimIndent(),
+$MAIN_HELP_BODY
+            """
+                .trimIndent(),
+            stderr.toString()
+        )
+    }
+
+    @Test
+    fun `Test invalid value`() {
+        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals("", stdout.toString())
+        assertEquals(
+            """
+
+Aborting: Usage: metalava [options] [flags]... <sub-command>? ...
+
+Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
+
+            """
+                .trimIndent(),
             stderr.toString()
         )
     }
@@ -443,14 +551,38 @@ $FLAGS
         assertEquals("", stderr.toString())
         assertEquals(
             """
-$BANNER
 
+$USAGE
 
-$DESCRIPTION
+  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+  annotations etc.
 
-$FLAGS
+$MAIN_HELP_BODY
+            """
+                .trimIndent(),
+            stdout.toString()
+        )
+    }
 
-            """.trimIndent(),
+    @Test
+    fun `Test version`() {
+        val args = listOf(ARG_NO_COLOR, "--version")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals("", stderr.toString())
+        assertEquals(
+            """
+
+                metalava version: 1.0.0-alpha09
+
+            """
+                .trimIndent(),
             stdout.toString()
         )
     }
@@ -458,16 +590,17 @@ $FLAGS
     @Test
     fun `Test issue severity options`() {
         check(
-            extraArguments = arrayOf(
-                "--hide",
-                "StartWithLower",
-                "--lint",
-                "EndsWithImpl",
-                "--warning",
-                "StartWithUpper",
-                "--error",
-                "ArrayReturn"
-            )
+            extraArguments =
+                arrayOf(
+                    "--hide",
+                    "StartWithLower",
+                    "--lint",
+                    "EndsWithImpl",
+                    "--warning",
+                    "StartWithUpper",
+                    "--error",
+                    "ArrayReturn"
+                )
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -477,9 +610,7 @@ $FLAGS
 
     @Test
     fun `Test multiple issue severity options`() {
-        check(
-            extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn")
-        )
+        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -487,18 +618,20 @@ $FLAGS
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
-        check(
-            extraArguments = arrayOf("--error", "RemovedClass")
-        )
+        check(extraArguments = arrayOf("--error", "RemovedClass"))
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
+        assertEquals(
+            Severity.ERROR,
+            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+        )
     }
 
     @Test
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues =
+                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -523,10 +656,11 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf(
-                    "--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path
-                )
+                extraArguments =
+                    arrayOf(
+                        "--strict-input-files-exempt",
+                        file1.path + File.pathSeparatorChar + dir.path
+                    )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))
@@ -538,4 +672,28 @@ $FLAGS
             FileReadSandbox.reset()
         }
     }
+
+    @Test
+    fun `Test for @ usage on command line`() {
+        check(showAnnotations = arrayOf("@foo.Show"))
+    }
+}
+
+/**
+ * Update the global [options] from the supplied arguments.
+ *
+ * This is for use by tests which do not use [Driver.run]. It does not support any of the
+ * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
+ */
+internal fun updateGlobalOptionsForTest(
+    args: Array<String>,
+    /** Writer to direct output to */
+    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    /** Writer to direct error messages to */
+    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) {
+    // Create a special command that will ensure that the Clikt based properties in Options have
+    // been initialized correctly before updating the global options.
+    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
+    command.parse(args)
 }
