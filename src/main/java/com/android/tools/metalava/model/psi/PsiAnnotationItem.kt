@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.XmlBackedAnnotationItem
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -108,15 +107,17 @@ private constructor(
             return PsiAnnotationItem(codebase, original.psiAnnotation, original.originalName)
         }
 
-        // TODO: Inline this such that instead of constructing XmlBackedAnnotationItem
-        // and then producing source and parsing it, produce source directly
         fun create(
             codebase: Codebase,
-            xmlAnnotation: XmlBackedAnnotationItem,
+            originalName: String,
+            attributes: List<AnnotationAttribute> = emptyList(),
             context: Item? = null
         ): PsiAnnotationItem {
             if (codebase is PsiBasedCodebase) {
-                return codebase.createAnnotation(xmlAnnotation.toSource(), context)
+                // TODO: Inline this such that instead of constructing DefaultAnnotationItem
+                // and then producing source and parsing it, produce source directly
+                val intermediate = DefaultAnnotationItem(codebase, originalName, { attributes })
+                return codebase.createAnnotation(intermediate.toSource(), context)
             } else {
                 codebase.unsupported("Converting to PSI annotation requires PSI codebase")
             }

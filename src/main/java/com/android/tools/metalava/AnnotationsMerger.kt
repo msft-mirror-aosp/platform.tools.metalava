@@ -49,7 +49,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -609,23 +608,20 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
                 return PsiAnnotationItem.create(
                     codebase,
-                    XmlBackedAnnotationItem(
-                        codebase,
-                        "androidx.annotation.IntRange",
-                        listOf(
-                            // Add "L" suffix to ensure that we don't for example interpret "-1" as
-                            // an integer -1 and then end up recording it as "ffffffff" instead of
-                            // -1L
-                            DefaultAnnotationAttribute.create(
-                                valName1,
-                                value1 + (if (value1.last().isDigit()) "L" else "")
-                            ),
-                            DefaultAnnotationAttribute.create(
-                                valName2,
-                                value2 + (if (value2.last().isDigit()) "L" else "")
-                            )
+                    "androidx.annotation.IntRange",
+                    listOf(
+                        // Add "L" suffix to ensure that we don't for example interpret "-1" as
+                        // an integer -1 and then end up recording it as "ffffffff" instead of
+                        // -1L
+                        DefaultAnnotationAttribute.create(
+                            valName1,
+                            value1 + (if (value1.last().isDigit()) "L" else "")
+                        ),
+                        DefaultAnnotationAttribute.create(
+                            valName2,
+                            value2 + (if (value2.last().isDigit()) "L" else "")
                         )
-                    )
+                    ),
                 )
             }
             name == IDEA_MAGIC -> {
@@ -704,11 +700,8 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 }
                 return PsiAnnotationItem.create(
                     codebase,
-                    XmlBackedAnnotationItem(
-                        codebase,
-                        if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
-                        attributes
-                    )
+                    if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
+                    attributes,
                 )
             }
             name == ANDROIDX_STRING_DEF ||
@@ -748,11 +741,8 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
                 return PsiAnnotationItem.create(
                     codebase,
-                    XmlBackedAnnotationItem(
-                        codebase,
-                        if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
-                        attributes
-                    )
+                    if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
+                    attributes,
                 )
             }
             name == IDEA_CONTRACT -> {
@@ -763,25 +753,17 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 return if (pure != null && pure.isNotEmpty()) {
                     PsiAnnotationItem.create(
                         codebase,
-                        XmlBackedAnnotationItem(
-                            codebase,
-                            name,
-                            listOf(
-                                DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value),
-                                DefaultAnnotationAttribute.create(ATTR_PURE, pure)
-                            )
-                        )
+                        name,
+                        listOf(
+                            DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value),
+                            DefaultAnnotationAttribute.create(ATTR_PURE, pure)
+                        ),
                     )
                 } else {
                     PsiAnnotationItem.create(
                         codebase,
-                        XmlBackedAnnotationItem(
-                            codebase,
-                            name,
-                            listOf(
-                                DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)
-                            )
-                        )
+                        name,
+                        listOf(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)),
                     )
                 }
             }
@@ -801,10 +783,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
                         )
                     )
                 }
-                return PsiAnnotationItem.create(
-                    codebase,
-                    XmlBackedAnnotationItem(codebase, name, attributes)
-                )
+                return PsiAnnotationItem.create(codebase, name, attributes)
             }
         }
     }
@@ -833,10 +812,3 @@ class AnnotationsMerger(private val codebase: Codebase) {
         return workingString
     }
 }
-
-// TODO: Replace with usage of DefaultAnnotationAttribute?
-class XmlBackedAnnotationItem(
-    codebase: Codebase,
-    originalName: String,
-    attributes: List<AnnotationAttribute> = emptyList()
-) : DefaultAnnotationItem(codebase, originalName, { attributes })
