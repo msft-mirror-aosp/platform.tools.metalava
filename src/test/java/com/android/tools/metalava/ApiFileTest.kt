@@ -4401,6 +4401,8 @@ class ApiFileTest : DriverTest() {
                             get() = value && 0x00ff
                         fun doSomething() {}
                     }
+
+                    fun box(val p : Dp) {}
                 """
                 )
             ),
@@ -4416,6 +4418,9 @@ class ApiFileTest : DriverTest() {
                     method public inline operator float plus(float other);
                     property public final boolean someBits;
                     property public final float value;
+                  }
+                  public final class DpKt {
+                    method public static void box(float p);
                   }
                 }
             """
@@ -4548,25 +4553,42 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
                         package test.pkg
+                        import androidx.annotation.IntRange
                         @Deprecated(
                             message = "So much regret",
                             level = DeprecationLevel.HIDDEN
                         )
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNull(): String = "42"
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNullImplicitly() = "42"
                     """
-                )
+                ),
+                androidxIntRangeSource
             ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
-                // Signature format: 3.0
+                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
+                    method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @NonNull public static String returnsNonNull();
+                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4672,6 +4694,114 @@ class ApiFileTest : DriverTest() {
                     method public int getBar();
                     method public void setBar(int);
                     property public final int bar;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `implements kotlin collection`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class MyList : List<String> {
+                          override operator fun get(index: Int): String {}
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
+                    ctor public MyList();
+                    method public operator String get(int index);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `companion object in annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Dimension(val unit: Int = PX) {
+                            companion object {
+                                const val DP: Int = 0
+                                const val PX: Int = 1
+                                const val SP: Int = 2
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
+                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    property public abstract int unit;
+                    field public static final test.pkg.Dimension.Companion Companion;
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                  public static final class Dimension.Companion {
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN)`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                        fun before(
+                            i : Int?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: "42"
+                            }
+                        }
+
+                        fun after(
+                            i : Int?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: "42"
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public interface State<T> {
+                    method public T! getValue();
+                    property public abstract T! value;
+                  }
+                  public final class StateKt {
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, java.lang.Object... vs);
+                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(int i, Object vs);
                   }
                 }
             """
