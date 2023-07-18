@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.text.TextCodebase
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
@@ -435,30 +434,28 @@ interface MethodItem : MemberItem {
             val type2 = parameter2.type().toErasedTypeString(other)
 
             if (type1 != type2) {
-                // Workaround for signature-based codebase, where we can't always resolve generic
-                // parameters: if we see a mismatch here which looks like a failure to erase say T
-                // into
-                // java.lang.Object, don't treat that as a mismatch. (Similar common case: T[] and
-                // Object[])
-                if (
-                    typeString1[0].isUpperCase() &&
-                        typeString1.length == 1 &&
-                        parameter1.codebase is TextCodebase
-                ) {
-                    continue
+                if (!checkGenericParameterTypes(typeString1, typeString2)) {
+                    return false
                 }
-                if (
-                    typeString2.length >= 2 &&
-                        !typeString2[1].isLetterOrDigit() &&
-                        parameter1.codebase is TextCodebase
-                ) {
-                    continue
-                }
-                return false
             }
         }
         return true
     }
+
+    /**
+     * Perform an additional check on possibly generic parameter types that do not match.
+     *
+     * Workaround for signature-based codebase, where we can't always resolve generic parameters. If
+     * we see a mismatch here which looks like a failure to erase say `T` into `java.lang.Object`,
+     * don't treat that as a mismatch.
+     *
+     * (Similar common case: `T[]` and `Object[]`)
+     *
+     * @param typeString1 the un-erased type for the parameter from this method.
+     * @param typeString2 the un-erased type for the corresponding parameter from another method
+     *   against which this is being matched.
+     */
+    fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean = false
 
     /**
      * Returns whether this method has any types in its signature that does not match the given
