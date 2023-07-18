@@ -16,8 +16,15 @@
 
 package com.android.tools.metalava.model
 
-enum class TypedefMode {
-    NONE,
-    REFERENCE,
-    INLINE
+enum class TypedefMode(val optionValue: String, val help: String) {
+    NONE(optionValue = "none", help = """will not include typedef annotations in signature."""),
+    REFERENCE(
+        optionValue = "ref",
+        help =
+            """will include just a reference to the typedef class, which is not itself part of the API and is not included as a class"""
+    ),
+    INLINE(
+        optionValue = "inline",
+        help = """will include the constants themselves into each usage site"""
+    )
 }
