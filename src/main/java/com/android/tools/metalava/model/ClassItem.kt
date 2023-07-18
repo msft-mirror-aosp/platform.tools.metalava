@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.ApiAnalyzer
 import com.google.common.base.Splitter
 import java.util.ArrayList
 import java.util.LinkedHashSet
@@ -231,8 +230,7 @@ interface ClassItem : Item {
         return modifiers.isAbstract()
     }
 
-    // Mutation APIs: Used to "fix up" the API hierarchy (in [ApiAnalyzer]) to only expose
-    // visible parts of the API)
+    // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
     // This replaces the "real" super class
     fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem? = superClass?.toType())
@@ -705,10 +703,10 @@ interface ClassItem : Item {
     }
 
     /**
-     * The default constructor to invoke on this class from subclasses; initially null but populated
-     * by [ApiAnalyzer.addConstructors]. (Note that in some cases [stubConstructor] may not be in
-     * [constructors], e.g. when we need to create a constructor to match a public parent class with
-     * a non-default constructor and the one in the code is not a match, e.g. is marked @hide etc.)
+     * The default constructor to invoke on this class from subclasses; initially null but may be
+     * updated during use. (Note that in some cases [stubConstructor] may not be in [constructors],
+     * e.g. when we need to create a constructor to match a public parent class with a non-default
+     * constructor and the one in the code is not a match, e.g. is marked @hide etc.)
      */
     var stubConstructor: ConstructorItem?
 
