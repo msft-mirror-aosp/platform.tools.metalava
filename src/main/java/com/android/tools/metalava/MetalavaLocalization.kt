@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
+package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
+import com.github.ajalt.clikt.output.Localization
 
-open class TypeVisitor(val includeInterfaces: Boolean = false) {
-    open fun skip(item: Item): Boolean = false
-    open fun visitType(type: TypeItem, owner: Item) {}
-    open fun afterVisitType(type: TypeItem, owner: Item) {}
+/** Metalava specific localizations of various help and error messages. */
+class MetalavaLocalization : Localization {
+    override fun optionsMetavar(): String {
+        return "[options]"
+    }
+
+    override fun commandMetavar(): String {
+        return "<sub-command>? ..."
+    }
+
+    override fun commandsTitle(): String {
+        return "Sub-commands:"
+    }
 }

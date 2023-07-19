@@ -52,11 +52,13 @@ object Issues {
     val CHANGED_SYNCHRONIZED = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_FINAL_UNINSTANTIABLE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val REMOVED_FINAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val REMOVED_FINAL_STRICT = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_DEPRECATED_CLASS = Issue(REMOVED_CLASS, Category.COMPATIBILITY)
     val REMOVED_DEPRECATED_METHOD = Issue(REMOVED_METHOD, Category.COMPATIBILITY)
     val REMOVED_DEPRECATED_FIELD = Issue(REMOVED_FIELD, Category.COMPATIBILITY)
     val ADDED_ABSTRACT_METHOD = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_REIFIED = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY = Issue(Severity.ERROR, Category.COMPATIBILITY)
 
     // Issues in javadoc generation
     val UNRESOLVED_LINK = Issue(Severity.LINT, Category.DOCUMENTATION)
@@ -78,7 +80,6 @@ object Issues {
 
     // Metalava warnings (not from doclava)
 
-    val TYPO = Issue(Severity.WARNING, Category.DOCUMENTATION)
     val MISSING_PERMISSION = Issue(Severity.LINT, Category.DOCUMENTATION)
     val MULTIPLE_THREAD_ANNOTATIONS = Issue(Severity.LINT, Category.DOCUMENTATION)
     val UNRESOLVED_CLASS = Issue(Severity.LINT, Category.DOCUMENTATION)
@@ -89,6 +90,7 @@ object Issues {
     val VARARG_REMOVAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADD_SEALED = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val FUN_REMOVAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val BECAME_UNCHECKED = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ANNOTATION_EXTRACTION = Issue(Severity.ERROR)
     val SUPERFLUOUS_PREFIX = Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT = Issue(Severity.ERROR)
@@ -127,8 +129,9 @@ object Issues {
     val COMPILE_TIME_CONSTANT = Issue(Severity.ERROR, Category.API_LINT)
     val SINGULAR_CALLBACK = Issue(Severity.ERROR, Category.API_LINT, "callback-class-singular")
     val CALLBACK_NAME = Issue(Severity.WARNING, Category.API_LINT, "observer-should-be-callback")
+    // Obsolete per https://s.android.com/api-guidelines.
     val CALLBACK_INTERFACE =
-        Issue(Severity.ERROR, Category.API_LINT, "callback-abstract-instead-of-interface")
+        Issue(Severity.HIDDEN, Category.API_LINT, "callback-abstract-instead-of-interface")
     val CALLBACK_METHOD_NAME = Issue(Severity.ERROR, Category.API_LINT, "callback-method-naming")
     val LISTENER_INTERFACE = Issue(Severity.ERROR, Category.API_LINT, "callbacks-listener")
     val SINGLE_METHOD_INTERFACE = Issue(Severity.ERROR, Category.API_LINT, "callbacks-listener")
@@ -210,7 +213,8 @@ object Issues {
     val DOCUMENT_EXCEPTIONS = Issue(Severity.ERROR, Category.API_LINT, "docs-throws")
     val FORBIDDEN_SUPER_CLASS = Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT, "annotations")
-    val INVALID_NULLABILITY_OVERRIDE = Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
+    val INVALID_NULLABILITY_OVERRIDE =
+        Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
     val MUTABLE_BARE_FIELD = Issue(Severity.ERROR, Category.API_LINT, "mutable-bare-field")
     val INTERNAL_FIELD = Issue(Severity.ERROR, Category.API_LINT, "internal-fields")
     val PUBLIC_TYPEDEF = Issue(Severity.ERROR, Category.API_LINT, "no-public-typedefs")
@@ -223,9 +227,12 @@ object Issues {
     val OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT =
         Issue(Severity.WARNING, Category.API_LINT, "builders-nonnull-constructors")
     val NO_SETTINGS_PROVIDER = Issue(Severity.HIDDEN, Category.API_LINT, "no-settings-provider")
-    val NULLABLE_COLLECTION = Issue(Severity.WARNING, Category.API_LINT, "methods-prefer-non-null-collections")
+    val NULLABLE_COLLECTION =
+        Issue(Severity.WARNING, Category.API_LINT, "methods-prefer-non-null-collections")
     val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS = Issue(Severity.ERROR, Category.API_LINT, "callbacks-sam")
+    val KOTLIN_DEFAULT_PARAMETER_ORDER =
+        Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC, "kotlin-params-order")
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
@@ -240,21 +247,25 @@ object Issues {
         return null
     }
 
-    class Issue private constructor(
+    fun findCategoryById(id: String?): Category? = Category.values().find { it.id == id }
+
+    fun findIssuesByCategory(category: Category?): List<Issue> =
+        allIssues.filter { it.category == category }
+
+    class Issue
+    private constructor(
         val defaultLevel: Severity,
         /**
-         * When `level` is set to [Severity.INHERIT], this is the parent from
-         * which the issue will inherit its level.
+         * When `level` is set to [Severity.INHERIT], this is the parent from which the issue will
+         * inherit its level.
          */
         val parent: Issue?,
-        /** Applicable category  */
+        /** Applicable category */
         val category: Category,
-        /** Related rule, if any  */
+        /** Related rule, if any */
         val rule: String?
     ) {
-        /**
-         * The name of this issue
-         */
+        /** The name of this issue */
         lateinit var name: String
             internal set
 
@@ -287,7 +298,15 @@ object Issues {
         COMPATIBILITY("Compatibility", null),
         DOCUMENTATION("Documentation", null),
         API_LINT("API Lint", "https://s.android.com/api-guidelines#"),
-        UNKNOWN("Default", null)
+        // AndroidX API guidelines are split across multiple files, so add a category per-file
+        API_LINT_ANDROIDX_MISC(
+            "API Lint",
+            "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"
+        ),
+        UNKNOWN("Default", null);
+
+        /** Identifier for use in command-line arguments and reporting. */
+        val id: String = SdkVersionInfo.underlinesToCamelCase(name.lowercase(Locale.US))
     }
 
     init { // Initialize issue names based on the field names
