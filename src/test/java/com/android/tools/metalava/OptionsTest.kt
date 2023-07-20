@@ -17,38 +17,20 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.defaultConfiguration
+import java.io.File
+import java.io.OutputStreamWriter
+import java.io.PrintWriter
+import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val DESCRIPTION = """
-$PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
-external annotations etc.
-    """.trimIndent()
-
-    private val FLAGS = """
-Usage: metalava <flags>
-
-
+    private val FLAGS =
+        """
 General:
---help
-                                             This message.
---version
-                                             Show the version of metalava.
---quiet
-                                             Only include vital output
---verbose
-                                             Include extra diagnostic output
---color
-                                             Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
---no-color
-                                             Do not attempt to colorize the output
 --repeat-errors-max <N>
                                              When specified, repeat at most N errors before finishing.
 
@@ -67,13 +49,6 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
---api-class-resolution <api|api:classpath>
-                                             Determines how class resolution is performed when loading API signature
-                                             files (default `api:classpath`). `--api-class-resolution api` will only
-                                             look for classes in the API signature files. `--api-class-resolution
-                                             api:classpath` will look for classes in the API signature files first and
-                                             then in the classpath. Any classes that cannot be found will be treated as
-                                             empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -100,8 +75,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 --input-api-jar <file>
                                              A .jar file to read APIs from directly
---manifest <file>
-                                             A manifest file, used to for check permissions to cross check APIs
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
@@ -129,7 +102,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.8.
+                                             Sets the source level for Kotlin source files; default is 1.9.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -245,11 +218,6 @@ Generating Stubs:
 
 
 Diffs and Checks:
---input-kotlin-nulls[=yes|no]
-                                             Whether the signature file being read should be interpreted as having
-                                             encoded its types using Kotlin style types: a suffix of "?" for nullable
-                                             types, no suffix for non nullable types, and "!" for unknown. The default
-                                             is no.
 --check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
                                              either the public api or the removed api.
@@ -414,10 +382,14 @@ Generating API version history:
                                              deprecated in. Required to generate API version JSON.
 --api-version-signature-files <files>
                                              An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. Required to generate API version JSON.
+                                             be first, the newest last. This should not include a signature file for the
+                                             current API version, which will be parsed from the provided source files.
+                                             Not required to generate API version JSON if the current version is the
+                                             only version.
 --api-version-names <strings>
                                              An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files. Required to generate API version JSON.
+                                             --api-version-signature-files, and the name of the current API version.
+                                             Required to generate API version JSON.
 
 
 Sandboxing:
@@ -453,7 +425,51 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-    """.trimIndent()
+    """
+            .trimIndent()
+
+    private val USAGE =
+        """
+Usage: metalava [options] [flags]... <sub-command>? ...
+        """
+            .trimIndent()
+
+    private val COMMON_OPTIONS =
+        """
+Options:
+  --version                                  Show the version and exit
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
+  --quiet, --verbose                         Set the verbosity of the output.
+                                             --quiet - Only include vital output.
+                                             --verbose - Include extra diagnostic output.
+                                             (default: Neither --quiet or --verbose)
+  -h, --help                                 Show this message and exit
+  --api-class-resolution [api|api:classpath]
+                                             Determines how class resolution is performed when loading API signature
+                                             files. `api` will only look for classes in the API signature files.
+                                             `api:classpath` will look for classes in the API signature files first and
+                                             then in the classpath. Any classes that cannot be found will be treated as
+                                             empty.", (default: api:classpath)
+  --api-overloaded-method-order [source|signature]
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `signature`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `source` will preserve the order in which they appear in the
+                                             source files. `signature` will sort them based on their signature.
+                                             (default: signature)
+  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+                                             min_sdk_version. (default: no manifest)
+    """
+            .trimIndent()
+
+    private val SUB_COMMANDS =
+        """
+Sub-commands:
+  version  Show the version
+        """
+            .trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -466,15 +482,50 @@ METALAVA_APPEND_ARGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n\n", stdout.toString())
+        assertEquals("", stdout.toString())
         assertEquals(
             """
 
-Aborting: Invalid argument --blah-blah-blah
+Aborting: Error: no such option: "--blah-blah-blah"
+
+$USAGE
+
+$COMMON_OPTIONS
+
+Arguments:
+  flags  See below.
+
+$SUB_COMMANDS
+
 
 $FLAGS
+            """
+                .trimIndent(),
+            stderr.toString()
+        )
+    }
 
-            """.trimIndent(),
+    @Test
+    fun `Test invalid value`() {
+        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals("", stdout.toString())
+        assertEquals(
+            """
+
+Aborting: Usage: metalava [options] [flags]... <sub-command>? ...
+
+Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
+
+            """
+                .trimIndent(),
             stderr.toString()
         )
     }
@@ -493,14 +544,46 @@ $FLAGS
         assertEquals("", stderr.toString())
         assertEquals(
             """
-$BANNER
 
+$USAGE
 
-$DESCRIPTION
+  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+  annotations etc.
+
+$COMMON_OPTIONS
+
+Arguments:
+  flags  See below.
+
+$SUB_COMMANDS
+
 
 $FLAGS
+            """
+                .trimIndent(),
+            stdout.toString()
+        )
+    }
 
-            """.trimIndent(),
+    @Test
+    fun `Test version`() {
+        val args = listOf(ARG_NO_COLOR, "--version")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals("", stderr.toString())
+        assertEquals(
+            """
+
+                metalava version: 1.0.0-alpha09
+
+            """
+                .trimIndent(),
             stdout.toString()
         )
     }
@@ -508,16 +591,17 @@ $FLAGS
     @Test
     fun `Test issue severity options`() {
         check(
-            extraArguments = arrayOf(
-                "--hide",
-                "StartWithLower",
-                "--lint",
-                "EndsWithImpl",
-                "--warning",
-                "StartWithUpper",
-                "--error",
-                "ArrayReturn"
-            )
+            extraArguments =
+                arrayOf(
+                    "--hide",
+                    "StartWithLower",
+                    "--lint",
+                    "EndsWithImpl",
+                    "--warning",
+                    "StartWithUpper",
+                    "--error",
+                    "ArrayReturn"
+                )
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -527,9 +611,7 @@ $FLAGS
 
     @Test
     fun `Test multiple issue severity options`() {
-        check(
-            extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn")
-        )
+        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -537,18 +619,20 @@ $FLAGS
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
-        check(
-            extraArguments = arrayOf("--error", "RemovedClass")
-        )
+        check(extraArguments = arrayOf("--error", "RemovedClass"))
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
+        assertEquals(
+            Severity.ERROR,
+            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+        )
     }
 
     @Test
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues =
+                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -573,10 +657,11 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf(
-                    "--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path
-                )
+                extraArguments =
+                    arrayOf(
+                        "--strict-input-files-exempt",
+                        file1.path + File.pathSeparatorChar + dir.path
+                    )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))
@@ -588,4 +673,23 @@ $FLAGS
             FileReadSandbox.reset()
         }
     }
+}
+
+/**
+ * Update the global [options] from the supplied arguments.
+ *
+ * This is for use by tests which do not use [Driver.run]. It does not support any of the
+ * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
+ */
+internal fun updateGlobalOptionsForTest(
+    args: Array<String>,
+    /** Writer to direct output to */
+    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    /** Writer to direct error messages to */
+    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) {
+    // Create a special command that will ensure that the Clikt based properties in Options have
+    // been initialized correctly before updating the global options.
+    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
+    command.parse(args)
 }
