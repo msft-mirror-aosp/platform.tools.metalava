@@ -16,44 +16,23 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.FIR_UAST_KEY
-import com.android.tools.lint.UastEnvironment
-import org.junit.AfterClass
-import org.junit.BeforeClass
+import org.junit.Ignore
 import org.junit.Test
 
 class UastTestK2 : UastTestBase() {
-    companion object {
-        private var lastKey: String? = null
-
-        @BeforeClass
-        @JvmStatic
-        fun classSetup() {
-            lastKey = System.getProperty(FIR_UAST_KEY, "false")
-            System.setProperty(FIR_UAST_KEY, "true")
-        }
-
-        @AfterClass
-        @JvmStatic
-        fun classTeardown() {
-            lastKey?.let {
-                System.setProperty(FIR_UAST_KEY, it)
-            }
-            lastKey = null
-            UastEnvironment.disposeApplicationEnvironment()
-        }
-    }
 
     @Test
-    fun `Test Experimental and UseExperimental -- K2`() {
-        `Test Experimental and UseExperimental`(isK2 = true)
+    fun `Test RequiresOptIn and OptIn -- K2`() {
+        `Test RequiresOptIn and OptIn`(isK2 = true)
     }
 
     @Test
     fun `renamed via @JvmName -- K2`() {
         // NB: getInterpolated -> isInterpolated
         `renamed via @JvmName`(
-            api = """
+            isK2 = true,
+            api =
+                """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class ColorRamp {
@@ -71,5 +50,57 @@ class UastTestK2 : UastTestBase() {
                 }
             """
         )
+    }
+
+    @Test
+    fun `Kotlin Reified Methods -- K2`() {
+        `Kotlin Reified Methods`(isK2 = true)
+    }
+
+    @Test
+    fun `Annotation on parameters of data class synthetic copy -- K2`() {
+        `Annotation on parameters of data class synthetic copy`(isK2 = true)
+    }
+
+    @Test
+    fun `Member of companion object in value class -- K2`() {
+        `Member of companion object in value class`(isK2 = true)
+    }
+
+    @Test
+    fun `non-last vararg type -- K2`() {
+        `non-last vararg type`(isK2 = true)
+    }
+
+    @Test
+    fun `implements Comparator -- K2`() {
+        `implements Comparator`(isK2 = true)
+    }
+
+    @Test
+    fun `constant in file-level annotation -- K2`() {
+        `constant in file-level annotation`(isK2 = true)
+    }
+
+    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
+    @Test
+    fun `final modifier in enum members -- K2`() {
+        `final modifier in enum members`(isK2 = true)
+    }
+
+    @Test
+    fun `lateinit var as mutable bare field -- K2`() {
+        `lateinit var as mutable bare field`(isK2 = true)
+    }
+
+    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
+    @Test
+    fun `Upper bound wildcards -- K2`() {
+        `Upper bound wildcards`(isK2 = true)
+    }
+
+    @Test
+    fun `boxed type argument as method return type -- K2`() {
+        `boxed type argument as method return type`(isK2 = true)
     }
 }
