@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
@@ -24,6 +25,8 @@ import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KtType
@@ -33,11 +36,10 @@ import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
 
 abstract class PsiItem(
     override val codebase: PsiBasedCodebase,
@@ -45,14 +47,13 @@ abstract class PsiItem(
     override val modifiers: PsiModifierItem,
     override var documentation: String
 ) : DefaultItem() {
+    @Suppress("LeakingThis") override var deprecated: Boolean = modifiers.isDeprecated()
 
-    @Suppress("LeakingThis")
-    override var deprecated: Boolean = modifiers.isDeprecated()
-
-    @Suppress("LeakingThis") // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
+    @Suppress(
+        "LeakingThis"
+    ) // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
     override var docOnly = documentation.contains("@doconly")
-    @Suppress("LeakingThis")
-    override var removed = documentation.contains("@removed")
+    @Suppress("LeakingThis") override var removed = documentation.contains("@removed")
 
     override val synthetic = false
 
@@ -60,14 +61,13 @@ abstract class PsiItem(
     val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
     // a property with a lazily calculated default value
-    inner class LazyDelegate<T>(
-        val defaultValueProvider: () -> T
-    ) : ReadWriteProperty<PsiItem, T> {
+    inner class LazyDelegate<T>(val defaultValueProvider: () -> T) : ReadWriteProperty<PsiItem, T> {
         private var currentValue: T? = null
 
         override operator fun setValue(thisRef: PsiItem, property: KProperty<*>, value: T) {
             currentValue = value
         }
+
         override operator fun getValue(thisRef: PsiItem, property: KProperty<*>): T {
             if (currentValue == null) {
                 currentValue = defaultValueProvider()
@@ -79,22 +79,25 @@ abstract class PsiItem(
 
     override var originallyHidden: Boolean by LazyDelegate {
         documentation.contains('@') &&
-
-            (
-                documentation.contains("@hide") ||
-                    documentation.contains("@pending") ||
-                    // KDoc:
-                    documentation.contains("@suppress")
-                ) ||
-            modifiers.hasHideAnnotations()
+            (documentation.contains("@hide") ||
+                documentation.contains("@pending") ||
+                // KDoc:
+                documentation.contains("@suppress")) || modifiers.hasHideAnnotations()
     }
 
-    override var hidden: Boolean by LazyDelegate { originallyHidden && !modifiers.hasShowAnnotation() }
+    override var hidden: Boolean by LazyDelegate {
+        originallyHidden && !modifiers.hasShowAnnotation()
+    }
 
-    override fun psi(): PsiElement? = element
+    /** Returns the PSI element for this item */
+    open fun psi(): PsiElement = element
+
+    override fun location(): Location {
+        return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
+    }
 
     override fun isFromClassPath(): Boolean {
-        return containingClass()?.isFromClassPath() ?: false
+        return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
     override fun isCloned(): Boolean = false
@@ -108,14 +111,14 @@ abstract class PsiItem(
 
         when (val sourcePsi = (element as? UElement)?.sourcePsi) {
             is KtCallableDeclaration -> {
-                analyze(sourcePsi) {
-                    isInheritedGenericType(sourcePsi.getReturnKtType())
-                }
+                analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getReturnKtType()) }
+            }
+            is KtPropertyAccessor -> {
+                val property = sourcePsi.property
+                analyze(property) { isInheritedGenericType(property.getReturnKtType()) }
             }
             is KtTypeReference -> {
-                analyze(sourcePsi) {
-                    isInheritedGenericType(sourcePsi.getKtType())
-                }
+                analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getKtType()) }
             }
             else -> false
         }
@@ -132,10 +135,7 @@ abstract class PsiItem(
 
     // Mimic `nullability` in `...uast.kotlin.internal.firKotlinInternalUastUtils`
     private fun KtAnalysisSession.nullability(ktType: KtType): KtTypeNullability {
-        return if (ktType.canBeNull)
-            KtTypeNullability.NULLABLE
-        else
-            KtTypeNullability.NON_NULLABLE
+        return if (ktType.canBeNull) KtTypeNullability.NULLABLE else KtTypeNullability.NON_NULLABLE
     }
 
     /** Get a mutable version of modifiers for this item */
@@ -153,11 +153,12 @@ abstract class PsiItem(
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
         val docComment = codebase.getComment(documentation)
-        val tagComment = if (value == null) {
-            docComment.findTagByName(tag)
-        } else {
-            docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
-        }
+        val tagComment =
+            if (value == null) {
+                docComment.findTagByName(tag)
+            } else {
+                docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
+            }
 
         if (tagComment == null) {
             return null
@@ -211,18 +212,28 @@ abstract class PsiItem(
         // they will (a) never appear in existing docs, and (b) they're separate tags, which means
         // it's safe to append them at the end. So we'll special case these two tags here, to
         // help speed up the builds since these tags are inserted 30,000+ times for each framework
-        // API target (there are many), and each time would have involved constructing a full javadoc
+        // API target (there are many), and each time would have involved constructing a full
+        // javadoc
         // AST with lexical tokens using IntelliJ's javadoc parsing APIs. Instead, we'll just
         // do some simple string heuristics.
-        if (tagSection == "@apiSince" || tagSection == "@deprecatedSince") {
+        if (
+            tagSection == "@apiSince" ||
+                tagSection == "@deprecatedSince" ||
+                tagSection == "@sdkExtSince"
+        ) {
             documentation = addUniqueTag(documentation, tagSection, comment)
             return
         }
 
-        documentation = mergeDocumentation(documentation, element, comment.trim(), tagSection, append)
+        documentation =
+            mergeDocumentation(documentation, element, comment.trim(), tagSection, append)
     }
 
-    private fun addUniqueTag(documentation: String, tagSection: String, commentLine: String): String {
+    private fun addUniqueTag(
+        documentation: String,
+        tagSection: String,
+        commentLine: String
+    ): String {
         assert(commentLine.indexOf('\n') == -1) // Not meant for multi-line comments
 
         if (documentation.isBlank()) {
@@ -232,13 +243,13 @@ abstract class PsiItem(
         // Already single line?
         if (documentation.indexOf('\n') == -1) {
             val end = documentation.lastIndexOf("*/")
-            return "/**\n *" + documentation.substring(3, end) + "\n * $tagSection $commentLine\n */"
+            return "/**\n *" +
+                documentation.substring(3, end) +
+                "\n * $tagSection $commentLine\n */"
         }
 
         var end = documentation.lastIndexOf("*/")
-        while (end > 0 && documentation[end - 1].isWhitespace() &&
-            documentation[end - 1] != '\n'
-        ) {
+        while (end > 0 && documentation[end - 1].isWhitespace() && documentation[end - 1] != '\n') {
             end--
         }
         // The comment ends with:
@@ -266,7 +277,16 @@ abstract class PsiItem(
                 linePrefix = "* "
             }
         }
-        return documentation.substring(0, end) + (if (insertNewLine) "\n" else "") + indent + linePrefix + tagSection + " " + commentLine + "\n" + indent + " */"
+        return documentation.substring(0, end) +
+            (if (insertNewLine) "\n" else "") +
+            indent +
+            linePrefix +
+            tagSection +
+            " " +
+            commentLine +
+            "\n" +
+            indent +
+            " */"
     }
 
     override fun fullyQualifiedDocumentation(): String {
@@ -304,9 +324,7 @@ abstract class PsiItem(
                 val comments = element.comments
                 if (comments.isNotEmpty()) {
                     val sb = StringBuilder()
-                    comments.asSequence().joinTo(buffer = sb, separator = "\n") {
-                        it.text
-                    }
+                    comments.asSequence().joinTo(buffer = sb, separator = "\n") { it.text }
                     return sb.toString()
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
