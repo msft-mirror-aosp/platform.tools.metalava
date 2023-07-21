@@ -54,12 +54,20 @@ public class ApiClass extends ApiElement {
         addToMap(mFields, name, version, deprecated);
     }
 
+    public Collection<ApiElement> getFields() {
+        return mFields.values();
+    }
+
     public void addMethod(String name, int version, boolean deprecated) {
         // Correct historical mistake in android.jar files
         if (name.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
             name = name.substring(0, name.length() - ")Ljava/lang/AbstractStringBuilder;".length()) + ")L" + getName() + ";";
         }
         addToMap(mMethods, name, version, deprecated);
+    }
+
+    public Collection<ApiElement> getMethods() {
+        return mMethods.values();
     }
 
     public ApiElement addSuperClass(String superClass, int since) {

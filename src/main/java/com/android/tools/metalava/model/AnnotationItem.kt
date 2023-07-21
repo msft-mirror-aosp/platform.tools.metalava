@@ -476,10 +476,6 @@ interface AnnotationItem {
             // habit of loading all annotation classes it encounters.)
 
             if (qualifiedName.startsWith("androidx.annotation.")) {
-                if (options.includeSourceRetentionAnnotations) {
-                    return ANNOTATION_IN_ALL_STUBS
-                }
-
                 if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
                     // Right now, nullness annotations (other than @RecentlyNullable and @RecentlyNonNull)
                     // have to go in external annotations since they aren't in the class path for
@@ -636,6 +632,11 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
     override val targets: Set<AnnotationTarget> by lazy {
         AnnotationItem.computeTargets(this, codebase::findClass)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationItem) return false
+        return qualifiedName == other.qualifiedName && attributes == other.attributes
+    }
 }
 
 /** An attribute of an annotation, such as "value" */
@@ -781,6 +782,11 @@ class DefaultAnnotationAttribute(
     override fun toString(): String {
         return "DefaultAnnotationAttribute(name='$name', value=$value)"
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationAttribute) return false
+        return name == other.name && value == other.value
+    }
 }
 
 abstract class DefaultAnnotationValue : AnnotationAttributeValue {
@@ -820,6 +826,11 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
     override fun resolve(): Item? = null
 
     override fun toSource() = valueSource
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationSingleAttributeValue) return false
+        return value == other.value
+    }
 }
 
 class DefaultAnnotationArrayAttributeValue(val value: String) :
@@ -834,4 +845,9 @@ class DefaultAnnotationArrayAttributeValue(val value: String) :
     }.toList()
 
     override fun toSource() = value
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationArrayAttributeValue) return false
+        return values.containsAll(other.values)
+    }
 }

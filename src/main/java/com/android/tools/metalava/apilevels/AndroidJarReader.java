@@ -105,10 +105,7 @@ class AndroidJarReader {
             }
         }
 
-        api.inlineFromHiddenSuperClasses();
-        api.removeImplicitInterfaces();
-        api.removeOverridingMethods();
-        api.prunePackagePrivateClasses();
+        api.clean();
 
         return api;
     }
@@ -117,7 +114,7 @@ class AndroidJarReader {
         if (mCodebase == null) {
             return;
         }
-        AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, mCodebase);
+        AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, mCodebase, true);
     }
 
     private void readJar(Api api, int apiLevel, File jar) throws IOException {
