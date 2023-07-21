@@ -385,10 +385,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(@Nullable T t);
-                    method public static inline <reified T> void b(@Nullable T t);
-                    method public static inline <reified T> void e(@Nullable T t);
-                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
+                    method public static inline <T> void a(T t);
+                    method public static inline <reified T> void b(T t);
+                    method public static inline <reified T> void e(T t);
+                    method public static inline <reified T> void f(T, T t);
                   }
                 }
                 """
@@ -577,6 +577,132 @@ class ApiFileTest : DriverTest() {
                 ARG_HIDE, "UnavailableSymbol",
                 ARG_HIDE, "HiddenTypeParameter"
             )
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameters`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class NonNullUpperBound<T : Any>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    class NullableUpperBound<T : Any?>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    class UnspecifiedUpperBound<T>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    fun <T : Any> topLevelNonNullUpperBoundExplicitNullable(t: T?) = t
+                    fun <T : Any> topLevelNonNullUpperBoundInherited(t: T) = t
+
+                    fun <T : Any?> topLevelNullableUpperBoundExplicitNullable(t: T?) = t
+                    fun <T : Any?> topLevelNullableUpperBoundInherited(t: T) = t
+
+                    fun <T> topLevelUnspecifiedUpperBoundExplicitNullable(t: T?) = t
+                    fun <T> topLevelUnspecifiedUpperBoundInherited(t: T) = t
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class NonNullUpperBound<T> {
+                    ctor public NonNullUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                  public final class NonNullUpperBoundKt {
+                    method public static <T> T? topLevelNonNullUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelNonNullUpperBoundInherited(T t);
+                    method public static <T> T? topLevelNullableUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelNullableUpperBoundInherited(T t);
+                    method public static <T> T? topLevelUnspecifiedUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelUnspecifiedUpperBoundInherited(T t);
+                  }
+                  public final class NullableUpperBound<T> {
+                    ctor public NullableUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                  public final class UnspecifiedUpperBound<T> {
+                    ctor public UnspecifiedUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameter -- suspend fun`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.util.concurrent;
+
+                        public interface MyFuture<V extends @Nullable Object> {
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import test.util.concurrent.MyFuture
+
+                        suspend fun <T> MyFuture<T>.await(t: T): T = TODO()
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class TestKt {
+                    method public static suspend <T> Object? await(test.util.concurrent.MyFuture<T>, T t, kotlin.coroutines.Continuation<? super T>);
+                  }
+                }
+                package test.util.concurrent {
+                  public interface MyFuture<V> {
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameter -- property and accessor`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class CircularArray<E> {
+                            val first: E
+                                get() = TODO()
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class CircularArray<E> {
+                    ctor public CircularArray();
+                    method public E getFirst();
+                    property public final E first;
+                  }
+                }
+            """
         )
     }
 
@@ -901,10 +1027,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.content {
                   public final class TestKt {
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
-                    method public static void blahblahblah(String, String firstArg = "hello");
                     method public static void blahblahblah(String);
+                    method public static void blahblahblah(String, String firstArg = "hello");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
                     method public static inline void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     method public static inline void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
@@ -4340,16 +4466,16 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class AllOptionalJvmOverloads {
-                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
-                    ctor public AllOptionalJvmOverloads(optional int foo);
                     ctor public AllOptionalJvmOverloads();
+                    ctor public AllOptionalJvmOverloads(optional int foo);
+                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class AllOptionalNoJvmOverloads {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                     ctor public SomeOptionalJvmOverloads(int foo);
+                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
@@ -4608,8 +4734,8 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface State<T> {
-                    method public T! getValue();
-                    property public abstract T! value;
+                    method public T getValue();
+                    property public abstract T value;
                   }
                   public final class StateKt {
                     method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
@@ -4662,13 +4788,13 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class AsyncPagingDataDiffer<T> {
-                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
-                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
                     ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
                   public interface State<T> {
-                    method public T! getValue();
-                    property public abstract T! value;
+                    method public T getValue();
+                    property public abstract T value;
                   }
                 }
             """
@@ -4831,6 +4957,121 @@ class ApiFileTest : DriverTest() {
                     ctor public Toast();
                     method public int getFoo();
                     property public final int foo;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Test @JvmMultifileClass appears only once`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "test/pkg/A.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.bar(): Unit {}
+                    """
+                ),
+                kotlin(
+                    "test/pkg/B.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.baz(): Unit {}
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void bar(String);
+                    method public static void baz(String);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@JvmName on @Deprecated hidden`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                          @JvmName("newNameForRenamed")
+                          fun renamed() = Unit
+
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun deprecatedHidden() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedError")
+                          @Deprecated(level = DeprecationLevel.ERROR)
+                          fun renamedAndDeprecatedError() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedHidden")
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun renamedAndDeprecatedHidden() = Unit
+                        }
+                    """
+                )
+            ),
+            api = """
+               package test.pkg {
+                 public final class Foo {
+                   ctor public Foo();
+                   method @Deprecated public void deprecatedHidden();
+                   method public void newNameForRenamed();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                 }
+               }
+            """
+        )
+    }
+
+    @Test
+    fun `Ordering of methods`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo {
+                            fun foo(s: String) {}
+                            fun foo(i: Int) {}
+                        }
+
+                        class Bar {
+                            fun bar(i: Int) {}
+                            fun bar(s: String) {}
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class Bar {
+                    ctor public Bar();
+                    method public void bar(int i);
+                    method public void bar(String s);
+                  }
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void foo(int i);
+                    method public void foo(String s);
                   }
                 }
             """

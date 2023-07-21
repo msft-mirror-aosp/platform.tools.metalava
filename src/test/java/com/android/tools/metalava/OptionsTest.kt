@@ -122,6 +122,9 @@ API sources:
 --hide-meta-annotation <meta-annotation class>
                                              Treat as hidden any elements annotated with an annotation which is itself
                                              annotated with the given meta-annotation
+--suppress-compatibility-meta-annotation <meta-annotation class>
+                                             Suppress compatibility checks for any elements within the scope of an
+                                             annotation which is itself annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
@@ -362,6 +365,19 @@ Extracting API Levels:
                                              Sets the code name for the current source code
 --current-jar
                                              Points to the current API jar, if any
+
+
+Generating API version history:
+--generate-api-version-history <jsonfile>
+                                             Reads API signature files and generates a JSON file recording the API
+                                             version each class, method, and field was added in and (if applicable)
+                                             deprecated in. Required to generate API version JSON.
+--api-version-signature-files <files>
+                                             An ordered list of text API signature files. The oldest API version should
+                                             be first, the newest last. Required to generate API version JSON.
+--api-version-names <strings>
+                                             An ordered list of strings with the names to use for the API versions from
+                                             --api-version-signature-files. Required to generate API version JSON.
 
 
 Sandboxing:

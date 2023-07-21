@@ -85,6 +85,7 @@ dependencies {
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
     implementation("com.google.guava:guava:31.0.1-jre")
+    implementation("com.google.code.gson:gson:2.6.2")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
@@ -221,6 +222,14 @@ publishing {
             url = uri("file://${getDistributionDirectory().canonicalPath}/repo/m2repository")
         }
     }
+}
+
+lint {
+    fatal.add("UastImplementation")
+    disable.add("UseTomlInstead") // not useful for this project
+    disable.add("GradleDependency") // not useful for this project
+    abortOnError = true
+    baseline = File("lint-baseline.xml")
 }
 
 // Add a buildId into Gradle Metadata file so we can tell which build it is from.
