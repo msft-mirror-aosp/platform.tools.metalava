@@ -121,7 +121,11 @@ interface ModifierList {
         return annotations().any { it.isJvmSynthetic() }
     }
 
-    /** Returns true if this modifier list contains any show annotations. */
+    /**
+     * Returns true if this modifier list contains any show annotations.
+     *
+     * See [AnnotationItem.isShowAnnotation]
+     */
     fun hasShowAnnotation(): Boolean {
         return codebase.annotationManager.hasShowAnnotation(this)
     }

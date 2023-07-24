@@ -41,6 +41,9 @@ import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
 import java.util.function.Predicate
 
+/** The type of lambda that can construct a key from an [AnnotationItem] */
+typealias KeyFactory = (annotationItem: AnnotationItem) -> String
+
 class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
@@ -56,13 +59,64 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val apiPredicate: Predicate<Item> = Predicate { true },
     )
 
+    /**
+     * Map from annotation name to the [KeyFactory] to use to create a key.
+     *
+     * See [getKeyForAnnotationItem] to see how this is used.
+     */
+    private val annotationNameToKeyFactory: Map<String, KeyFactory>
+
+    init {
+        /** Use the complete source representation of the item as the key. */
+        fun useSourceAsKey(annotationItem: AnnotationItem): String {
+            val qualifiedName = annotationItem.qualifiedName!!
+            val attributes = annotationItem.attributes
+            if (attributes.isEmpty()) {
+                return qualifiedName
+            }
+            return buildString {
+                append(qualifiedName)
+                append("(")
+                attributes.forEachIndexed { index, attribute ->
+                    if (index > 0) {
+                        append(",")
+                    }
+                    append(attribute)
+                }
+                append(")")
+            }
+        }
+
+        // Iterate over all the annotation names matched by all the filters currently used by
+        // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the complete
+        // source representation of the annotation as the key. This is needed because filters can
+        // match on attribute values as well as the name.
+        val filters =
+            arrayOf(
+                config.showAnnotations,
+            )
+        annotationNameToKeyFactory =
+            filters
+                .asSequence()
+                .flatMap { it.getIncludedAnnotationNames().asSequence() }
+                .associate { Pair(it, ::useSourceAsKey) }
+    }
+
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
-        // Just use the qualified name as the key for now.
-        return annotationItem.qualifiedName!!
+        val qualifiedName = annotationItem.qualifiedName!!
+
+        // Check to see if this requires a special [KeyFactory] and use it if it does.
+        val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
+        if (keyFactory != null) {
+            return keyFactory(annotationItem)
+        }
+
+        // No special key factory is needed so just use the qualified name as the key.
+        return qualifiedName
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return AnnotationInfo(annotationItem.qualifiedName!!)
+        return LazyAnnotationInfo(config, annotationItem)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
@@ -416,7 +470,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         if (config.showAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any { config.showAnnotations.matches(it) }
+        return modifiers.annotations().any(AnnotationItem::isShowAnnotation)
     }
 
     override fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean {
@@ -432,8 +486,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
         return modifiers.annotations().any { config.showForStubPurposesAnnotations.matches(it) } &&
             !modifiers.annotations().any {
-                config.showAnnotations.matches(it) &&
-                    !config.showForStubPurposesAnnotations.matches(it)
+                it.isShowAnnotation() && !config.showForStubPurposesAnnotations.matches(it)
             }
     }
 
@@ -486,4 +539,23 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
             AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
     }
+}
+
+/**
+ * Extension of [AnnotationInfo] that supports initializing properties based on the
+ * [DefaultAnnotationManager.Config].
+ *
+ * The properties are initialized lazily to avoid doing more work than necessary.
+ */
+private class LazyAnnotationInfo(
+    config: DefaultAnnotationManager.Config,
+    private val annotationItem: AnnotationItem,
+) : AnnotationInfo(annotationItem.qualifiedName!!) {
+
+    /** Compute lazily to avoid doing any more work than strictly necessary. */
+    override val show: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val filter = config.showAnnotations
+            filter.isNotEmpty() && filter.matches(annotationItem)
+        }
 }

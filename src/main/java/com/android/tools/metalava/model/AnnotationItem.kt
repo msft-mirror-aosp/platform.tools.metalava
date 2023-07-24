@@ -109,6 +109,18 @@ interface AnnotationItem {
     /** If this annotation has a typedef annotation associated with it, return it */
     fun findTypedefAnnotation(): AnnotationItem?
 
+    /**
+     * Returns true iff the annotation is a show annotations.
+     *
+     * If `true` then an item annotated with this annotation (and any contents) will be added to the
+     * API.
+     *
+     * e.g. if a class is annotated with this then it will also apply (unless overridden by a
+     * closer) annotation to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun isShowAnnotation(): Boolean
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -242,6 +254,8 @@ private constructor(
             it.isTypeDefAnnotation()
         }
     }
+
+    override fun isShowAnnotation(): Boolean = info.show
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

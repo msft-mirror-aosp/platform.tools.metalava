@@ -23,9 +23,11 @@ package com.android.tools.metalava.model
  * qualified name and (where applicable) the same attributes. That will allow the information in
  * [AnnotationInfo] to be computed once and then reused whenever needed.
  *
- * This class just sets properties that can be determined simply by looking at the [qualifiedName].
+ * This class just sets the properties that can be determined simply by looking at the
+ * [qualifiedName]. Any other properties are set to the default, usually `false`. Subclasses can
+ * change that behavior.
  */
-class AnnotationInfo(
+open class AnnotationInfo(
     /** The fully qualified and normalized name of the annotation class. */
     val qualifiedName: String,
 ) {
@@ -42,6 +44,17 @@ class AnnotationInfo(
             isNonNullAnnotation(qualifiedName) -> Nullability.NON_NULL
             else -> null
         }
+
+    /**
+     * If true then this annotation will cause annotated items (and any contents) to be added to the
+     * API.
+     *
+     * e.g. if this annotation is used on a class then it will also apply (unless overridden by a
+     * closer) annotation to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    open val show: Boolean
+        get() = false
 }
 
 enum class Nullability {

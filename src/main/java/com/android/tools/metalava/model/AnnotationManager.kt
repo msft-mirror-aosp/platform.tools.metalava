@@ -47,12 +47,7 @@ interface AnnotationManager {
     /**
      * Checks to see if the modifiers contain any show annotations.
      *
-     * Returns `true` if it does, `false` otherwise. If `true` then the owning item (and any
-     * contents) will be added to the API.
-     *
-     * e.g. if the modifiers is for a class then it will also apply (unless overridden by a closer)
-     * annotation to all its contents like nested classes, methods, fields, constructors,
-     * properties, etc.
+     * See [AnnotationItem.isShowAnnotation]
      */
     fun hasShowAnnotation(modifiers: ModifierList): Boolean = false
 
