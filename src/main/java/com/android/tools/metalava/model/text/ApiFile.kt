@@ -1494,7 +1494,11 @@ class ReferenceResolver(
  */
 internal class NoOpAnnotationManager : AnnotationManager {
 
-    override fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeInputName(qualifiedName: String?): String? {
+        return qualifiedName
+    }
+
+    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
         return qualifiedName
     }
 

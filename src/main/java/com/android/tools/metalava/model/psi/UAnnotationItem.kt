@@ -135,7 +135,8 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = codebase.annotationManager.mapName(originalName, target) ?: return
+            val qualifiedName =
+                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
 
             val attributes = getAttributes(uAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {

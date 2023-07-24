@@ -209,12 +209,13 @@ private constructor(
         codebase: Codebase,
         originalName: String?,
         attributesGetter: () -> List<AnnotationAttribute>,
-        mapName: Boolean = true,
+        normalizeName: Boolean = true,
     ) : this(
         codebase,
         originalName,
         qualifiedName =
-            if (mapName) codebase.annotationManager.mapName(originalName) else originalName,
+            if (normalizeName) codebase.annotationManager.normalizeInputName(originalName)
+            else originalName,
         attributesGetter,
     )
 
@@ -246,7 +247,8 @@ private constructor(
     }
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
-        val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
+        val qualifiedName =
+            codebase.annotationManager.normalizeOutputName(qualifiedName, target) ?: return ""
 
         return formatAnnotationItem(qualifiedName, attributes)
     }

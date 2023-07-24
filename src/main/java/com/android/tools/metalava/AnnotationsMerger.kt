@@ -551,7 +551,8 @@ class AnnotationsMerger(private val codebase: Codebase) {
     private fun mergeAnnotations(xmlElement: Element, item: Item) {
         loop@ for (annotationElement in getChildren(xmlElement)) {
             val originalName = getAnnotationName(annotationElement)
-            val qualifiedName = codebase.annotationManager.mapName(originalName) ?: originalName
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: originalName
             if (hasNullnessConflicts(item, qualifiedName)) {
                 continue@loop
             }

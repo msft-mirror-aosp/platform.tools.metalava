@@ -50,7 +50,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         val apiPredicate: Predicate<Item> = Predicate { true },
     )
 
-    override fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeInputName(qualifiedName: String?): String? {
+        return mapName(qualifiedName, AnnotationTarget.SIGNATURE_FILE)
+    }
+
+    private fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
         qualifiedName ?: return null
         if (
             config.passThroughAnnotations.contains(qualifiedName) ||
@@ -201,6 +205,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                 }
             }
         }
+    }
+
+    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+        return mapName(qualifiedName, target)
     }
 
     private fun nullableAnnotationName(target: AnnotationTarget) =
