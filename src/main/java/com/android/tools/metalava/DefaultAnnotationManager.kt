@@ -55,10 +55,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
-        return mapName(qualifiedName)
-    }
 
-    private fun mapName(qualifiedName: String): String? {
         if (config.excludeAnnotations.contains(qualifiedName)) {
             return null
         }
@@ -226,7 +223,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                 else ANDROIDX_NONNULL
         }
 
-        return mapName(qualifiedName)
+        return qualifiedName
     }
 
     private fun passThroughAnnotation(qualifiedName: String) =
