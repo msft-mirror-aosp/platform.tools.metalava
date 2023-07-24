@@ -281,14 +281,11 @@ class AnnotationsMerger(private val codebase: Codebase) {
                     }
 
                     if (addAnnotation) {
-                        // Don't map annotation names - this would turn newly non null back into non
-                        // null
                         new.mutableModifiers()
                             .addAnnotation(
                                 new.codebase.createAnnotation(
                                     annotation.toSource(showDefaultAttrs = false),
                                     new,
-                                    mapName = false
                                 )
                             )
                     }

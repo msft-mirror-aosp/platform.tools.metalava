@@ -202,20 +202,17 @@ private constructor(
 
     /**
      * This constructor is needed to initialize [qualifiedName] using the [codebase] parameter
-     * instead of the [DefaultAnnotationItem.codebase] property which is overridden by sub-classes
+     * instead of the [DefaultAnnotationItem.codebase] property which is overridden by subclasses
      * and will not be initialized at the time it is used.
      */
     constructor(
         codebase: Codebase,
         originalName: String?,
         attributesGetter: () -> List<AnnotationAttribute>,
-        normalizeName: Boolean = true,
     ) : this(
         codebase,
         originalName,
-        qualifiedName =
-            if (normalizeName) codebase.annotationManager.normalizeInputName(originalName)
-            else originalName,
+        qualifiedName = codebase.annotationManager.normalizeInputName(originalName),
         attributesGetter,
     )
 
@@ -284,7 +281,7 @@ private constructor(
             }
         }
 
-        fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {
+        fun create(codebase: Codebase, source: String): AnnotationItem {
             val index = source.indexOf("(")
             val originalName =
                 if (index == -1) source.substring(1) // Strip @
@@ -299,7 +296,7 @@ private constructor(
                     )
                 }
 
-            return DefaultAnnotationItem(codebase, originalName, ::attributes, mapName)
+            return DefaultAnnotationItem(codebase, originalName, ::attributes)
         }
     }
 }
