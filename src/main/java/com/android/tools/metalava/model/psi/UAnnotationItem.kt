@@ -60,7 +60,7 @@ private constructor(
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, uAnnotation, originalName, target, showDefaultAttrs)
+        appendAnnotation(codebase, sb, uAnnotation, qualifiedName, target, showDefaultAttrs)
         return sb.toString()
     }
 

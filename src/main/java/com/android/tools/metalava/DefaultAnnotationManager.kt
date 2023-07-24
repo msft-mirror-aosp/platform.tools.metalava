@@ -51,18 +51,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
     )
 
     override fun normalizeInputName(qualifiedName: String?): String? {
+        qualifiedName ?: return null
+        if (passThroughAnnotation(qualifiedName)) {
+            return qualifiedName
+        }
         return mapName(qualifiedName, AnnotationTarget.SIGNATURE_FILE)
     }
 
-    private fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
-        qualifiedName ?: return null
-        if (
-            config.passThroughAnnotations.contains(qualifiedName) ||
-                config.showAnnotations.matches(qualifiedName) ||
-                config.hideAnnotations.matches(qualifiedName)
-        ) {
-            return qualifiedName
-        }
+    private fun mapName(qualifiedName: String, target: AnnotationTarget): String? {
         if (config.excludeAnnotations.contains(qualifiedName)) {
             return null
         }
@@ -113,13 +109,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
             "android.annotation.Dimension" -> return "androidx.annotation.Dimension"
 
             // Null
-            // We only change recently/newly nullable annotation in stubs
-            RECENTLY_NULLABLE ->
-                return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
-                else ANDROIDX_NULLABLE
-            RECENTLY_NONNULL ->
-                return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
-                else ANDROIDX_NONNULL
+            // Preserve recently/newly nullable annotation as they need to be passed through to
+            // stubs. They will be treated as nullable/non-null just as if they were mapped to
+            // ANDROIDX_NULLABLE or ANDROIDX_NONNULL.
+            RECENTLY_NULLABLE -> return qualifiedName
+            RECENTLY_NONNULL -> return qualifiedName
             ANDROIDX_NULLABLE,
             ANDROID_NULLABLE,
             "libcore.util.Nullable",
@@ -208,8 +202,27 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
     }
 
     override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+        qualifiedName ?: return null
+        if (passThroughAnnotation(qualifiedName)) {
+            return qualifiedName
+        }
+
+        when (qualifiedName) {
+            RECENTLY_NULLABLE ->
+                return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
+                else ANDROIDX_NULLABLE
+            RECENTLY_NONNULL ->
+                return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
+                else ANDROIDX_NONNULL
+        }
+
         return mapName(qualifiedName, target)
     }
+
+    private fun passThroughAnnotation(qualifiedName: String) =
+        config.passThroughAnnotations.contains(qualifiedName) ||
+            config.showAnnotations.matches(qualifiedName) ||
+            config.hideAnnotations.matches(qualifiedName)
 
     private fun nullableAnnotationName(target: AnnotationTarget) =
         if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NULLABLE else ANDROIDX_NULLABLE

@@ -59,7 +59,7 @@ private constructor(
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, psiAnnotation, originalName, target, showDefaultAttrs)
+        appendAnnotation(codebase, sb, psiAnnotation, qualifiedName, target, showDefaultAttrs)
         return sb.toString()
     }
 
