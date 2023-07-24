@@ -55,10 +55,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
-        return mapName(qualifiedName, AnnotationTarget.SIGNATURE_FILE)
+        return mapName(qualifiedName)
     }
 
-    private fun mapName(qualifiedName: String, target: AnnotationTarget): String? {
+    private fun mapName(qualifiedName: String): String? {
         if (config.excludeAnnotations.contains(qualifiedName)) {
             return null
         }
@@ -114,14 +114,18 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
             // ANDROIDX_NULLABLE or ANDROIDX_NONNULL.
             RECENTLY_NULLABLE -> return qualifiedName
             RECENTLY_NONNULL -> return qualifiedName
+
+            // Normalize the known nullable annotations to ANDROIDX_NULLABLE
             ANDROIDX_NULLABLE,
             ANDROID_NULLABLE,
             "libcore.util.Nullable",
-            "org.jetbrains.annotations.Nullable" -> return nullableAnnotationName(target)
+            "org.jetbrains.annotations.Nullable" -> return ANDROIDX_NULLABLE
+
+            // Normalize the known non-null annotations to ANDROIDX_NONNULL
             ANDROIDX_NONNULL,
             ANDROID_NONNULL,
             "libcore.util.NonNull",
-            "org.jetbrains.annotations.NotNull" -> return nonNullAnnotationName(target)
+            "org.jetbrains.annotations.NotNull" -> return ANDROIDX_NONNULL
 
             // Typedefs
             "android.annotation.IntDef" -> return "androidx.annotation.IntDef"
@@ -183,8 +187,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                         "kotlin.annotations.jvm.internal${qualifiedName.substring(qualifiedName.lastIndexOf('.'))}"
 
                     // Other third party nullness annotations?
-                    isNullableAnnotation(qualifiedName) -> nullableAnnotationName(target)
-                    isNonNullAnnotation(qualifiedName) -> nonNullAnnotationName(target)
+                    isNullableAnnotation(qualifiedName) -> ANDROIDX_NULLABLE
+                    isNonNullAnnotation(qualifiedName) -> ANDROIDX_NONNULL
 
                     // AndroidX annotations are all included, as is the built-in stuff like
                     // @Retention
@@ -208,6 +212,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         }
 
         when (qualifiedName) {
+            ANDROIDX_NULLABLE ->
+                return if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NULLABLE
+                else qualifiedName
+            ANDROIDX_NONNULL ->
+                return if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL
+                else qualifiedName
             RECENTLY_NULLABLE ->
                 return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
                 else ANDROIDX_NULLABLE
@@ -216,19 +226,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                 else ANDROIDX_NONNULL
         }
 
-        return mapName(qualifiedName, target)
+        return mapName(qualifiedName)
     }
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
             config.showAnnotations.matches(qualifiedName) ||
             config.hideAnnotations.matches(qualifiedName)
-
-    private fun nullableAnnotationName(target: AnnotationTarget) =
-        if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NULLABLE else ANDROIDX_NULLABLE
-
-    private fun nonNullAnnotationName(target: AnnotationTarget) =
-        if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
     private val TYPEDEF_ANNOTATION_TARGETS =
         if (
