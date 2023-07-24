@@ -54,19 +54,13 @@ interface AnnotationItem {
     val attributes: List<AnnotationAttribute>
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
-    fun isNullnessAnnotation(): Boolean {
-        return isNullable() || isNonNull()
-    }
+    fun isNullnessAnnotation(): Boolean
 
     /** True if this annotation represents @Nullable (or some synonymous annotation) */
-    fun isNullable(): Boolean {
-        return isNullableAnnotation(qualifiedName ?: return false)
-    }
+    fun isNullable(): Boolean
 
     /** True if this annotation represents @NonNull (or some synonymous annotation) */
-    fun isNonNull(): Boolean {
-        return isNonNullAnnotation(qualifiedName ?: return false)
-    }
+    fun isNonNull(): Boolean
 
     /** True if this annotation represents @JvmSynthetic */
     fun isJvmSynthetic(): Boolean {
@@ -221,6 +215,21 @@ private constructor(
     }
 
     final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
+
+    /** Information that metalava has gathered about this annotation item. */
+    val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
+
+    override fun isNullnessAnnotation(): Boolean {
+        return info.nullability != null
+    }
+
+    override fun isNullable(): Boolean {
+        return info.nullability == Nullability.NULLABLE
+    }
+
+    override fun isNonNull(): Boolean {
+        return info.nullability == Nullability.NON_NULL
+    }
 
     override fun resolve(): ClassItem? {
         return codebase.findClass(originalName ?: return null)

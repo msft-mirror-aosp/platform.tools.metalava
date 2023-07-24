@@ -25,10 +25,11 @@ import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
 import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
+import com.android.tools.metalava.model.AnnotationInfo
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -40,7 +41,7 @@ import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
 import java.util.function.Predicate
 
-class DefaultAnnotationManager(private val config: Config = Config()) : AnnotationManager {
+class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
@@ -54,6 +55,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
     )
+
+    override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
+        // Just use the qualified name as the key for now.
+        return annotationItem.qualifiedName!!
+    }
+
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
+        return AnnotationInfo(annotationItem.qualifiedName!!)
+    }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
         qualifiedName ?: return null
