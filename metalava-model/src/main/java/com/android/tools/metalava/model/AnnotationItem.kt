@@ -166,6 +166,8 @@ interface AnnotationItem {
      */
     fun isHideMetaAnnotation(): Boolean
 
+    fun isSuppressCompatibilityAnnotation(): Boolean
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -311,6 +313,8 @@ private constructor(
     override fun isHideAnnotation(): Boolean = info.hide
 
     override fun isHideMetaAnnotation(): Boolean = info.hideMeta
+
+    override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

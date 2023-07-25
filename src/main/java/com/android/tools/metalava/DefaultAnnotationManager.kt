@@ -504,11 +504,7 @@ class DefaultAnnotationManager(
         if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.hasAnnotation { annotation ->
-            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                config.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
-                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
-        }
+        return modifiers.hasAnnotation(AnnotationItem::isSuppressCompatibilityAnnotation)
     }
 
     override fun getShowabilityForItem(item: Item): Showability {
@@ -558,17 +554,6 @@ class DefaultAnnotationManager(
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
-
-    companion object {
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
-    }
 }
 
 /**
@@ -617,6 +602,15 @@ private class LazyAnnotationInfo(
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
         val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+
+        /**
+         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+         *
+         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
+         * doesn't need to maintain compatibility.
+         */
+        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
@@ -680,4 +674,16 @@ private class LazyAnnotationInfo(
 
     override val hideMeta: Boolean by
         lazy(LazyThreadSafetyMode.NONE) { config.hideMetaAnnotations.contains(qualifiedName) }
+
+    /**
+     * If true then this annotation will suppress compatibility checking on annotated items.
+     *
+     * This is true if this annotation is
+     */
+    override val suppressCompatibility: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) {
+            qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+                config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||
+                checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
+        }
 }

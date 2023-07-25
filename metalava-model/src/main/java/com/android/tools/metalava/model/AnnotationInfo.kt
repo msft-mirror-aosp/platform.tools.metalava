@@ -69,6 +69,9 @@ open class AnnotationInfo(
      */
     open val hideMeta: Boolean
         get() = false
+
+    open val suppressCompatibility: Boolean
+        get() = false
 }
 
 internal enum class Nullability {
