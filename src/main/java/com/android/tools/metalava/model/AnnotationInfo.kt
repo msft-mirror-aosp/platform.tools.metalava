@@ -59,6 +59,10 @@ open class AnnotationInfo(
     /** If true then this annotation will cause annotated items to be added to the API. */
     open val showSingle: Boolean
         get() = false
+
+    /** If true then this annotation will cause annotated items to be added to the stubs only. */
+    open val showForStubPurposes: Boolean
+        get() = false
 }
 
 enum class Nullability {

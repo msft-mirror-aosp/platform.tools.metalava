@@ -97,6 +97,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             arrayOf(
                 config.showAnnotations,
                 config.showSingleAnnotations,
+                config.showForStubPurposesAnnotations,
             )
         annotationNameToKeyFactory =
             filters
@@ -487,10 +488,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         if (config.showForStubPurposesAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any { config.showForStubPurposesAnnotations.matches(it) } &&
-            !modifiers.annotations().any {
-                it.isShowAnnotation() && !config.showForStubPurposesAnnotations.matches(it)
-            }
+        return modifiers.annotations().any(AnnotationItem::isShowForStubPurposes) &&
+            !modifiers.annotations().any { it.isShowAnnotation() && !it.isShowForStubPurposes() }
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
@@ -566,6 +565,13 @@ private class LazyAnnotationInfo(
     override val showSingle: Boolean by
         lazy(LazyThreadSafetyMode.NONE) {
             val filter = config.showSingleAnnotations
+            filter.isNotEmpty() && filter.matches(annotationItem)
+        }
+
+    /** Compute lazily to avoid doing any more work than strictly necessary. */
+    override val showForStubPurposes: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val filter = config.showForStubPurposesAnnotations
             filter.isNotEmpty() && filter.matches(annotationItem)
         }
 }

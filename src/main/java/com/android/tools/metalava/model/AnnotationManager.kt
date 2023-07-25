@@ -62,8 +62,7 @@ interface AnnotationManager {
      * Checks to see if the modifiers contain any show for stubs purposes annotations and no other
      * show annotations.
      *
-     * Returns `true` if it does, `false` otherwise. If `true` then the owning item will only be
-     * added to stub files.
+     * See [AnnotationItem.isShowForStubPurposes]
      */
     fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean = false
 

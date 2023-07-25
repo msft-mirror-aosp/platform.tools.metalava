@@ -142,6 +142,8 @@ interface ModifierList {
     /**
      * Returns true if this modifier list contains any show for stub purposes annotations and that
      * is the only show annotation.
+     *
+     * See [AnnotationItem.isShowAnnotation] and [AnnotationItem.isShowForStubPurposes]
      */
     fun onlyShowForStubPurposes(): Boolean {
         return codebase.annotationManager.onlyShowForStubPurposes(this)
