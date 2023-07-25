@@ -54,11 +54,7 @@ interface AnnotationManager {
     /**
      * Checks to see if the modifiers contain any show single annotations.
      *
-     * Returns `true` if it does, `false` otherwise. If `true` then the owning item and only that
-     * item will be added to the API.
-     *
-     * e.g. if the modifiers is for a class then it only applies to that class and not its contents
-     * like nested classes, methods, fields, constructors, properties, etc.
+     * See [AnnotationItem.isShowSingleAnnotation]
      */
     fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean = false
 
