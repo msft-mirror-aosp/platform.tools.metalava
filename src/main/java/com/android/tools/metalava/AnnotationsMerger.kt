@@ -336,9 +336,7 @@ class AnnotationsMerger(
                         for (annotation in old.modifiers.annotations()) {
                             val qualifiedName = annotation.qualifiedName ?: continue
                             if (
-                                (annotation.isShowAnnotation() ||
-                                    hideAnnotations.matches(annotation) ||
-                                    hideMetaAnnotations.contains(qualifiedName)) &&
+                                (annotation.isShowAnnotation() || annotation.isHideAnnotation()) &&
                                     new.modifiers.findAnnotation(qualifiedName) == null
                             ) {
                                 new.mutableModifiers().addAnnotation(annotation)

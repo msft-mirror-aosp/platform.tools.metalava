@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -112,6 +113,7 @@ class DefaultAnnotationManager(
                 config.allShowAnnotations,
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
+                config.hideAnnotations,
             )
         annotationNameToKeyFactory =
             filters
@@ -495,26 +497,7 @@ class DefaultAnnotationManager(
         if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.hasAnnotation { annotation ->
-            config.hideAnnotations.matches(annotation) ||
-                (config.hideMetaAnnotations.isNotEmpty() &&
-                    annotation.resolve()?.modifiers?.let { hasHideMetaAnnotation(it) } ?: false)
-        }
-    }
-
-    /**
-     * Returns true if the modifier list contains any hide meta-annotations.
-     *
-     * Hide meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn], which
-     * allows developers to create annotations that describe experimental features -- sets of
-     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
-     * hidden meta-annotation.
-     */
-    private fun hasHideMetaAnnotation(modifiers: ModifierList): Boolean {
-        return modifiers.hasAnnotation { annotation ->
-            config.hideMetaAnnotations.contains(annotation.qualifiedName)
-        }
+        return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
     }
 
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
@@ -595,7 +578,7 @@ class DefaultAnnotationManager(
  * The properties are initialized lazily to avoid doing more work than necessary.
  */
 private class LazyAnnotationInfo(
-    config: DefaultAnnotationManager.Config,
+    private val config: Config,
     private val annotationItem: AnnotationItem,
 ) : AnnotationInfo(annotationItem.qualifiedName!!) {
 
@@ -635,4 +618,66 @@ private class LazyAnnotationInfo(
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
         val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
     }
+
+    /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
+    private val annotationClass: ClassItem? by
+        lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+
+    /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
+    private var isCheckingResolvedAnnotationClass: Boolean = false
+
+    /**
+     * Check to see whether the resolved annotation class matches the supplied predicate.
+     *
+     * If the annotation class could not be resolved or the annotation is part of a cycle, e.g.
+     * `java.lang.annotation.Retention` is annotated with itself, then returns false, otherwise it
+     * returns the result of applying the supplied predicate to the resolved class.
+     */
+    private fun checkResolvedAnnotationClass(test: (ClassItem) -> Boolean): Boolean {
+        if (isCheckingResolvedAnnotationClass) {
+            return false
+        }
+
+        try {
+            isCheckingResolvedAnnotationClass = true
+
+            // Try and resolve this to the class to see if it has been annotated with hide meta
+            // annotations. If it could not be resolved then assume it has not been annotated.
+            val resolved = annotationClass ?: return false
+
+            // Return the result of applying the test to the resolved class.
+            return test(resolved)
+        } finally {
+            isCheckingResolvedAnnotationClass = false
+        }
+    }
+
+    /**
+     * Compute lazily to avoid doing any more work than strictly necessary.
+     *
+     * This is `true` either if an annotation is matched by [Config.hideAnnotations] or the
+     * annotation is itself annotated with an annotation whose [hideMeta] is `true`.
+     */
+    override val hide: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val hideAnnotations = config.hideAnnotations
+            if (hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)) {
+                return@lazy true
+            }
+
+            // If there are no hide meta annotations then there is no way this could be a hide
+            // annotation.
+            if (config.hideMetaAnnotations.isEmpty()) {
+                return@lazy false
+            }
+
+            // Check the annotation class to see if it has been annotated with a hide meta
+            // annotation.
+            checkResolvedAnnotationClass { resolved ->
+                resolved.modifiers.annotations().any(AnnotationItem::isHideMetaAnnotation)
+            }
+        }
+
+    override val hideMeta: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) { config.hideMetaAnnotations.contains(qualifiedName) }
 }

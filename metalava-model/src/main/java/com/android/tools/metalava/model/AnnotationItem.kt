@@ -140,6 +140,32 @@ interface AnnotationItem {
      */
     fun isShowForStubPurposes(): Boolean
 
+    /**
+     * Returns true iff this annotation is a hide annotation.
+     *
+     * Hide annotations can either be explicitly specified when creating the [Codebase] or they can
+     * be any annotation that is annotated with a hide meta-annotation (see [isHideMetaAnnotation]).
+     *
+     * If `true` then an item annotated with this annotation (and any contents) will be excluded
+     * from the API.
+     *
+     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
+     * annotation) to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun isHideAnnotation(): Boolean
+
+    /**
+     * Returns true iff this annotation is a hide meta-annotation.
+     *
+     * Hide meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn], which
+     * allows developers to create annotations that describe experimental features -- sets of
+     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
+     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
+     * hidden meta-annotation.
+     */
+    fun isHideMetaAnnotation(): Boolean
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -281,6 +307,10 @@ private constructor(
     override fun isShowAnnotation(): Boolean = info.showability.show
 
     override fun isShowForStubPurposes(): Boolean = info.showability.forStubsOnly
+
+    override fun isHideAnnotation(): Boolean = info.hide
+
+    override fun isHideMetaAnnotation(): Boolean = info.hideMeta
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
