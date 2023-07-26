@@ -94,11 +94,11 @@ const val METHOD_ESTIMATE = 1000
  */
 open class PsiBasedCodebase(
     location: File,
-    override var description: String = "Unknown",
+    description: String = "Unknown",
     annotationManager: AnnotationManager,
     private val reporter: Reporter,
     val fromClasspath: Boolean = false
-) : DefaultCodebase(location, annotationManager) {
+) : DefaultCodebase(location, description, false, annotationManager) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
