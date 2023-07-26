@@ -73,6 +73,18 @@ interface AnnotationManager {
      */
     fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean = false
 
+    /**
+     * Checks to see if the modifiers contain any hide annotations.
+     *
+     * Returns `true` if it does, `false` otherwise. If `true` then the owning item (and any
+     * contents) will be excluded from the API.
+     *
+     * e.g. if the modifiers is for a class then it will also apply (unless overridden by a closer)
+     * annotation to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun hasHideAnnotations(modifiers: ModifierList): Boolean = false
+
     /** Determine how to handle typedef annotations, i.e. annotations like `@IntDef`. */
     val typedefMode: TypedefMode
 }

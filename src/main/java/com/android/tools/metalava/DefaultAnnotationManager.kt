@@ -48,6 +48,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val hideMetaAnnotations: List<String> = emptyList(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
@@ -423,6 +424,32 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
                 config.showAnnotations.matches(it) &&
                     !config.showForStubPurposesAnnotations.matches(it)
             }
+    }
+
+    override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
+        if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { annotation ->
+            config.hideAnnotations.matches(annotation) ||
+                (config.hideMetaAnnotations.isNotEmpty() &&
+                    annotation.resolve()?.modifiers?.let { hasHideMetaAnnotation(it) } ?: false)
+        }
+    }
+
+    /**
+     * Returns true if the modifier list contains any hide meta-annotations.
+     *
+     * Hide meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn], which
+     * allows developers to create annotations that describe experimental features -- sets of
+     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
+     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
+     * hidden meta-annotation.
+     */
+    private fun hasHideMetaAnnotation(modifiers: ModifierList): Boolean {
+        return modifiers.annotations().any { annotation ->
+            config.hideMetaAnnotations.contains(annotation.qualifiedName)
+        }
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
