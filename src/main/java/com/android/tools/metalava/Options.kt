@@ -357,6 +357,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
                 hideMetaAnnotations = hideMetaAnnotations,
+                suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(),

@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -49,6 +50,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideMetaAnnotations: List<String> = emptyList(),
+        val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
@@ -452,5 +454,27 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         }
     }
 
+    override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
+        if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { annotation ->
+            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+                config.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
+                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
+        }
+    }
+
     override val typedefMode: TypedefMode = config.typedefMode
+
+    companion object {
+        /**
+         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+         *
+         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
+         * doesn't need to maintain compatibility.
+         */
+        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+    }
 }

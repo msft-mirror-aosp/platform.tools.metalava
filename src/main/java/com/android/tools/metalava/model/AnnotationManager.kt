@@ -85,6 +85,19 @@ interface AnnotationManager {
      */
     fun hasHideAnnotations(modifiers: ModifierList): Boolean = false
 
+    /**
+     * Checks to see if the modifiers contain any suppress compatibility annotations.
+     *
+     * Returns `true` if it does, `false` otherwise. If `true` then the owning item (and any
+     * contents) will have their compatibility checks suppressed but they may still be written to
+     * API files or stub JARs.
+     *
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
+     */
+    fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean = false
+
     /** Determine how to handle typedef annotations, i.e. annotations like `@IntDef`. */
     val typedefMode: TypedefMode
 }

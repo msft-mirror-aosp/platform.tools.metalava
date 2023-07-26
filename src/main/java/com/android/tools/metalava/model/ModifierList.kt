@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.Options
-import com.android.tools.metalava.options
 import java.io.Writer
 
 interface ModifierList {
@@ -147,8 +145,7 @@ interface ModifierList {
     }
 
     /**
-     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
-     * [Options.suppressCompatibilityMetaAnnotations].
+     * Returns true if this modifier list contains any suppress compatibility meta-annotations.
      *
      * Metalava will suppress compatibility checks for APIs which are within the scope of a
      * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
@@ -159,14 +156,7 @@ interface ModifierList {
      * feature sets with unstable APIs.
      */
     fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        if (options.suppressCompatibilityMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
-                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
-        }
+        return codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(this)
     }
 
     /** Returns true if this modifier list contains the given annotation */
@@ -514,15 +504,6 @@ interface ModifierList {
          *
          * Because this is used in API files, it needs to maintain compatibility.
          */
-        private const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
-
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+        const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
     }
 }
