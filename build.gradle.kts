@@ -19,16 +19,6 @@ defaultTasks =
         "ktfmtCheck",
     )
 
-repositories {
-    google()
-    mavenCentral()
-    val lintRepo = project.findProperty("lintRepo") as String?
-    if (lintRepo != null) {
-        logger.warn("Building using custom $lintRepo maven repository")
-        maven { url = uri(lintRepo) }
-    }
-}
-
 plugins {
     id("application")
     id("org.jetbrains.kotlin.jvm")
