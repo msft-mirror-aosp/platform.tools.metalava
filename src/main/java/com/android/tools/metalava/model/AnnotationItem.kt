@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.google.common.base.Objects
-
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -263,7 +261,9 @@ private constructor(
     }
 
     override fun hashCode(): Int {
-        return Objects.hashCode(qualifiedName, attributes)
+        var result = qualifiedName?.hashCode() ?: 0
+        result = 31 * result + attributes.hashCode()
+        return result
     }
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -487,7 +487,9 @@ open class DefaultAnnotationAttribute(
     }
 
     override fun hashCode(): Int {
-        return Objects.hashCode(name, value)
+        var result = name.hashCode()
+        result = 31 * result + value.hashCode()
+        return result
     }
 }
 
