@@ -206,6 +206,10 @@ internal fun processFlags(
         subtractApi(progressTracker, sourceParser, codebase, it)
     }
 
+    if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+        reallyHideFlaggedSystemApis(codebase)
+    }
+
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
     if (androidApiLevelXml != null && apiLevelJars != null) {
@@ -554,6 +558,23 @@ fun subtractApi(
             codebase,
             ApiType.ALL.getReferenceFilter()
         )
+}
+
+fun reallyHideFlaggedSystemApis(codebase: Codebase) {
+    codebase.accept(
+        object :
+            ApiVisitor(
+                filterEmit = ApiPredicate(ignoreShown = true),
+                filterReference = ApiPredicate(ignoreShown = true),
+                includeEmptyOuterClasses = true
+            ) {
+            override fun visitItem(item: Item) {
+                item.modifiers.findAnnotation(ANDROID_FLAGGED_API) ?: return
+                item.hidden = true
+                item.mutableModifiers().removeAnnotations { it.isShowAnnotation() }
+            }
+        }
+    )
 }
 
 fun processNonCodebaseFlags() {
