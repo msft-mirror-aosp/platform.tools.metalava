@@ -353,6 +353,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
                 showAnnotations = showAnnotations,
+                showSingleAnnotations = showSingleAnnotations,
+                showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,

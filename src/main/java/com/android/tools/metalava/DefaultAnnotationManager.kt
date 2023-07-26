@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -44,6 +45,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -395,6 +398,31 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         }
 
         return ANNOTATION_EXTERNAL
+    }
+
+    override fun hasShowAnnotation(modifiers: ModifierList): Boolean {
+        if (config.showAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { config.showAnnotations.matches(it) }
+    }
+
+    override fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean {
+        if (config.showSingleAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { config.showSingleAnnotations.matches(it) }
+    }
+
+    override fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean {
+        if (config.showForStubPurposesAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { config.showForStubPurposesAnnotations.matches(it) } &&
+            !modifiers.annotations().any {
+                config.showAnnotations.matches(it) &&
+                    !config.showForStubPurposesAnnotations.matches(it)
+            }
     }
 
     override val typedefMode: TypedefMode = config.typedefMode

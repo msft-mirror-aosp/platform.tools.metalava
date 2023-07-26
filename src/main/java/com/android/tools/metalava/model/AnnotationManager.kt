@@ -41,6 +41,38 @@ interface AnnotationManager {
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget>
 
+    /**
+     * Checks to see if the modifiers contain any show annotations.
+     *
+     * Returns `true` if it does, `false` otherwise. If `true` then the owning item (and any
+     * contents) will be added to the API.
+     *
+     * e.g. if the modifiers is for a class then it will also apply (unless overridden by a closer)
+     * annotation to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun hasShowAnnotation(modifiers: ModifierList): Boolean = false
+
+    /**
+     * Checks to see if the modifiers contain any show single annotations.
+     *
+     * Returns `true` if it does, `false` otherwise. If `true` then the owning item and only that
+     * item will be added to the API.
+     *
+     * e.g. if the modifiers is for a class then it only applies to that class and not its contents
+     * like nested classes, methods, fields, constructors, properties, etc.
+     */
+    fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean = false
+
+    /**
+     * Checks to see if the modifiers contain any show for stubs purposes annotations and no other
+     * show annotations.
+     *
+     * Returns `true` if it does, `false` otherwise. If `true` then the owning item will only be
+     * added to stub files.
+     */
+    fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean = false
+
     /** Determine how to handle typedef annotations, i.e. annotations like `@IntDef`. */
     val typedefMode: TypedefMode
 }

@@ -123,41 +123,22 @@ interface ModifierList {
         return annotations().any { it.isJvmSynthetic() }
     }
 
-    /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showAnnotations]
-     */
+    /** Returns true if this modifier list contains any show annotations. */
     fun hasShowAnnotation(): Boolean {
-        if (options.showAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showAnnotations.matches(it) }
+        return codebase.annotationManager.hasShowAnnotation(this)
     }
 
-    /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showSingleAnnotations]
-     */
+    /** Returns true if this modifier list contains any show single annotations. */
     fun hasShowSingleAnnotation(): Boolean {
-        if (options.showSingleAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showSingleAnnotations.matches(it) }
+        return codebase.annotationManager.hasShowSingleAnnotation(this)
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
+     * Returns true if this modifier list contains any show for stub purposes annotations and that
+     * is the only show annotation.
      */
     fun onlyShowForStubPurposes(): Boolean {
-        if (options.showForStubPurposesAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showForStubPurposesAnnotations.matches(it) } &&
-            !annotations().any {
-                options.showAnnotations.matches(it) &&
-                    !options.showForStubPurposesAnnotations.matches(it)
-            }
+        return codebase.annotationManager.onlyShowForStubPurposes(this)
     }
 
     /**
