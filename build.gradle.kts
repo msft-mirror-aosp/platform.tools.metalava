@@ -43,26 +43,17 @@ application {
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
-val customLintVersion = findProperty("lintVersion") as String?
-val studioVersion: String =
-    if (customLintVersion != null) {
-        logger.warn("Building using custom $customLintVersion version of Android Lint")
-        customLintVersion
-    } else {
-        "31.2.0-alpha08"
-    }
-
 dependencies {
-    implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
-    implementation("com.android.tools.external.com-intellij:kotlin-compiler:$studioVersion")
-    implementation("com.android.tools.external.com-intellij:intellij-core:$studioVersion")
-    implementation("com.android.tools.lint:lint-api:$studioVersion")
-    implementation("com.android.tools.lint:lint-checks:$studioVersion")
-    implementation("com.android.tools.lint:lint-gradle:$studioVersion")
-    implementation("com.android.tools.lint:lint:$studioVersion")
-    implementation("com.android.tools:common:$studioVersion")
-    implementation("com.android.tools:sdk-common:$studioVersion")
-    implementation("com.android.tools:sdklib:$studioVersion")
+    implementation(libs.androidToolsExternalUast)
+    implementation(libs.androidToolsExternalKotlinCompiler)
+    implementation(libs.androidToolsExternalIntellijCore)
+    implementation(libs.androidLintApi)
+    implementation(libs.androidLintChecks)
+    implementation(libs.androidLintGradle)
+    implementation(libs.androidLint)
+    implementation(libs.androidToolsCommon)
+    implementation(libs.androidToolsSdkCommon)
+    implementation(libs.androidToolsSdklib)
     implementation("com.github.ajalt.clikt:clikt-jvm:3.5.3")
     implementation(libs.kotlinStdlib)
     implementation(libs.kotlinReflect)
@@ -70,7 +61,7 @@ dependencies {
     implementation("org.ow2.asm:asm-tree:8.0")
     implementation("com.google.guava:guava:31.0.1-jre")
     implementation("com.google.code.gson:gson:2.8.9")
-    testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
+    testImplementation(libs.androidLintTests)
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
     testImplementation(libs.kotlinTest)

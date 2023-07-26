@@ -27,5 +27,4 @@ JAVA_HOME="$(pwd)/prebuilts/jdk/jdk17/linux-x86/" tools/gradlew -p tools/metalav
   --no-daemon \
   --stacktrace \
    --dependency-verification=off \
-  -PlintRepo=$LINT_REPO \
-  -PlintVersion=$LINT_VERSION
+  -PlintRepo=$LINT_REPO
