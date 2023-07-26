@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
 import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
-import com.android.tools.metalava.model.AnnotationFilter
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.AnnotationRetention

@@ -22,10 +22,8 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
-import com.android.tools.metalava.model.AnnotationFilter
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.MutableAnnotationFilter
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
