@@ -45,8 +45,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
-import com.google.common.annotations.VisibleForTesting
-import com.google.common.io.Files
 import java.io.File
 import java.io.IOException
 import javax.annotation.Nonnull
@@ -110,7 +108,7 @@ class ApiFile(
                 description.append(file.path)
                 val apiText: String =
                     try {
-                        Files.asCharSource(file, UTF_8).read()
+                        file.readText(UTF_8)
                     } catch (ex: IOException) {
                         throw ApiParseException("Error reading API file", file.path, ex)
                     }
@@ -138,9 +136,8 @@ class ApiFile(
         }
 
         /** Entry point for testing. Take a filename and content separately. */
-        @VisibleForTesting
         @Throws(ApiParseException::class)
-        fun parseApi(
+        internal fun parseApi(
             @Nonnull filename: String,
             @Nonnull apiText: String,
             classResolver: ClassResolver? = null,
