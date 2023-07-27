@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.FileFormat
-import com.android.tools.metalava.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
@@ -29,6 +27,8 @@ import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
