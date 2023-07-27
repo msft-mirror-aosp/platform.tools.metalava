@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationManager
@@ -31,6 +30,7 @@ import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.reporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.tick
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project

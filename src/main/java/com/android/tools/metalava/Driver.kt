@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists

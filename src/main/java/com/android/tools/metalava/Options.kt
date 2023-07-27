@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.utils.SdkUtils.wrap

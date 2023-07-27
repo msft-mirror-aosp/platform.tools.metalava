@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.model.AnnotationItem
@@ -33,6 +32,8 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField

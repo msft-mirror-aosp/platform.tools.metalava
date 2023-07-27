@@ -18,12 +18,12 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants.DOT_CLASS
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.canonicalizeFloatingPointString
 import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.reporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.utils.XmlUtils
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
