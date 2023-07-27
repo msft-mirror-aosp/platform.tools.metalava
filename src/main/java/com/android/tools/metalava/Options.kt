@@ -2178,3 +2178,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
     }
 }
+
+/** Configures the option object such that the output format will be the given format */
+private fun FileFormat.configureOptions(options: Options) {
+    if (this == FileFormat.JDIFF) {
+        return
+    }
+    options.outputFormat = this
+    options.outputKotlinStyleNulls = this >= FileFormat.V3
+    options.outputDefaultValues = this >= FileFormat.V2
+    options.includeSignatureFormatVersion = this >= FileFormat.V2
+}
