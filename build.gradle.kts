@@ -24,6 +24,7 @@ application {
 }
 
 dependencies {
+    implementation(project(":metalava-model"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)
