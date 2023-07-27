@@ -87,17 +87,19 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
     private val fieldNamePrinter =
         CodePrinter(
             codebase = codebase,
+            reporter = reporter,
             filterReference = filterReference,
             inlineFieldValues = false,
-            skipUnknown = true
+            skipUnknown = true,
         )
 
     private val fieldValuePrinter =
         CodePrinter(
             codebase = codebase,
+            reporter = reporter,
             filterReference = filterReference,
             inlineFieldValues = true,
-            skipUnknown = true
+            skipUnknown = true,
         )
 
     private val classToAnnotationHolder = mutableMapOf<String, AnnotationHolder>()
