@@ -47,7 +47,6 @@ import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
 import java.io.File
 import java.io.IOException
-import javax.annotation.Nonnull
 import kotlin.text.Charsets.UTF_8
 
 class ApiFile(
@@ -77,7 +76,7 @@ class ApiFile(
          */
         @Throws(ApiParseException::class)
         fun parseApi(
-            @Nonnull file: File,
+            file: File,
             annotationManager: AnnotationManager,
         ) = parseApi(listOf(file), null, annotationManager)
 
@@ -92,7 +91,7 @@ class ApiFile(
          */
         @Throws(ApiParseException::class)
         fun parseApi(
-            @Nonnull files: List<File>,
+            files: List<File>,
             classResolver: ClassResolver? = null,
             annotationManager: AnnotationManager,
         ): TextCodebase {
@@ -138,8 +137,8 @@ class ApiFile(
         /** Entry point for testing. Take a filename and content separately. */
         @Throws(ApiParseException::class)
         internal fun parseApi(
-            @Nonnull filename: String,
-            @Nonnull apiText: String,
+            filename: String,
+            apiText: String,
             classResolver: ClassResolver? = null,
         ): TextCodebase {
             val api = TextCodebase(File(filename), NoOpAnnotationManager())
