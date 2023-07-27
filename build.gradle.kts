@@ -1,8 +1,5 @@
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
 import com.android.tools.metalava.CREATE_BUILD_INFO_TASK
-import java.io.FileInputStream
-import java.io.FileNotFoundException
-import java.util.Properties
 
 /** Take a copy of the original [buildDir] for use by [testPrebuiltsSdkDir] */
 val originalBuildDir = buildDir
@@ -25,8 +22,6 @@ plugins {
     id("maven-publish")
     id("metalava-build-plugin")
 }
-
-version = getMetalavaVersion()
 
 application {
     mainClass.set("com.android.tools.metalava.Driver")
@@ -145,20 +140,6 @@ project.tasks.register("test-prebuilts-sdk") {
 tasks.named<Test>("test").configure {
     dependsOn("test-prebuilts-sdk")
     setEnvironment("METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir)
-}
-
-fun getMetalavaVersion(): Any {
-    val versionPropertyFile = File(projectDir, "src/main/resources/version.properties")
-    if (versionPropertyFile.canRead()) {
-        val versionProps = Properties()
-        versionProps.load(FileInputStream(versionPropertyFile))
-        return versionProps["metalavaVersion"]
-            ?: throw IllegalStateException(
-                "metalava version was not set in ${versionPropertyFile.absolutePath}"
-            )
-    } else {
-        throw FileNotFoundException("Could not read ${versionPropertyFile.absolutePath}")
-    }
 }
 
 fun getBuildDirectory(): File {

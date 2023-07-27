@@ -18,11 +18,14 @@ package com.android.tools.metalava
 
 import com.android.build.api.dsl.Lint
 import java.io.File
+import java.io.StringReader
+import java.util.Properties
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.plugins.PublishingPlugin
@@ -66,6 +69,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         configureLint(project)
         configureTestTasks(project)
         project.configureKtfmt()
+        project.version = project.getMetalavaVersion()
         project.group = "com.android.tools.metalava"
     }
 
@@ -186,11 +190,28 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 }
 
+internal fun Project.version(): Provider<String> {
+    @Suppress("UNCHECKED_CAST") // version is a Provider<String> set in MetalavaBuildPlugin
+    return version as Provider<String>
+}
+
+private fun Project.getMetalavaVersion(): Provider<String> {
+    val contents =
+        providers.fileContents(
+            rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
+        )
+    return contents.asText.map {
+        val versionProps = Properties()
+        versionProps.load(StringReader(it))
+        versionProps["metalavaVersion"]!! as String
+    }
+}
+
 /**
  * The build server will copy the contents of the distribution directory and make it available for
  * download.
  */
-fun getDistributionDirectory(project: Project): File {
+private fun getDistributionDirectory(project: Project): File {
     return if (System.getenv("DIST_DIR") != null) {
         File(System.getenv("DIST_DIR"))
     } else {
@@ -198,7 +219,7 @@ fun getDistributionDirectory(project: Project): File {
     }
 }
 
-fun isBuildingOnServer(): Boolean {
+private fun isBuildingOnServer(): Boolean {
     return System.getenv("OUT_DIR") != null && System.getenv("DIST_DIR") != null
 }
 
@@ -208,7 +229,7 @@ fun isBuildingOnServer(): Boolean {
  * The build server does not pass the build id so we infer it from the last folder of the
  * distribution directory name.
  */
-fun getBuildId(): String {
+private fun getBuildId(): String {
     return if (System.getenv("DIST_DIR") != null) File(System.getenv("DIST_DIR")).name else "0"
 }
 
