@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter

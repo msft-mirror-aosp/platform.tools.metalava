@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate

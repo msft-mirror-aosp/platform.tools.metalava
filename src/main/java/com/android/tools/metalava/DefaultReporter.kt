@@ -16,16 +16,17 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.Severity.ERROR
-import com.android.tools.metalava.Severity.HIDDEN
-import com.android.tools.metalava.Severity.INFO
-import com.android.tools.metalava.Severity.INHERIT
-import com.android.tools.metalava.Severity.LINT
-import com.android.tools.metalava.Severity.WARNING
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.reporter.Severity.ERROR
+import com.android.tools.metalava.reporter.Severity.HIDDEN
+import com.android.tools.metalava.reporter.Severity.INFO
+import com.android.tools.metalava.reporter.Severity.INHERIT
+import com.android.tools.metalava.reporter.Severity.LINT
+import com.android.tools.metalava.reporter.Severity.WARNING
 import com.google.common.annotations.VisibleForTesting
 import java.io.File
 import java.io.PrintWriter
@@ -36,36 +37,6 @@ import java.nio.file.Path
  * compatibility check, may use a custom [Reporter]
  */
 lateinit var reporter: Reporter
-
-enum class Severity(private val displayName: String) {
-    INHERIT("inherit"),
-    HIDDEN("hidden"),
-
-    /**
-     * Information level are for issues that are informational only; may or may not be a problem.
-     */
-    INFO("info"),
-
-    /**
-     * Lint level means that we encountered inconsistent or broken documentation. These should be
-     * resolved, but don't impact API compatibility.
-     */
-    LINT("lint"),
-
-    /**
-     * Warning level means that we encountered some incompatible or inconsistent API change. These
-     * must be resolved to preserve API compatibility.
-     */
-    WARNING("warning"),
-
-    /**
-     * Error level means that we encountered severe trouble and were unable to output the requested
-     * documentation.
-     */
-    ERROR("error");
-
-    override fun toString(): String = displayName
-}
 
 internal class DefaultReporter(
     /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */

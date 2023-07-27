@@ -16,6 +16,7 @@
 package com.android.tools.metalava
 
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.metalava.reporter.Severity
 import java.util.Locale
 import kotlin.reflect.full.declaredMemberProperties
 

@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
