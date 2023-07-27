@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.model.text
 
-import com.android.SdkConstants.DOT_TXT
-import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
@@ -199,18 +197,7 @@ class ApiFile(
             throw ApiParseException("Unknown file format of $filename")
         }
 
-        // Remove the block comments.
-        val strippedApiText =
-            if (apiText.contains("/*")) {
-                stripComments(
-                    apiText,
-                    DOT_TXT,
-                    false
-                ) // line comments are used to stash field constants
-            } else {
-                apiText
-            }
-        val tokenizer = Tokenizer(filename, strippedApiText.toCharArray())
+        val tokenizer = Tokenizer(filename, apiText.toCharArray())
         while (true) {
             val token = tokenizer.getToken() ?: break
             // TODO: Accept annotations on packages.
