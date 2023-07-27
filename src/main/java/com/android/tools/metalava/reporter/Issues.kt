@@ -15,7 +15,6 @@
  */
 package com.android.tools.metalava.reporter
 
-import com.android.sdklib.SdkVersionInfo
 import java.util.Locale
 import kotlin.reflect.full.declaredMemberProperties
 
@@ -282,7 +281,7 @@ object Issues {
         UNKNOWN("Default");
 
         /** Identifier for use in command-line arguments and reporting. */
-        val id: String = SdkVersionInfo.underlinesToCamelCase(name.lowercase(Locale.US))
+        val id: String = enumConstantToCamelCase(name)
     }
 
     init { // Initialize issue names based on the field names
@@ -290,11 +289,23 @@ object Issues {
             if (property.returnType.classifier != Issue::class) continue
             val issue = property.getter.call(Issues) as Issue
 
-            issue.name = SdkVersionInfo.underlinesToCamelCase(property.name.lowercase(Locale.US))
+            issue.name = enumConstantToCamelCase(property.name)
             nameToIssue[issue.name] = issue
         }
         for (issue in allIssues) {
             check(issue.name != "")
         }
     }
+}
+
+/**
+ * Convert enum constant name to camel case starting with an upper case letter.
+ *
+ * e.g. `ALPHA_BETA` becomes `AlphaBeta`.
+ */
+private fun enumConstantToCamelCase(name: String): String {
+    return name
+        .splitToSequence("_")
+        .map { "${it[0]}${it.substring(1).lowercase(Locale.US)}" }
+        .joinToString("")
 }
