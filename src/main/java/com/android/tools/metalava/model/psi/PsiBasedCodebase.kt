@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.ANDROIDX_NONNULL
-import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.Issues
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase

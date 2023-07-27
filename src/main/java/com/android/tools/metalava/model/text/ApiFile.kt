@@ -17,12 +17,10 @@ package com.android.tools.metalava.model.text
 
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.checks.infrastructure.stripComments
-import com.android.tools.metalava.ANDROIDX_NONNULL
-import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
-import com.android.tools.metalava.JAVA_LANG_DEPRECATED
-import com.android.tools.metalava.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationInfo
 import com.android.tools.metalava.model.AnnotationItem
@@ -34,9 +32,11 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_STRING
+import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
