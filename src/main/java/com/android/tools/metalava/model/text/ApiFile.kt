@@ -17,13 +17,8 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
-import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
-import com.android.tools.metalava.model.AnnotationInfo
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.AnnotationTarget
-import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
@@ -36,9 +31,9 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.NoOpAnnotationManager
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
-import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
@@ -1466,43 +1461,6 @@ class ReferenceResolver(
             pkg.pruneClassList()
         }
     }
-}
-
-/**
- * A no op implementation of [AnnotationManager] that is suitable for use by the deprecated,
- * external use only `ApiFile.parseApi(String,String,Boolean?)` and the for test only
- * `ApiFile.parseApi(String,String,ClassResolver?)` methods.
- *
- * This is used when loading an API signature from a text file and makes the following assumptions:
- * * The annotation names are correct and do not need mapping into another form.
- * * The annotations can be used in all stubs.
- */
-internal class NoOpAnnotationManager : BaseAnnotationManager() {
-
-    override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
-        // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
-        // else.
-        return annotationItem.qualifiedName!!
-    }
-
-    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return AnnotationInfo(annotationItem.qualifiedName!!)
-    }
-
-    override fun normalizeInputName(qualifiedName: String?): String? {
-        return qualifiedName
-    }
-
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
-        return qualifiedName
-    }
-
-    override fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget> = ANNOTATION_IN_ALL_STUBS
-
-    override val typedefMode: TypedefMode = TypedefMode.NONE
 }
 
 private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) {
