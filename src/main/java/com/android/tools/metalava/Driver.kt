@@ -214,7 +214,7 @@ internal fun maybeActivateSandbox() {
     )
 }
 
-private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: Int) {
+private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
     writer.println("Error: $PROGRAM_NAME detected the following problems:")
     val totalErrors = reporters.sumOf { it.errorCount }
     var remainingCap = max
@@ -750,7 +750,7 @@ private fun loadFromSources(): Codebase {
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
-        val apiLintReporter = options.reporterApiLint
+        val apiLintReporter = options.reporterApiLint as DefaultReporter
         ApiLint.check(codebase, previous, apiLintReporter)
         progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"

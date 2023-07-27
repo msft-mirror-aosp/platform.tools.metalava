@@ -519,8 +519,8 @@ abstract class DriverTest {
 
         val allReportedIssues = StringBuilder()
         val errorSeverityReportedIssues = StringBuilder()
-        Reporter.rootFolder = project
-        Reporter.reportPrinter = { message, severity ->
+        DefaultReporter.rootFolder = project
+        DefaultReporter.reportPrinter = { message, severity ->
             val cleanedUpMessage = cleanupString(message, project).trim()
             if (severity == Severity.ERROR) {
                 errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
