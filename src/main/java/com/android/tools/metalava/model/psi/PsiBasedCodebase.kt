@@ -29,8 +29,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.reporter
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.tick
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
@@ -97,6 +97,7 @@ open class PsiBasedCodebase(
     location: File,
     override var description: String = "Unknown",
     annotationManager: AnnotationManager,
+    private val reporter: Reporter,
     val fromClasspath: Boolean = false
 ) : DefaultCodebase(location, annotationManager) {
     lateinit var uastEnvironment: UastEnvironment

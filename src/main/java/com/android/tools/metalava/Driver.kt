@@ -859,7 +859,7 @@ private fun parseAbsoluteSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager)
+    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager, reporter)
     codebase.initialize(environment, units, packageDocs)
     return codebase
 }
@@ -868,7 +868,7 @@ private fun getClassResolver(): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        PsiBasedClassResolver(classpath, options.annotationManager)
+        PsiBasedClassResolver(classpath, options.annotationManager, reporter)
     } else {
         null
     }
@@ -892,7 +892,8 @@ fun loadFromJarFile(
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
-    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager)
+    val codebase =
+        PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
