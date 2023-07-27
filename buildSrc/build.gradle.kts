@@ -29,7 +29,7 @@ dependencies {
     implementation(gradleKotlinDsl())
     implementation(libs.kotlinGradlePlugin)
     implementation(libs.androidGradlePlugin)
-    implementation("com.google.code.gson:gson:2.8.6")
+    implementation(libs.gson)
 }
 
 gradlePlugin {
