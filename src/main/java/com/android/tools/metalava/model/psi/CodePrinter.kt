@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.canonicalizeFloatingPointString
 import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.utils.XmlUtils
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -468,7 +467,7 @@ class CodePrinter(
                 return true
             } else if (literalValue is String || literalValue is Char) {
                 sb.append('"')
-                XmlUtils.appendXmlAttributeValue(sb, literalValue.toString())
+                sb.append(javaEscapeString(literalValue.toString()))
                 sb.append('"')
                 return true
             }

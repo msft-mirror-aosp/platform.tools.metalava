@@ -718,7 +718,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 <root>
                   <item name="test.pkg.PermissionsTest CONTENT_URI">
                     <annotation name="androidx.annotation.RequiresPermission">
-                      <val name="value" val="&quot;&amp;apos;&amp;amp;&amp;quot;&quot;" />
+                      <val name="value" val="&quot;\&apos;&amp;\&quot;&quot;" />
                     </annotation>
                   </item>
                 </root>
