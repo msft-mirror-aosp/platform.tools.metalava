@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.tick
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -194,7 +193,7 @@ open class PsiBasedCodebase(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
-            tick() // show progress
+            reporter.showProgressTick() // show progress
 
             // Visiting psiFile directly would eagerly load the entire file even though we only need
             // the importList here.
@@ -293,7 +292,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses) {
-            tick() // show progress
+            reporter.showProgressTick() // show progress
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")

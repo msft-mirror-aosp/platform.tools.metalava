@@ -86,4 +86,10 @@ interface Reporter {
      * 4. Otherwise, this returns `false`.
      */
     fun isSuppressed(id: Issues.Issue, item: Item? = null, message: String? = null): Boolean
+
+    /**
+     * Report a progress tick (in verbose mode) so that a user will know that metalava is actually
+     * doing something.
+     */
+    fun showProgressTick()
 }
