@@ -155,7 +155,7 @@ internal fun processFlags(
 ) {
     val stopwatch = Stopwatch.createStarted()
 
-    processNonCodebaseFlags(progressTracker)
+    processNonCodebaseFlags()
 
     val sourceParser =
         environmentManager.createSourceParser(
@@ -556,7 +556,7 @@ fun subtractApi(
         )
 }
 
-fun processNonCodebaseFlags(progressTracker: ProgressTracker) {
+fun processNonCodebaseFlags() {
     // --copy-annotations?
     val privateAnnotationsSource = options.privateAnnotationsSource
     val privateAnnotationsTarget = options.privateAnnotationsTarget
@@ -568,10 +568,6 @@ fun processNonCodebaseFlags(progressTracker: ProgressTracker) {
         source.listFiles()?.forEach { file ->
             rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
         }
-    }
-
-    for (convert in options.convertToXmlFiles) {
-        convert.process(progressTracker)
     }
 }
 
