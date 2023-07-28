@@ -41,6 +41,14 @@ java_library_host {
     ],
 }
 
+java_library_host {
+    name: "metalava-signature-reader",
+    static_libs: [
+        "metalava-model-api",
+        "metalava-model-text",
+    ],
+}
+
 java_binary_host {
     name: "metalava",
     srcs: [
