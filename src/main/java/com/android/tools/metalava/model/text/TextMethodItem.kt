@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -29,19 +30,16 @@ import java.util.function.Predicate
 open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
-    containingClass: TextClassItem,
-    modifiers: TextModifiers,
-    private val returnType: TextTypeItem?,
+    containingClass: ClassItem,
+    modifiers: DefaultModifierList,
+    private val returnType: TextTypeItem,
     position: SourcePositionInfo
-) : TextMemberItem(
-    codebase, name, containingClass, position,
-    modifiers = modifiers
-),
+) :
+    TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers),
     MethodItem,
     TypeParameterListOwner {
     init {
-        @Suppress("LeakingThis")
-        modifiers.setOwner(this)
+        @Suppress("LeakingThis") modifiers.setOwner(this)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -79,7 +77,7 @@ open class TextMethodItem(
 
     override fun isConstructor(): Boolean = false
 
-    override fun returnType(): TypeItem? = returnType
+    override fun returnType(): TypeItem = returnType
 
     override fun superMethods(): List<MethodItem> {
         if (isConstructor()) {
@@ -136,10 +134,15 @@ open class TextMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
-        val duplicated = TextMethodItem(
-            codebase, name(), targetContainingClass as TextClassItem,
-            modifiers.duplicate(), returnType, position
-        )
+        val duplicated =
+            TextMethodItem(
+                codebase,
+                name(),
+                targetContainingClass,
+                modifiers.duplicate(),
+                returnType,
+                position
+            )
         duplicated.inheritedFrom = containingClass()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
@@ -169,7 +172,8 @@ open class TextMethodItem(
         return duplicated
     }
 
-    override val synthetic: Boolean get() = isEnumSyntheticMethod()
+    override val synthetic: Boolean
+        get() = isEnumSyntheticMethod()
 
     private val throwsTypes = mutableListOf<String>()
     private val parameters = mutableListOf<TextParameterItem>()
@@ -179,9 +183,10 @@ open class TextMethodItem(
         return throwsTypes
     }
 
-    override fun throwsTypes(): List<ClassItem> = if (throwsClasses == null) emptyList() else throwsClasses!!
+    override fun throwsTypes(): List<ClassItem> =
+        if (throwsClasses == null) emptyList() else throwsClasses!!
 
-    fun setThrowsList(throwsClasses: List<TextClassItem>) {
+    fun setThrowsList(throwsClasses: List<ClassItem>) {
         this.throwsClasses = throwsClasses
     }
 
@@ -209,9 +214,10 @@ open class TextMethodItem(
     override var inheritedFrom: ClassItem? = null
 
     override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${name()}(${parameters().joinToString {
-            it.type().toSimpleType()
-        }})"
+        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
+
+    fun toSignatureString(): String =
+        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 
     private var annotationDefault = ""
 
@@ -221,5 +227,15 @@ open class TextMethodItem(
 
     override fun defaultValue(): String {
         return annotationDefault
+    }
+
+    override fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean {
+        if (typeString1[0].isUpperCase() && typeString1.length == 1) {
+            return true
+        }
+        if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit()) {
+            return true
+        }
+        return false
     }
 }

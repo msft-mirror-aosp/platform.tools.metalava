@@ -17,16 +17,18 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MemberItem
 
 abstract class TextMemberItem(
     codebase: TextCodebase,
     private val name: String,
-    private val containingClass: TextClassItem,
+    private val containingClass: ClassItem,
     position: SourcePositionInfo,
-    override var modifiers: TextModifiers
+    override var modifiers: DefaultModifierList
 ) : TextItem(codebase, position = position, modifiers = modifiers), MemberItem {
 
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 }
