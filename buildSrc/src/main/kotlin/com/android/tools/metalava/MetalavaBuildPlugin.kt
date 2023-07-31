@@ -191,20 +191,29 @@ class MetalavaBuildPlugin : Plugin<Project> {
 }
 
 internal fun Project.version(): Provider<String> {
-    @Suppress("UNCHECKED_CAST") // version is a Provider<String> set in MetalavaBuildPlugin
-    return version as Provider<String>
+    @Suppress("UNCHECKED_CAST") // version is a VersionProviderWrapper set in MetalavaBuildPlugin
+    return (version as VersionProviderWrapper).versionProvider
 }
 
-private fun Project.getMetalavaVersion(): Provider<String> {
+// https://github.com/gradle/gradle/issues/25971
+private class VersionProviderWrapper(val versionProvider: Provider<String>) {
+    override fun toString(): String {
+        return versionProvider.get()
+    }
+}
+
+private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
             rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
         )
-    return contents.asText.map {
-        val versionProps = Properties()
-        versionProps.load(StringReader(it))
-        versionProps["metalavaVersion"]!! as String
-    }
+    return VersionProviderWrapper(
+        contents.asText.map {
+            val versionProps = Properties()
+            versionProps.load(StringReader(it))
+            versionProps["metalavaVersion"]!! as String
+        }
+    )
 }
 
 /**
