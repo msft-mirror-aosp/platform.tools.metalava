@@ -28,7 +28,7 @@ import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.publish.plugins.PublishingPlugin
+import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
 import org.gradle.api.publish.tasks.GenerateModuleMetadata
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
@@ -60,7 +60,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
                         }
                     }
                 }
-                is PublishingPlugin -> {
+                is MavenPublishPlugin -> {
                     configurePublishing(project)
                 }
             }
@@ -92,7 +92,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 zip.destinationDirectory.set(
                     File(getDistributionDirectory(project), "host-test-reports")
                 )
-                zip.archiveFileName.set("${project.path}-tests.zip")
+                zip.archiveFileName.set(testTask.map { "${it.path}.zip" })
                 zip.from(testTask.map { it.reports.junitXml.outputLocation.get() })
             }
 
@@ -224,7 +224,7 @@ private fun getDistributionDirectory(project: Project): File {
     return if (System.getenv("DIST_DIR") != null) {
         File(System.getenv("DIST_DIR"))
     } else {
-        File(project.projectDir, "../../out/dist")
+        File(project.rootProject.projectDir, "../../out/dist")
     }
 }
 

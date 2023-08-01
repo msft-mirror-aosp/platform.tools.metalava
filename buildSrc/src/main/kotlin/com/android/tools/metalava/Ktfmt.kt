@@ -24,7 +24,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.FileTree
+import org.gradle.api.file.FileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.InputFiles
@@ -67,10 +67,10 @@ abstract class KtfmtBaseTask : DefaultTask() {
     @get:Inject abstract val objects: ObjectFactory
 
     @[InputFiles PathSensitive(PathSensitivity.RELATIVE)]
-    fun getInputFiles(): FileTree {
+    fun getInputFiles(): FileCollection {
         return objects.fileTree().setDir("src").apply { include("**/*.kt") } +
             objects.fileTree().setDir("buildSrc/src").apply { include("**/*.kt") } +
-            objects.fileTree().setDir(".").apply { include("build.gradle.kts") }
+            objects.fileCollection().apply { from("build.gradle.kts") }
     }
 
     fun getArgs(dryRun: Boolean): List<String> {
@@ -87,7 +87,7 @@ abstract class KtfmtBaseTask : DefaultTask() {
 abstract class KtfmtFormatTask : KtfmtBaseTask() {
     // Output needs to be defined for this task as it rewrites these files
     @OutputFiles
-    fun getOutputFiles(): FileTree {
+    fun getOutputFiles(): FileCollection {
         return getInputFiles()
     }
 
