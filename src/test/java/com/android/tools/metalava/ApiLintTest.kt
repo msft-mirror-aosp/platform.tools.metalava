@@ -1465,6 +1465,75 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Check boolean property accessor naming patterns in Kotlin`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues = """
+                    src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:22: error: Invalid name for boolean property setter `setIsVisibleBad`, should be `setVisibleSetterBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:37: error: Getter for boolean property `hasTransientStateGetterBad` is named `getHasTransientStateGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:39: error: Getter for boolean property `canRecordGetterBad` is named `getCanRecordGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:41: error: Getter for boolean property `shouldFitWidthGetterBad` is named `getShouldFitWidthGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package android.pkg
+
+                    class MyClass {
+                        // Correct
+                        var isVisible: Boolean = false
+
+                        @get:JvmName("hasTransientState")
+                        var hasTransientState: Boolean = false
+
+                        @get:JvmName("canRecord")
+                        var canRecord: Boolean = false
+
+                        @get:JvmName("shouldFitWidth")
+                        var shouldFitWidth: Boolean = false
+
+                        var isWiFiRoamingSettingEnabled: Boolean = false
+
+                        // Bad
+                        var visibleBad: Boolean = false
+
+                        @set:JvmName("setIsVisibleBad")
+                        var isVisibleSetterBad: Boolean = false
+
+                        @get:JvmName("hasTransientStateBad")
+                        var transientStateBad: Boolean = false
+
+                        var isHasTransientStateAlsoBad: Boolean = false
+
+                        var isCanRecordBad: Boolean = false
+
+                        var isShouldFitWidthBad: Boolean = false
+
+                        var wiFiRoamingSettingEnabledBad: Boolean = false
+
+                        var enabledBad: Boolean = false
+
+                        var hasTransientStateGetterBad: Boolean = false
+
+                        var canRecordGetterBad: Boolean = false
+
+                        var shouldFitWidthGetterBad: Boolean = false
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Check banned collections`() {
         check(
             apiLint = "", // enabled
@@ -2325,8 +2394,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2385,8 +2454,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues = """
-                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
-                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoClosable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
+                src/android/pkg/MyErrorClass1.java:3: warning: Classes that release resources (close()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass1 [NotCloseable]
+                src/android/pkg/MyErrorClass2.java:3: warning: Classes that release resources (finalize(), shutdown()) should implement AutoCloseable and CloseGuard: class android.pkg.MyErrorClass2 [NotCloseable]
             """,
             manifest = """<?xml version="1.0" encoding="UTF-8"?>
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">

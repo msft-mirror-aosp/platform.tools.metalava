@@ -4676,6 +4676,35 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `@Deprecated sealed interface and its members`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        @Deprecated("moved to somewhere else")
+                        sealed interface LazyInfo {
+                          val index : Int
+                          val key: Int
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @Deprecated public sealed interface LazyInfo {
+                    method @Deprecated public int getIndex();
+                    method @Deprecated public int getKey();
+                    property @Deprecated public abstract int index;
+                    property @Deprecated public abstract int key;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `@Repeatable annotation`() {
         check(
             sourceFiles = arrayOf(
@@ -4804,6 +4833,84 @@ class ApiFileTest : DriverTest() {
                     property public final int foo;
                   }
                 }
+            """
+        )
+    }
+
+    @Test
+    fun `Test @JvmMultifileClass appears only once`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "test/pkg/A.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.bar(): Unit {}
+                    """
+                ),
+                kotlin(
+                    "test/pkg/B.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
+                        package test.pkg
+
+                        fun String.baz(): Unit {}
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void bar(String);
+                    method public static void baz(String);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@JvmName on @Deprecated hidden`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                          @JvmName("newNameForRenamed")
+                          fun renamed() = Unit
+
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun deprecatedHidden() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedError")
+                          @Deprecated(level = DeprecationLevel.ERROR)
+                          fun renamedAndDeprecatedError() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedHidden")
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun renamedAndDeprecatedHidden() = Unit
+                        }
+                    """
+                )
+            ),
+            api = """
+               package test.pkg {
+                 public final class Foo {
+                   ctor public Foo();
+                   method @Deprecated public void deprecatedHidden();
+                   method public void newNameForRenamed();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                 }
+               }
             """
         )
     }
