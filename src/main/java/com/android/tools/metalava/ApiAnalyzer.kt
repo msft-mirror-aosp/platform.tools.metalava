@@ -710,11 +710,6 @@ class ApiAnalyzer(
                         if (item.modifiers.hasShowAnnotation()) {
                             item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)
                                 ?: options.showAnnotations.firstQualifiedName()
-                        } else if (item.modifiers.hasShowSingleAnnotation()) {
-                            item.modifiers.annotations().find {
-                                options.showSingleAnnotations.matches(it)
-                            }
-                                ?: options.showSingleAnnotations.firstQualifiedName()
                         } else {
                             null
                         }
