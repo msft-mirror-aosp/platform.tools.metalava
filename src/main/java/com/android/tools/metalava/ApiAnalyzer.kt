@@ -1060,12 +1060,7 @@ class ApiAnalyzer(
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in cl.methods()) {
                     if (!m.isApiCandidate()) {
-                        // TODO: enable this check for options.showSingleAnnotations
-                        if (
-                            options.showSingleAnnotations.isEmpty() &&
-                                publiclyConstructable &&
-                                m.modifiers.isAbstract()
-                        ) {
+                        if (publiclyConstructable && m.modifiers.isAbstract()) {
                             reporter.report(
                                 Issues.HIDDEN_ABSTRACT_METHOD,
                                 m,

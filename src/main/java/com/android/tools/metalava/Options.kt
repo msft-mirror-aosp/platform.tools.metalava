@@ -316,7 +316,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * Like [showAnnotations], but does not work recursively. Note that these annotations are *also*
      * show annotations and will be added to the above list; this is a subset.
      */
-    val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
+    private val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
