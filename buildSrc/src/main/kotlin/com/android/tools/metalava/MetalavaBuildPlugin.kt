@@ -17,6 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.build.api.dsl.Lint
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
+import com.android.tools.metalava.buildinfo.addTaskToAggregateBuildInfoFileTask
+import com.android.tools.metalava.buildinfo.configureBuildInfoTask
 import java.io.File
 import java.io.StringReader
 import java.util.Properties
@@ -42,6 +46,13 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
+        if (project.rootProject == project) {
+            project.tasks.register(
+                CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
+                CreateAggregateLibraryBuildInfoFileTask::class.java
+            )
+        }
+
         project.plugins.all { plugin ->
             when (plugin) {
                 is JavaPlugin -> {
@@ -115,6 +126,15 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     fun configurePublishing(project: Project) {
+        val archiveTaskProvider =
+            configurePublishingArchive(
+                project,
+                publicationName,
+                repositoryName,
+                getBuildId(),
+                getDistributionDirectory(project)
+            )
+
         project.extensions.getByType<PublishingExtension>().apply {
             publications {
                 it.create<MavenPublication>(publicationName) {
@@ -138,6 +158,16 @@ class MetalavaBuildPlugin : Plugin<Project> {
                             scm.url.set("https://android.googlesource.com/platform/tools/metalava/")
                         }
                     }
+
+                    val buildInfoTask =
+                        configureBuildInfoTask(
+                            project,
+                            this,
+                            isBuildingOnServer(),
+                            getDistributionDirectory(project),
+                            archiveTaskProvider
+                        )
+                    project.addTaskToAggregateBuildInfoFileTask(buildInfoTask)
                 }
             }
             repositories { handler ->
@@ -152,21 +182,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 }
             }
         }
-        val archiveTaskProvider =
-            configurePublishingArchive(
-                project,
-                publicationName,
-                repositoryName,
-                getBuildId(),
-                getDistributionDirectory(project)
-            )
-
-        configureBuildInfoTask(
-            project,
-            isBuildingOnServer(),
-            getDistributionDirectory(project),
-            archiveTaskProvider
-        )
 
         // Add a buildId into Gradle Metadata file so we can tell which build it is from.
         project.tasks.withType(GenerateModuleMetadata::class.java).configureEach { task ->
@@ -220,7 +235,7 @@ private fun Project.getMetalavaVersion(): VersionProviderWrapper {
  * The build server will copy the contents of the distribution directory and make it available for
  * download.
  */
-private fun getDistributionDirectory(project: Project): File {
+internal fun getDistributionDirectory(project: Project): File {
     return if (System.getenv("DIST_DIR") != null) {
         File(System.getenv("DIST_DIR"))
     } else {
