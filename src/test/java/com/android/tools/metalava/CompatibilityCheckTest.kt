@@ -457,9 +457,10 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
-                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
                 src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
-                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]                """,
+                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method added 'final' qualifier but containing class test.pkg.Kotlin was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -546,15 +547,17 @@ class CompatibilityCheckTest : DriverTest() {
 
     @Test
     fun `Add final to method of class that cannot be extended`() {
-        // Adding final on a method is incompatible.
+        // Adding final on a method is incompatible unless the containing class could not be
+        // extended.
         check(
             // Make AddedFinalInstantiable an error, so it is reported as an issue.
             extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
             expectedIssues =
                 """
-                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
-                """,
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method added 'final' qualifier but containing class test.pkg.Kotlin was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+            """
+                    .trimIndent(),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -1482,6 +1485,7 @@ class CompatibilityCheckTest : DriverTest() {
                   public abstract class Outer {
                   }
                   public class Outer.Class1 {
+                    ctor public Class1();
                     method public void method1();
                   }
                   public final class Outer.Class2 {
@@ -1504,7 +1508,7 @@ class CompatibilityCheckTest : DriverTest() {
                     public abstract class Outer {
                         private Outer() {}
                         public class Class1 {
-                            private Class1() {}
+                            public Class1() {}
                             public final void method1() { } // Added final
                         }
                         public final class Class2 {
