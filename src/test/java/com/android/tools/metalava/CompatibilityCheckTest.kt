@@ -3257,7 +3257,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package java.security;
                     public abstract class Permission {
                         public abstract boolean implies(Permission permission);
-                        }
                     }
                     """
                     )
