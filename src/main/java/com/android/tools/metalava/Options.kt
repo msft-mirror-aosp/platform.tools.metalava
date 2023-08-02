@@ -387,7 +387,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
      * API signature file) ignore them.
      */
-    val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
+    private val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
 
     /**
      * Whether the generated API can contain classes that are not present in the source but are

@@ -67,6 +67,13 @@ interface AnnotationManager {
     fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean = false
 
     /**
+     * Checks to see if this has any show for stubs purposes annotations.
+     *
+     * Returns true if it has, false otherwise.
+     */
+    fun hasAnyStubPurposesAnnotations(): Boolean = false
+
+    /**
      * Checks to see if the modifiers contain any hide annotations.
      *
      * Returns `true` if it does, `false` otherwise. If `true` then the owning item (and any

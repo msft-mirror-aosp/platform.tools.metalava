@@ -492,6 +492,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             !modifiers.annotations().any { it.isShowAnnotation() && !it.isShowForStubPurposes() }
     }
 
+    override fun hasAnyStubPurposesAnnotations(): Boolean {
+        return config.showForStubPurposesAnnotations.isNotEmpty()
+    }
+
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
         if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
             return false
