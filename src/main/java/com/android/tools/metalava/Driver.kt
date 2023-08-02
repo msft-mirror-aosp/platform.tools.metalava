@@ -868,7 +868,8 @@ private fun getClassResolver(): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        PsiBasedClassResolver(classpath, options.annotationManager, reporter)
+        val uastEnvironment = loadUastFromJars(classpath)
+        PsiBasedClassResolver(uastEnvironment, options.annotationManager, reporter)
     } else {
         null
     }
