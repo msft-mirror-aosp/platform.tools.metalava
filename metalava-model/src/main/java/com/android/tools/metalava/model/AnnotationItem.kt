@@ -280,11 +280,12 @@ private constructor(
             ?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
-    override fun isShowAnnotation(): Boolean = info.show
+    override fun isShowAnnotation(): Boolean = info.showability.show
 
-    override fun isShowSingleAnnotation(): Boolean = info.showSingle
+    override fun isShowSingleAnnotation(): Boolean =
+        info.showability.let { it.show && !it.recursive }
 
-    override fun isShowForStubPurposes(): Boolean = info.showForStubPurposes
+    override fun isShowForStubPurposes(): Boolean = info.showability.forStubsOnly
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

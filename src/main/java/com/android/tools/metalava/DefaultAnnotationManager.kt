@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -53,6 +54,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
@@ -561,23 +563,39 @@ private class LazyAnnotationInfo(
 ) : AnnotationInfo(annotationItem.qualifiedName!!) {
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val show: Boolean by
+    override val showability: Showability by
         lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.allShowAnnotations
-            filter.isNotEmpty() && filter.matches(annotationItem)
+            // The showAnnotations filter includes all the annotation patterns that are matched by
+            // the first two filters plus 0 or more additional patterns. Excluding the patterns that
+            // are purposely duplicated in showAnnotations the filters should not overlap, i.e. an
+            // AnnotationItem should not be matched by multiple filters. However, the filters could
+            // use the same annotation class (with different attributes). e.g. showAnnotations could
+            // match `@SystemApi(client=MODULE_LIBRARIES)` and showForStubPurposesAnnotations could
+            // match `@SystemApi(client=PRIVILEGED_APPS)`.
+            //
+            // Compare from most likely to match to least likely to match.
+            when {
+                config.showAnnotations.matches(annotationItem) -> SHOW
+                config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
+                config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
+                else -> Showability.NO_EFFECT
+            }
         }
 
-    /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showSingle: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.showSingleAnnotations
-            filter.isNotEmpty() && filter.matches(annotationItem)
-        }
+    companion object {
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to be shown.
+         */
+        val SHOW = Showability(show = true, recursive = true, forStubsOnly = false)
 
-    /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showForStubPurposes: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.showForStubPurposesAnnotations
-            filter.isNotEmpty() && filter.matches(annotationItem)
-        }
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to be shown in the stubs only.
+         */
+        val SHOW_FOR_STUBS = Showability(show = true, recursive = true, forStubsOnly = true)
+
+        /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
+        val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+    }
 }

@@ -82,7 +82,7 @@ private class ImmutableAnnotationFilter(
     }
 
     override fun matches(annotation: AnnotationItem): Boolean {
-        if (annotation.qualifiedName == null) {
+        if (annotation.qualifiedName == null || isEmpty()) {
             return false
         }
         val wrapper = AnnotationFilterEntry.fromAnnotationItem(annotation)
