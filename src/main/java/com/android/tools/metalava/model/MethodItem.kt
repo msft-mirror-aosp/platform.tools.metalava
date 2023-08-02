@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.text.TextCodebase
+import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.util.function.Predicate
 
 interface MethodItem : MemberItem {
@@ -29,8 +32,8 @@ interface MethodItem : MemberItem {
     /** Whether this method is a constructor */
     fun isConstructor(): Boolean
 
-    /** The type of this field. Returns the containing class for constructors */
-    fun returnType(): TypeItem
+    /** The type of this field, or null for constructors */
+    fun returnType(): TypeItem?
 
     /** The list of parameters */
     fun parameters(): List<ParameterItem>
@@ -46,6 +49,32 @@ interface MethodItem : MemberItem {
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
+    /**
+     * Like [internalName] but is the desc-portion of the internal signature,
+     * e.g. for the method "void create(int x, int y)" the internal name of
+     * the constructor is "create" and the desc is "(II)V"
+     */
+    fun internalDesc(voidConstructorTypes: Boolean = false): String {
+        val sb = StringBuilder()
+        sb.append("(")
+
+        // Non-static inner classes get an implicit constructor parameter for the
+        // outer type
+        if (isConstructor() && containingClass().containingClass() != null &&
+            !containingClass().modifiers.isStatic()
+        ) {
+            sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
+        }
+
+        for (parameter in parameters()) {
+            sb.append(parameter.type().internalName())
+        }
+
+        sb.append(")")
+        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType()?.internalName() ?: "V")
+        return sb.toString()
+    }
+
     fun allSuperMethods(): Sequence<MethodItem> {
         val original = superMethods().firstOrNull() ?: return emptySequence()
         return generateSequence(original) { item ->
@@ -54,10 +83,7 @@ interface MethodItem : MemberItem {
         }
     }
 
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
+    /** Any type parameters for the class, if any, as a source string (with fully qualified class names) */
     fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
@@ -94,19 +120,19 @@ interface MethodItem : MemberItem {
         predicate: Predicate<Item>,
         classes: LinkedHashSet<ClassItem>
     ): LinkedHashSet<ClassItem> {
+
         for (cls in throwsTypes()) {
             if (predicate.test(cls) || cls.isTypeParameter) {
                 classes.add(cls)
             } else {
-                // Excluded, but it may have super class throwables that are included; if so,
-                // include those
-                var curr = cls.superClass()
+                // Excluded, but it may have super class throwables that are included; if so, include those
+                var curr = cls.publicSuperClass()
                 while (curr != null) {
                     if (predicate.test(curr)) {
                         classes.add(curr)
                         break
                     }
-                    curr = curr.superClass()
+                    curr = curr.publicSuperClass()
                 }
             }
         }
@@ -114,22 +140,24 @@ interface MethodItem : MemberItem {
     }
 
     /**
-     * If this method is inherited from a hidden super class, but implements a method from a public
-     * interface, this property is set. This is necessary because these methods should not be listed
-     * in signature files (at least not in compatibility mode), whereas in stub files it's necessary
-     * for them to be included (otherwise subclasses may think the method required and not yet
-     * implemented, e.g. the class must be abstract.)
+     * If this method is inherited from a hidden super class, but implements a method
+     * from a public interface, this property is set. This is necessary because these
+     * methods should not be listed in signature files (at least not in compatibility mode),
+     * whereas in stub files it's necessary for them to be included (otherwise subclasses
+     * may think the method required and not yet implemented, e.g. the class must be
+     * abstract.)
      */
     var inheritedMethod: Boolean
 
     /**
-     * If this method is inherited from a super class (typically via [duplicate]) this field points
-     * to the original class it was inherited from
+     * If this method is inherited from a super class (typically via [duplicate]) this
+     * field points to the original class it was inherited from
      */
     var inheritedFrom: ClassItem?
 
     /**
-     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
+     * Duplicates this field item. Used when we need to insert inherited fields from
+     * interfaces etc.
      */
     fun duplicate(targetContainingClass: ClassItem): MethodItem
 
@@ -156,7 +184,27 @@ interface MethodItem : MemberItem {
     }
 
     override fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
+        if (visitor.skip(this)) {
+            return
+        }
+
+        visitor.visitItem(this)
+        if (isConstructor()) {
+            visitor.visitConstructor(this as ConstructorItem)
+        } else {
+            visitor.visitMethod(this)
+        }
+
+        for (parameter in parameters()) {
+            parameter.accept(visitor)
+        }
+
+        if (isConstructor()) {
+            visitor.afterVisitConstructor(this as ConstructorItem)
+        } else {
+            visitor.afterVisitMethod(this)
+        }
+        visitor.afterVisitItem(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
@@ -166,7 +214,9 @@ interface MethodItem : MemberItem {
 
         if (!isConstructor()) {
             val type = returnType()
-            visitor.visitType(type, this)
+            if (type != null) { // always true when not a constructor
+                visitor.visitType(type, this)
+            }
         }
 
         for (parameter in parameters()) {
@@ -179,30 +229,24 @@ interface MethodItem : MemberItem {
 
         if (!isConstructor()) {
             val type = returnType()
-            visitor.visitType(type, this)
+            if (type != null) {
+                visitor.visitType(type, this)
+            }
         }
     }
 
     companion object {
-        private fun compareMethods(
-            o1: MethodItem,
-            o2: MethodItem,
-            overloadsInSourceOrder: Boolean
-        ): Int {
+        private fun compareMethods(o1: MethodItem, o2: MethodItem): Int {
             val name1 = o1.name()
             val name2 = o2.name()
             if (name1 == name2) {
-                if (overloadsInSourceOrder) {
-                    val rankDelta = o1.sortingRank - o2.sortingRank
-                    if (rankDelta != 0) {
-                        return rankDelta
-                    }
+                val rankDelta = o1.sortingRank - o2.sortingRank
+                if (rankDelta != 0) {
+                    return rankDelta
                 }
 
-                // Compare by the rest of the signature to ensure stable output (we don't need to
-                // sort
-                // by return value or modifiers or modifiers or throws-lists since methods can't be
-                // overloaded
+                // Compare by the rest of the signature to ensure stable output (we don't need to sort
+                // by return value or modifiers or modifiers or throws-lists since methods can't be overloaded
                 // by just those attributes
                 val p1 = o1.parameters()
                 val p2 = o2.parameters()
@@ -210,9 +254,7 @@ interface MethodItem : MemberItem {
                 val p2n = p2.size
                 for (i in 0 until minOf(p1n, p2n)) {
                     val compareTypes =
-                        p1[i]
-                            .type()
-                            .toTypeString()
+                        p1[i].type().toTypeString()
                             .compareTo(p2[i].type().toTypeString(), ignoreCase = true)
                     if (compareTypes != 0) {
                         return compareTypes
@@ -225,9 +267,7 @@ interface MethodItem : MemberItem {
             return name1.compareTo(name2)
         }
 
-        val comparator: Comparator<MethodItem> = Comparator { o1, o2 ->
-            compareMethods(o1, o2, false)
-        }
+        val comparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2) }
         val sourceOrderComparator: Comparator<MethodItem> = Comparator { o1, o2 ->
             val delta = o1.sortingRank - o2.sortingRank
             if (delta == 0) {
@@ -239,16 +279,8 @@ interface MethodItem : MemberItem {
                 delta
             }
         }
-        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> =
-            Comparator { o1, o2 ->
-                compareMethods(o1, o2, true)
-            }
 
-        fun sameSignature(
-            method: MethodItem,
-            superMethod: MethodItem,
-            compareRawTypes: Boolean = false
-        ): Boolean {
+        fun sameSignature(method: MethodItem, superMethod: MethodItem, compareRawTypes: Boolean = false): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
             if (method.returnType() != superMethod.returnType()) {
@@ -317,8 +349,7 @@ interface MethodItem : MemberItem {
     }
 
     fun formatParameters(): String? {
-        // TODO: Generalize, allow callers to control whether to include annotations, whether to
-        // erase types,
+        // TODO: Generalize, allow callers to control whether to include annotations, whether to erase types,
         // whether to include names, etc
         if (parameters().isEmpty()) {
             return ""
@@ -338,7 +369,7 @@ interface MethodItem : MemberItem {
         return when {
             modifiers.hasJvmSyntheticAnnotation() -> false
             isConstructor() -> false
-            (!returnType().primitive) -> true
+            (returnType()?.primitive != true) -> true
             parameters().any { !it.type().primitive } -> true
             else -> false
         }
@@ -349,7 +380,7 @@ interface MethodItem : MemberItem {
             return true
         }
 
-        if (!isConstructor() && !returnType().primitive) {
+        if (!isConstructor() && returnType()?.primitive != true) {
             if (!modifiers.hasNullnessInfo()) {
                 return false
             }
@@ -365,35 +396,12 @@ interface MethodItem : MemberItem {
         return true
     }
 
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        if (synthetic && isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
-        // toString has known nullness
-        if (name() == "toString" && parameters().isEmpty()) {
-            return false
-        }
-
-        return null
-    }
-
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }
 
-    /**
-     * Finds uncaught exceptions actually thrown inside this method (as opposed to ones declared in
-     * the signature)
-     */
+    /** Finds uncaught exceptions actually thrown inside this method (as opposed to ones
+     * declared in the signature) */
     fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
 
     /** If annotation method, returns the default value as a source expression */
@@ -404,9 +412,9 @@ interface MethodItem : MemberItem {
     }
 
     /**
-     * Returns true if this method is a signature match for the given method (e.g. can be
-     * overriding). This checks that the name and parameter lists match, but ignores differences in
-     * parameter names, return value types and throws list types.
+     * Returns true if this method is a signature match for the given method (e.g. can
+     * be overriding). This checks that the name and parameter lists match, but ignores
+     * differences in parameter names, return value types and throws list types.
      */
     fun matches(other: MethodItem): Boolean {
         if (this === other) return true
@@ -434,33 +442,26 @@ interface MethodItem : MemberItem {
             val type2 = parameter2.type().toErasedTypeString(other)
 
             if (type1 != type2) {
-                if (!checkGenericParameterTypes(typeString1, typeString2)) {
-                    return false
+                // Workaround for signature-based codebase, where we can't always resolve generic
+                // parameters: if we see a mismatch here which looks like a failure to erase say T into
+                // java.lang.Object, don't treat that as a mismatch. (Similar common case: T[] and Object[])
+                if (typeString1[0].isUpperCase() && typeString1.length == 1 &&
+                    parameter1.codebase is TextCodebase
+                ) {
+                    continue
                 }
+                if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit() &&
+                    parameter1.codebase is TextCodebase
+                ) {
+                    continue
+                }
+                return false
             }
         }
         return true
     }
 
-    /**
-     * Perform an additional check on possibly generic parameter types that do not match.
-     *
-     * Workaround for signature-based codebase, where we can't always resolve generic parameters. If
-     * we see a mismatch here which looks like a failure to erase say `T` into `java.lang.Object`,
-     * don't treat that as a mismatch.
-     *
-     * (Similar common case: `T[]` and `Object[]`)
-     *
-     * @param typeString1 the un-erased type for the parameter from this method.
-     * @param typeString2 the un-erased type for the corresponding parameter from another method
-     *   against which this is being matched.
-     */
-    fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean = false
-
-    /**
-     * Returns whether this method has any types in its signature that does not match the given
-     * filter
-     */
+    /** Returns whether this method has any types in its signature that does not match the given filter */
     fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
         for (parameter in parameters()) {
             val type = parameter.type()
@@ -478,14 +479,16 @@ interface MethodItem : MemberItem {
         }
 
         val returnType = returnType()
-        val returnTypeClass = returnType.asClass()
-        if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
-            return true
-        }
-        if (returnType.hasTypeArguments()) {
-            for (argument in returnType.typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
+        if (returnType != null) {
+            val returnTypeClass = returnType.asClass()
+            if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
+                return true
+            }
+            if (returnType.hasTypeArguments()) {
+                for (argument in returnType.typeArgumentClasses()) {
+                    if (!filterReference.test(argument)) {
+                        return true
+                    }
                 }
             }
         }
@@ -505,28 +508,30 @@ interface MethodItem : MemberItem {
         if (super.hasShowAnnotationInherited()) {
             return true
         }
-        return superMethods().any { it.hasShowAnnotationInherited() }
+        return superMethods().any {
+            it.hasShowAnnotationInherited()
+        }
     }
 
     override fun onlyShowForStubPurposesInherited(): Boolean {
         if (super.onlyShowForStubPurposesInherited()) {
             return true
         }
-        return superMethods().any { it.onlyShowForStubPurposesInherited() }
+        return superMethods().any {
+            it.onlyShowForStubPurposesInherited()
+        }
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
     /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
-
-    fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() && name() == JAVA_ENUM_VALUES && parameters().isEmpty()
-
-    fun isEnumSyntheticValueOf(): Boolean =
-        containingClass().isEnum() &&
-            name() == JAVA_ENUM_VALUE_OF &&
-            parameters().size == 1 &&
-            parameters()[0].type().isString()
+    fun isEnumSyntheticMethod(): Boolean {
+        return containingClass().isEnum() &&
+            (
+                name() == "values" && parameters().isEmpty() ||
+                    name() == "valueOf" && parameters().size == 1 &&
+                    parameters()[0].type().isString()
+                )
+    }
 }

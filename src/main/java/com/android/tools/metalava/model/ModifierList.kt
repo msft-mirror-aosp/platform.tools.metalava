@@ -16,39 +16,33 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.DocLevel
+import com.android.tools.metalava.DocLevel.HIDDEN
+import com.android.tools.metalava.DocLevel.PACKAGE
+import com.android.tools.metalava.DocLevel.PRIVATE
+import com.android.tools.metalava.DocLevel.PROTECTED
+import com.android.tools.metalava.DocLevel.PUBLIC
+import com.android.tools.metalava.Options
+import com.android.tools.metalava.options
 import java.io.Writer
 
 interface ModifierList {
     val codebase: Codebase
-
     fun annotations(): List<AnnotationItem>
 
     fun owner(): Item
-
     fun getVisibilityLevel(): VisibilityLevel
-
     fun isPublic(): Boolean
-
     fun isProtected(): Boolean
-
     fun isPrivate(): Boolean
-
     fun isStatic(): Boolean
-
     fun isAbstract(): Boolean
-
     fun isFinal(): Boolean
-
     fun isNative(): Boolean
-
     fun isSynchronized(): Boolean
-
     fun isStrictFp(): Boolean
-
     fun isTransient(): Boolean
-
     fun isVolatile(): Boolean
-
     fun isDefault(): Boolean
 
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
@@ -56,29 +50,18 @@ interface ModifierList {
 
     // Kotlin
     fun isSealed(): Boolean = false
-
     fun isFunctional(): Boolean = false
-
     fun isCompanion(): Boolean = false
-
     fun isInfix(): Boolean = false
-
     fun isConst(): Boolean = false
-
     fun isSuspend(): Boolean = false
-
     fun isOperator(): Boolean = false
-
     fun isInline(): Boolean = false
-
     fun isValue(): Boolean = false
-
     fun isData(): Boolean = false
-
     fun isEmpty(): Boolean
 
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
-
     fun isPublicOrProtected() = isPublic() || isProtected()
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -89,9 +72,7 @@ interface ModifierList {
 
         if (isStatic() != other.isStatic()) return false
         if (isAbstract() != other.isAbstract()) return false
-        if (isFinal() != other.isFinal()) {
-            return false
-        }
+        if (isFinal() != other.isFinal()) { return false }
         if (isTransient() != other.isTransient()) return false
         if (isVolatile() != other.isVolatile()) return false
 
@@ -116,51 +97,89 @@ interface ModifierList {
         return annotations().any { it.isNonNull() }
     }
 
-    /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
+    /**
+     * Returns true if this modifier list contains the `@JvmSynthetic` annotation
+     */
     fun hasJvmSyntheticAnnotation(): Boolean {
         return annotations().any { it.isJvmSynthetic() }
     }
 
     /**
-     * Returns true if this modifier list contains any show annotations.
-     *
-     * See [AnnotationItem.isShowAnnotation]
+     * Returns true if this modifier list contains any annotations explicitly passed in
+     * via [Options.showAnnotations]
      */
     fun hasShowAnnotation(): Boolean {
-        return codebase.annotationManager.hasShowAnnotation(this)
-    }
-
-    /** Returns true if this modifier list contains any show single annotations. */
-    fun hasShowSingleAnnotation(): Boolean {
-        return codebase.annotationManager.hasShowSingleAnnotation(this)
+        if (options.showAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any {
+            options.showAnnotations.matches(it)
+        }
     }
 
     /**
-     * Returns true if this modifier list contains any show for stub purposes annotations and that
-     * is the only show annotation.
+     * Returns true if this modifier list contains any annotations explicitly passed in
+     * via [Options.showSingleAnnotations]
+     */
+    fun hasShowSingleAnnotation(): Boolean {
+
+        if (options.showSingleAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any {
+            options.showSingleAnnotations.matches(it)
+        }
+    }
+
+    /**
+     * Returns true if this modifier list contains any annotations explicitly passed in
+     * via [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
      */
     fun onlyShowForStubPurposes(): Boolean {
-        return codebase.annotationManager.onlyShowForStubPurposes(this)
-    }
-
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotations(): Boolean {
-        return codebase.annotationManager.hasHideAnnotations(this)
+        if (options.showForStubPurposesAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any {
+            options.showForStubPurposesAnnotations.matches(it)
+        } && !annotations().any {
+            options.showAnnotations.matches(it) && !options.showForStubPurposesAnnotations.matches(it)
+        }
     }
 
     /**
-     * Returns true if this modifier list contains any suppress compatibility meta-annotations.
+     * Returns true if this modifier list contains any annotations explicitly passed in
+     * via [Options.hideAnnotations] or any annotations which are themselves annotated
+     * with meta-annotations explicitly passed in via [Options.hideMetaAnnotations]
      *
-     * Metalava will suppress compatibility checks for APIs which are within the scope of a
-     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
-     * JARs.
-     *
-     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
-     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
-     * feature sets with unstable APIs.
+     * @see hasHideMetaAnnotations
      */
-    fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        return codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(this)
+    fun hasHideAnnotations(): Boolean {
+        if (options.hideAnnotations.isEmpty() && options.hideMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any { annotation ->
+            options.hideAnnotations.matches(annotation) ||
+                annotation.resolve()?.hasHideMetaAnnotation() ?: false
+        }
+    }
+
+    /**
+     * Returns true if this modifier list contains any meta-annotations explicitly passed in
+     * via [Options.hideMetaAnnotations].
+     *
+     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [Experimental],
+     * which allows developers to create annotations that describe experimental features -- sets
+     * of distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
+     * such sets of APIs from tracking and stub JAR generation by passing [Experimental] as a
+     * hidden meta-annotation.
+     */
+    fun hasHideMetaAnnotations(): Boolean {
+        if (options.hideMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any { annotation ->
+            options.hideMetaAnnotations.contains(annotation.qualifiedName)
+        }
     }
 
     /** Returns true if this modifier list contains the given annotation */
@@ -169,23 +188,57 @@ interface ModifierList {
     }
 
     /**
-     * Returns the annotation of the given qualified name (or equivalent) if found in this modifier
-     * list
+     * Returns the annotation of the given qualified name (or equivalent) if found
+     * in this modifier list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
-        val mappedName = codebase.annotationManager.normalizeInputName(qualifiedName)
-        return annotations().firstOrNull { mappedName == it.qualifiedName }
+        val mappedName = AnnotationItem.mapName(codebase, qualifiedName)
+        return annotations().firstOrNull {
+            mappedName == it.qualifiedName
+        }
     }
 
     /**
-     * Returns true if the visibility modifiers in this modifier list is as least as visible as the
-     * ones in the given [other] modifier list
+     * Returns the annotation of the given qualified name if found in this modifier list.
+     * Like [findAnnotation], but where that method translates both the annotations in
+     * the source and the target name to their canonical form (E.g. the androidx name),
+     * this method will look at the original source for the exact name passed in here.
+     */
+    fun findExactAnnotation(qualifiedName: String): AnnotationItem? {
+        return annotations().firstOrNull {
+            qualifiedName == it.originalName
+        }
+    }
+
+    /** Returns true if this modifier list has adequate access */
+    fun checkLevel() = checkLevel(options.docLevel)
+
+    /**
+     * Returns true if this modifier list has access modifiers that
+     * are adequate for the given documentation level
+     */
+    fun checkLevel(level: DocLevel): Boolean {
+        if (level == HIDDEN) {
+            return true
+        } else if (owner().isHiddenOrRemoved()) {
+            return false
+        }
+        return when (level) {
+            PUBLIC -> isPublic()
+            PROTECTED -> isPublic() || isProtected()
+            PACKAGE -> !isPrivate()
+            PRIVATE, HIDDEN -> true
+        }
+    }
+
+    /**
+     * Returns true if the visibility modifiers in this modifier list is as least as visible
+     * as the ones in the given [other] modifier list
      */
     fun asAccessibleAs(other: ModifierList): Boolean {
         val otherLevel = other.getVisibilityLevel()
         val thisLevel = getVisibilityLevel()
-        // Generally the access level enum order determines relative visibility. However, there is
-        // an exception because
+        // Generally the access level enum order determines relative visibility. However, there is an exception because
         // package private and internal are not directly comparable.
         val result = thisLevel >= otherLevel
         return when (otherLevel) {
@@ -201,8 +254,8 @@ interface ModifierList {
     }
 
     /**
-     * Like [getVisibilityString], but package private has no modifiers; this typically corresponds
-     * to the source code for the visibility modifiers in the modifier list
+     * Like [getVisibilityString], but package private has no modifiers; this typically corresponds to
+     * the source code for the visibility modifiers in the modifier list
      */
     fun getVisibilityModifiers(): String {
         return getVisibilityLevel().javaSourceCodeModifier
@@ -225,26 +278,25 @@ interface ModifierList {
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
-            val list =
-                if (removeAbstract || removeFinal || addPublic) {
-                    class AbstractFiltering : ModifierList by modifiers {
-                        override fun isAbstract(): Boolean {
-                            return if (removeAbstract) false else modifiers.isAbstract()
-                        }
 
-                        override fun isFinal(): Boolean {
-                            return if (removeFinal) false else modifiers.isFinal()
-                        }
-
-                        override fun getVisibilityLevel(): VisibilityLevel {
-                            return if (addPublic) VisibilityLevel.PUBLIC
-                            else modifiers.getVisibilityLevel()
-                        }
+            val list = if (removeAbstract || removeFinal || addPublic) {
+                class AbstractFiltering : ModifierList by modifiers {
+                    override fun isAbstract(): Boolean {
+                        return if (removeAbstract) false else modifiers.isAbstract()
                     }
-                    AbstractFiltering()
-                } else {
-                    modifiers
+
+                    override fun isFinal(): Boolean {
+                        return if (removeFinal) false else modifiers.isFinal()
+                    }
+
+                    override fun getVisibilityLevel(): VisibilityLevel {
+                        return if (addPublic) VisibilityLevel.PUBLIC else modifiers.getVisibilityLevel()
+                    }
                 }
+                AbstractFiltering()
+            } else {
+                modifiers
+            }
 
             writeAnnotations(
                 item,
@@ -271,27 +323,25 @@ interface ModifierList {
             val methodItem = item as? MethodItem
 
             val visibilityLevel = list.getVisibilityLevel()
-            val modifier =
-                if (language == Language.JAVA) {
-                    visibilityLevel.javaSourceCodeModifier
-                } else {
-                    visibilityLevel.kotlinSourceCodeModifier
-                }
+            val modifier = if (language == Language.JAVA) {
+                visibilityLevel.javaSourceCodeModifier
+            } else {
+                visibilityLevel.kotlinSourceCodeModifier
+            }
             if (modifier.isNotEmpty()) {
                 writer.write("$modifier ")
             }
 
-            val isInterface =
-                classItem?.isInterface() == true ||
-                    (methodItem?.containingClass()?.isInterface() == true &&
-                        !list.isDefault() &&
-                        !list.isStatic())
+            val isInterface = classItem?.isInterface() == true ||
+                (
+                    methodItem?.containingClass()?.isInterface() == true &&
+                        !list.isDefault() && !list.isStatic()
+                    )
 
-            if (
-                list.isAbstract() &&
-                    classItem?.isEnum() != true &&
-                    classItem?.isAnnotationType() != true &&
-                    !isInterface
+            if (list.isAbstract() &&
+                classItem?.isEnum() != true &&
+                classItem?.isAnnotationType() != true &&
+                !isInterface
             ) {
                 writer.write("abstract ")
             }
@@ -304,12 +354,11 @@ interface ModifierList {
                 writer.write("static ")
             }
 
-            if (
-                list.isFinal() &&
-                    language == Language.JAVA &&
-                    // Don't show final on parameters: that's an implementation side detail
-                    item !is ParameterItem &&
-                    classItem?.isEnum() != true
+            if (list.isFinal() &&
+                language == Language.JAVA &&
+                // Don't show final on parameters: that's an implementation side detail
+                item !is ParameterItem &&
+                classItem?.isEnum() != true
             ) {
                 writer.write("final ")
             } else if (!list.isFinal() && language == Language.KOTLIN) {
@@ -386,11 +435,6 @@ interface ModifierList {
                 writer.write(if (separateLines) "\n" else " ")
             }
 
-            if (item.hasSuppressCompatibilityMetaAnnotation()) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
-
             writeAnnotations(
                 list = list,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
@@ -424,10 +468,7 @@ interface ModifierList {
                 for (annotation in annotations) {
                     index++
 
-                    if (
-                        runtimeAnnotationsOnly &&
-                            annotation.retention != AnnotationRetention.RUNTIME
-                    ) {
+                    if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
                         continue
                     }
 
@@ -441,30 +482,24 @@ interface ModifierList {
                     } else if (annotation.qualifiedName == "java.lang.Deprecated") {
                         // Special cased in stubs and signature files: emitted first
                         continue
-                    } else {
-                        val typedefMode = list.codebase.annotationManager.typedefMode
-                        if (typedefMode == TypedefMode.INLINE) {
-                            val typedef = annotation.findTypedefAnnotation()
-                            if (typedef != null) {
-                                printAnnotation = typedef
-                            }
-                        } else if (
-                            typedefMode == TypedefMode.REFERENCE &&
-                                annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                                annotation.findTypedefAnnotation() != null
-                        ) {
-                            // For annotation references, only include the simple name
-                            writer.write("@")
-                            writer.write(
-                                annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                            )
-                            if (separateLines) {
-                                writer.write("\n")
-                            } else {
-                                writer.write(" ")
-                            }
-                            continue
+                    } else if (options.typedefMode == Options.TypedefMode.INLINE) {
+                        val typedef = annotation.findTypedefAnnotation()
+                        if (typedef != null) {
+                            printAnnotation = typedef
                         }
+                    } else if (options.typedefMode == Options.TypedefMode.REFERENCE &&
+                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                        annotation.findTypedefAnnotation() != null
+                    ) {
+                        // For annotation references, only include the simple name
+                        writer.write("@")
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!)
+                        if (separateLines) {
+                            writer.write("\n")
+                        } else {
+                            writer.write(" ")
+                        }
+                        continue
                     }
 
                     // Optionally filter out duplicates
@@ -498,16 +533,5 @@ interface ModifierList {
                 }
             }
         }
-
-        /**
-         * Synthetic annotation used to mark an API as suppressed for compatibility checks.
-         *
-         * This is added automatically when an API has a meta-annotation that suppresses
-         * compatibility but is defined outside the source set and may not always be available on
-         * the classpath.
-         *
-         * Because this is used in API files, it needs to maintain compatibility.
-         */
-        const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
     }
 }

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CLASS_PATH
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.java
 import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.libcoreNonNullSource
@@ -27,16 +28,12 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
+import com.android.tools.metalava.options
 import com.android.tools.metalava.parseSources
-import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeElement
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
-import java.util.function.Predicate
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UTypeReferenceExpression
@@ -45,6 +42,10 @@ import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
+import java.util.function.Predicate
 
 class PsiTypePrinterTest : DriverTest() {
     @Test
@@ -87,16 +88,14 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiClassReferenceType
             Canonical: java.lang.Number
             Printed: java.lang.Number!
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    skip = setOf("int", "long"),
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                skip = setOf("int", "long"),
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -116,14 +115,13 @@ class PsiTypePrinterTest : DriverTest() {
                            public java.util.@libcore.util.NonNull List<java.lang.@libcore.util.NonNull String> myNonNullFieldWithNonNullElement;
                         }
                         """
-                            ),
-                            nullableSource,
-                            nonNullSource,
-                            libcoreNonNullSource, // allows TYPE_USE
-                            libcoreNullableSource
-                        )
+                    ),
+                    nullableSource,
+                    nonNullSource,
+                    libcoreNonNullSource, // allows TYPE_USE
+                    libcoreNullableSource
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -150,16 +148,14 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.util.List<java.lang.String>
             Annotated: java.util.@NonNull List<java.lang.@NonNull String>
             Printed: java.util.@libcore.util.NonNull List<java.lang.@libcore.util.NonNull String>
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = false,
-                    skip = setOf("int", "long"),
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = false,
+                skip = setOf("int", "long"),
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -172,14 +168,13 @@ class PsiTypePrinterTest : DriverTest() {
                            public java.util.@libcore.util.NonNull List<java.lang.@libcore.util.NonNull String> myNonNullFieldWithNonNullElement;
                         }
                         """
-                            ),
-                            nullableSource,
-                            nonNullSource,
-                            libcoreNonNullSource, // allows TYPE_USE
-                            libcoreNullableSource
-                        )
+                    ),
+                    nullableSource,
+                    nonNullSource,
+                    libcoreNonNullSource, // allows TYPE_USE
+                    libcoreNullableSource
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -216,17 +211,15 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.lang.String...
             Merged: [@Nullable]
             Printed: java.lang.String!...
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    skip = setOf("int", "long", "void"),
-                    extraAnnotations = listOf("@libcore.util.Nullable"),
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                skip = setOf("int", "long", "void"),
+                extraAnnotations = listOf("@libcore.util.Nullable"),
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -240,14 +233,13 @@ class PsiTypePrinterTest : DriverTest() {
                            public void ellipsis(String... args) { }
                         }
                         """
-                            ),
-                            nullableSource,
-                            nonNullSource,
-                            libcoreNonNullSource,
-                            libcoreNullableSource
-                        )
+                    ),
+                    nullableSource,
+                    nonNullSource,
+                    libcoreNonNullSource,
+                    libcoreNullableSource
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -259,15 +251,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.util.List<java.lang.Integer>
             Annotated: java.util.List<java.lang.@IntRange(from=5,to=10) Integer>
             Printed: java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer!>!
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -277,12 +267,14 @@ class PsiTypePrinterTest : DriverTest() {
                            public List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer> myRangeList;
                         }
                         """
-                            ),
-                            intRangeAsTypeUse
-                        ),
-                    include = setOf("java.lang.Integer", "java.util.List<java.lang.Integer>")
+                    ),
+                    intRangeAsTypeUse
+                ),
+                include = setOf(
+                    "java.lang.Integer",
+                    "java.util.List<java.lang.Integer>"
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -294,15 +286,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.util.List<java.lang.Integer>
             Annotated: java.util.List<java.lang.@IntRange(from=5,to=10) Integer>
             Printed: java.util.List<java.lang.Integer!>!
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -312,14 +302,16 @@ class PsiTypePrinterTest : DriverTest() {
                            public List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer> myRangeList;
                         }
                         """
-                            ),
-                            intRangeAsTypeUse
-                        ),
-                    include = setOf("java.lang.Integer", "java.util.List<java.lang.Integer>"),
-                    // Remove the annotations via filtering
-                    filter = Predicate { false }
-                )
-                .trimIndent()
+                    ),
+                    intRangeAsTypeUse
+                ),
+                include = setOf(
+                    "java.lang.Integer",
+                    "java.util.List<java.lang.Integer>"
+                ),
+                // Remove the annotations via filtering
+                filter = Predicate { false }
+            ).trimIndent()
         )
     }
 
@@ -331,15 +323,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.util.List<java.lang.Integer>
             Annotated: java.util.List<java.lang.@IntRange(from=5,to=10) Integer>
             Printed: java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer!>!
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -349,14 +339,16 @@ class PsiTypePrinterTest : DriverTest() {
                            public List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer> myRangeList;
                         }
                         """
-                            ),
-                            intRangeAsTypeUse
-                        ),
-                    include = setOf("java.lang.Integer", "java.util.List<java.lang.Integer>"),
-                    // Include the annotations via filtering
-                    filter = Predicate { true }
-                )
-                .trimIndent()
+                    ),
+                    intRangeAsTypeUse
+                ),
+                include = setOf(
+                    "java.lang.Integer",
+                    "java.util.List<java.lang.Integer>"
+                ),
+                // Include the annotations via filtering
+                filter = Predicate { true }
+            ).trimIndent()
         )
     }
 
@@ -380,15 +372,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: int
             Annotated: @IntRange(from=5,to=10) int
             Printed: @androidx.annotation.IntRange(from=5,to=10) int
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
 
                         @SuppressWarnings("ALL")
@@ -399,15 +389,14 @@ class PsiTypePrinterTest : DriverTest() {
                            public void foo(@androidx.annotation.IntRange(from=5,to=10) int foo) { }
                         }
                         """
-                            ),
-                            nullableSource,
-                            nonNullSource,
-                            libcoreNonNullSource, // allows TYPE_USE
-                            libcoreNullableSource,
-                            intRangeAsTypeUse
-                        )
+                    ),
+                    nullableSource,
+                    nonNullSource,
+                    libcoreNonNullSource, // allows TYPE_USE
+                    libcoreNullableSource,
+                    intRangeAsTypeUse
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -431,15 +420,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: int
             Annotated: @IntRange(from=5,to=10) int
             Printed: int
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = false,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = false,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
 
                         @SuppressWarnings("ALL")
@@ -450,15 +437,14 @@ class PsiTypePrinterTest : DriverTest() {
                            public void foo(@androidx.annotation.IntRange(from=5,to=10) int foo) { }
                         }
                         """
-                            ),
-                            nullableSource,
-                            nonNullSource,
-                            libcoreNonNullSource, // allows TYPE_USE
-                            libcoreNullableSource,
-                            intRangeAsTypeUse
-                        )
+                    ),
+                    nullableSource,
+                    nonNullSource,
+                    libcoreNonNullSource, // allows TYPE_USE
+                    libcoreNullableSource,
+                    intRangeAsTypeUse
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -488,15 +474,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.lang.String[]
             Annotated: java.lang.@Nullable String @NonNull []
             Printed: java.lang.String?[]
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
 
                         @SuppressWarnings("ALL")
@@ -508,13 +492,12 @@ class PsiTypePrinterTest : DriverTest() {
                            public java.lang.@libcore.util.Nullable String @libcore.util.NonNull [] array3;
                         }
                         """
-                            ),
-                            libcoreNonNullSource,
-                            libcoreNullableSource
-                        ),
-                    skip = setOf("int", "java.lang.String")
-                )
-                .trimIndent()
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
+                ),
+                skip = setOf("int", "java.lang.String")
+            ).trimIndent()
         )
     }
 
@@ -531,15 +514,13 @@ class PsiTypePrinterTest : DriverTest() {
             Annotated: java.lang.@Nullable String @NonNull ...
             Merged: [@NonNull]
             Printed: java.lang.String?...
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -551,13 +532,12 @@ class PsiTypePrinterTest : DriverTest() {
                            public void ellipsis2(java.lang.@libcore.util.Nullable String @libcore.util.NonNull ... args) { }
                         }
                         """
-                            ),
-                            libcoreNonNullSource,
-                            libcoreNullableSource
-                        ),
-                    skip = setOf("void", "int", "java.lang.String")
-                )
-                .trimIndent()
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
+                ),
+                skip = setOf("void", "int", "java.lang.String")
+            ).trimIndent()
         )
     }
 
@@ -595,15 +575,13 @@ class PsiTypePrinterTest : DriverTest() {
             Annotated: @Nullable T
             Merged: [@Nullable]
             Printed: T?
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -614,13 +592,12 @@ class PsiTypePrinterTest : DriverTest() {
                             @libcore.util.NonNull public static <T extends java.lang.String & java.lang.Comparable<? super T>> T foo(@libcore.util.Nullable java.util.Collection<? extends @libcore.util.Nullable T> coll) { return null; }
                         }
                         """
-                            ),
-                            libcoreNonNullSource,
-                            libcoreNullableSource
-                        ),
-                    skip = setOf("int")
-                )
-                .trimIndent()
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
+                ),
+                skip = setOf("int")
+            ).trimIndent()
         )
     }
 
@@ -635,15 +612,13 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiClassReferenceType
             Canonical: java.util.List<boolean[][]>
             Printed: java.util.List<boolean[]![]!>!
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
 
@@ -653,11 +628,10 @@ class PsiTypePrinterTest : DriverTest() {
                             public List<boolean[][]> booleans;
                         }
                         """
-                            )
-                        ),
-                    skip = setOf("int")
-                )
-                .trimIndent()
+                    )
+                ),
+                skip = setOf("int")
+            ).trimIndent()
         )
     }
 
@@ -693,15 +667,13 @@ class PsiTypePrinterTest : DriverTest() {
             Canonical: java.lang.String...
             Merged: [@NonNull]
             Printed: java.lang.String!...
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            kotlin(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    kotlin(
+                        """
                         package test.pkg
                         class Foo {
                             val foo1: String = "test1"
@@ -714,10 +686,9 @@ class PsiTypePrinterTest : DriverTest() {
                                 vararg args: String) { }
                         }
                         """
-                            )
-                        )
+                    )
                 )
-                .trimIndent()
+            ).trimIndent()
         )
     }
 
@@ -728,15 +699,13 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiClassReferenceType
             Canonical: test.pkg.MyClass.MyInner
             Printed: test.pkg.MyClass.MyInner!
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -749,11 +718,10 @@ class PsiTypePrinterTest : DriverTest() {
                            }
                         }
                         """
-                            )
-                        ),
-                    skip = setOf("void", "int", "java.lang.String")
-                )
-                .trimIndent()
+                    )
+                ),
+                skip = setOf("void", "int", "java.lang.String")
+            ).trimIndent()
         )
     }
 
@@ -780,15 +748,13 @@ class PsiTypePrinterTest : DriverTest() {
             Type: PsiWildcardType
             Canonical: ? super java.lang.Number
             Printed: ? super java.lang.Number
-            """
-                .trimIndent(),
+            """.trimIndent(),
             prettyPrintTypes(
-                    supportTypeUseAnnotations = true,
-                    kotlinStyleNulls = true,
-                    files =
-                        listOf(
-                            java(
-                                """
+                supportTypeUseAnnotations = true,
+                kotlinStyleNulls = true,
+                files = listOf(
+                    java(
+                        """
                         package test.pkg;
                         import java.util.List;
                         import java.util.Map;
@@ -799,11 +765,10 @@ class PsiTypePrinterTest : DriverTest() {
                            public void foo2(Map<? extends Number, ? super Number> arg) { }
                         }
                         """
-                            )
-                        ),
-                    skip = setOf("void")
-                )
-                .trimIndent()
+                    )
+                ),
+                skip = setOf("void")
+            ).trimIndent()
         )
     }
 
@@ -849,15 +814,12 @@ class PsiTypePrinterTest : DriverTest() {
         }
         classPath.add(getAndroidJar())
 
-        updateGlobalOptionsForTest(arrayOf(ARG_CLASS_PATH, getAndroidJar().path))
+        options = Options(arrayOf(ARG_CLASS_PATH, getAndroidJar().path))
         // TestDriver#check normally sets this for all the other tests
-        val codebase =
-            parseSources(
-                sourceFiles,
-                "test project",
-                sourcePath = sourcePath,
-                classpath = classPath
-            )
+        val codebase = parseSources(
+            sourceFiles, "test project",
+            sourcePath = sourcePath, classpath = classPath
+        )
 
         val results = LinkedHashMap<String, Entry>()
         fun handleType(type: PsiType, annotations: List<AnnotationItem> = emptyList()) {
@@ -874,14 +836,7 @@ class PsiTypePrinterTest : DriverTest() {
             }
 
             val mapAnnotations = false
-            val printer =
-                PsiTypePrinter(
-                    codebase,
-                    filter,
-                    mapAnnotations,
-                    kotlinStyleNulls,
-                    supportTypeUseAnnotations
-                )
+            val printer = PsiTypePrinter(codebase, filter, mapAnnotations, kotlinStyleNulls, supportTypeUseAnnotations)
 
             var mergeAnnotations: MutableList<AnnotationItem>? = null
             if (extraAnnotations.isNotEmpty()) {
@@ -908,59 +863,51 @@ class PsiTypePrinterTest : DriverTest() {
         }
 
         for (unit in codebase.units) {
-            unit
-                .toUElement()
-                ?.accept(
-                    object : AbstractUastVisitor() {
-                        override fun visitMethod(node: UMethod): Boolean {
-                            handle(node.returnType, node.uAnnotations)
+            unit.toUElement()?.accept(object : AbstractUastVisitor() {
+                override fun visitMethod(node: UMethod): Boolean {
+                    handle(node.returnType, node.uAnnotations)
 
-                            // Visit all the type elements in the method: this helps us pick up
-                            // the type parameter lists for example which contains some interesting
-                            // stuff such as type bounds
-                            val psi = node.sourcePsi
-                            psi?.accept(
-                                object : JavaRecursiveElementVisitor() {
-                                    override fun visitTypeElement(type: PsiTypeElement) {
-                                        handle(type.type, psiAnnotations = type.annotations)
-                                        super.visitTypeElement(type)
-                                    }
-                                }
-                            )
-                            return super.visitMethod(node)
+                    // Visit all the type elements in the method: this helps us pick up
+                    // the type parameter lists for example which contains some interesting
+                    // stuff such as type bounds
+                    val psi = node.sourcePsi
+                    psi?.accept(object : JavaRecursiveElementVisitor() {
+                        override fun visitTypeElement(type: PsiTypeElement) {
+                            handle(type.type, psiAnnotations = type.annotations)
+                            super.visitTypeElement(type)
                         }
+                    })
+                    return super.visitMethod(node)
+                }
 
-                        override fun visitVariable(node: UVariable): Boolean {
-                            handle(node.type, node.uAnnotations)
-                            return super.visitVariable(node)
-                        }
+                override fun visitVariable(node: UVariable): Boolean {
+                    handle(node.type, node.uAnnotations)
+                    return super.visitVariable(node)
+                }
 
-                        private fun handle(
-                            type: PsiType?,
-                            uastAnnotations: List<UAnnotation> = emptyList(),
-                            psiAnnotations: Array<PsiAnnotation> = emptyArray()
-                        ) {
-                            type ?: return
+                private fun handle(
+                    type: PsiType?,
+                    uastAnnotations: List<UAnnotation> = emptyList(),
+                    psiAnnotations: Array<PsiAnnotation> = emptyArray()
+                ) {
+                    type ?: return
 
-                            val annotations = mutableListOf<AnnotationItem>()
-                            for (annotation in uastAnnotations) {
-                                annotations.add(UAnnotationItem.create(codebase, annotation))
-                            }
-                            for (annotation in psiAnnotations) {
-                                annotations.add(PsiAnnotationItem.create(codebase, annotation))
-                            }
-
-                            handleType(type, annotations)
-                        }
-
-                        override fun visitTypeReferenceExpression(
-                            node: UTypeReferenceExpression
-                        ): Boolean {
-                            handleType(node.type)
-                            return super.visitTypeReferenceExpression(node)
-                        }
+                    val annotations = mutableListOf<AnnotationItem>()
+                    for (annotation in uastAnnotations) {
+                        annotations.add(UAnnotationItem.create(codebase, annotation))
                     }
-                )
+                    for (annotation in psiAnnotations) {
+                        annotations.add(PsiAnnotationItem.create(codebase, annotation))
+                    }
+
+                    handleType(type, annotations)
+                }
+
+                override fun visitTypeReferenceExpression(node: UTypeReferenceExpression): Boolean {
+                    handleType(node.type)
+                    return super.visitTypeReferenceExpression(node)
+                }
+            })
         }
 
         val writer = StringWriter()
@@ -982,8 +929,7 @@ class PsiTypePrinterTest : DriverTest() {
             if (elementAnnotations != null && elementAnnotations.isNotEmpty()) {
                 printWriter.printf(
                     "Merged: %s\n",
-                    elementAnnotations
-                        .toString()
+                    elementAnnotations.toString()
                         .replace("androidx.annotation.", "")
                         .replace("libcore.util.", "")
                 )
@@ -995,9 +941,8 @@ class PsiTypePrinterTest : DriverTest() {
     }
 
     // TYPE_USE version of intRangeAnnotationSource
-    private val intRangeAsTypeUse =
-        java(
-                """
+    private val intRangeAsTypeUse = java(
+        """
         package androidx.annotation;
         import java.lang.annotation.*;
         import static java.lang.annotation.ElementType.*;
@@ -1009,6 +954,5 @@ class PsiTypePrinterTest : DriverTest() {
             long to() default Long.MAX_VALUE;
         }
         """
-            )
-            .indented()
+    ).indented()
 }

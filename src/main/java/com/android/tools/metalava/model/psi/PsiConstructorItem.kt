@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -63,34 +62,27 @@ class PsiConstructorItem(
     }
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
-
     override fun isConstructor(): Boolean = true
-
     override var superConstructor: ConstructorItem? = null
-
     override fun isCloned(): Boolean = false
 
     private var _superMethods: List<MethodItem>? = null
-
     override fun superMethods(): List<MethodItem> {
         if (_superMethods == null) {
             val result = mutableListOf<MethodItem>()
             psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
 
             if (result.isEmpty() && isConstructor() && containingClass().superClass() != null) {
-                // Try a little harder; psi findSuperMethod doesn't seem to find super constructors
-                // in
+                // Try a little harder; psi findSuperMethod doesn't seem to find super constructors in
                 // some cases, but maybe we can find it by resolving actual super() calls!
                 // TODO: Port to UAST
                 var curr: PsiElement? = psiMethod.body?.firstBodyElement
                 while (curr != null && curr is PsiWhiteSpace) {
                     curr = curr.nextSibling
                 }
-                if (
-                    curr is PsiExpressionStatement &&
-                        curr.expression is PsiMethodCallExpression &&
-                        curr.expression.firstChild?.lastChild is PsiKeyword &&
-                        curr.expression.firstChild?.lastChild?.text == "super"
+                if (curr is PsiExpressionStatement && curr.expression is PsiMethodCallExpression &&
+                    curr.expression.firstChild?.lastChild is PsiKeyword &&
+                    curr.expression.firstChild?.lastChild?.text == "super"
                 ) {
                     val resolved = (curr.expression as PsiMethodCallExpression).resolveMethod()
                     if (resolved is PsiMethod) {
@@ -105,21 +97,14 @@ class PsiConstructorItem(
         return _superMethods!!
     }
 
-    /**
-     * Override to handle providing the location for a synthetic/implicit constructor which has no
-     * associated file.
-     */
-    override fun location(): Location {
+    override fun psi(): PsiElement? {
         // If no PSI element, is this a synthetic/implicit constructor? If so
         // grab the parent class' PSI element instead for file/location purposes
-        val element =
-            if (implicitConstructor && element.containingFile?.virtualFile == null) {
-                (containingClass() as PsiClassItem).psi()
-            } else {
-                element
-            }
+        if (implicitConstructor && element.containingFile?.virtualFile == null) {
+            return containingClass().psi()
+        }
 
-        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
+        return element
     }
 
     companion object {
@@ -133,19 +118,18 @@ class PsiConstructorItem(
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             val parameters = parameterList(codebase, psiMethod)
-            val constructor =
-                PsiConstructorItem(
-                    codebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = commentText,
-                    modifiers = modifiers,
-                    parameters = parameters,
-                    returnType = codebase.getType(containingClass.psiClass),
-                    implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
-                )
+            val constructor = PsiConstructorItem(
+                codebase = codebase,
+                psiMethod = psiMethod,
+                containingClass = containingClass,
+                name = name,
+                documentation = commentText,
+                modifiers = modifiers,
+                parameters = parameters,
+                returnType = codebase.getType(containingClass.psiClass),
+                implicitConstructor = false,
+                isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
+            )
             constructor.modifiers.setOwner(constructor)
             return constructor
         }
@@ -162,18 +146,17 @@ class PsiConstructorItem(
             val modifiers = PsiModifierItem(codebase, PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
-            val item =
-                PsiConstructorItem(
-                    codebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = "",
-                    modifiers = modifiers,
-                    parameters = emptyList(),
-                    returnType = codebase.getType(psiClass),
-                    implicitConstructor = true
-                )
+            val item = PsiConstructorItem(
+                codebase = codebase,
+                psiMethod = psiMethod,
+                containingClass = containingClass,
+                name = name,
+                documentation = "",
+                modifiers = modifiers,
+                parameters = emptyList(),
+                returnType = codebase.getType(psiClass),
+                implicitConstructor = true
+            )
             modifiers.setOwner(item)
             return item
         }

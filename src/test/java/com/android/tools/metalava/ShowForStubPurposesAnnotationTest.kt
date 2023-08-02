@@ -17,8 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class ShowForStubPurposesAnnotationTest : DriverTest() {
@@ -26,18 +24,16 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
     val MODULE_API = "test.annotation.ModuleApi" // @ModuleApi is assumed to "contain" @SystemApi
     val SYSTEM_API = "test.annotation.SystemApi"
 
-    val EXTRA_ARGS =
-        arrayOf(
-            ARG_ERROR,
-            Issues.UNAVAILABLE_SYMBOL.name,
-            ARG_ERROR,
-            Issues.HIDDEN_TYPE_PARAMETER.name,
-            ARG_ERROR,
-            Issues.REFERENCES_HIDDEN.name
-        )
+    val EXTRA_ARGS = arrayOf(
+        ARG_ERROR,
+        Issues.UNAVAILABLE_SYMBOL.name,
+        ARG_ERROR,
+        Issues.HIDDEN_TYPE_PARAMETER.name,
+        ARG_ERROR,
+        Issues.REFERENCES_HIDDEN.name
+    )
 
-    val SOURCE1 =
-        """
+    val SOURCE1 = """
             package test.pkg;
 
             @test.annotation.Hide
@@ -118,8 +114,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             }
             """
 
-    val SOURCE2 =
-        """
+    val SOURCE2 = """
             package test.pkg;
 
             public class PublicClass {
@@ -187,8 +182,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             }
             """
 
-    val SOURCE3 =
-        """
+    val SOURCE3 = """
             package test.pkg;
 
             @test.annotation.Hide
@@ -197,8 +191,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             }
             """
 
-    val SOURCE4 =
-        """
+    val SOURCE4 = """
             package test.pkg;
 
             @test.annotation.Hide
@@ -218,8 +211,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             }
             """
 
-    val SOURCE5 =
-        """
+    val SOURCE5 = """
             package test.pkg;
 
             @test.annotation.Hide
@@ -227,8 +219,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             }
             """
 
-    val SOURCE_FILES_1_2_3_4_5 =
-        arrayOf<TestFile>(java(SOURCE1), java(SOURCE2), java(SOURCE3), java(SOURCE4), java(SOURCE5))
+    val SOURCE_FILES_1_2_3_4_5 = arrayOf<TestFile>(java(SOURCE1), java(SOURCE2), java(SOURCE3), java(SOURCE4), java(SOURCE5))
 
     @Test
     fun `Hierarchy test - SystemApi + ModuleApi`() {
@@ -238,8 +229,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(MODULE_API, SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
-                """
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class ModuleClass {
@@ -295,8 +285,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
-                """
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class PublicClass {
@@ -333,8 +322,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             showAnnotations = arrayOf(MODULE_API),
             showForStubPurposesAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_1_2_3_4_5,
-            api =
-                """
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class ModuleClass {
@@ -368,10 +356,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
+            stubFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SystemClass {
@@ -396,9 +383,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     }
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicClass {
@@ -421,18 +408,18 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     }
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SystemClass2 {
                     public SystemClass2() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ModuleClass {
@@ -441,8 +428,8 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     public void module() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                    )
                 )
+            )
         )
     }
 
@@ -453,10 +440,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             format = FileFormat.V2,
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
 
                     @test.annotation.Hide
@@ -466,9 +452,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                         }
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
 
                     @test.annotation.Hide
@@ -476,10 +462,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     public class ModuleClass {
                     }
                     """
-                    )
-                ),
-            expectedIssues =
-                """
+                )
+            ),
+            expectedIssues = """
                 src/test/pkg/SystemClass.java:6: error: Class test.pkg.ModuleClass is hidden but was referenced (as parameter type) from public parameter arg in test.pkg.SystemClass.foo(test.pkg.ModuleClass arg) [ReferencesHidden]
                 src/test/pkg/SystemClass.java:6: error: Parameter of unavailable type test.pkg.ModuleClass in test.pkg.SystemClass.foo() [UnavailableSymbol]
                 src/test/pkg/SystemClass.java:6: error: Parameter arg references hidden type test.pkg.ModuleClass. [HiddenTypeParameter]
@@ -487,8 +472,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
         )
     }
 
-    val SOURCE6 =
-        """
+    val SOURCE6 = """
             package test.pkg;
 
             @test.annotation.Hide
@@ -498,8 +482,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 }
             }
         """
-    val SOURCE7 =
-        """
+    val SOURCE7 = """
             package test.pkg;
 
             @test.annotation.Hide
@@ -516,8 +499,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
         """
     // Note all the methods in the following classes are "@SystemApi", so
     // none of them should show up in the MODULE_API signature file.
-    val SOURCE8 =
-        """
+    val SOURCE8 = """
             package test.pkg;
 
             public class PublicClass {
@@ -549,8 +531,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 }
             }
         """
-    val SOURCE9 =
-        """
+    val SOURCE9 = """
             package test.pkg;
 
             public class PublicSubClass extends PublicClass {
@@ -576,8 +557,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             }
         """
 
-    val SOURCE_FILES_6_7_8_9 =
-        arrayOf<TestFile>(java(SOURCE6), java(SOURCE7), java(SOURCE8), java(SOURCE9))
+    val SOURCE_FILES_6_7_8_9 = arrayOf<TestFile>(java(SOURCE6), java(SOURCE7), java(SOURCE8), java(SOURCE9))
 
     @Test
     fun `Complecated case - SystemApi + ModuleApi`() {
@@ -587,8 +567,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API, MODULE_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
-                """
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class ModuleClass {
@@ -624,8 +603,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             hideAnnotations = arrayOf(HIDE_ANNOTATION),
             showAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
-                """
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class PublicClass {
@@ -647,6 +625,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
 
     @Test
     fun `Hierarchy test - Module API only`() {
+
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,
@@ -654,8 +633,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             showAnnotations = arrayOf(MODULE_API),
             showForStubPurposesAnnotations = arrayOf(SYSTEM_API),
             sourceFiles = SOURCE_FILES_6_7_8_9,
-            api =
-                """
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class ModuleClass {
@@ -682,10 +660,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
 
             // The methods are missing nullability anotations, the lint shouldn't report for
             // the SystemApi one.
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                 package test.pkg;
 
                 @test.annotation.Hide
@@ -700,10 +677,9 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     }
                 }
             """
-                    )
-                ),
-            api =
-                """
+                )
+            ),
+            api = """
                 // Signature format: 2.0
                 package test.pkg {
                   public class ModuleClassExtendingPublic {
@@ -713,9 +689,8 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
-            expectedIssues =
-                """
-                src/test/pkg/ModuleClassExtendingPublic.java:11: error: Missing nullability on method `method2` return [MissingNullability]
+            expectedIssues = """
+                src/test/pkg/ModuleClassExtendingPublic.java:11: error: Missing nullability on method `method2` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 """
         )
     }

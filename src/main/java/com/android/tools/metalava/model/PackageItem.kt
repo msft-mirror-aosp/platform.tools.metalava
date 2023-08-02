@@ -16,6 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.TypeVisitor
+import com.android.tools.metalava.tick
+
 interface PackageItem : Item {
     /** The qualified name of this package */
     fun qualifiedName(): String
@@ -30,11 +35,9 @@ interface PackageItem : Item {
 
     override fun type(): TypeItem? = null
 
-    val isDefault
-        get() = qualifiedName().isEmpty()
+    val isDefault get() = qualifiedName().isEmpty()
 
-    override fun parent(): PackageItem? =
-        if (qualifiedName().isEmpty()) null else containingPackage()
+    override fun parent(): PackageItem? = if (qualifiedName().isEmpty()) null else containingPackage()
 
     override fun containingPackage(strict: Boolean): PackageItem? {
         if (!strict) {
@@ -53,7 +56,47 @@ interface PackageItem : Item {
     fun empty() = topLevelClasses().none()
 
     override fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
+        if (visitor.skipEmptyPackages && empty()) {
+            return
+        }
+
+        if (visitor is ApiVisitor) {
+            if (!emit) {
+                return
+            }
+
+            // For the API visitor packages are visited lazily; only when we encounter
+            // an unfiltered item within the class
+            topLevelClasses()
+                .asSequence()
+                .sortedWith(ClassItem.classNameSorter())
+                .forEach {
+                    tick()
+                    it.accept(visitor)
+                }
+
+            if (visitor.visitingPackage) {
+                visitor.visitingPackage = false
+                visitor.afterVisitPackage(this)
+                visitor.afterVisitItem(this)
+            }
+
+            return
+        }
+
+        if (visitor.skip(this)) {
+            return
+        }
+
+        visitor.visitItem(this)
+        visitor.visitPackage(this)
+
+        for (cls in topLevelClasses()) {
+            cls.accept(visitor)
+        }
+
+        visitor.afterVisitPackage(this)
+        visitor.afterVisitItem(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
@@ -67,8 +110,6 @@ interface PackageItem : Item {
     }
 
     companion object {
-        val comparator: Comparator<PackageItem> = Comparator { a, b ->
-            a.qualifiedName().compareTo(b.qualifiedName())
-        }
+        val comparator: Comparator<PackageItem> = Comparator { a, b -> a.qualifiedName().compareTo(b.qualifiedName()) }
     }
 }

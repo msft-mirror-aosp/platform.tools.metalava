@@ -23,15 +23,12 @@ open class DefaultModifierList(
 ) : MutableModifierList {
     private lateinit var owner: Item
 
-    private var isComputingSuppressCompatibilityMetaAnnotations: Boolean = false
-
     private operator fun set(mask: Int, set: Boolean) {
-        flags =
-            if (set) {
-                flags or mask
-            } else {
-                flags and mask.inv()
-            }
+        flags = if (set) {
+            flags or mask
+        } else {
+            flags and mask.inv()
+        }
     }
 
     private fun isSet(mask: Int): Boolean {
@@ -48,13 +45,6 @@ open class DefaultModifierList(
 
     fun setOwner(owner: Item) {
         this.owner = owner
-
-        if (owner.hasInheritedGenericType()) {
-            // https://youtrack.jetbrains.com/issue/KTIJ-19087
-            // Incorrect nullness annotation was added to generic parameter
-            // whose nullability is determined at subclass declaration site.
-            annotations?.removeIf { it.isNullnessAnnotation() }
-        }
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
@@ -62,10 +52,7 @@ open class DefaultModifierList(
         val levels = VISIBILITY_LEVEL_ENUMS
         if (visibilityFlags >= levels.size) {
             throw IllegalStateException(
-                "Visibility flags are invalid, expected value in range [0, " +
-                    levels.size +
-                    ") got " +
-                    visibilityFlags
+                "Visibility flags are invalid, expected value in range [0, " + levels.size + ") got " + visibilityFlags
             )
         }
         return levels[visibilityFlags]
@@ -266,38 +253,12 @@ open class DefaultModifierList(
         annotations?.clear()
     }
 
-    override fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        if (isComputingSuppressCompatibilityMetaAnnotations) {
-            // Re-entrant call, abort.
-            return false
-        }
-        val result =
-            try {
-                isComputingSuppressCompatibilityMetaAnnotations = true
-                super.hasSuppressCompatibilityMetaAnnotations()
-            } finally {
-                isComputingSuppressCompatibilityMetaAnnotations = false
-            }
-        return result
-    }
-
     override fun isEmpty(): Boolean {
         return flags and DEPRECATED.inv() == 0 // deprecated isn't a real modifier
     }
 
     override fun isPackagePrivate(): Boolean {
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
-    }
-
-    fun duplicate(): DefaultModifierList {
-        val annotations = this.annotations
-        val newAnnotations =
-            if (annotations == null || annotations.isEmpty()) {
-                null
-            } else {
-                annotations.toMutableList()
-            }
-        return DefaultModifierList(codebase, flags, newAnnotations)
     }
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -312,42 +273,20 @@ open class DefaultModifierList(
             if (same == 0) {
                 return true
             } else {
-                if (
-                    same == FINAL &&
-                        // Only differ in final: not significant if implied by containing class
-                        isFinal() &&
-                        (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
+                if (same == FINAL &&
+                    // Only differ in final: not significant if implied by containing class
+                    isFinal() && (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
                 ) {
                     return true
-                } else if (
-                    same == DEPRECATED &&
-                        // Only differ in deprecated: not significant if implied by containing class
-                        isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.deprecated == true
+                } else if (same == DEPRECATED &&
+                    // Only differ in deprecated: not significant if implied by containing class
+                    isDeprecated() && (owner as? MethodItem)?.containingClass()?.deprecated == true
                 ) {
                     return true
                 }
             }
         }
         return false
-    }
-
-    final override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as DefaultModifierList
-
-        if (flags != other.flags) return false
-        if (annotations != other.annotations) return false
-
-        return true
-    }
-
-    final override fun hashCode(): Int {
-        var result = flags
-        result = 31 * result + (annotations?.hashCode() ?: 0)
-        return result
     }
 
     companion object {
@@ -359,15 +298,13 @@ open class DefaultModifierList(
         const val VISIBILITY_MASK = 0b111
 
         /**
-         * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the
-         * array on every call.
+         * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the array on every
+         * call.
          */
         private val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
 
-        // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the
-        // mask is large enough
-        // to include all allowable values and that each visibility level value is the same as the
-        // corresponding enum
+        // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the mask is large enough
+        // to include all allowable values and that each visibility level value is the same as the corresponding enum
         // constant's ordinal.
         init {
             check(PRIVATE == VisibilityLevel.PRIVATE.ordinal)
@@ -375,16 +312,12 @@ open class DefaultModifierList(
             check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PROTECTED == VisibilityLevel.PROTECTED.ordinal)
             check(PUBLIC == VisibilityLevel.PUBLIC.ordinal)
-            // Calculate the mask required to hold as many different values as there are
-            // VisibilityLevel values.
-            // Given N visibility levels, the required mask is constructed by determining the MSB in
-            // the number N - 1
+            // Calculate the mask required to hold as many different values as there are VisibilityLevel values.
+            // Given N visibility levels, the required mask is constructed by determining the MSB in the number N - 1
             // and then setting all bits to the right.
-            // e.g. when N is 5 then N - 1 is 4, the MSB is bit 2, and so the mask is what you get
-            // when you set bits 2,
+            // e.g. when N is 5 then N - 1 is 4, the MSB is bit 2, and so the mask is what you get when you set bits 2,
             // 1 and 0, i.e. 0b111.
-            val expectedMask =
-                (1 shl (32 - Integer.numberOfLeadingZeros(VISIBILITY_LEVEL_ENUMS.size - 1))) - 1
+            val expectedMask = (1 shl (32 - Integer.numberOfLeadingZeros(VISIBILITY_LEVEL_ENUMS.size - 1))) - 1
             check(VISIBILITY_MASK == expectedMask)
         }
 
@@ -411,23 +344,11 @@ open class DefaultModifierList(
         const val VALUE = 1 shl 23
 
         /**
-         * Modifiers considered significant to include signature files (and similarly to consider
-         * whether an override of a method is different from its super implementation
+         * Modifiers considered significant to include signature files (and similarly
+         * to consider whether an override of a method is different from its super implementation
          */
-        private const val EQUIVALENCE_MASK =
-            VISIBILITY_MASK or
-                STATIC or
-                ABSTRACT or
-                FINAL or
-                TRANSIENT or
-                VOLATILE or
-                DEPRECATED or
-                VARARG or
-                SEALED or
-                FUN or
-                INFIX or
-                OPERATOR or
-                SUSPEND or
-                COMPANION
+        private const val EQUIVALENCE_MASK = VISIBILITY_MASK or STATIC or ABSTRACT or
+            FINAL or TRANSIENT or VOLATILE or DEPRECATED or VARARG or
+            SEALED or FUN or INFIX or OPERATOR or SUSPEND or COMPANION
     }
 }

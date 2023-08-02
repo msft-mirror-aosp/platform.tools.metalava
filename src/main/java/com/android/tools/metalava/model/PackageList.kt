@@ -16,13 +16,22 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.TypeVisitor
+
 class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
     fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
+        visitor.visitCodebase(codebase)
+        packages.forEach {
+            it.accept(visitor)
+        }
+        visitor.afterVisitCodebase(codebase)
     }
 
     fun acceptTypes(visitor: TypeVisitor) {
-        packages.forEach { it.acceptTypes(visitor) }
+        packages.forEach {
+            it.acceptTypes(visitor)
+        }
     }
 
     /** All top level classes in all packages */

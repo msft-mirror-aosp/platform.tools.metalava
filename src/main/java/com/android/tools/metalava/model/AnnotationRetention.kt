@@ -20,8 +20,7 @@ package com.android.tools.metalava.model
 enum class AnnotationRetention {
     SOURCE,
     CLASS,
-    RUNTIME,
-    BINARY;
+    RUNTIME;
 
     companion object {
         fun getDefault(classItem: ClassItem): AnnotationRetention {

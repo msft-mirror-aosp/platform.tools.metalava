@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 
@@ -24,8 +23,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Loading a signature file and writing the API back out`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
@@ -37,13 +35,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Handle lambdas as default values`() {
-        val source =
-            """
+        val source = """
             // Signature format: 3.0
             package androidx.collection {
               public final class LruCacheKt {
@@ -55,6 +56,7 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
+            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -63,8 +65,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Invoking function with multiple parameters as parameter default value`() {
-        val source =
-            """
+        val source = """
             // Signature format: 3.0
             package abc {
               public final class PopupKt {
@@ -75,6 +76,7 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
+            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -83,8 +85,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Handle enum constants as default values`() {
-        val source =
-            """
+        val source = """
             // Signature format: 3.0
             package test.pkg {
               public final class Foo {
@@ -109,6 +110,7 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
+            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -117,8 +119,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Handle complex expressions as default values`() {
-        val source =
-            """
+        val source = """
             // Signature format: 3.0
             package androidx.paging {
               public final class PagedListConfigKt {
@@ -142,6 +143,7 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
+            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -150,8 +152,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Annotation signatures requiring more complicated token matching`() {
-        val source =
-            """
+        val source = """
                 package test {
                   public class MyTest {
                     method @RequiresPermission(value="android.permission.AUTHENTICATE_ACCOUNTS", apis="..22") public boolean addAccountExplicitly(android.accounts.Account, String, android.os.Bundle);
@@ -170,8 +171,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Multiple extends`() {
-        val source =
-            """
+        val source = """
                 package test {
                   public static interface PickConstructors extends test.pkg.PickConstructors.AutoCloseable {
                   }
@@ -180,15 +180,18 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(
+            outputKotlinStyleNulls = false,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Native and strictfp keywords`() {
         check(
             outputKotlinStyleNulls = false,
-            signatureSource =
-                """
+            signatureSource = """
                     package test.pkg {
                       public class MyTest {
                         method public native float dotWithNormal(float, float, float);
@@ -196,8 +199,7 @@ class ApiFromTextTest : DriverTest() {
                       }
                     }
                     """,
-            api =
-                """
+            api = """
                     package test.pkg {
                       public class MyTest {
                         method public float dotWithNormal(float, float, float);
@@ -213,8 +215,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V2,
             outputKotlinStyleNulls = false,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char @NonNull [], int);
@@ -226,8 +227,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """,
-            api =
-                """
+            api = """
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char @NonNull [], int);
@@ -244,8 +244,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Vararg modifier`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -253,15 +252,17 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(outputKotlinStyleNulls = false, signatureSource = source)
+        check(
+            outputKotlinStyleNulls = false,
+            signatureSource = source
+        )
     }
 
     @Test
     fun `Infer fully qualified names from shorter names`() {
         check(
             format = FileFormat.V2,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
@@ -270,8 +271,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """,
-            api =
-                """
+            api = """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
@@ -286,8 +286,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Loading a signature file with alternate modifier order`() {
         // Regression test for https://github.com/android/android-ktx/issues/242
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   deprecated public class MyTest {
                     ctor deprecated public Foo(int, int);
@@ -299,8 +298,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V2,
             signatureSource = source,
-            api =
-                """
+            api = """
                 package test.pkg {
                   @Deprecated public class MyTest {
                     ctor @Deprecated public MyTest(int, int);
@@ -314,8 +312,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Test generics, superclasses and interfaces`() {
-        val source =
-            """
+        val source = """
             package a.b.c {
               public interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
               }
@@ -351,13 +348,16 @@ class ApiFromTextTest : DriverTest() {
             }
             """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Test constants`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public class Foo2 {
                     ctor public Foo2();
@@ -379,13 +379,15 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(signatureSource = source, api = source)
+        check(
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Test inner classes`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
@@ -405,13 +407,15 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(signatureSource = source, api = source)
+        check(
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Test throws`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public final class Test<T> {
                     ctor public Test();
@@ -420,14 +424,17 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Loading a signature file with annotations on classes, fields, methods and parameters`() {
         @Language("TEXT")
-        val source =
-            """
+        val source = """
                 // Signature format: 3.0
                 package test.pkg {
                   @UiThread public class MyTest {
@@ -439,13 +446,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V3,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Enums`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public enum Foo {
                     enum_constant public static final test.pkg.Foo A;
@@ -454,13 +464,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(
+            outputKotlinStyleNulls = false,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Annotations`() {
-        val source =
-            """
+        val source = """
                 package android.annotation {
                   public @interface SuppressLint {
                     method public abstract String[] value();
@@ -468,13 +481,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(
+            outputKotlinStyleNulls = false,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Annotations on packages`() {
-        val source =
-            """
+        val source = """
                 package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
                   public abstract class Class1 {
                     ctor public Class1();
@@ -482,15 +498,18 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(
+            outputKotlinStyleNulls = false,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Sort throws list by full name`() {
         check(
             format = FileFormat.V2,
-            signatureSource =
-                """
+            signatureSource = """
                     package android.accounts {
                       public abstract interface AccountManagerFuture<V> {
                         method public abstract boolean cancel(boolean);
@@ -505,8 +524,7 @@ class ApiFromTextTest : DriverTest() {
                       }
                     }
                     """,
-            api =
-                """
+            api = """
                     package android.accounts {
                       public interface AccountManagerFuture<V> {
                         method public boolean cancel(boolean);
@@ -527,8 +545,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Loading a signature file with default values`() {
         @Language("TEXT")
-        val source =
-            """
+        val source = """
                 // Signature format: 3.0
                 package test.pkg {
                   public final class Foo {
@@ -542,13 +559,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V3,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Signatures with default annotation method values`() {
-        val source =
-            """
+        val source = """
                 // Signature format: 3.0
                 package libcore.util {
                   public @interface NonNull {
@@ -560,13 +580,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V3,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Signatures with many annotations`() {
-        val source =
-            """
+        val source = """
             // Signature format: 2.0
             package libcore.util {
               @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
@@ -582,13 +605,16 @@ class ApiFromTextTest : DriverTest() {
             }
         """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Kotlin Properties`() {
-        val source =
-            """
+        val source = """
                 // Signature format: 2.0
                 package test.pkg {
                   public final class Kotlin {
@@ -601,13 +627,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Deprecated enum constant`() {
-        val source =
-            """
+        val source = """
                 // Signature format: 3.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
@@ -625,6 +654,7 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
+            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
             api = source
@@ -633,8 +663,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Type parameters in v3 format`() {
-        val source =
-            """
+        val source = """
                 // Signature format: 3.0
                 package androidx.collection {
                   public class Constants {
@@ -671,6 +700,7 @@ class ApiFromTextTest : DriverTest() {
                 """
         check(
             format = FileFormat.V3,
+            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
             api = source
@@ -679,8 +709,7 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Signatures with reified in type parameters`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -692,13 +721,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Suspended methods`() {
-        val source =
-            """
+        val source = """
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -707,13 +739,16 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V2, signatureSource = source, api = source)
+        check(
+            format = FileFormat.V2,
+            signatureSource = source,
+            api = source
+        )
     }
 
     @Test
     fun `Complicated annotations`() {
-        val source =
-            """
+        val source = """
                 package android.app {
                   public static class ActionBar {
                     field @android.view.ViewDebug.ExportedProperty(category="layout", mapping={@android.view.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.LEFT, to="LEFT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.RIGHT, to="RIGHT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.START, to="START"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.END, to="END"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_VERTICAL, to="CENTER_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_VERTICAL, to="FILL_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_HORIZONTAL, to="CENTER_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_HORIZONTAL, to="FILL_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER, to="CENTER"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL, to="FILL")}) public int gravity;
@@ -721,8 +756,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        val expectedApi =
-            """
+        val expectedApi = """
                 package android.app {
                   public static class ActionBar {
                     field public int gravity;
@@ -730,6 +764,9 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(signatureSource = source, api = expectedApi)
+        check(
+            signatureSource = source,
+            api = expectedApi
+        )
     }
 }

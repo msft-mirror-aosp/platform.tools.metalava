@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -32,8 +31,7 @@ class FileFormatTest {
                     ctor public MyTest();
                   }
                 }
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -48,8 +46,7 @@ class FileFormatTest {
                 method public abstract int to() default java.lang.Integer.MAX_VALUE;
               }
             }
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -63,8 +60,7 @@ class FileFormatTest {
                 ctor public LruCacheKt();
               }
             }
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -90,8 +86,7 @@ class FileFormatTest {
                     It is illegal to provide both a package-info.java file and a package.html file for the same package
                 IgnoringSymlink: test/pkg/sub1/sub2/sub3:
                     Ignoring symlink during package.html discovery directory traversal
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -103,8 +98,7 @@ class FileFormatTest {
             <package name="test.pkg"
             >
             </api>
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -117,8 +111,7 @@ class FileFormatTest {
             <package name="test.pkg"
             >
             </api>
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -135,8 +128,7 @@ class FileFormatTest {
                     <field name="ACTION_NEW_VIDEO" since="14" deprecated="25"/>
                 </class>
             </api>
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -145,8 +137,7 @@ class FileFormatTest {
             FileFormat.parseHeader(
                 """
             blah blah
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
 
@@ -156,8 +147,7 @@ class FileFormatTest {
                 """
             <?xml version="1.0" encoding="utf-8"?>
             <manifest />
-                """
-                    .trimIndent()
+                """.trimIndent()
             )
         )
     }

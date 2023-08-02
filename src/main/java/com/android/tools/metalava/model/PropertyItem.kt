@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.TypeVisitor
+
 interface PropertyItem : MemberItem {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
@@ -30,8 +33,8 @@ interface PropertyItem : MemberItem {
         get() = null
 
     /**
-     * The constructor parameter for this property, if declared in a primary constructor; inverse of
-     * [ParameterItem.property]
+     * The constructor parameter for this property, if declared in a primary constructor; inverse
+     * of [ParameterItem.property]
      */
     val constructorParameter: ParameterItem?
         get() = null
@@ -40,7 +43,15 @@ interface PropertyItem : MemberItem {
     override fun type(): TypeItem
 
     override fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
+        if (visitor.skip(this)) {
+            return
+        }
+
+        visitor.visitItem(this)
+        visitor.visitProperty(this)
+
+        visitor.afterVisitProperty(this)
+        visitor.afterVisitItem(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
@@ -70,8 +81,6 @@ interface PropertyItem : MemberItem {
     }
 
     companion object {
-        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
-            a.name().compareTo(b.name())
-        }
+        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b -> a.name().compareTo(b.name()) }
     }
 }
