@@ -706,14 +706,8 @@ class ApiAnalyzer(
                     if (!parent.hidden) {
                         return
                     }
-                    val violatingAnnotation =
-                        if (item.modifiers.hasShowAnnotation()) {
-                            item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)
-                                ?: options.showAnnotations.firstQualifiedName()
-                        } else {
-                            null
-                        }
-                    if (violatingAnnotation != null) {
+                    item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)?.let {
+                        violatingAnnotation ->
                         reporter.report(
                             Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
                             item,
@@ -886,11 +880,14 @@ class ApiAnalyzer(
                             !item.modifiers.hasShowSingleAnnotation()
                     ) {
                         val annotationName =
-                            (item.modifiers
-                                    .annotations()
-                                    .firstOrNull(AnnotationItem::isShowAnnotation)
-                                    ?.qualifiedName
-                                    ?: options.showAnnotations.firstQualifiedName())
+                            item.modifiers
+                                .annotations()
+                                // As item.hasShowAnnotation() is true there must be at least one
+                                // annotation that matches the following predicate.
+                                .first(AnnotationItem::isShowAnnotation)
+                                // All show annotations must have a non-null string otherwise they
+                                // would not have been matched.
+                                .qualifiedName!!
                                 .removePrefix(ANDROID_ANNOTATION_PREFIX)
                         reporter.report(
                             Issues.UNHIDDEN_SYSTEM_API,
