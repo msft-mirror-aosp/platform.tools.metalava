@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import java.io.ByteArrayOutputStream
-import java.io.File
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
@@ -25,7 +24,9 @@ import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
+import org.gradle.api.file.RegularFile
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFiles
@@ -45,17 +46,16 @@ private fun Project.getKtfmtConfiguration(): Configuration {
 
 /** Creates two tasks for checking and formatting kotlin sources. */
 fun Project.configureKtfmt() {
-    tasks.register("ktfmtCheck", KtfmtCheckTask::class.java) {
+    tasks.register("ktCheck", KtfmtCheckTask::class.java) {
         it.description = "Check Kotlin code style."
         it.group = "Verification"
         it.ktfmtClasspath.from(getKtfmtConfiguration())
         it.cacheEvenIfNoOutputs()
     }
-    tasks.register("ktfmtFormat", KtfmtFormatTask::class.java) {
+    tasks.register("ktFormat", KtfmtFormatTask::class.java) {
         it.description = "Fix Kotlin code style deviations."
         it.group = "formatting"
         it.ktfmtClasspath.from(getKtfmtConfiguration())
-        it.cacheEvenIfNoOutputs()
     }
 }
 
@@ -66,11 +66,17 @@ abstract class KtfmtBaseTask : DefaultTask() {
 
     @get:Inject abstract val objects: ObjectFactory
 
+    private val shouldIncludeBuildSrc: Boolean = project.rootProject == project
+
     @[InputFiles PathSensitive(PathSensitivity.RELATIVE)]
     fun getInputFiles(): FileCollection {
-        return objects.fileTree().setDir("src").apply { include("**/*.kt") } +
-            objects.fileTree().setDir("buildSrc/src").apply { include("**/*.kt") } +
-            objects.fileCollection().apply { from("build.gradle.kts") }
+        var files =
+            objects.fileTree().setDir("src").apply { include("**/*.kt") } +
+                objects.fileCollection().apply { from("build.gradle.kts") }
+        if (shouldIncludeBuildSrc) {
+            files += objects.fileTree().setDir("buildSrc/src").apply { include("**/*.kt") }
+        }
+        return files
     }
 
     fun getArgs(dryRun: Boolean): List<String> {
@@ -132,8 +138,6 @@ fun Task.cacheEvenIfNoOutputs() {
 
 // Returns a placeholder/unused output path that we can pass to Gradle to prevent Gradle from
 // thinking that we forgot to declare outputs of this task, and instead to skip this task if its
-// inputs
-// are unchanged
-fun Task.getPlaceholderOutput(): File {
-    return File(project.buildDir, "placeholderOutput/" + name.replace(":", "-"))
-}
+// inputs are unchanged
+private fun Task.getPlaceholderOutput(): Provider<RegularFile> =
+    project.layout.buildDirectory.file("placeholderOutput/${name.replace(':', '-')}")
