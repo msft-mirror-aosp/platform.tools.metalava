@@ -198,8 +198,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal list backing [showAnnotations] */
-    private val showAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal list backing [allShowAnnotations] */
+    private val allShowAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [showSingleAnnotations] */
     private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideAnnotations] */
@@ -310,11 +310,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
      * [ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION].
      */
-    val showAnnotations by lazy(showAnnotationsBuilder::build)
+    val allShowAnnotations by lazy(allShowAnnotationsBuilder::build)
 
     /**
-     * Like [showAnnotations], but does not work recursively. Note that these annotations are *also*
-     * show annotations and will be added to the above list; this is a subset.
+     * Like [allShowAnnotations], but does not work recursively. Note that these annotations are
+     * *also* show annotations and will be added to the above list; this is a subset.
      */
     private val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
 
@@ -354,7 +354,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
-                showAnnotations = showAnnotations,
+                allShowAnnotations = allShowAnnotations,
                 showSingleAnnotations = showSingleAnnotations,
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
@@ -901,12 +901,12 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_REMOVED_API,
                 "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION,
-                "-showAnnotation" -> showAnnotationsBuilder.add(getValue(args, ++index))
+                "-showAnnotation" -> allShowAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_SHOW_SINGLE_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showSingleAnnotationsBuilder.add(annotation)
                     // These should also be counted as show annotations
-                    showAnnotationsBuilder.add(annotation)
+                    allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
                 "--show-for-stub-purposes-annotations",
@@ -914,7 +914,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val annotation = getValue(args, ++index)
                     showForStubPurposesAnnotationBuilder.add(annotation)
                     // These should also be counted as show annotations
-                    showAnnotationsBuilder.add(annotation)
+                    allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_UNANNOTATED,
                 "-showUnannotated" -> showUnannotated = true
@@ -1367,7 +1367,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         // If the caller has not explicitly requested that unannotated classes and
         // members should be shown in the output then only show them if no annotations were
         // provided.
-        if (!showUnannotated && showAnnotations.isEmpty()) {
+        if (!showUnannotated && allShowAnnotations.isEmpty()) {
             showUnannotated = true
         }
 
@@ -1474,7 +1474,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
-            showAnnotations.getIncludedAnnotationNames().forEach {
+            allShowAnnotations.getIncludedAnnotationNames().forEach {
                 sb.append(annotationToPrefix(it))
             }
             sb.append(DEFAULT_BASELINE_NAME)

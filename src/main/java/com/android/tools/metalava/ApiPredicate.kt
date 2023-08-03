@@ -33,7 +33,7 @@ class ApiPredicate(
      * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this predicate
      * will assume that all encountered members match the "shown" requirement.
      *
-     * This is typically useful when generating "current.txt", when no [Options.showAnnotations]
+     * This is typically useful when generating "current.txt", when no [Options.allShowAnnotations]
      * have been defined.
      */
     val ignoreShown: Boolean = options.showUnannotated,

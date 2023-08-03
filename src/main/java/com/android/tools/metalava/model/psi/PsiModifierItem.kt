@@ -374,7 +374,7 @@ class PsiModifierItem(
 
             for (api in allowIn.leafValues()) {
                 val annotationName = api.value() as? String ?: continue
-                if (options.showAnnotations.matchesAnnotationName(annotationName)) {
+                if (options.allShowAnnotations.matchesAnnotationName(annotationName)) {
                     return true
                 }
             }

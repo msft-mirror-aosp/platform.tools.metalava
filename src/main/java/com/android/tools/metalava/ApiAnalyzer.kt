@@ -819,11 +819,11 @@ class ApiAnalyzer(
 
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                options.showAnnotations.matches(ANDROID_SYSTEM_API) &&
+                options.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
                 !options.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
-                options.showAnnotations.isNotEmpty()
+                options.allShowAnnotations.isNotEmpty()
 
         packages.accept(
             object : ApiVisitor() {

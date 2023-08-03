@@ -50,7 +50,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
-        val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
@@ -95,7 +95,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // match on attribute values as well as the name.
         val filters =
             arrayOf(
-                config.showAnnotations,
+                config.allShowAnnotations,
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
             )
@@ -301,7 +301,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
-            config.showAnnotations.matches(qualifiedName) ||
+            config.allShowAnnotations.matches(qualifiedName) ||
             config.hideAnnotations.matches(qualifiedName)
 
     private val TYPEDEF_ANNOTATION_TARGETS =
@@ -471,7 +471,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun hasShowAnnotation(modifiers: ModifierList): Boolean {
-        if (config.showAnnotations.isEmpty()) {
+        if (config.allShowAnnotations.isEmpty()) {
             return false
         }
         return modifiers.annotations().any(AnnotationItem::isShowAnnotation)
@@ -561,7 +561,7 @@ private class LazyAnnotationInfo(
     /** Compute lazily to avoid doing any more work than strictly necessary. */
     override val show: Boolean by
         lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.showAnnotations
+            val filter = config.allShowAnnotations
             filter.isNotEmpty() && filter.matches(annotationItem)
         }
 
