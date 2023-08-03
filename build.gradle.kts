@@ -8,7 +8,7 @@ defaultTasks =
         CREATE_ARCHIVE_TASK,
         CREATE_BUILD_INFO_TASK,
         "lint",
-        "ktfmtCheck",
+        "ktCheck",
     )
 
 plugins {
