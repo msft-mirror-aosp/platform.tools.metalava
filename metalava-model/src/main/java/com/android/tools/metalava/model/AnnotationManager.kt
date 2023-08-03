@@ -45,33 +45,21 @@ interface AnnotationManager {
     ): Set<AnnotationTarget>
 
     /**
-     * Checks to see if the modifiers contain any show annotations.
-     *
-     * See [AnnotationItem.isShowAnnotation]
-     */
-    fun hasShowAnnotation(modifiers: ModifierList): Boolean = false
-
-    /**
-     * Checks to see if the modifiers contain any show single annotations.
-     *
-     * See [AnnotationItem.isShowSingleAnnotation]
-     */
-    fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean = false
-
-    /**
-     * Checks to see if the modifiers contain any show for stubs purposes annotations and no other
-     * show annotations.
-     *
-     * See [AnnotationItem.isShowForStubPurposes]
-     */
-    fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean = false
-
-    /**
      * Checks to see if this has any show for stubs purposes annotations.
      *
      * Returns true if it has, false otherwise.
      */
     fun hasAnyStubPurposesAnnotations(): Boolean = false
+
+    /**
+     * Get the [Showability] for the supplied [Item].
+     *
+     * This combines the [Showability] of all the annotations of this item and returns the result.
+     *
+     * If the annotations on the item conflict then this could throw an exception or report an error
+     * as appropriate.
+     */
+    fun getShowabilityForItem(item: Item): Showability = Showability.NO_EFFECT
 
     /**
      * Checks to see if the modifiers contain any hide annotations.

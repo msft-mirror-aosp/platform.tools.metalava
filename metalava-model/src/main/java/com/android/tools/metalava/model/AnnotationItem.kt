@@ -39,6 +39,12 @@ interface AnnotationItem {
     /** Fully qualified name of the annotation */
     val qualifiedName: String?
 
+    /**
+     * Determines the effect that this will have on whether an item annotated with this annotation
+     * will be shown as part of the API or not.
+     */
+    val showability: Showability
+
     /** Generates source code for this annotation (using fully qualified names) */
     fun toSource(
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
@@ -121,17 +127,6 @@ interface AnnotationItem {
      * properties, etc.
      */
     fun isShowAnnotation(): Boolean
-
-    /**
-     * Returns true iff the annotation is a show single annotation.
-     *
-     * If `true` then an item annotated with this annotation and only that item will be added to the
-     * API.
-     *
-     * e.g. if a class is annotated with this then it only applies to that class and not its
-     * contents like nested classes, methods, fields, constructors, properties, etc.
-     */
-    fun isShowSingleAnnotation(): Boolean
 
     /**
      * Returns true iff this annotation is a show for stubs purposes annotation.
@@ -267,6 +262,9 @@ private constructor(
         return info.nullability == Nullability.NON_NULL
     }
 
+    override val showability: Showability
+        get() = info.showability
+
     override fun resolve(): ClassItem? {
         return codebase.findClass(originalName ?: return null)
     }
@@ -281,9 +279,6 @@ private constructor(
     }
 
     override fun isShowAnnotation(): Boolean = info.showability.show
-
-    override fun isShowSingleAnnotation(): Boolean =
-        info.showability.let { it.show && !it.recursive }
 
     override fun isShowForStubPurposes(): Boolean = info.showability.forStubsOnly
 

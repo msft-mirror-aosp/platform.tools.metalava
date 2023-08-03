@@ -371,6 +371,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
+            reporter = reporter,
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
                 allShowAnnotations = allShowAnnotations,
