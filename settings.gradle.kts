@@ -41,4 +41,6 @@ settings.gradle.beforeProject {
 if (!System.getenv("INTEGRATION").isNullOrBlank()) {
     include(":integration")
 }
+
+include(":metalava-model")
 include(":stub-annotations")

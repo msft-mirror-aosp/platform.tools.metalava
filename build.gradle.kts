@@ -8,7 +8,7 @@ defaultTasks =
         CREATE_ARCHIVE_TASK,
         CREATE_BUILD_INFO_TASK,
         "lint",
-        "ktfmtCheck",
+        "ktCheck",
     )
 
 plugins {
@@ -24,6 +24,7 @@ application {
 }
 
 dependencies {
+    implementation(project(":metalava-model"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)
