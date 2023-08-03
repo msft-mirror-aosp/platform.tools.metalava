@@ -66,10 +66,10 @@ internal constructor(
     val isMember: Boolean,
 ) {
     /** Import a whole [PackageItem], i.e. uses a wildcard. */
-    internal constructor(pkgItem: PackageItem) : this("${pkgItem.qualifiedName()}.*", "*", false)
+    constructor(pkgItem: PackageItem) : this("${pkgItem.qualifiedName()}.*", "*", false)
 
     /** Import a [ClassItem]. */
-    internal constructor(
+    constructor(
         classItem: ClassItem
     ) : this(
         classItem.qualifiedName(),
@@ -78,7 +78,7 @@ internal constructor(
     )
 
     /** Import a [MemberItem]. */
-    internal constructor(
+    constructor(
         memberItem: MemberItem
     ) : this(
         "${memberItem.containingClass().qualifiedName()}.${memberItem.name()}",
