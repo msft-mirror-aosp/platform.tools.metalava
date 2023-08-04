@@ -44,6 +44,9 @@ interface AnnotationManager {
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget>
 
+    /** Returns true if [annotationName] is the name of one of the show annotations. */
+    fun isShowAnnotationName(annotationName: String): Boolean = false
+
     /**
      * Checks to see if this has any show for stubs purposes annotations.
      *
