@@ -17,7 +17,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.apilevels.internalDesc
-import com.android.tools.metalava.java
+import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test

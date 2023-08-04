@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
