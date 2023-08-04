@@ -43,4 +43,5 @@ if (!System.getenv("INTEGRATION").isNullOrBlank()) {
 }
 
 include(":metalava-model")
+include(":metalava-testing")
 include(":stub-annotations")
