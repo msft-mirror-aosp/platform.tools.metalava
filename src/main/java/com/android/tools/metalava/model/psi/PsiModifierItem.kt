@@ -16,10 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.ANDROIDX_VISIBLE_FOR_TESTING
 import com.android.tools.metalava.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.ATTR_ALLOW_IN
-import com.android.tools.metalava.ATTR_OTHERWISE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -421,3 +419,6 @@ class PsiModifierItem(
         }
     }
 }
+
+private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
+private const val ATTR_OTHERWISE = "otherwise"
