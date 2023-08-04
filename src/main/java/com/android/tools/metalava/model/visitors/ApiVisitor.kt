@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
