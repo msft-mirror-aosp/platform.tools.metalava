@@ -60,6 +60,9 @@ interface AnnotationItem {
     /** True if this annotation represents @NonNull (or some synonymous annotation) */
     fun isNonNull(): Boolean
 
+    /** True if this annotation represents @Retention (either the Java or Kotlin version) */
+    fun isRetention(): Boolean = isRetention(qualifiedName)
+
     /** True if this annotation represents @JvmSynthetic */
     fun isJvmSynthetic(): Boolean {
         return isJvmSyntheticAnnotation(qualifiedName ?: return false)
