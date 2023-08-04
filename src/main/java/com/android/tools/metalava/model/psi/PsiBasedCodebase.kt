@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.ANDROIDX_NONNULL
-import com.android.tools.metalava.ANDROIDX_NULLABLE
-import com.android.tools.metalava.Issues
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
@@ -29,9 +29,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.options
-import com.android.tools.metalava.reporter
-import com.android.tools.metalava.tick
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -47,7 +46,6 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
-import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
@@ -55,7 +53,6 @@ import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
-import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
@@ -97,9 +94,11 @@ const val METHOD_ESTIMATE = 1000
  */
 open class PsiBasedCodebase(
     location: File,
-    override var description: String = "Unknown",
+    description: String = "Unknown",
+    annotationManager: AnnotationManager,
+    private val reporter: Reporter,
     val fromClasspath: Boolean = false
-) : DefaultCodebase(location) {
+) : DefaultCodebase(location, description, false, annotationManager) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
@@ -114,7 +113,10 @@ open class PsiBasedCodebase(
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
      * out elements that are not part of a codebase etc
      */
-    @Suppress("LeakingThis") val printer = CodePrinter(this)
+    @Suppress("LeakingThis") internal val printer = CodePrinter(this, reporter)
+
+    /** Supports fully qualifying Javadoc. */
+    internal val docQualifier = DocQualifier(reporter)
 
     /** Map from class name to class item. Classes are added via [registerClass] */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
@@ -191,7 +193,7 @@ open class PsiBasedCodebase(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
-            tick() // show progress
+            reporter.showProgressTick() // show progress
 
             // Visiting psiFile directly would eagerly load the entire file even though we only need
             // the importList here.
@@ -290,7 +292,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses) {
-            tick() // show progress
+            reporter.showProgressTick() // show progress
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
@@ -508,14 +510,6 @@ open class PsiBasedCodebase(
         }
 
         packageClasses.clear() // Not used after this point
-    }
-
-    fun dumpStats() {
-        options.stdout.println(
-            "INTERNAL STATS: Size of classMap=${classMap.size} and size of " +
-                "methodMap=${methodMap.size} and size of packageMap=${packageMap.size}, and the " +
-                "size of packageClasses=${packageClasses.size} "
-        )
     }
 
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
@@ -791,24 +785,14 @@ open class PsiBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun createReferenceFromText(
-        s: String,
-        parent: PsiElement? = null
-    ): PsiJavaCodeReferenceElement = getFactory().createReferenceFromText(s, parent)
-
     fun createPsiMethod(s: String, parent: PsiElement? = null): PsiMethod =
         getFactory().createMethodFromText(s, parent)
-
-    fun createConstructor(s: String, parent: PsiElement? = null): PsiMethod =
-        getFactory().createConstructor(s, parent)
 
     fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
 
     fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
         getFactory().createAnnotationFromText(s, parent)
-
-    fun createDocTagFromText(s: String): PsiDocTag = getFactory().createDocTagFromText(s)
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
 
@@ -844,9 +828,8 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-        mapName: Boolean
     ): PsiAnnotationItem {
-        val psiAnnotation = createPsiAnnotation(source, context?.psi())
+        val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
 

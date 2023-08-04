@@ -22,8 +22,12 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiParameterItem
+import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.lang.java.lexer.JavaLexer
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
@@ -135,7 +139,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             // UAST will inline const fields into the surrounding class, so we have to
             // dip into Kotlin PSI to figure out if this field was really declared in
             // a companion object
-            val psi = field.psi()
+            val psi = (field as PsiFieldItem).psi()
             if (psi is UField) {
                 val sourcePsi = psi.sourcePsi
                 if (sourcePsi is KtProperty) {
