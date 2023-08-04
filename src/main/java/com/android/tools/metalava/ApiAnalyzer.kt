@@ -582,8 +582,8 @@ class ApiAnalyzer(
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         options.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                        pkg.modifiers.hasShowAnnotation() -> pkg.hidden = false
-                        pkg.modifiers.hasHideAnnotations() -> pkg.hidden = true
+                        pkg.hasShowAnnotation() -> pkg.hidden = false
+                        pkg.hasHideAnnotation() -> pkg.hidden = true
                     }
                     val containingPackage = pkg.containingPackage()
                     if (containingPackage != null) {
@@ -598,7 +598,7 @@ class ApiAnalyzer(
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
-                    if (cls.modifiers.hasShowAnnotation()) {
+                    if (cls.hasShowAnnotation()) {
                         cls.hidden = false
                         // Make containing package non-hidden if it contains a show-annotation
                         // class. Doclava does this in PackageInfo.isHidden().
@@ -606,14 +606,14 @@ class ApiAnalyzer(
                         if (cls.containingClass() != null) {
                             ensureParentVisible(cls)
                         }
-                    } else if (cls.modifiers.hasHideAnnotations()) {
+                    } else if (cls.hasHideAnnotation()) {
                         cls.hidden = true
                     } else if (containingClass != null) {
                         if (containingClass.hidden) {
                             cls.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.modifiers.hasShowSingleAnnotation()
+                                containingClass.hasShowSingleAnnotation()
                         ) {
                             // See explanation in visitMethod
                             cls.hidden = true
@@ -637,17 +637,17 @@ class ApiAnalyzer(
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
-                        if (containingPackage.removed && !cls.modifiers.hasShowAnnotation()) {
+                        if (containingPackage.removed && !cls.hasShowAnnotation()) {
                             cls.removed = true
                         }
                     }
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    if (method.modifiers.hasShowAnnotation()) {
+                    if (method.hasShowAnnotation()) {
                         method.hidden = false
                         ensureParentVisible(method)
-                    } else if (method.modifiers.hasHideAnnotations()) {
+                    } else if (method.hasHideAnnotation()) {
                         method.hidden = true
                     } else {
                         val containingClass = method.containingClass()
@@ -655,7 +655,7 @@ class ApiAnalyzer(
                             method.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.modifiers.hasShowSingleAnnotation()
+                                containingClass.hasShowSingleAnnotation()
                         ) {
                             // This is a member in a class that was hidden but then unhidden;
                             // but it was unhidden by a non-recursive (single) show annotation, so
@@ -672,10 +672,10 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    if (field.modifiers.hasShowAnnotation()) {
+                    if (field.hasShowAnnotation()) {
                         field.hidden = false
                         ensureParentVisible(field)
-                    } else if (field.modifiers.hasHideAnnotations()) {
+                    } else if (field.hasHideAnnotation()) {
                         field.hidden = true
                     } else {
                         val containingClass = field.containingClass()
@@ -689,7 +689,7 @@ class ApiAnalyzer(
                             field.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.modifiers.hasShowSingleAnnotation()
+                                containingClass.hasShowSingleAnnotation()
                         ) {
                             // See explanation in visitMethod
                             field.hidden = true
@@ -879,7 +879,7 @@ class ApiAnalyzer(
                         checkHiddenShowAnnotations &&
                             item.hasShowAnnotation() &&
                             !item.originallyHidden &&
-                            !item.modifiers.hasShowSingleAnnotation()
+                            !item.hasShowSingleAnnotation()
                     ) {
                         val annotationName =
                             item.modifiers

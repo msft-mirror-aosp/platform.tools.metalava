@@ -186,11 +186,34 @@ interface Item {
     /** Is this element declared in Kotlin (rather than Java) ? */
     fun isKotlin() = !isJava()
 
-    fun hasShowAnnotation(): Boolean = modifiers.hasShowAnnotation()
+    /**
+     * Returns true if this item has any show annotations.
+     *
+     * See [AnnotationItem.isShowAnnotation]
+     */
+    fun hasShowAnnotation(): Boolean = codebase.annotationManager.hasShowAnnotation(modifiers)
 
-    fun onlyShowForStubPurposes(): Boolean = modifiers.onlyShowForStubPurposes()
+    /**
+     * Returns true if this has any show single annotations.
+     *
+     * See [AnnotationItem.isShowSingleAnnotation]
+     */
+    fun hasShowSingleAnnotation(): Boolean {
+        return codebase.annotationManager.hasShowSingleAnnotation(modifiers)
+    }
 
-    fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
+    /**
+     * Returns true if this item has any show for stub purposes annotations and that is the only
+     * show annotation.
+     *
+     * See [AnnotationItem.isShowAnnotation] and [AnnotationItem.isShowForStubPurposes]
+     */
+    fun onlyShowForStubPurposes(): Boolean =
+        codebase.annotationManager.onlyShowForStubPurposes(modifiers)
+
+    /** Returns true if this modifier list contains any hide annotations */
+    fun hasHideAnnotation(): Boolean =
+        modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
 
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()

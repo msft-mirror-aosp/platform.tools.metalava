@@ -114,39 +114,6 @@ interface ModifierList {
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)
 
     /**
-     * Returns true if this modifier list contains any show annotations.
-     *
-     * See [AnnotationItem.isShowAnnotation]
-     */
-    fun hasShowAnnotation(): Boolean {
-        return codebase.annotationManager.hasShowAnnotation(this)
-    }
-
-    /**
-     * Returns true if this modifier list contains any show single annotations.
-     *
-     * See [AnnotationItem.isShowSingleAnnotation]
-     */
-    fun hasShowSingleAnnotation(): Boolean {
-        return codebase.annotationManager.hasShowSingleAnnotation(this)
-    }
-
-    /**
-     * Returns true if this modifier list contains any show for stub purposes annotations and that
-     * is the only show annotation.
-     *
-     * See [AnnotationItem.isShowAnnotation] and [AnnotationItem.isShowForStubPurposes]
-     */
-    fun onlyShowForStubPurposes(): Boolean {
-        return codebase.annotationManager.onlyShowForStubPurposes(this)
-    }
-
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotations(): Boolean {
-        return codebase.annotationManager.hasHideAnnotations(this)
-    }
-
-    /**
      * Returns true if this modifier list contains any suppress compatibility meta-annotations.
      *
      * Metalava will suppress compatibility checks for APIs which are within the scope of a
