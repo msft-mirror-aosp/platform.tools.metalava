@@ -271,9 +271,10 @@ private constructor(
     /** If this annotation has a typedef annotation associated with it, return it */
     override fun findTypedefAnnotation(): AnnotationItem? {
         val className = originalName ?: return null
-        return codebase.findClass(className)?.modifiers?.annotations()?.firstOrNull {
-            it.isTypeDefAnnotation()
-        }
+        return codebase
+            .findClass(className)
+            ?.modifiers
+            ?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
     override fun isShowAnnotation(): Boolean = info.show

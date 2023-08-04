@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
 import java.util.function.Predicate
@@ -448,7 +449,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
         if (!config.apiPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
-                if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
+                if (cls.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)) {
                     return ANNOTATION_SIGNATURE_ONLY
                 }
             }
@@ -474,22 +475,22 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         if (config.allShowAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any(AnnotationItem::isShowAnnotation)
+        return modifiers.hasAnnotation(AnnotationItem::isShowAnnotation)
     }
 
     override fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean {
         if (config.showSingleAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any(AnnotationItem::isShowSingleAnnotation)
+        return modifiers.hasAnnotation(AnnotationItem::isShowSingleAnnotation)
     }
 
     override fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean {
         if (config.showForStubPurposesAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any(AnnotationItem::isShowForStubPurposes) &&
-            !modifiers.annotations().any { it.isShowAnnotation() && !it.isShowForStubPurposes() }
+        return modifiers.hasAnnotation(AnnotationItem::isShowForStubPurposes) &&
+            !modifiers.hasAnnotation { it.isShowAnnotation() && !it.isShowForStubPurposes() }
     }
 
     override fun hasAnyStubPurposesAnnotations(): Boolean {
@@ -500,7 +501,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any { annotation ->
+        return modifiers.hasAnnotation { annotation ->
             config.hideAnnotations.matches(annotation) ||
                 (config.hideMetaAnnotations.isNotEmpty() &&
                     annotation.resolve()?.modifiers?.let { hasHideMetaAnnotation(it) } ?: false)
@@ -517,7 +518,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * hidden meta-annotation.
      */
     private fun hasHideMetaAnnotation(modifiers: ModifierList): Boolean {
-        return modifiers.annotations().any { annotation ->
+        return modifiers.hasAnnotation { annotation ->
             config.hideMetaAnnotations.contains(annotation.qualifiedName)
         }
     }
@@ -526,7 +527,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any { annotation ->
+        return modifiers.hasAnnotation { annotation ->
             annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
                 config.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
                 annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false

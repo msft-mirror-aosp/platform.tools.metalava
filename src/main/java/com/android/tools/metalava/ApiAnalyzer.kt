@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -706,7 +707,7 @@ class ApiAnalyzer(
                     if (!parent.hidden) {
                         return
                     }
-                    item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)?.let {
+                    item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
                         violatingAnnotation ->
                         reporter.report(
                             Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
@@ -971,7 +972,7 @@ class ApiAnalyzer(
                             method,
                             "$method should not be annotated @Nullable; it should be left unspecified to make it a platform type"
                         )
-                        val annotation = method.modifiers.annotations().find { it.isNullable() }
+                        val annotation = method.modifiers.findAnnotation(AnnotationItem::isNullable)
                         annotation?.let {
                             method.mutableModifiers().removeAnnotation(it)
                             // Have to also clear the annotation out of the return type itself, if

@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -231,7 +232,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
                 }
 
                 val typeDefAnnotation =
-                    typeDefClass.modifiers.annotations().firstOrNull { it.isTypeDefAnnotation() }
+                    typeDefClass.modifiers.findAnnotation(AnnotationItem::isTypeDefAnnotation)
                 if (typeDefAnnotation != null) {
                     // Make sure it has the right retention
                     if (typeDefClass.getRetention() != AnnotationRetention.SOURCE) {
