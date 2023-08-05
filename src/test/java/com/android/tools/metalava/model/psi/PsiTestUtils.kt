@@ -22,19 +22,15 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CLASS_PATH
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
-import com.android.tools.metalava.Options
 import com.android.tools.metalava.findKotlinStdlibPathArgs
-import com.android.tools.metalava.options
 import com.android.tools.metalava.parseSources
 import com.android.tools.metalava.tempDirectory
+import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.openapi.util.Disposer
 import java.io.File
 import kotlin.test.assertNotNull
 
-inline fun testCodebase(
-    vararg sources: TestFile,
-    action: (PsiBasedCodebase) -> Unit
-) {
+inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> Unit) {
     tempDirectory { tempDirectory ->
         val codebase = createTestCodebase(tempDirectory, *sources)
         try {
@@ -45,23 +41,20 @@ inline fun testCodebase(
     }
 }
 
-fun createTestCodebase(
-    directory: File,
-    vararg sources: TestFile
-): PsiBasedCodebase {
+fun createTestCodebase(directory: File, vararg sources: TestFile): PsiBasedCodebase {
     System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     Disposer.setDebugMode(true)
 
     val sourcePaths = sources.map { it.targetPath }.toTypedArray()
-    val args = findKotlinStdlibPathArgs(sourcePaths) + arrayOf(
-        ARG_CLASS_PATH,
-        DriverTest.getAndroidJar().path
-    )
-    options = Options(args)
+    val args =
+        findKotlinStdlibPathArgs(sourcePaths) +
+            arrayOf(ARG_CLASS_PATH, DriverTest.getAndroidJar().path)
+    updateGlobalOptionsForTest(args)
 
     return parseSources(
         sources = sources.map { it.createFile(directory) },
         description = "Test Codebase",
+        sourcePath = listOf(directory),
     )
 }
 

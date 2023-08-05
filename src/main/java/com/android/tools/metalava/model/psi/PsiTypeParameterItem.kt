@@ -20,26 +20,28 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
-import org.jetbrains.kotlin.asJava.elements.KtLightTypeParameter
+import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtTypeParameter
 
 class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
     psiClass: PsiTypeParameter,
     name: String,
     modifiers: PsiModifierItem
-
-) : PsiClassItem(
-    codebase = codebase,
-    psiClass = psiClass,
-    name = name,
-    fullName = name,
-    qualifiedName = name,
-    hasImplicitDefaultConstructor = false,
-    classType = TYPE_PARAMETER,
-    modifiers = modifiers,
-    documentation = "",
-    fromClassPath = false
-),
+) :
+    PsiClassItem(
+        codebase = codebase,
+        psiClass = psiClass,
+        name = name,
+        fullName = name,
+        qualifiedName = name,
+        hasImplicitDefaultConstructor = false,
+        classType = TYPE_PARAMETER,
+        modifiers = modifiers,
+        documentation = "",
+        fromClassPath = false
+    ),
     TypeParameterItem {
     override fun typeBounds(): List<PsiTypeItem> = bounds
 
@@ -53,13 +55,17 @@ class PsiTypeParameterItem(
         super.finishInitialization()
 
         val refs = psiClass.extendsList?.referencedTypes
-        bounds = if (refs != null && refs.isNotEmpty()) {
-            // Omit java.lang.Object since PSI will turn "T extends Comparable" to "T extends Object & Comparable"
-            // and this just makes comparisons harder; *everything* extends Object.
-            refs.mapNotNull { PsiTypeItem.create(codebase, it) }.filter { !it.isJavaLangObject() }
-        } else {
-            emptyList()
-        }
+        bounds =
+            if (refs != null && refs.isNotEmpty()) {
+                // Omit java.lang.Object since PSI will turn "T extends Comparable" to "T extends
+                // Object & Comparable"
+                // and this just makes comparisons harder; *everything* extends Object.
+                refs
+                    .mapNotNull { PsiTypeItem.create(codebase, it) }
+                    .filter { !it.isJavaLangObject() }
+            } else {
+                emptyList()
+            }
     }
 
     companion object {
@@ -67,12 +73,13 @@ class PsiTypeParameterItem(
             val simpleName = psiClass.name!!
             val modifiers = modifiers(codebase, psiClass, "")
 
-            val item = PsiTypeParameterItem(
-                codebase = codebase,
-                psiClass = psiClass,
-                name = simpleName,
-                modifiers = modifiers
-            )
+            val item =
+                PsiTypeParameterItem(
+                    codebase = codebase,
+                    psiClass = psiClass,
+                    name = simpleName,
+                    modifiers = modifiers
+                )
             item.modifiers.setOwner(item)
             item.initialize(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
             return item
@@ -80,14 +87,18 @@ class PsiTypeParameterItem(
 
         fun isReified(element: PsiTypeParameter?): Boolean {
             element ?: return false
-            if (element is KtLightTypeParameter &&
-                element.kotlinOrigin.text.startsWith("reified")
+            // TODO(jsjeon): Handle PsiElementWithOrigin<*> when available
+            if (
+                element is KtLightDeclaration<*, *> &&
+                    element.kotlinOrigin is KtTypeParameter &&
+                    element.kotlinOrigin?.text?.startsWith(KtTokens.REIFIED_KEYWORD.value) == true
             ) {
                 return true
-            } else if (element is KotlinLightTypeParameterBuilder) {
-                if (element.origin.text.startsWith("reified")) {
-                    return true
-                }
+            } else if (
+                element is KotlinLightTypeParameterBuilder &&
+                    element.origin.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
+            ) {
+                return true
             }
             return false
         }
