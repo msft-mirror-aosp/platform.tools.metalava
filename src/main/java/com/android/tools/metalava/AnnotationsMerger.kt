@@ -121,13 +121,13 @@ class AnnotationsMerger(
             extractRoots(options.sources, roots)
             roots.addAll(options.sourcePath)
             val javaStubsCodebase =
-                parseSources(
-                    psiEnvironmentManager,
-                    javaStubFiles,
-                    "Codebase loaded from stubs",
-                    sourcePath = roots,
-                    classpath = options.classpath
-                )
+                PsiSourceParser(psiEnvironmentManager)
+                    .parseSources(
+                        javaStubFiles,
+                        "Codebase loaded from stubs",
+                        sourcePath = roots,
+                        classpath = options.classpath
+                    )
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
     }

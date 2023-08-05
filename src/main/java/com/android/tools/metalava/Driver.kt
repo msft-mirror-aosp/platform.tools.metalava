@@ -18,13 +18,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_JAR
-import com.android.SdkConstants.DOT_JAVA
-import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
-import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.annotations.Extractor
-import com.android.tools.lint.checks.infrastructure.ClassName
-import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -34,11 +28,9 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
-import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
@@ -47,9 +39,6 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
-import com.google.common.collect.Lists
-import com.google.common.io.Files
-import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -59,12 +48,8 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
-import org.jetbrains.kotlin.config.JVMConfigurationKeys
-import org.jetbrains.kotlin.config.LanguageVersionSettings
 
 const val PROGRAM_NAME = "metalava"
-const val PACKAGE_HTML = "package.html"
-const val OVERVIEW_HTML = "overview.html"
 
 fun main(args: Array<String>) {
     run(args, setExitCode = true)
@@ -717,7 +702,8 @@ private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codeb
 
     progress("Reading Codebase: ")
     val codebase =
-        parseSources(psiEnvironmentManager, sources, "Codebase loaded from source folders")
+        PsiSourceParser(psiEnvironmentManager)
+            .parseSources(sources, "Codebase loaded from source folders")
 
     progress("Analyzing API: ")
 
@@ -779,123 +765,15 @@ private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codeb
     return codebase
 }
 
-/**
- * Returns a codebase initialized from the given Java or Kotlin source files, with the given
- * description. The codebase will use a project environment initialized according to the current
- * [options].
- *
- * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
- */
-internal fun parseSources(
-    psiEnvironmentManager: PsiEnvironmentManager,
-    sources: List<File>,
-    description: String,
-    sourcePath: List<File> = options.sourcePath,
-    classpath: List<File> = options.classpath,
-    javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
-    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-): PsiBasedCodebase {
-    val absoluteSources = sources.map { it.absoluteFile }
-
-    val absoluteSourceRoots =
-        sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
-    // Add in source roots implied by the source files
-    if (options.allowImplicitRoot) {
-        extractRoots(absoluteSources, absoluteSourceRoots)
-    }
-
-    val absoluteClasspath = classpath.map { it.absoluteFile }
-
-    return parseAbsoluteSources(
-        psiEnvironmentManager,
-        absoluteSources,
-        description,
-        absoluteSourceRoots,
-        absoluteClasspath,
-        javaLanguageLevel,
-        kotlinLanguageLevel,
-    )
-}
-
-/** Returns a codebase initialized from the given set of absolute files. */
-private fun parseAbsoluteSources(
-    psiEnvironmentManager: PsiEnvironmentManager,
-    sources: List<File>,
-    description: String,
-    sourceRoots: List<File>,
-    classpath: List<File>,
-    javaLanguageLevel: LanguageLevel,
-    kotlinLanguageLevel: LanguageVersionSettings,
-): PsiBasedCodebase {
-    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
-    config.javaLanguageLevel = javaLanguageLevel
-
-    val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
-
-    // TODO(jsjeon): should set language version _per_ module (Lint Project)
-    val lintClient = MetalavaCliClient(kotlinLanguageLevel)
-    // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
-    // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
-    // `referenceDir` is used to adjust `lib` dir accordingly if needed,
-    // but we set `classpath` anyway below.
-    val lintProject = Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
-    lintProject.javaSourceFolders.addAll(sourceRoots)
-    lintProject.javaLibraries.addAll(classpath)
-    config.addModules(
-        listOf(
-            UastEnvironment.Module(
-                lintProject,
-                // K2 UAST: building KtSdkModule for JDK
-                options.jdkHome,
-                includeTests = false,
-                includeTestFixtureSources = false,
-                isUnitTest = false
-            )
-        ),
-    )
-    // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
-    options.jdkHome?.let {
-        if (options.isJdkModular(it)) {
-            config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
-            config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
-        }
-    }
-
-    val environment = psiEnvironmentManager.createEnvironment(config)
-
-    val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
-    environment.analyzeFiles(kotlinFiles)
-
-    val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
-    val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
-
-    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager, reporter)
-    codebase.initialize(environment, units, packageDocs)
-    return codebase
-}
-
 private fun getClassResolver(psiEnvironmentManager: PsiEnvironmentManager): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        val uastEnvironment = loadUastFromJars(psiEnvironmentManager, classpath)
+        val uastEnvironment = PsiSourceParser(psiEnvironmentManager).loadUastFromJars(classpath)
         PsiBasedClassResolver(uastEnvironment, options.annotationManager, reporter)
     } else {
         null
     }
-}
-
-/** Initializes a UAST environment using the [apiJars] as classpath roots. */
-fun loadUastFromJars(
-    psiEnvironmentManager: PsiEnvironmentManager,
-    apiJars: List<File>,
-): UastEnvironment {
-    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
-    @Suppress("DEPRECATION") config.addClasspathRoots(apiJars)
-
-    val environment = psiEnvironmentManager.createEnvironment(config)
-    environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
-    return environment
 }
 
 fun loadFromJarFile(
@@ -906,7 +784,7 @@ fun loadFromJarFile(
 ): Codebase {
     progress("Processing jar file: ")
 
-    val environment = loadUastFromJars(psiEnvironmentManager, listOf(apiJar))
+    val environment = PsiSourceParser(psiEnvironmentManager).loadUastFromJars(listOf(apiJar))
     val codebase =
         PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
     codebase.initialize(environment, apiJar, preFiltered)
@@ -1044,160 +922,6 @@ fun createReportFile(
             "$PROGRAM_NAME wrote $description file $apiFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
-}
-
-private fun skippableDirectory(file: File): Boolean =
-    file.path.endsWith(".git") && file.name == ".git"
-
-private fun addSourceFiles(list: MutableList<File>, file: File) {
-    if (file.isDirectory) {
-        if (skippableDirectory(file)) {
-            return
-        }
-        if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
-            reporter.report(
-                Issues.IGNORING_SYMLINK,
-                file,
-                "Ignoring symlink during source file discovery directory traversal"
-            )
-            return
-        }
-        val files = file.listFiles()
-        if (files != null) {
-            for (child in files) {
-                addSourceFiles(list, child)
-            }
-        }
-    } else if (file.isFile) {
-        when {
-            file.name.endsWith(DOT_JAVA) ||
-                file.name.endsWith(DOT_KT) ||
-                file.name.equals(PACKAGE_HTML) ||
-                file.name.equals(OVERVIEW_HTML) -> list.add(file)
-        }
-    }
-}
-
-fun gatherSources(sourcePath: List<File>): List<File> {
-    val sources = Lists.newArrayList<File>()
-    for (file in sourcePath) {
-        if (file.path.isBlank()) {
-            // --source-path "" means don't search source path; use "." for pwd
-            continue
-        }
-        addSourceFiles(sources, file.absoluteFile)
-    }
-    return sources.sortedWith(compareBy { it.name })
-}
-
-private fun gatherPackageJavadoc(sources: List<File>, sourceRoots: List<File>): PackageDocs {
-    val packageComments = HashMap<String, String>(100)
-    val overviewHtml = HashMap<String, String>(10)
-    val hiddenPackages = HashSet<String>(100)
-    val sortedSourceRoots = sourceRoots.sortedBy { -it.name.length }
-    for (file in sources) {
-        var javadoc = false
-        val map =
-            when (file.name) {
-                PACKAGE_HTML -> {
-                    javadoc = true
-                    packageComments
-                }
-                OVERVIEW_HTML -> {
-                    overviewHtml
-                }
-                else -> continue
-            }
-        var contents = Files.asCharSource(file, UTF_8).read()
-        if (javadoc) {
-            contents = packageHtmlToJavadoc(contents)
-        }
-
-        // Figure out the package: if there is a java file in the same directory, get the package
-        // name from the java file. Otherwise, guess from the directory path + source roots.
-        // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
-        var pkg =
-            file.parentFile
-                ?.listFiles()
-                ?.filter { it.name.endsWith(DOT_JAVA) }
-                ?.asSequence()
-                ?.mapNotNull { findPackage(it) }
-                ?.firstOrNull()
-        if (pkg == null) {
-            // Strip the longest prefix source root.
-            val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
-            pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
-        }
-        map[pkg] = contents
-        if (contents.contains("@hide")) {
-            hiddenPackages.add(pkg)
-        }
-    }
-
-    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
-}
-
-fun extractRoots(
-    sources: List<File>,
-    sourceRoots: MutableList<File> = mutableListOf()
-): List<File> {
-    // Cache for each directory since computing root for a source file is
-    // expensive
-    val dirToRootCache = mutableMapOf<String, File>()
-    for (file in sources) {
-        val parent = file.parentFile ?: continue
-        val found = dirToRootCache[parent.path]
-        if (found != null) {
-            continue
-        }
-
-        val root = findRoot(file) ?: continue
-        dirToRootCache[parent.path] = root
-
-        if (!sourceRoots.contains(root)) {
-            sourceRoots.add(root)
-        }
-    }
-
-    return sourceRoots
-}
-
-/**
- * If given a full path to a Java or Kotlin source file, produces the path to the source root if
- * possible.
- */
-private fun findRoot(file: File): File? {
-    val path = file.path
-    if (path.endsWith(DOT_JAVA) || path.endsWith(DOT_KT)) {
-        val pkg = findPackage(file) ?: return null
-        val parent = file.parentFile ?: return null
-        val endIndex = parent.path.length - pkg.length
-        val before = path[endIndex - 1]
-        if (before == '/' || before == '\\') {
-            return File(path.substring(0, endIndex))
-        } else {
-            reporter.report(
-                Issues.IO_ERROR,
-                file,
-                "$PROGRAM_NAME was unable to determine the package name. " +
-                    "This usually means that a source file was where the directory does not seem to match the package " +
-                    "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
-            )
-        }
-    }
-
-    return null
-}
-
-/** Finds the package of the given Java/Kotlin source file, if possible */
-fun findPackage(file: File): String? {
-    val source = Files.asCharSource(file, UTF_8).read()
-    return findPackage(source)
-}
-
-/** Finds the package of the given Java/Kotlin source code, if possible */
-fun findPackage(source: String): String? {
-    return ClassName(source).packageName
 }
 
 /** Whether metalava is running unit tests */

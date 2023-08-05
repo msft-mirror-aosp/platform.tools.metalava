@@ -17,13 +17,13 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.PsiSourceParser
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
-import com.android.tools.metalava.parseSources
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
@@ -880,13 +880,13 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
         updateGlobalOptionsForTest(emptyArray())
         // TestDriver#check normally sets this for all the other tests
         val codebase =
-            parseSources(
-                psiEnvironmentManagerRule.manager,
-                sourceFiles,
-                "test project",
-                sourcePath = sourcePath,
-                classpath = classPath
-            )
+            PsiSourceParser(psiEnvironmentManagerRule.manager)
+                .parseSources(
+                    sourceFiles,
+                    "test project",
+                    sourcePath = sourcePath,
+                    classpath = classPath
+                )
 
         val results = LinkedHashMap<String, Entry>()
         fun handleType(type: PsiType, annotations: List<AnnotationItem> = emptyList()) {
