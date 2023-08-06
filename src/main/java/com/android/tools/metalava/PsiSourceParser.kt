@@ -30,12 +30,34 @@ import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
+import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
+import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
+
+val defaultJavaLanguageLevel = LanguageLevel.JDK_1_8
+
+// TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
+// LanguageVersionSettingsImpl.DEFAULT
+val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings("1.8")
+
+fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
+    val languageLevel =
+        LanguageVersion.fromVersionString(value)
+            ?: throw IllegalStateException(
+                "$value is not a valid or supported Kotlin language level"
+            )
+    val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
+    return LanguageVersionSettingsImpl(languageLevel, apiVersion)
+}
 
 /** Parses a set of sources into a [PsiBasedCodebase]. */
-class PsiSourceParser(private val psiEnvironmentManager: PsiEnvironmentManager) {
-
+class PsiSourceParser(
+    private val psiEnvironmentManager: PsiEnvironmentManager,
+    private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
+    private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
+) {
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
      * description. The codebase will use a project environment initialized according to the current
@@ -48,8 +70,6 @@ class PsiSourceParser(private val psiEnvironmentManager: PsiEnvironmentManager) 
         description: String,
         sourcePath: List<File>,
         classpath: List<File>,
-        javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
-        kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel
     ): PsiBasedCodebase {
         val absoluteSources = sources.map { it.absoluteFile }
 
@@ -67,8 +87,6 @@ class PsiSourceParser(private val psiEnvironmentManager: PsiEnvironmentManager) 
             description,
             absoluteSourceRoots,
             absoluteClasspath,
-            javaLanguageLevel,
-            kotlinLanguageLevel,
         )
     }
 
@@ -78,8 +96,6 @@ class PsiSourceParser(private val psiEnvironmentManager: PsiEnvironmentManager) 
         description: String,
         sourceRoots: List<File>,
         classpath: List<File>,
-        javaLanguageLevel: LanguageLevel,
-        kotlinLanguageLevel: LanguageVersionSettings,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel

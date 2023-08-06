@@ -216,7 +216,12 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
 
     processNonCodebaseFlags()
 
-    val psiSourceParser = PsiSourceParser(psiEnvironmentManager)
+    val psiSourceParser =
+        PsiSourceParser(
+            psiEnvironmentManager,
+            javaLanguageLevel = options.javaLanguageLevel,
+            kotlinLanguageLevel = options.kotlinLanguageLevel,
+        )
 
     val sources = options.sources
     val codebase =

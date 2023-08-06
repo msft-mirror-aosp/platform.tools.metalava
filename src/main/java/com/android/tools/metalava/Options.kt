@@ -715,13 +715,10 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var omitLocations = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
-    var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
+    var javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel
 
     /** The language level to use for Java files, set with [ARG_KOTLIN_SOURCE] */
-    var kotlinLanguageLevel: LanguageVersionSettings =
-        // TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
-        // LanguageVersionSettingsImpl.DEFAULT
-        kotlinLanguageVersionSettings("1.8")
+    var kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel
 
     /**
      * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
