@@ -216,6 +216,8 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
 
     processNonCodebaseFlags()
 
+    val psiSourceParser = PsiSourceParser(psiEnvironmentManager)
+
     val sources = options.sources
     val codebase =
         if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
@@ -227,21 +229,21 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val classResolver = getClassResolver(psiEnvironmentManager)
+            val classResolver = getClassResolver(psiSourceParser)
             val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(psiEnvironmentManager, textCodebase)
+                addMissingItemsRequiredForGeneratingStubs(psiSourceParser, textCodebase)
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(psiEnvironmentManager, options.apiJar!!)
+            loadFromJarFile(psiSourceParser, options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(psiEnvironmentManager, sources[0])
+            loadFromJarFile(psiSourceParser, sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources(psiEnvironmentManager)
+            loadFromSources(psiSourceParser)
         } else {
             return
         }
@@ -252,7 +254,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
 
     options.subtractApi?.let {
         progress("Subtracting API: ")
-        subtractApi(psiEnvironmentManager, codebase, it)
+        subtractApi(psiSourceParser, codebase, it)
     }
 
     val androidApiLevelXml = options.generateApiLevelXml
@@ -388,14 +390,14 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(psiEnvironmentManager, codebase, check)
+        checkCompatibility(psiSourceParser, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(psiEnvironmentManager, previousApiFile)
+                loadFromJarFile(psiSourceParser, previousApiFile)
             } else {
                 SignatureFileLoader.load(file = previousApiFile)
             }
@@ -464,7 +466,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
  *   are not listed on concrete classes but the stub concrete classes need those implementations.
  */
 private fun addMissingItemsRequiredForGeneratingStubs(
-    psiEnvironmentManager: PsiEnvironmentManager,
+    psiSourceParser: PsiSourceParser,
     textCodebase: TextCodebase,
 ) {
     // Only add constructors if the codebase does not fall back to loading classes from the
@@ -474,7 +476,7 @@ private fun addMissingItemsRequiredForGeneratingStubs(
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(psiEnvironmentManager, textCodebase, options.manifest)
+        val analyzer = ApiAnalyzer(psiSourceParser, textCodebase, options.manifest)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -566,7 +568,7 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
 }
 
 fun subtractApi(
-    psiEnvironmentManager: PsiEnvironmentManager,
+    psiSourceParser: PsiSourceParser,
     codebase: Codebase,
     subtractApiFile: File,
 ) {
@@ -574,7 +576,7 @@ fun subtractApi(
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
-            path.endsWith(DOT_JAR) -> loadFromJarFile(psiEnvironmentManager, subtractApiFile)
+            path.endsWith(DOT_JAR) -> loadFromJarFile(psiSourceParser, subtractApiFile)
             else ->
                 throw DriverException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -615,7 +617,7 @@ fun processNonCodebaseFlags() {
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 fun checkCompatibility(
-    psiEnvironmentManager: PsiEnvironmentManager,
+    psiSourceParser: PsiSourceParser,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -624,9 +626,9 @@ fun checkCompatibility(
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(psiEnvironmentManager, signatureFile)
+            loadFromJarFile(psiSourceParser, signatureFile)
         } else {
-            val classResolver = getClassResolver(psiEnvironmentManager)
+            val classResolver = getClassResolver(psiSourceParser)
             SignatureFileLoader.load(signatureFile, classResolver)
         }
 
@@ -687,7 +689,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
     }
 }
 
-private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codebase {
+private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
     progress("Processing sources: ")
 
     val sources =
@@ -701,13 +703,11 @@ private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codeb
         }
 
     progress("Reading Codebase: ")
-    val codebase =
-        PsiSourceParser(psiEnvironmentManager)
-            .parseSources(sources, "Codebase loaded from source folders")
+    val codebase = psiSourceParser.parseSources(sources, "Codebase loaded from source folders")
 
     progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(psiEnvironmentManager, codebase, options.manifest)
+    val analyzer = ApiAnalyzer(psiSourceParser, codebase, options.manifest)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -741,7 +741,7 @@ private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codeb
             when {
                 previousApiFile == null -> null
                 previousApiFile.path.endsWith(DOT_JAR) ->
-                    loadFromJarFile(psiEnvironmentManager, previousApiFile)
+                    loadFromJarFile(psiSourceParser, previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
@@ -765,11 +765,11 @@ private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codeb
     return codebase
 }
 
-private fun getClassResolver(psiEnvironmentManager: PsiEnvironmentManager): ClassResolver? {
+private fun getClassResolver(psiSourceParser: PsiSourceParser): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        val uastEnvironment = PsiSourceParser(psiEnvironmentManager).loadUastFromJars(classpath)
+        val uastEnvironment = psiSourceParser.loadUastFromJars(classpath)
         PsiBasedClassResolver(uastEnvironment, options.annotationManager, reporter)
     } else {
         null
@@ -777,20 +777,20 @@ private fun getClassResolver(psiEnvironmentManager: PsiEnvironmentManager): Clas
 }
 
 fun loadFromJarFile(
-    psiEnvironmentManager: PsiEnvironmentManager,
+    psiSourceParser: PsiSourceParser,
     apiJar: File,
     preFiltered: Boolean = false,
     annotationManager: AnnotationManager = options.annotationManager,
 ): Codebase {
     progress("Processing jar file: ")
 
-    val environment = PsiSourceParser(psiEnvironmentManager).loadUastFromJars(listOf(apiJar))
+    val environment = psiSourceParser.loadUastFromJars(listOf(apiJar))
     val codebase =
         PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
-    val analyzer = ApiAnalyzer(psiEnvironmentManager, codebase)
+    val analyzer = ApiAnalyzer(psiSourceParser, codebase)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()

@@ -57,7 +57,6 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
@@ -81,7 +80,7 @@ import org.xml.sax.SAXParseException
 
 /** Merges annotations into classes already registered in the given [Codebase] */
 class AnnotationsMerger(
-    private val psiEnvironmentManager: PsiEnvironmentManager,
+    private val psiSourceParser: PsiSourceParser,
     private val codebase: Codebase,
 ) {
 
@@ -121,13 +120,12 @@ class AnnotationsMerger(
             extractRoots(options.sources, roots)
             roots.addAll(options.sourcePath)
             val javaStubsCodebase =
-                PsiSourceParser(psiEnvironmentManager)
-                    .parseSources(
-                        javaStubFiles,
-                        "Codebase loaded from stubs",
-                        sourcePath = roots,
-                        classpath = options.classpath
-                    )
+                psiSourceParser.parseSources(
+                    javaStubFiles,
+                    "Codebase loaded from stubs",
+                    sourcePath = roots,
+                    classpath = options.classpath
+                )
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
     }

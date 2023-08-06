@@ -72,7 +72,7 @@ class ConvertJarsToSignatureFiles {
             // there: package private super classes etc.
             val jarCodebase =
                 loadFromJarFile(
-                    psiEnvironmentManager,
+                    PsiSourceParser(psiEnvironmentManager),
                     apiJar,
                     preFiltered = false,
                     DefaultAnnotationManager()
