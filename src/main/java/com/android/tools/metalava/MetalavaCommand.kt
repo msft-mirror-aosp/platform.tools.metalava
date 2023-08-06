@@ -36,18 +36,10 @@ import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
 
-/**
- * Main metalava command.
- *
- * This has some special support to allow it to be used to parse the options for tests.
- *
- * @param parseOptionsOnly true if this command should just parse the options, false if it should
- *   perform the legacy behavior.
- */
+/** Main metalava command. */
 internal open class MetalavaCommand(
     private val stdout: PrintWriter,
     private val stderr: PrintWriter,
-    private val parseOptionsOnly: Boolean = false,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be passed to Options().
@@ -191,11 +183,6 @@ internal open class MetalavaCommand(
 
             // Update the global options.
             options = optionGroup
-
-            // If requested drop out after parsing the options.
-            if (parseOptionsOnly) {
-                return
-            }
 
             maybeActivateSandbox()
 

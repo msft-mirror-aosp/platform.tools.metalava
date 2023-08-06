@@ -29,7 +29,6 @@ import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiType
@@ -878,7 +877,6 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
         }
         classPath.add(getAndroidJar())
 
-        updateGlobalOptionsForTest(emptyArray())
         val reporter = BasicReporter(PrintWriter(System.err))
         // TestDriver#check normally sets this for all the other tests
         val codebase =

@@ -25,7 +25,6 @@ import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.tempDirectory
-import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.openapi.util.Disposer
 import java.io.File
 import java.io.PrintWriter
@@ -54,7 +53,6 @@ fun createTestCodebase(
 
     val sourcePaths = sources.map { it.targetPath }.toTypedArray()
     val kotlinStdlibPaths = findKotlinStdlibPaths(sourcePaths)
-    updateGlobalOptionsForTest(emptyArray())
 
     val reporter = BasicReporter(PrintWriter(System.err))
     return PsiSourceParser(psiEnvironmentManager, reporter)

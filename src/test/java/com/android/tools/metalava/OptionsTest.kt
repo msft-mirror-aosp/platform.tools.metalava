@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
@@ -678,23 +677,4 @@ $MAIN_HELP_BODY
     fun `Test for @ usage on command line`() {
         check(showAnnotations = arrayOf("@foo.Show"))
     }
-}
-
-/**
- * Update the global [options] from the supplied arguments.
- *
- * This is for use by tests which do not use [Driver.run]. It does not support any of the
- * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
- */
-internal fun updateGlobalOptionsForTest(
-    args: Array<String>,
-    /** Writer to direct output to */
-    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-    /** Writer to direct error messages to */
-    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-) {
-    // Create a special command that will ensure that the Clikt based properties in Options have
-    // been initialized correctly before updating the global options.
-    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
-    command.parse(args)
 }
