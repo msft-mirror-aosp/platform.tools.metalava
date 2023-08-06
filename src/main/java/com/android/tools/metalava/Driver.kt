@@ -221,6 +221,9 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
             psiEnvironmentManager,
             javaLanguageLevel = options.javaLanguageLevel,
             kotlinLanguageLevel = options.kotlinLanguageLevel,
+            allowImplicitRoot = options.allowImplicitRoot,
+            useK2Uast = options.useK2Uast,
+            jdkHome = options.jdkHome,
         )
 
     val sources = options.sources

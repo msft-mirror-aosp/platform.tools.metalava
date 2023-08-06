@@ -52,16 +52,23 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     return LanguageVersionSettingsImpl(languageLevel, apiVersion)
 }
 
-/** Parses a set of sources into a [PsiBasedCodebase]. */
+/**
+ * Parses a set of sources into a [PsiBasedCodebase].
+ *
+ * The codebases will use a project environment initialized according to the properties passed to
+ * the constructor and the paths passed to [parseSources].
+ */
 class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
+    private val allowImplicitRoot: Boolean = true,
+    private val useK2Uast: Boolean = false,
+    private val jdkHome: File? = null,
 ) {
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
-     * description. The codebase will use a project environment initialized according to the current
-     * [options].
+     * description.
      *
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
@@ -76,7 +83,7 @@ class PsiSourceParser(
         val absoluteSourceRoots =
             sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
         // Add in source roots implied by the source files
-        if (options.allowImplicitRoot) {
+        if (allowImplicitRoot) {
             extractRoots(absoluteSources, absoluteSourceRoots)
         }
 
@@ -97,7 +104,7 @@ class PsiSourceParser(
         sourceRoots: List<File>,
         classpath: List<File>,
     ): PsiBasedCodebase {
-        val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+        val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
         val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
@@ -117,7 +124,7 @@ class PsiSourceParser(
                 UastEnvironment.Module(
                     lintProject,
                     // K2 UAST: building KtSdkModule for JDK
-                    options.jdkHome,
+                    jdkHome,
                     includeTests = false,
                     includeTestFixtureSources = false,
                     isUnitTest = false
@@ -125,8 +132,8 @@ class PsiSourceParser(
             ),
         )
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
-        options.jdkHome?.let {
-            if (options.isJdkModular(it)) {
+        jdkHome?.let {
+            if (isJdkModular(it)) {
                 config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
                 config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
             }
@@ -145,9 +152,13 @@ class PsiSourceParser(
         return codebase
     }
 
+    private fun isJdkModular(homePath: File): Boolean {
+        return File(homePath, "jmods").isDirectory
+    }
+
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
-        val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+        val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         @Suppress("DEPRECATION") config.addClasspathRoots(apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
