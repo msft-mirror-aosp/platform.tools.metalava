@@ -23,7 +23,6 @@ import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.parameters.arguments.Argument
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -79,12 +78,6 @@ internal open class MetalavaCommand(
             Version.VERSION,
             names = setOf(ARG_VERSION),
             message = { "$commandName version: $it" },
-        )
-
-        subcommands(
-            AndroidJarsToSignaturesCommand(),
-            SignatureToJDiffCommand(),
-            VersionCommand(),
         )
     }
 

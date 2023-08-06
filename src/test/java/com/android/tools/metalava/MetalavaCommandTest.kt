@@ -41,7 +41,7 @@ class MetalavaCommandTest {
         } catch (e: DriverException) {
             Assert.assertEquals(
                 """
-                Usage: test [options] [flags]... <sub-command>? ...
+                Usage: test [options] [flags]...
 
                 Error: invalid.file not found
             """

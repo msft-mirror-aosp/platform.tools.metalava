@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
+import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
 import java.io.File
 import java.io.IOException
@@ -80,7 +81,7 @@ fun run(
         maybeDumpArgv(stdout, originalArgs, modifiedArgs)
 
         // Actual work begins here.
-        val command = MetalavaCommand(stdout, stderr)
+        val command = createMetalavaCommand(stdout, stderr)
         command.process(modifiedArgs)
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
@@ -947,3 +948,13 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 
 /** Whether metalava is being invoked as part of an Android platform build */
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
+
+private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): MetalavaCommand {
+    val command = MetalavaCommand(stdout, stderr)
+    command.subcommands(
+        AndroidJarsToSignaturesCommand(),
+        SignatureToJDiffCommand(),
+        VersionCommand(),
+    )
+    return command
+}
