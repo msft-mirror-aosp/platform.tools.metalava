@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.PsiSourceParser
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
@@ -885,7 +884,7 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
                     sourceFiles,
                     "test project",
                     sourcePath = sourcePath,
-                    classpath = classPath
+                    classpath = classPath,
                 )
 
         val results = LinkedHashMap<String, Entry>()

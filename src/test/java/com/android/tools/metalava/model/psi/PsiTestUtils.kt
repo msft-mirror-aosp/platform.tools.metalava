@@ -20,7 +20,6 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
-import com.android.tools.metalava.PsiSourceParser
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
