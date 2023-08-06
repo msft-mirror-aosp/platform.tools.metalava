@@ -950,11 +950,28 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): MetalavaCommand {
-    val command = MetalavaCommand(stdout, stderr)
+    val command = MetalavaCommand(stdout, stderr, DriverCommand())
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
         SignatureToJDiffCommand(),
         VersionCommand(),
     )
     return command
+}
+
+/**
+ * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
+ * needs to be run when no subcommand is provided.
+ */
+private class DriverCommand : OptionsCommand() {
+    override fun run() {
+        // Initialize the global options.
+        super.run()
+
+        maybeActivateSandbox()
+
+        PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
+            processFlags(psiEnvironmentManager)
+        }
+    }
 }

@@ -33,8 +33,12 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.utils.SdkUtils.wrap
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -2203,4 +2207,36 @@ private fun FileFormat.configureOptions(options: Options) {
     options.outputKotlinStyleNulls = this >= FileFormat.V3
     options.outputDefaultValues = this >= FileFormat.V2
     options.includeSignatureFormatVersion = this >= FileFormat.V2
+}
+
+/**
+ * A command that is passed to [MetalavaCommand.defaultCommand] when the options need to be
+ * initialized.
+ */
+internal open class OptionsCommand : CliktCommand(treatUnknownOptionsAsArgs = true) {
+
+    /**
+     * Property into which all the arguments (and unknown options) are gathered.
+     *
+     * This does not provide any `help` so that it is excluded from the `help` by
+     * [MetalavaCommand.excludeArgumentsWithNoHelp].
+     */
+    private val flags by argument().multiple()
+
+    /**
+     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
+     * Clikt.
+     */
+    private val optionGroup by Options()
+
+    override fun run() {
+        // Get any remaining arguments/options that were not handled by Clikt.
+        val remainingArgs = flags.toTypedArray()
+
+        // Parse any remaining arguments
+        optionGroup.parse(remainingArgs, stdout, stderr)
+
+        // Update the global options.
+        options = optionGroup
+    }
 }

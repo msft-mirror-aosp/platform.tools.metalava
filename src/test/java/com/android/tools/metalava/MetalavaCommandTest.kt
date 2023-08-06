@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -67,10 +68,16 @@ class MetalavaCommandTest {
      * A special [MetalavaCommand] which enables @argfiles so that it can supply an invalid argument
      * which will cause Clikt to fail in such a way as to generate some help before initializing the
      */
-    internal class TestCommand(stdout: PrintWriter, stderr: PrintWriter) :
-        MetalavaCommand(stdout, stderr) {
+    private class TestCommand(stdout: PrintWriter, stderr: PrintWriter) :
+        MetalavaCommand(stdout, stderr, NoOpCommand()) {
         init {
             context { expandArgumentFiles = true }
+        }
+    }
+
+    private class NoOpCommand : CliktCommand() {
+        override fun run() {
+            throw IllegalStateException("should never be called")
         }
     }
 }
