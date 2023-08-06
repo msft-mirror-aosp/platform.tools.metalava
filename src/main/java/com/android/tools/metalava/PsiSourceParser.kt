@@ -46,8 +46,8 @@ class PsiSourceParser(private val psiEnvironmentManager: PsiEnvironmentManager) 
     fun parseSources(
         sources: List<File>,
         description: String,
-        sourcePath: List<File> = options.sourcePath,
-        classpath: List<File> = options.classpath,
+        sourcePath: List<File>,
+        classpath: List<File>,
         javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
         kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel
     ): PsiBasedCodebase {

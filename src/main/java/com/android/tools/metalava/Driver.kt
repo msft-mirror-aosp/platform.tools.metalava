@@ -703,7 +703,13 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
         }
 
     progress("Reading Codebase: ")
-    val codebase = psiSourceParser.parseSources(sources, "Codebase loaded from source folders")
+    val codebase =
+        psiSourceParser.parseSources(
+            sources,
+            "Codebase loaded from source folders",
+            sourcePath = options.sourcePath,
+            classpath = options.classpath,
+        )
 
     progress("Analyzing API: ")
 

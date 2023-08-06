@@ -19,10 +19,9 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_CLASS_PATH
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.PsiSourceParser
-import com.android.tools.metalava.findKotlinStdlibPathArgs
+import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.tempDirectory
 import com.android.tools.metalava.updateGlobalOptionsForTest
@@ -52,14 +51,15 @@ fun createTestCodebase(
     Disposer.setDebugMode(true)
 
     val sourcePaths = sources.map { it.targetPath }.toTypedArray()
-    val args = findKotlinStdlibPathArgs(sourcePaths) + arrayOf(ARG_CLASS_PATH, getAndroidJar().path)
-    updateGlobalOptionsForTest(args)
+    val kotlinStdlibPaths = findKotlinStdlibPaths(sourcePaths)
+    updateGlobalOptionsForTest(emptyArray())
 
     return PsiSourceParser(psiEnvironmentManager)
         .parseSources(
             sources = sources.map { it.createFile(directory) },
             description = "Test Codebase",
             sourcePath = listOf(directory),
+            classpath = kotlinStdlibPaths + listOf(getAndroidJar()),
         )
 }
 
