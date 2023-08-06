@@ -1355,7 +1355,11 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                gatherSources(listOf(stubsDir)).asSequence().map { it.path }.toList().toTypedArray()
+                gatherSources(reporter, listOf(stubsDir))
+                    .asSequence()
+                    .map { it.path }
+                    .toList()
+                    .toTypedArray()
 
             // Also need to include on the compile path annotation classes referenced in the stubs
             val extraAnnotationsDir = File("stub-annotations/src/main/java")
@@ -1368,7 +1372,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 )
             }
             val extraAnnotations =
-                gatherSources(listOf(extraAnnotationsDir))
+                gatherSources(reporter, listOf(extraAnnotationsDir))
                     .asSequence()
                     .map { it.path }
                     .toList()

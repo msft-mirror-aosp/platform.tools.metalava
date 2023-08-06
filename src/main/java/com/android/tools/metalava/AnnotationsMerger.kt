@@ -117,7 +117,7 @@ class AnnotationsMerger(
             // Set up class path to contain our main sources such that we can
             // resolve types in the stubs
             val roots = mutableListOf<File>()
-            extractRoots(options.sources, roots)
+            extractRoots(reporter, options.sources, roots)
             roots.addAll(options.sourcePath)
             val javaStubsCodebase =
                 psiSourceParser.parseSources(

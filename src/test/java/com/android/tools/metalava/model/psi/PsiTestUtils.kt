@@ -21,12 +21,14 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.PsiSourceParser
+import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.tempDirectory
 import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.openapi.util.Disposer
 import java.io.File
+import java.io.PrintWriter
 import kotlin.test.assertNotNull
 
 inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> Unit) {
@@ -54,7 +56,8 @@ fun createTestCodebase(
     val kotlinStdlibPaths = findKotlinStdlibPaths(sourcePaths)
     updateGlobalOptionsForTest(emptyArray())
 
-    return PsiSourceParser(psiEnvironmentManager)
+    val reporter = BasicReporter(PrintWriter(System.err))
+    return PsiSourceParser(psiEnvironmentManager, reporter)
         .parseSources(
             sources = sources.map { it.createFile(directory) },
             description = "Test Codebase",

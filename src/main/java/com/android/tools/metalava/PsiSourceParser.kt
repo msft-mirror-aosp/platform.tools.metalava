@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.pom.java.LanguageLevel
@@ -60,6 +61,7 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
  */
 class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
+    private val reporter: Reporter,
     private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
     private val allowImplicitRoot: Boolean = true,
@@ -84,7 +86,7 @@ class PsiSourceParser(
             sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
         // Add in source roots implied by the source files
         if (allowImplicitRoot) {
-            extractRoots(absoluteSources, absoluteSourceRoots)
+            extractRoots(reporter, absoluteSources, absoluteSourceRoots)
         }
 
         val absoluteClasspath = classpath.map { it.absoluteFile }
@@ -220,7 +222,7 @@ const val OVERVIEW_HTML = "overview.html"
 private fun skippableDirectory(file: File): Boolean =
     file.path.endsWith(".git") && file.name == ".git"
 
-private fun addSourceFiles(list: MutableList<File>, file: File) {
+private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: File) {
     if (file.isDirectory) {
         if (skippableDirectory(file)) {
             return
@@ -236,7 +238,7 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
         val files = file.listFiles()
         if (files != null) {
             for (child in files) {
-                addSourceFiles(list, child)
+                addSourceFiles(reporter, list, child)
             }
         }
     } else if (file.isFile) {
@@ -249,19 +251,20 @@ private fun addSourceFiles(list: MutableList<File>, file: File) {
     }
 }
 
-fun gatherSources(sourcePath: List<File>): List<File> {
+fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
     val sources = Lists.newArrayList<File>()
     for (file in sourcePath) {
         if (file.path.isBlank()) {
             // --source-path "" means don't search source path; use "." for pwd
             continue
         }
-        addSourceFiles(sources, file.absoluteFile)
+        addSourceFiles(reporter, sources, file.absoluteFile)
     }
     return sources.sortedWith(compareBy { it.name })
 }
 
 fun extractRoots(
+    reporter: Reporter,
     sources: List<File>,
     sourceRoots: MutableList<File> = mutableListOf()
 ): List<File> {
@@ -275,7 +278,7 @@ fun extractRoots(
             continue
         }
 
-        val root = findRoot(file) ?: continue
+        val root = findRoot(reporter, file) ?: continue
         dirToRootCache[parent.path] = root
 
         if (!sourceRoots.contains(root)) {
@@ -290,7 +293,7 @@ fun extractRoots(
  * If given a full path to a Java or Kotlin source file, produces the path to the source root if
  * possible.
  */
-private fun findRoot(file: File): File? {
+private fun findRoot(reporter: Reporter, file: File): File? {
     val path = file.path
     if (path.endsWith(SdkConstants.DOT_JAVA) || path.endsWith(SdkConstants.DOT_KT)) {
         val pkg = findPackage(file) ?: return null
@@ -303,7 +306,7 @@ private fun findRoot(file: File): File? {
             reporter.report(
                 Issues.IO_ERROR,
                 file,
-                "$PROGRAM_NAME was unable to determine the package name. " +
+                "Unable to determine the package name. " +
                     "This usually means that a source file was where the directory does not seem to match the package " +
                     "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
             )

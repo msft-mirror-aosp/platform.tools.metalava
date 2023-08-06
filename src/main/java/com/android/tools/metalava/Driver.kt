@@ -219,6 +219,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
     val psiSourceParser =
         PsiSourceParser(
             psiEnvironmentManager,
+            reporter = reporter,
             javaLanguageLevel = options.javaLanguageLevel,
             kotlinLanguageLevel = options.kotlinLanguageLevel,
             allowImplicitRoot = options.allowImplicitRoot,
@@ -707,7 +708,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
                     "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
                 )
             }
-            gatherSources(options.sourcePath)
+            gatherSources(reporter, options.sourcePath)
         }
 
     progress("Reading Codebase: ")

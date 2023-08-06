@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
+import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
@@ -878,9 +879,10 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
         classPath.add(getAndroidJar())
 
         updateGlobalOptionsForTest(emptyArray())
+        val reporter = BasicReporter(PrintWriter(System.err))
         // TestDriver#check normally sets this for all the other tests
         val codebase =
-            PsiSourceParser(psiEnvironmentManagerRule.manager)
+            PsiSourceParser(psiEnvironmentManagerRule.manager, reporter)
                 .parseSources(
                     sourceFiles,
                     "test project",
