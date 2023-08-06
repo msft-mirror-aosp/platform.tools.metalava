@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
@@ -1499,30 +1500,6 @@ abstract class DriverTest {
     }
 
     companion object {
-        private const val API_LEVEL = 31
-
-        private fun getAndroidJarFromEnv(apiLevel: Int): File {
-            val sdkRoot =
-                System.getenv("ANDROID_SDK_ROOT")
-                    ?: System.getenv("ANDROID_HOME") ?: error("Expected ANDROID_SDK_ROOT to be set")
-            val jar = File(sdkRoot, "platforms/android-$apiLevel/android.jar")
-            if (!jar.exists()) {
-                error("Missing ${jar.absolutePath} file in the SDK")
-            }
-            return jar
-        }
-
-        fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
-            val localFile = File("../../prebuilts/sdk/$apiLevel/public/android.jar")
-            if (localFile.exists()) {
-                return localFile
-            } else {
-                val androidJar = File("../../prebuilts/sdk/$apiLevel/android.jar")
-                if (androidJar.exists()) return androidJar
-                return getAndroidJarFromEnv(apiLevel)
-            }
-        }
-
         @JvmStatic
         protected fun readFile(
             file: File,

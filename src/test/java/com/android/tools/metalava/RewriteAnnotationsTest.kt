@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 import org.junit.Assert.assertEquals
