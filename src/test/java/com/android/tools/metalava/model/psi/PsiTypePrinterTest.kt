@@ -696,12 +696,12 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
             """
             Type: PsiClassReferenceType
             Canonical: java.lang.String
-            Merged: [@NonNull]
+            Merged: [@org.jetbrains.annotations.NotNull]
             Printed: java.lang.String
 
             Type: PsiClassReferenceType
             Canonical: java.util.Map<java.lang.String,java.lang.String>
-            Merged: [@Nullable]
+            Merged: [@org.jetbrains.annotations.Nullable]
             Printed: java.util.Map<java.lang.String,java.lang.String>?
 
             Type: PsiPrimitiveType
@@ -710,17 +710,17 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
 
             Type: PsiPrimitiveType
             Canonical: int
-            Merged: [@NonNull]
+            Merged: [@org.jetbrains.annotations.NotNull]
             Printed: int
 
             Type: PsiClassReferenceType
             Canonical: java.lang.Integer
-            Merged: [@Nullable]
+            Merged: [@org.jetbrains.annotations.Nullable]
             Printed: java.lang.Integer?
 
             Type: PsiEllipsisType
             Canonical: java.lang.String...
-            Merged: [@NonNull]
+            Merged: [@org.jetbrains.annotations.NotNull]
             Printed: java.lang.String!...
             """
                 .trimIndent(),

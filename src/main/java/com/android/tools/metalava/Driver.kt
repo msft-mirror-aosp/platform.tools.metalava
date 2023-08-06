@@ -220,6 +220,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
         PsiSourceParser(
             psiEnvironmentManager,
             reporter = reporter,
+            annotationManager = options.annotationManager,
             javaLanguageLevel = options.javaLanguageLevel,
             kotlinLanguageLevel = options.kotlinLanguageLevel,
             allowImplicitRoot = options.allowImplicitRoot,

@@ -21,7 +21,9 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.Project
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.PackageDocs
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
@@ -62,6 +64,7 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
 class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val reporter: Reporter,
+    private val annotationManager: AnnotationManager = noOpAnnotationManager,
     private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
     private val allowImplicitRoot: Boolean = true,
@@ -149,7 +152,7 @@ class PsiSourceParser(
         val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
         val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-        val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager, reporter)
+        val codebase = PsiBasedCodebase(rootDir, description, annotationManager, reporter)
         codebase.initialize(environment, units, packageDocs)
         return codebase
     }
