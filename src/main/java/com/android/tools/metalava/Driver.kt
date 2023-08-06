@@ -49,11 +49,7 @@ import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
-import com.intellij.core.CoreApplicationEnvironment
-import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.pom.java.LanguageLevel
-import com.intellij.psi.javadoc.CustomJavadocTagProvider
-import com.intellij.psi.javadoc.JavadocTagInfo
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -63,7 +59,6 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
-import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 
@@ -930,60 +925,10 @@ fun loadFromJarFile(
     return codebase
 }
 
-internal const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
-
-internal fun createProjectEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
-    ensurePsiFileCapacity()
-
-    // Note: the Kotlin module name affects the naming of certain synthetic methods.
-    config.kotlinCompilerConfig.put(MODULE_NAME, METALAVA_SYNTHETIC_SUFFIX)
-
-    val environment = UastEnvironment.create(config)
-    uastEnvironments.add(environment)
-
-    if (
+internal fun disableStderrDumping(): Boolean {
+    val disableStderrDumping =
         !assertionsEnabled() && System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null && !isUnderTest()
-    ) {
-        DefaultLogger.disableStderrDumping(environment.ideaProject)
-    }
-
-    // Missing service needed in metalava but not in lint: javadoc handling
-    environment.ideaProject.registerService(
-        com.intellij.psi.javadoc.JavadocManager::class.java,
-        com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
-    )
-    CoreApplicationEnvironment.registerExtensionPoint(
-        environment.ideaProject.extensionArea,
-        JavadocTagInfo.EP_NAME,
-        JavadocTagInfo::class.java
-    )
-    CoreApplicationEnvironment.registerApplicationExtensionPoint(
-        CustomJavadocTagProvider.EP_NAME,
-        CustomJavadocTagProvider::class.java
-    )
-
-    return environment
-}
-
-private val uastEnvironments = mutableListOf<UastEnvironment>()
-
-internal fun disposeUastEnvironment() {
-    // Codebase.dispose() is not consistently called, so we dispose the environments here too.
-    for (env in uastEnvironments) {
-        if (!env.ideaProject.isDisposed) {
-            env.dispose()
-        }
-    }
-    uastEnvironments.clear()
-    UastEnvironment.disposeApplicationEnvironment()
-}
-
-private fun ensurePsiFileCapacity() {
-    val fileSize = System.getProperty("idea.max.intellisense.filesize")
-    if (fileSize == null) {
-        // Ensure we can handle large compilation units like android.R
-        System.setProperty("idea.max.intellisense.filesize", "100000")
-    }
+    return disableStderrDumping
 }
 
 private fun extractAnnotations(codebase: Codebase, file: File) {

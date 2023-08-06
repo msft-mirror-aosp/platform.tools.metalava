@@ -17,18 +17,24 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.createProjectEnvironment
-import com.android.tools.metalava.disposeUastEnvironment
+import com.intellij.core.CoreApplicationEnvironment
+import com.intellij.openapi.diagnostic.DefaultLogger
+import com.intellij.psi.javadoc.CustomJavadocTagProvider
+import com.intellij.psi.javadoc.JavadocTagInfo
 import java.io.Closeable
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
-class PsiEnvironmentManager : Closeable {
+class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) : Closeable {
 
     /**
      * Determines whether the manager has been closed. Used to prevent creating new environments
      * after the manager has closed.
      */
     private var closed = false
+
+    /** The list of available environments. */
+    private val uastEnvironments = mutableListOf<UastEnvironment>()
 
     /**
      * Create a [UastEnvironment] with the supplied configuration.
@@ -39,11 +45,59 @@ class PsiEnvironmentManager : Closeable {
         if (closed) {
             throw IllegalStateException("PsiEnvironmentManager is closed")
         }
-        return createProjectEnvironment(config)
+        ensurePsiFileCapacity()
+
+        // Note: the Kotlin module name affects the naming of certain synthetic methods.
+        config.kotlinCompilerConfig.put(
+            CommonConfigurationKeys.MODULE_NAME,
+            METALAVA_SYNTHETIC_SUFFIX
+        )
+
+        val environment = UastEnvironment.create(config)
+        uastEnvironments.add(environment)
+
+        if (disableStderrDumping) {
+            DefaultLogger.disableStderrDumping(environment.ideaProject)
+        }
+
+        // Missing service needed in metalava but not in lint: javadoc handling
+        environment.ideaProject.registerService(
+            com.intellij.psi.javadoc.JavadocManager::class.java,
+            com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
+        )
+        CoreApplicationEnvironment.registerExtensionPoint(
+            environment.ideaProject.extensionArea,
+            JavadocTagInfo.EP_NAME,
+            JavadocTagInfo::class.java
+        )
+        CoreApplicationEnvironment.registerApplicationExtensionPoint(
+            CustomJavadocTagProvider.EP_NAME,
+            CustomJavadocTagProvider::class.java
+        )
+
+        return environment
+    }
+
+    private fun ensurePsiFileCapacity() {
+        val fileSize = System.getProperty("idea.max.intellisense.filesize")
+        if (fileSize == null) {
+            // Ensure we can handle large compilation units like android.R
+            System.setProperty("idea.max.intellisense.filesize", "100000")
+        }
     }
 
     override fun close() {
         closed = true
-        disposeUastEnvironment()
+
+        // Codebase.dispose() is not consistently called, so we dispose the environments here too.
+        for (env in uastEnvironments) {
+            if (!env.ideaProject.isDisposed) {
+                env.dispose()
+            }
+        }
+        uastEnvironments.clear()
+        UastEnvironment.disposeApplicationEnvironment()
     }
 }
+
+private const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"

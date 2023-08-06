@@ -199,7 +199,7 @@ internal open class MetalavaCommand(
 
             maybeActivateSandbox()
 
-            PsiEnvironmentManager().use { psiEnvironmentManager ->
+            PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
                 processFlags(psiEnvironmentManager)
             }
         }

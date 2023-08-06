@@ -52,7 +52,7 @@ class AndroidJarsToSignaturesCommand :
             }
 
     override fun run() {
-        PsiEnvironmentManager().use { psiEnvironmentManager ->
+        PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
             ConvertJarsToSignatureFiles().convertJars(psiEnvironmentManager, androidRootDir)
         }
     }
