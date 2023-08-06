@@ -32,16 +32,22 @@ import kotlin.test.assertNotNull
 
 inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> Unit) {
     tempDirectory { tempDirectory ->
-        val codebase = createTestCodebase(tempDirectory, *sources)
-        try {
-            action(codebase)
-        } finally {
-            destroyTestCodebase(codebase)
+        PsiEnvironmentManager().use { psiEnvironmentManager ->
+            val codebase = createTestCodebase(psiEnvironmentManager, tempDirectory, *sources)
+            try {
+                action(codebase)
+            } finally {
+                destroyTestCodebase(codebase)
+            }
         }
     }
 }
 
-fun createTestCodebase(directory: File, vararg sources: TestFile): PsiBasedCodebase {
+fun createTestCodebase(
+    psiEnvironmentManager: PsiEnvironmentManager,
+    directory: File,
+    vararg sources: TestFile,
+): PsiBasedCodebase {
     System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     Disposer.setDebugMode(true)
 
@@ -52,6 +58,7 @@ fun createTestCodebase(directory: File, vararg sources: TestFile): PsiBasedCodeb
     updateGlobalOptionsForTest(args)
 
     return parseSources(
+        psiEnvironmentManager,
         sources = sources.map { it.createFile(directory) },
         description = "Test Codebase",
         sourcePath = listOf(directory),

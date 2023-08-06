@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
@@ -136,8 +137,6 @@ fun run(
             stdout.println("\n${prefix}${e.stdout}")
         }
         exitCode = e.exitCode
-    } finally {
-        disposeUastEnvironment()
     }
 
     // Update and close all baseline files.
@@ -232,7 +231,7 @@ private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, 
     }
 }
 
-internal fun processFlags() {
+internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
     val stopwatch = Stopwatch.createStarted()
 
     processNonCodebaseFlags()
@@ -248,21 +247,21 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val classResolver = getClassResolver()
+            val classResolver = getClassResolver(psiEnvironmentManager)
             val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(textCodebase)
+                addMissingItemsRequiredForGeneratingStubs(psiEnvironmentManager, textCodebase)
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(options.apiJar!!)
+            loadFromJarFile(psiEnvironmentManager, options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(sources[0])
+            loadFromJarFile(psiEnvironmentManager, sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources()
+            loadFromSources(psiEnvironmentManager)
         } else {
             return
         }
@@ -273,7 +272,7 @@ internal fun processFlags() {
 
     options.subtractApi?.let {
         progress("Subtracting API: ")
-        subtractApi(codebase, it)
+        subtractApi(psiEnvironmentManager, codebase, it)
     }
 
     val androidApiLevelXml = options.generateApiLevelXml
@@ -409,14 +408,14 @@ internal fun processFlags() {
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(codebase, check)
+        checkCompatibility(psiEnvironmentManager, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(previousApiFile)
+                loadFromJarFile(psiEnvironmentManager, previousApiFile)
             } else {
                 SignatureFileLoader.load(file = previousApiFile)
             }
@@ -484,7 +483,10 @@ internal fun processFlags() {
  * * Concrete methods - in the signature file concrete implementations of inherited abstract methods
  *   are not listed on concrete classes but the stub concrete classes need those implementations.
  */
-private fun addMissingItemsRequiredForGeneratingStubs(textCodebase: TextCodebase) {
+private fun addMissingItemsRequiredForGeneratingStubs(
+    psiEnvironmentManager: PsiEnvironmentManager,
+    textCodebase: TextCodebase,
+) {
     // Only add constructors if the codebase does not fall back to loading classes from the
     // classpath. This is needed because only the TextCodebase supports adding constructors
     // in this way.
@@ -492,7 +494,7 @@ private fun addMissingItemsRequiredForGeneratingStubs(textCodebase: TextCodebase
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(textCodebase, options.manifest)
+        val analyzer = ApiAnalyzer(psiEnvironmentManager, textCodebase, options.manifest)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -583,12 +585,16 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
     }
 }
 
-fun subtractApi(codebase: Codebase, subtractApiFile: File) {
+fun subtractApi(
+    psiEnvironmentManager: PsiEnvironmentManager,
+    codebase: Codebase,
+    subtractApiFile: File,
+) {
     val path = subtractApiFile.path
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
-            path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
+            path.endsWith(DOT_JAR) -> loadFromJarFile(psiEnvironmentManager, subtractApiFile)
             else ->
                 throw DriverException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -628,15 +634,19 @@ fun processNonCodebaseFlags() {
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
-fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
+fun checkCompatibility(
+    psiEnvironmentManager: PsiEnvironmentManager,
+    newCodebase: Codebase,
+    check: CheckRequest,
+) {
     progress("Checking API compatibility ($check): ")
     val signatureFile = check.file
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(signatureFile)
+            loadFromJarFile(psiEnvironmentManager, signatureFile)
         } else {
-            val classResolver = getClassResolver()
+            val classResolver = getClassResolver(psiEnvironmentManager)
             SignatureFileLoader.load(signatureFile, classResolver)
         }
 
@@ -697,7 +707,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
     }
 }
 
-private fun loadFromSources(): Codebase {
+private fun loadFromSources(psiEnvironmentManager: PsiEnvironmentManager): Codebase {
     progress("Processing sources: ")
 
     val sources =
@@ -711,11 +721,12 @@ private fun loadFromSources(): Codebase {
         }
 
     progress("Reading Codebase: ")
-    val codebase = parseSources(sources, "Codebase loaded from source folders")
+    val codebase =
+        parseSources(psiEnvironmentManager, sources, "Codebase loaded from source folders")
 
     progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(codebase, options.manifest)
+    val analyzer = ApiAnalyzer(psiEnvironmentManager, codebase, options.manifest)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -748,7 +759,8 @@ private fun loadFromSources(): Codebase {
         val previous =
             when {
                 previousApiFile == null -> null
-                previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
+                previousApiFile.path.endsWith(DOT_JAR) ->
+                    loadFromJarFile(psiEnvironmentManager, previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
@@ -780,12 +792,13 @@ private fun loadFromSources(): Codebase {
  * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
  */
 internal fun parseSources(
+    psiEnvironmentManager: PsiEnvironmentManager,
     sources: List<File>,
     description: String,
     sourcePath: List<File> = options.sourcePath,
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
-    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel
+    kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
 ): PsiBasedCodebase {
     val absoluteSources = sources.map { it.absoluteFile }
 
@@ -799,6 +812,7 @@ internal fun parseSources(
     val absoluteClasspath = classpath.map { it.absoluteFile }
 
     return parseAbsoluteSources(
+        psiEnvironmentManager,
         absoluteSources,
         description,
         absoluteSourceRoots,
@@ -810,6 +824,7 @@ internal fun parseSources(
 
 /** Returns a codebase initialized from the given set of absolute files. */
 private fun parseAbsoluteSources(
+    psiEnvironmentManager: PsiEnvironmentManager,
     sources: List<File>,
     description: String,
     sourceRoots: List<File>,
@@ -851,7 +866,7 @@ private fun parseAbsoluteSources(
         }
     }
 
-    val environment = createProjectEnvironment(config)
+    val environment = psiEnvironmentManager.createEnvironment(config)
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
     environment.analyzeFiles(kotlinFiles)
@@ -864,11 +879,11 @@ private fun parseAbsoluteSources(
     return codebase
 }
 
-private fun getClassResolver(): ClassResolver? {
+private fun getClassResolver(psiEnvironmentManager: PsiEnvironmentManager): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        val uastEnvironment = loadUastFromJars(classpath)
+        val uastEnvironment = loadUastFromJars(psiEnvironmentManager, classpath)
         PsiBasedClassResolver(uastEnvironment, options.annotationManager, reporter)
     } else {
         null
@@ -876,29 +891,33 @@ private fun getClassResolver(): ClassResolver? {
 }
 
 /** Initializes a UAST environment using the [apiJars] as classpath roots. */
-fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
+fun loadUastFromJars(
+    psiEnvironmentManager: PsiEnvironmentManager,
+    apiJars: List<File>,
+): UastEnvironment {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     @Suppress("DEPRECATION") config.addClasspathRoots(apiJars)
 
-    val environment = createProjectEnvironment(config)
+    val environment = psiEnvironmentManager.createEnvironment(config)
     environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
     return environment
 }
 
 fun loadFromJarFile(
+    psiEnvironmentManager: PsiEnvironmentManager,
     apiJar: File,
     preFiltered: Boolean = false,
     annotationManager: AnnotationManager = options.annotationManager,
 ): Codebase {
     progress("Processing jar file: ")
 
-    val environment = loadUastFromJars(listOf(apiJar))
+    val environment = loadUastFromJars(psiEnvironmentManager, listOf(apiJar))
     val codebase =
         PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
-    val analyzer = ApiAnalyzer(codebase)
+    val analyzer = ApiAnalyzer(psiEnvironmentManager, codebase)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
@@ -913,7 +932,7 @@ fun loadFromJarFile(
 
 internal const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
 
-private fun createProjectEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
+internal fun createProjectEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
     ensurePsiFileCapacity()
 
     // Note: the Kotlin module name affects the naming of certain synthetic methods.
@@ -948,7 +967,7 @@ private fun createProjectEnvironment(config: UastEnvironment.Configuration): Uas
 
 private val uastEnvironments = mutableListOf<UastEnvironment>()
 
-private fun disposeUastEnvironment() {
+internal fun disposeUastEnvironment() {
     // Codebase.dispose() is not consistently called, so we dispose the environments here too.
     for (env in uastEnvironments) {
         if (!env.ideaProject.isDisposed) {

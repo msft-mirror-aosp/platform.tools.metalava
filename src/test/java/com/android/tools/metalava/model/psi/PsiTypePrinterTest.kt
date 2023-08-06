@@ -44,9 +44,34 @@ import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestRule
+import org.junit.runner.Description
+import org.junit.runners.model.Statement
 
 class PsiTypePrinterTest : DriverTest() {
+
+    /** A rule for creating and closing a [PsiEnvironmentManager] */
+    @get:Rule val psiEnvironmentManagerRule = PsiEnvironmentManagerRule()
+
+    class PsiEnvironmentManagerRule : TestRule {
+
+        lateinit var manager: PsiEnvironmentManager
+            private set
+
+        override fun apply(base: Statement, description: Description): Statement {
+            return object : Statement() {
+                override fun evaluate() {
+                    PsiEnvironmentManager().use {
+                        manager = it
+                        base.evaluate()
+                    }
+                }
+            }
+        }
+    }
+
     @Test
     fun `Test class reference types`() {
         assertEquals(
@@ -853,6 +878,7 @@ class PsiTypePrinterTest : DriverTest() {
         // TestDriver#check normally sets this for all the other tests
         val codebase =
             parseSources(
+                psiEnvironmentManagerRule.manager,
                 sourceFiles,
                 "test project",
                 sourcePath = sourcePath,

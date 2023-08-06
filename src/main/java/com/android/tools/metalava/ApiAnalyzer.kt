@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -52,6 +53,7 @@ import org.jetbrains.uast.UClass
  * visibility etc of the APIs
  */
 class ApiAnalyzer(
+    private val psiEnvironmentManager: PsiEnvironmentManager,
     /** The code to analyze */
     private val codebase: Codebase,
     private val manifest: Manifest = emptyManifest,
@@ -561,14 +563,16 @@ class ApiAnalyzer(
      */
     fun mergeExternalQualifierAnnotations() {
         if (options.mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(codebase).mergeQualifierAnnotations(options.mergeQualifierAnnotations)
+            AnnotationsMerger(psiEnvironmentManager, codebase)
+                .mergeQualifierAnnotations(options.mergeQualifierAnnotations)
         }
     }
 
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
         if (options.mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(codebase).mergeInclusionAnnotations(options.mergeInclusionAnnotations)
+            AnnotationsMerger(psiEnvironmentManager, codebase)
+                .mergeInclusionAnnotations(options.mergeInclusionAnnotations)
         }
     }
 

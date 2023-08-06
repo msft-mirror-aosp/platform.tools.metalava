@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
@@ -198,7 +199,9 @@ internal open class MetalavaCommand(
 
             maybeActivateSandbox()
 
-            processFlags()
+            PsiEnvironmentManager().use { psiEnvironmentManager ->
+                processFlags(psiEnvironmentManager)
+            }
         }
     }
 
