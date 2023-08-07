@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
 import java.io.File

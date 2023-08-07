@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.ParameterHolder
 import com.github.ajalt.clikt.output.HelpFormatter

@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.VALUE_FALSE
+import com.android.tools.metalava.cli.common.ARG_QUIET
+import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.intellij.util.execution.ParametersListUtil
 import java.io.File
 import java.io.IOException

@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.Terminal
+import com.android.tools.metalava.cli.common.TerminalColor
+import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
