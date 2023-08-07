@@ -819,11 +819,11 @@ private fun parseAbsoluteSources(
 ): PsiBasedCodebase {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
-    config.kotlinLanguageLevel = kotlinLanguageLevel
 
     val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
 
-    val lintClient = MetalavaCliClient()
+    // TODO(jsjeon): should set language version _per_ module (Lint Project)
+    val lintClient = MetalavaCliClient(kotlinLanguageLevel)
     // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
     // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
     // `referenceDir` is used to adjust `lib` dir accordingly if needed,
