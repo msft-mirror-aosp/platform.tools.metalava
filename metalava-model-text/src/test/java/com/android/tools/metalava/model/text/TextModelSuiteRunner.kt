@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-plugins {
-    `java-library`
-    id("org.jetbrains.kotlin.jvm")
-    id("metalava-build-plugin")
-    id("maven-publish")
+package com.android.tools.metalava.model.text
 
-    // This project provides an implementation of the metalava-model.
-    id("metalava-model-provider-plugin")
-}
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 
-dependencies {
-    testImplementation(libs.androidLintTests)
-    testImplementation(libs.junit4)
-    testImplementation(libs.truth)
-    testImplementation(libs.kotlinTest)
+// @AutoService(ModelSuiteRunner::class)
+class TextModelSuiteRunner : ModelSuiteRunner {
+    override fun createCodebaseAndRun(
+        signature: String,
+        source: TestFile,
+        test: (Codebase) -> Unit
+    ) {
+        val codebase = ApiFile.parseApi("test", signature.trimIndent())
+        test(codebase)
+    }
+
+    override fun toString(): String = "text"
 }
