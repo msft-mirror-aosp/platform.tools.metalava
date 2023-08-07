@@ -58,6 +58,9 @@ internal open class MetalavaCommand(
      * [excludeArgumentsWithNoHelp]).
      */
     private val defaultCommand: CliktCommand,
+
+    /** Provider for additional non-Clikt usage information. */
+    private val nonCliktUsageProvider: (Terminal, Int) -> String = { _, _ -> "" },
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be passed to Options().
@@ -86,7 +89,12 @@ internal open class MetalavaCommand(
 
             // Override the help formatter to add in documentation for the legacy flags.
             helpFormatter =
-                LegacyHelpFormatter({ common.terminal }, localization, ::mergeDefaultParameterHelp)
+                LegacyHelpFormatter(
+                    { common.terminal },
+                    localization,
+                    ::mergeDefaultParameterHelp,
+                    nonCliktUsageProvider,
+                )
 
             // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
             // that prefix annotation names with `@`, e.g. `--show-annotation @foo.Show`.

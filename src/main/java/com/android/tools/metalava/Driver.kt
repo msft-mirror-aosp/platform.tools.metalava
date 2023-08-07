@@ -950,7 +950,7 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): MetalavaCommand {
-    val command = MetalavaCommand(stdout, stderr, DriverCommand())
+    val command = MetalavaCommand(stdout, stderr, DriverCommand(), options::getUsage)
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
         SignatureToJDiffCommand(),

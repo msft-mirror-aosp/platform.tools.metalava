@@ -24,6 +24,8 @@ internal class LegacyHelpFormatter(
     terminalSupplier: () -> Terminal,
     localization: Localization,
     private val helpListTransform: (List<ParameterHelp>) -> List<ParameterHelp>,
+    /** Provider for additional non-Clikt usage information. */
+    private val nonCliktUsageProvider: (Terminal, Int) -> String,
 ) : MetalavaHelpFormatter(terminalSupplier, localization) {
     override fun formatHelp(
         prolog: String,
@@ -31,7 +33,7 @@ internal class LegacyHelpFormatter(
         parameters: List<ParameterHelp>,
         programName: String
     ): String {
-        val extendedEpilog = "```${options.getUsage(terminal, width)}```$epilog"
+        val extendedEpilog = "```${nonCliktUsageProvider(terminal, width)}```$epilog"
         val transformedParameters = helpListTransform(parameters)
         return super.formatHelp(prolog, extendedEpilog, transformedParameters, programName)
     }
