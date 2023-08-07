@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import java.io.PrintWriter
@@ -39,7 +40,7 @@ class MetalavaCommandTest {
 
         try {
             command.process(args.toTypedArray())
-        } catch (e: DriverException) {
+        } catch (e: MetalavaCliException) {
             Assert.assertEquals(
                 """
                 Usage: test [options] [flags]...

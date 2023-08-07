@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -1106,7 +1107,7 @@ class CompatibilityCheck(
                     "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
-                throw DriverException(exitCode = -1, stderr = message)
+                throw MetalavaCliException(exitCode = -1, stderr = message)
             }
         }
     }

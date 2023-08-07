@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -859,7 +860,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         mutableSourcePath.add(File(""))
                     } else {
                         if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                            throw DriverException(
+                            throw MetalavaCliException(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
@@ -874,7 +875,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 }
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
-                        throw DriverException(stderr = "Only one $ARG_SUBTRACT_API can be supplied")
+                        throw MetalavaCliException(
+                            stderr = "Only one $ARG_SUBTRACT_API can be supplied"
+                        )
                     }
                     subtractApi = stringToExistingFile(getValue(args, ++index))
                 }
@@ -1016,7 +1019,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_REPORT_EVEN_IF_SUPPRESSED -> {
                     val relative = getValue(args, ++index)
                     if (reportEvenIfSuppressed != null) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "Only one $ARG_REPORT_EVEN_IF_SUPPRESSED is allowed; found both $reportEvenIfSuppressed and $relative"
                         )
                     }
@@ -1147,7 +1150,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_CURRENT_VERSION -> {
                     currentApiLevel = Integer.parseInt(getValue(args, ++index))
                     if (currentApiLevel <= 26) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "Suspicious currentApi=$currentApiLevel, expected at least 27"
                         )
                     }
@@ -1206,7 +1209,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "-encoding" -> {
                     val value = getValue(args, ++index)
                     if (value.uppercase(Locale.getDefault()) != "UTF-8") {
-                        throw DriverException("$value: Only UTF-8 encoding is supported")
+                        throw MetalavaCliException("$value: Only UTF-8 encoding is supported")
                     }
                 }
                 ARG_JAVA_SOURCE,
@@ -1215,11 +1218,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val level = LanguageLevel.parse(value)
                     when {
                         level == null ->
-                            throw DriverException(
+                            throw MetalavaCliException(
                                 "$value is not a valid or supported Java language level"
                             )
                         level.isLessThan(LanguageLevel.JDK_1_7) ->
-                            throw DriverException("$arg must be at least 1.7")
+                            throw MetalavaCliException("$arg must be at least 1.7")
                         else -> javaLanguageLevel = level
                     }
                 }
@@ -1243,7 +1246,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_STRICT_INPUT_FILES_WARN,
                 ARG_STRICT_INPUT_FILES_STACK -> {
                     if (strictInputViolationsFile != null) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "$ARG_STRICT_INPUT_FILES, $ARG_STRICT_INPUT_FILES_WARN and $ARG_STRICT_INPUT_FILES_STACK may be specified only once"
                         )
                     }
@@ -1311,7 +1314,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                                 "$ARG_FORMAT=recommended" -> FileFormat.recommended
                                 "$ARG_FORMAT=latest" -> FileFormat.latest
                                 else ->
-                                    throw DriverException(
+                                    throw MetalavaCliException(
                                         stderr =
                                             "Unexpected signature format; expected v1, v2, v3 or v4"
                                     )
@@ -1332,7 +1335,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         if (generateApiLevelXml != null) {
             if (currentApiLevel == -1) {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
                 )
             }
@@ -1355,7 +1358,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
 
         if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
-            throw DriverException(
+            throw MetalavaCliException(
                 stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
             )
         }
@@ -1365,7 +1368,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         val numVersionNames = apiVersionNames?.size ?: 0
         val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
         if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw DriverException(
+            throw MetalavaCliException(
                 "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
             )
         }
@@ -1450,14 +1453,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             if (jar.isFile) {
                 mutableClassPath.add(jar)
             } else {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr =
                         "Could not find android.jar for API level " +
                             "$compileSdkVersion in SDK $sdkHome: $jar does not exist"
                 )
             }
             if (jdkHome != null) {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME"
                 )
             }
@@ -1551,7 +1554,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                                 argList.add(args[index + 1])
                             }
                         }
-                        throw DriverException(
+                        throw MetalavaCliException(
                             stderr =
                                 "Could not find android.jar for API level $apiLevel; the " +
                                     "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}"
@@ -1589,14 +1592,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             "false",
             "disabled",
             "off" -> false
-            else -> throw DriverException(stderr = "Unexpected $answer; expected yes or no")
+            else -> throw MetalavaCliException(stderr = "Unexpected $answer; expected yes or no")
         }
     }
 
     /** Makes sure that the flag combinations make sense */
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
-            throw DriverException(
+            throw MetalavaCliException(
                 stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both"
             )
         }
@@ -1604,7 +1607,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
-            throw DriverException("Missing argument for ${args[index - 1]}")
+            throw MetalavaCliException("Missing argument for ${args[index - 1]}")
         }
         return args[index]
     }
@@ -1615,7 +1618,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory) {
-                throw DriverException("$file is not a directory")
+                throw MetalavaCliException("$file is not a directory")
             }
             files.add(file)
         }
@@ -1627,7 +1630,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                throw DriverException("$file is not a jar or directory")
+                throw MetalavaCliException("$file is not a jar or directory")
             }
             files.add(file)
         }
@@ -1642,7 +1645,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.exists()) {
-                throw DriverException("$file does not exist")
+                throw MetalavaCliException("$file does not exist")
             }
             files.add(file)
         }
@@ -1653,7 +1656,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private fun stringToExistingFileOrDir(value: String): File {
         val file = fileForPathInner(value)
         if (!file.exists()) {
-            throw DriverException("$file is not a file or directory")
+            throw MetalavaCliException("$file is not a file or directory")
         }
         return FileReadSandbox.allowAccess(file)
     }
@@ -1678,7 +1681,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     // which means you can't point to files in paths with spaces)
                     val listFile = File(file.path.substring(1))
                     if (!allowDirs && !listFile.isFile) {
-                        throw DriverException("$listFile is not a file")
+                        throw MetalavaCliException("$listFile is not a file")
                     }
                     val contents = Files.asCharSource(listFile, UTF_8).read()
                     val pathList =
@@ -1691,13 +1694,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         .map { File(it) }
                         .forEach {
                             if (!allowDirs && !it.isFile) {
-                                throw DriverException("$it is not a file")
+                                throw MetalavaCliException("$it is not a file")
                             }
                             files.add(it)
                         }
                 } else {
                     if (!allowDirs && !file.isFile) {
-                        throw DriverException("$file is not a file")
+                        throw MetalavaCliException("$file is not a file")
                     }
                     files.add(file)
                 }
@@ -1710,7 +1713,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         if (!dir.isDirectory) {
             val ok = dir.mkdirs()
             if (!ok) {
-                throw DriverException("Could not create $dir")
+                throw MetalavaCliException("Could not create $dir")
             }
         }
         return FileReadSandbox.allowAccess(dir)
@@ -1723,7 +1726,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             if (parentFile != null && !parentFile.isDirectory) {
                 val ok = parentFile.mkdirs()
                 if (!ok) {
-                    throw DriverException("Could not create $parentFile")
+                    throw MetalavaCliException("Could not create $parentFile")
                 }
             }
         }
@@ -1746,7 +1749,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 output.mkdirs()
             }
         if (!ok) {
-            throw DriverException("Could not create $output")
+            throw MetalavaCliException("Could not create $output")
         }
 
         return FileReadSandbox.allowAccess(output)
@@ -2169,7 +2172,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                                 "$arg ${it.name} instead of $arg $id"
                         )
                     }
-                        ?: throw DriverException("Unknown issue id: $arg $id")
+                        ?: throw MetalavaCliException("Unknown issue id: $arg $id")
 
             defaultConfiguration.setSeverity(issue, severity)
         }
@@ -2181,7 +2184,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             }
             val issues =
                 Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                    ?: throw DriverException("Unknown category: $arg $id")
+                    ?: throw MetalavaCliException("Unknown category: $arg $id")
 
             issues.forEach { defaultConfiguration.setSeverity(it, severity) }
         }
@@ -2189,7 +2192,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
             val languageLevel =
                 LanguageVersion.fromVersionString(value)
-                    ?: throw DriverException(
+                    ?: throw MetalavaCliException(
                         "$value is not a valid or supported Kotlin language level"
                     )
             val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)

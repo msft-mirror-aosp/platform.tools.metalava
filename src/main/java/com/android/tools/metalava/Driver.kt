@@ -22,6 +22,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
@@ -102,7 +103,7 @@ fun run(
                 "$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details."
             )
         }
-    } catch (e: DriverException) {
+    } catch (e: MetalavaCliException) {
         stdout.flush()
         stderr.flush()
 
@@ -238,7 +239,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
             sources
                 .firstOrNull { !it.path.endsWith(DOT_TXT) }
                 ?.let {
-                    throw DriverException(
+                    throw MetalavaCliException(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
@@ -591,7 +592,7 @@ fun subtractApi(
             path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
             path.endsWith(DOT_JAR) -> loadFromJarFile(psiSourceParser, subtractApiFile)
             else ->
-                throw DriverException(
+                throw MetalavaCliException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
                 )
         }
@@ -647,7 +648,7 @@ fun checkCompatibility(
 
     val oldFormat = (oldCodebase as? TextCodebase)?.format
     if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
-        throw DriverException(
+        throw MetalavaCliException(
             "Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat"
         )
     }
@@ -669,7 +670,7 @@ fun checkCompatibility(
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
         // is the non-annotated APIs.
-        throw DriverException(
+        throw MetalavaCliException(
             ARG_CHECK_COMPATIBILITY_BASE_API + " is not compatible with --showAnnotation."
         )
     }

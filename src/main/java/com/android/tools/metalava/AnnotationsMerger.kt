@@ -41,6 +41,7 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -100,7 +101,7 @@ class AnnotationsMerger(
         mergeAll(
             files,
             {
-                throw DriverException(
+                throw MetalavaCliException(
                     "External inclusion annotations files must be .java, found ${it.path}"
                 )
             },
@@ -235,7 +236,7 @@ class AnnotationsMerger(
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $path: ${ex.message}"
-            throw DriverException(message)
+            throw MetalavaCliException(message)
         }
     }
 

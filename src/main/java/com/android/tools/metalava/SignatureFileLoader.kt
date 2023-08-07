@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.text.ApiFile
@@ -54,7 +55,7 @@ object SignatureFileLoader {
         try {
             return ApiFile.parseApi(files, classResolver, annotationManager)
         } catch (ex: ApiParseException) {
-            throw DriverException("Unable to parse signature file: ${ex.message}")
+            throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
         }
     }
 }

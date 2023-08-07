@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
@@ -141,20 +142,20 @@ internal open class MetalavaCommand(
             // If the command in the message is the default command then use this command instead as
             // the default command should not appear in the help.
             val command = if (e.command == defaultCommand) this else e.command
-            throw DriverException(
+            throw MetalavaCliException(
                 stdout = command.getFormattedHelp(),
                 exitCode = if (e.error) 1 else 0
             )
         } catch (e: PrintMessage) {
-            throw DriverException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
+            throw MetalavaCliException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
         } catch (e: NoSuchOption) {
             correctContextInUsageError(e)
             val message = createUsageErrorMessage(e)
-            throw DriverException(stderr = message, exitCode = e.statusCode)
+            throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         } catch (e: UsageError) {
             correctContextInUsageError(e)
             val message = e.helpMessage()
-            throw DriverException(stderr = message, exitCode = e.statusCode)
+            throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         }
     }
 
