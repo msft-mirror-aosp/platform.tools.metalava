@@ -7,11 +7,11 @@
       <trusted-artifacts>
          <trust group="androidx.databinding"/>
          <trust group="com.google.testing.platform"/>
+         <trust group="gradle" name="gradle"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
          <trust group="^androidx($|([.].*))" regex="true" reason="not signed yet"/>
          <trust group="^com.android($|([.].*))" regex="true"/>
-         <trust group="gradle" name="gradle"/>
       </trusted-artifacts>
       <trusted-keys>
          <trusted-key id="03c123038c20aae9e286c857479d601f3a7b5c1a" group="com.github.ajalt.clikt" name="clikt-jvm"/>
@@ -122,7 +122,6 @@
          <trusted-key id="a0e7010544c02bd4c072b1803e3d777c909a447c" group="io.opencensus"/>
          <trusted-key id="a5bd02b93e7a40482eb1d66a5f69ad087600b22c" group="org.ow2.asm"/>
          <trusted-key id="a6d6c97108b8585f91b158748671a8df71296252" group="com.squareup"/>
-         <trusted-key id="d477d51812e692011db11e66a6ea2e2bf22e0543" group="io.github.java-diff-utils"/>
          <trusted-key id="a7892505cf1a58076453e52d7999befba1039e8b" group="net.bytebuddy"/>
          <trusted-key id="aa417737bd805456db3cbdde6601e5c08dccbb96" group="info.picocli"/>
          <trusted-key id="aa70c7c433d501636392ec02153e7a3c2b4e5118" group="org.eclipse.ee4j"/>
@@ -148,6 +147,7 @@
             <trusting group="org.codehaus.mojo"/>
             <trusting group="org.codehouse.mojo"/>
          </trusted-key>
+         <trusted-key id="d477d51812e692011db11e66a6ea2e2bf22e0543" group="io.github.java-diff-utils"/>
          <trusted-key id="d4c89ea4aaf455fd88b22087efe8086f9e93774e" group="junit"/>
          <trusted-key id="d6f1bc78607808ec8e9f69437a8860944fad5f62" group="org.apache.commons"/>
          <trusted-key id="da7a1bb85b19e4fb05073431205c8673dc742c7c" group="org.apache"/>
