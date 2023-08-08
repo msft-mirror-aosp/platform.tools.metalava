@@ -68,7 +68,7 @@ class Baseline(
                     if (updateFile != null) {
                         if (
                             options.baselineErrorsOnly &&
-                                configuration.getSeverity(issue) != Severity.ERROR
+                                issueConfiguration.getSeverity(issue) != Severity.ERROR
                         ) {
                             return true
                         }
@@ -220,7 +220,7 @@ class Baseline(
             val count = entry.value
             val issue = entry.key
             writer.println(
-                "    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${configuration.getSeverity(issue)}"
+                "    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${issueConfiguration.getSeverity(issue)}"
             )
             total += count
         }

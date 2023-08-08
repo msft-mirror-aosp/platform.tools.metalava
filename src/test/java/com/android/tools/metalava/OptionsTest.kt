@@ -604,27 +604,27 @@ $MAIN_HELP_BODY
                     "ArrayReturn"
                 )
         )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
-        assertEquals(Severity.WARNING, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
+        assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
+        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test
     fun `Test multiple issue severity options`() {
         check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
         check(extraArguments = arrayOf("--error", "RemovedClass"))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
+        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
         assertEquals(
             Severity.ERROR,
-            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+            issueConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
         )
     }
 
@@ -635,7 +635,7 @@ $MAIN_HELP_BODY
             expectedIssues =
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test

@@ -1061,7 +1061,7 @@ class CompatibilityCheck(
         }
         if (
             reporter.report(issue, item, message) &&
-                configuration.getSeverity(issue) == Severity.ERROR
+                issueConfiguration.getSeverity(issue) == Severity.ERROR
         ) {
             foundProblems = true
         }

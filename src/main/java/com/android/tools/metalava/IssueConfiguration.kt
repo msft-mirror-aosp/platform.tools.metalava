@@ -54,8 +54,5 @@ class IssueConfiguration {
     }
 }
 
-/** Default error configuration: uses the severities as configured in [Options] */
-val defaultConfiguration = IssueConfiguration()
-
 /** Current configuration to apply when reporting errors */
-var configuration = defaultConfiguration
+val issueConfiguration = IssueConfiguration()

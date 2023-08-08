@@ -416,7 +416,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
-        defaultConfiguration.reset()
+        issueConfiguration.reset()
 
         val actualExpectedFail =
             when {

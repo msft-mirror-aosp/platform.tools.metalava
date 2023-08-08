@@ -2208,7 +2208,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     }
                         ?: throw MetalavaCliException("Unknown issue id: $arg $id")
 
-            defaultConfiguration.setSeverity(issue, severity)
+            issueConfiguration.setSeverity(issue, severity)
         }
 
         private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
@@ -2220,7 +2220,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
                     ?: throw MetalavaCliException("Unknown category: $arg $id")
 
-            issues.forEach { defaultConfiguration.setSeverity(it, severity) }
+            issues.forEach { issueConfiguration.setSeverity(it, severity) }
         }
 
         private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {

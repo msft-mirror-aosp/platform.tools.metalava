@@ -67,7 +67,7 @@ internal class DefaultReporter(
         message: String,
         location: Location
     ): Boolean {
-        val severity = configuration.getSeverity(id)
+        val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
             return false
         }
@@ -116,7 +116,7 @@ internal class DefaultReporter(
     }
 
     override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean {
-        val severity = configuration.getSeverity(id)
+        val severity = issueConfiguration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
         }
