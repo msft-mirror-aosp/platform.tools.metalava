@@ -197,22 +197,6 @@ Diffs and Checks:
                                              Promote all warnings to errors
 --lints-as-errors
                                              Promote all API lint warnings to errors
---error <id>
-                                             Report issues of the given id as errors
---warning <id>
-                                             Report issues of the given id as warnings
---lint <id>
-                                             Report issues of the given id as having lint-severity
---hide <id>
-                                             Hide/skip issues of the given id
---error-category <name>
-                                             Report all issues in the given category as errors
---warning-category <name>
-                                             Report all issues in the given category as warnings
---lint-category <name>
-                                             Report all issues in the given category as having lint-severity
---hide-category <name>
-                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category')
@@ -426,6 +410,19 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
+
+Issue Reporting:
+
+  Options that control which issues are reported and the severity of the reports.
+
+  --error <id>                               Report issues of the given id as errors
+  --warning <id>                             Report issues of the given id as warnings
+  --lint <id>                                Report issues of the given id as having lint-severity
+  --hide <id>                                Hide/skip issues of the given id
+  --error-category <name>                    Report all issues in the given category as errors
+  --warning-category <name>                  Report all issues in the given category as warnings
+  --lint-category <name>                     Report all issues in the given category as having lint-severity
+  --hide-category <name>                     Hide/skip all issues in the given category
 
 Signature File Output:
 
