@@ -29,25 +29,41 @@ const val DEFAULT_BASELINE_NAME = "baseline.txt"
 private const val BASELINE_FILE_HEADER = "// Baseline format: 1.0\n"
 
 @Suppress("DEPRECATION")
-class Baseline(
-    /** Description of this baseline. e.g. "api-lint. */
-    val description: String,
+class Baseline
+private constructor(
+    /** Description of this baseline. e.g. "api-lint", which is written into the file. */
+    private val description: String,
+    /**
+     * The optional input baseline file.
+     *
+     * If this exists and [updateFile] is either not set, or set to a different path then this file
+     * is read in and used to filter out known issues. If [updateFile] is set then the known issues
+     * read in from this file will be included in those written to [updateFile].
+     */
     val file: File?,
-    var updateFile: File?,
-    private var headerComment: String = "",
+    /**
+     * The file into which an updated version of the baseline will be written that would suppress
+     * all the known issues reported during this process.
+     */
+    val updateFile: File?,
+    /**
+     * The comment that will be written after the first line which marks this out as a baseline
+     * file.
+     */
+    private val headerComment: String,
+) {
     /**
      * Whether, when updating the baseline, we allow the metalava run to pass even if the baseline
      * does not contain all issues that would normally fail the run (by default ERROR level).
      */
-    var silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path,
-) {
+    private val silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path
 
     /** Map from issue id to element id to message */
     private val map = HashMap<Issues.Issue, MutableMap<String, String>>()
 
     init {
         if (file?.isFile == true && !silentUpdate) {
-            // We've set a baseline for a nonexistent file: read it
+            // We've set a baseline from an existing file: read it
             read()
         }
     }
@@ -80,7 +96,7 @@ class Baseline(
 
         val oldMessage: String? = idMap?.get(elementId)
         if (oldMessage != null) {
-            // for now not matching messages; the id's are unique enough and allows us
+            // for now not matching messages; the ids are unique enough and allows us
             // to tweak issue messages compatibly without recording all the deltas here
             return true
         }
@@ -95,10 +111,6 @@ class Baseline(
         }
 
         return false
-    }
-
-    private fun getBaselineKey(file: File): String {
-        return transformBaselinePath(file.path)
     }
 
     /**
