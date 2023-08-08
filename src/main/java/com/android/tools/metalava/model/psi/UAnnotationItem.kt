@@ -16,16 +16,16 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
@@ -46,18 +46,21 @@ import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.util.isArrayInitializer
 
-class UAnnotationItem private constructor(
+class UAnnotationItem
+private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    override val originalName: String?
-) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
-
-    override fun toString(): String = toSource()
+    originalName: String?
+) :
+    DefaultAnnotationItem(
+        codebase,
+        originalName,
+        { getAnnotationAttributes(codebase, uAnnotation) }
+    ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, uAnnotation, originalName, target, showDefaultAttrs)
+        appendAnnotation(codebase, sb, uAnnotation, qualifiedName, target, showDefaultAttrs)
         return sb.toString()
     }
 
@@ -66,27 +69,36 @@ class UAnnotationItem private constructor(
     }
 
     override fun isNonNull(): Boolean {
-        if (uAnnotation.javaPsi is KtLightNullabilityAnnotation<*> &&
-            originalName == ""
-        ) {
+        if (uAnnotation.javaPsi is KtLightNullabilityAnnotation<*> && originalName == "") {
             // Hack/workaround: some UAST annotation nodes do not provide qualified name :=(
             return true
         }
         return super.isNonNull()
     }
 
-    override val attributes: List<UAnnotationAttribute> by lazy {
-        uAnnotation.attributeValues.map { attribute ->
-            UAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, attribute.expression)
-        }.toList()
-    }
-
     override val targets: Set<AnnotationTarget> by lazy {
-        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
+        codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, uAnnotation: UAnnotation, qualifiedName: String? = uAnnotation.qualifiedName): UAnnotationItem {
+        private fun getAnnotationAttributes(
+            codebase: PsiBasedCodebase,
+            uAnnotation: UAnnotation
+        ): List<AnnotationAttribute> =
+            uAnnotation.attributeValues
+                .map { attribute ->
+                    DefaultAnnotationAttribute(
+                        attribute.name ?: ANNOTATION_ATTR_VALUE,
+                        createValue(codebase, attribute.expression)
+                    )
+                }
+                .toList()
+
+        fun create(
+            codebase: PsiBasedCodebase,
+            uAnnotation: UAnnotation,
+            qualifiedName: String? = uAnnotation.qualifiedName
+        ): UAnnotationItem {
             return UAnnotationItem(codebase, uAnnotation, qualifiedName)
         }
 
@@ -94,8 +106,10 @@ class UAnnotationItem private constructor(
             return UAnnotationItem(codebase, original.uAnnotation, original.originalName)
         }
 
-        private fun getAttributes(annotation: UAnnotation, showDefaultAttrs: Boolean):
-            List<Pair<String?, UExpression?>> {
+        private fun getAttributes(
+            annotation: UAnnotation,
+            showDefaultAttrs: Boolean
+        ): List<Pair<String?, UExpression?>> {
             val annotationClass = annotation.javaPsi?.nameReferenceElement?.resolve() as? PsiClass
             val list = mutableListOf<Pair<String?, UExpression?>>()
             if (annotationClass != null && showDefaultAttrs) {
@@ -121,7 +135,8 @@ class UAnnotationItem private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = AnnotationItem.mapName(originalName, target) ?: return
+            val qualifiedName =
+                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
 
             val attributes = getAttributes(uAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
@@ -132,7 +147,10 @@ class UAnnotationItem private constructor(
             sb.append("@")
             sb.append(qualifiedName)
             sb.append("(")
-            if (attributes.size == 1 && (attributes[0].first == null || attributes[0].first == ATTR_VALUE)) {
+            if (
+                attributes.size == 1 &&
+                    (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
+            ) {
                 // Special case: omit "value" if it's the only attribute
                 appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
             } else {
@@ -143,7 +161,7 @@ class UAnnotationItem private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: ATTR_VALUE)
+                    sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
                     appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
                 }
@@ -162,7 +180,8 @@ class UAnnotationItem private constructor(
             // because that may not use fully qualified names, e.g. the source may say
             //  @RequiresPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
             // and we want to compute
-            //  @androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            //
+            // @androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
             when (value) {
                 null -> sb.append("null")
                 is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))
@@ -201,7 +220,15 @@ class UAnnotationItem private constructor(
                     } // TODO: support UCallExpression for other cases than array initializers
                 }
                 is UAnnotation -> {
-                    appendAnnotation(codebase, sb, value, value.qualifiedName, target, showDefaultAttrs)
+                    appendAnnotation(
+                        codebase,
+                        sb,
+                        value,
+                        // Normalize the input name of the annotation.
+                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
+                        target,
+                        showDefaultAttrs
+                    )
                 }
                 else -> {
                     val source = getConstantSource(value)
@@ -214,7 +241,11 @@ class UAnnotationItem private constructor(
             }
         }
 
-        private fun appendQualifiedName(codebase: PsiBasedCodebase, sb: StringBuilder, value: UReferenceExpression) {
+        private fun appendQualifiedName(
+            codebase: PsiBasedCodebase,
+            sb: StringBuilder,
+            value: UReferenceExpression
+        ) {
             when (val resolved = value.resolve()) {
                 is PsiField -> {
                     val containing = resolved.containingClass
@@ -234,9 +265,7 @@ class UAnnotationItem private constructor(
                                 }
                             }
                         }
-                        containing.qualifiedName?.let {
-                            sb.append(it).append('.')
-                        }
+                        containing.qualifiedName?.let { sb.append(it).append('.') }
                     }
 
                     sb.append(resolved.name)
@@ -260,37 +289,25 @@ class UAnnotationItem private constructor(
     }
 }
 
-class UAnnotationAttribute(
-    codebase: PsiBasedCodebase,
-    override val name: String,
-    psiValue: UExpression
-) : AnnotationAttribute {
-    override val value: AnnotationAttributeValue = UAnnotationValue.create(
-        codebase, psiValue
-    )
-}
-
-abstract class UAnnotationValue : AnnotationAttributeValue {
-    companion object {
-        fun create(codebase: PsiBasedCodebase, value: UExpression): UAnnotationValue {
-            return if (value.isArrayInitializer()) {
-                UAnnotationArrayAttributeValue(codebase, value as UCallExpression)
-            } else {
-                UAnnotationSingleAttributeValue(codebase, value)
-            }
-        }
+private fun createValue(codebase: PsiBasedCodebase, value: UExpression): AnnotationAttributeValue {
+    return if (value.isArrayInitializer()) {
+        val uCallExpression = value as UCallExpression
+        DefaultAnnotationArrayAttributeValue(
+            { getText(uCallExpression) },
+            { uCallExpression.valueArguments.map { createValue(codebase, it) }.toList() }
+        )
+    } else {
+        UAnnotationSingleAttributeValue(codebase, value)
     }
-
-    override fun toString(): String = toSource()
 }
 
 class UAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: UExpression
-) : UAnnotationValue(), AnnotationSingleAttributeValue {
-    override val valueSource: String = getText(psiValue)
-    override val value: Any?
-        get() {
+) : DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
+
+    companion object {
+        private fun getValue(psiValue: UExpression): Any? {
             if (psiValue is ULiteralExpression) {
                 val value = psiValue.value
                 if (value != null) {
@@ -319,10 +336,7 @@ class UAnnotationSingleAttributeValue(
 
             return getText(psiValue).removeSurrounding("\"")
         }
-
-    override fun value(): Any? = value
-
-    override fun toSource(): String = getText(psiValue)
+    }
 
     override fun resolve(): Item? {
         if (psiValue is UReferenceExpression) {
@@ -334,15 +348,6 @@ class UAnnotationSingleAttributeValue(
         }
         return null
     }
-}
-
-class UAnnotationArrayAttributeValue(codebase: PsiBasedCodebase, private val value: UCallExpression) :
-    UAnnotationValue(), AnnotationArrayAttributeValue {
-    override val values = value.valueArguments.map {
-        create(codebase, it)
-    }.toList()
-
-    override fun toSource(): String = getText(value)
 }
 
 private fun getText(element: UElement): String {
