@@ -16,30 +16,27 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiEllipsisType
-import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
-import com.intellij.psi.PsiPrimitiveType
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.builtins.isFunctionOrKFunctionTypeWithAnySuspendability
-import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
+import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.resolve.typeBinding.createTypeBindingForReturnType
-import org.jetbrains.kotlin.types.typeUtil.TypeNullability
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.psi.UastKotlinPsiParameter
 
 class PsiParameterItem(
     override val codebase: PsiBasedCodebase,
@@ -49,12 +46,13 @@ class PsiParameterItem(
     modifiers: PsiModifierItem,
     documentation: String,
     private val type: PsiTypeItem
-) : PsiItem(
-    codebase = codebase,
-    modifiers = modifiers,
-    documentation = documentation,
-    element = psiParameter
-),
+) :
+    PsiItem(
+        codebase = codebase,
+        modifiers = modifiers,
+        documentation = documentation,
+        element = psiParameter
+    ),
     ParameterItem {
     lateinit var containingMethod: PsiMethodItem
 
@@ -78,18 +76,24 @@ class PsiParameterItem(
                 return null
             }
             // Continuation parameter of suspend function
-            if (containingMethod.modifiers.isSuspend() &&
-                "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
-                containingMethod.parameters().size - 1 == parameterIndex
+            if (
+                containingMethod.modifiers.isSuspend() &&
+                    "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
+                    containingMethod.parameters().size - 1 == parameterIndex
             ) {
                 return null
             }
             return name
         } else {
             // Java: Look for @ParameterName annotation
-            val annotation = modifiers.annotations().firstOrNull { it.isParameterName() }
+            val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
             if (annotation != null) {
                 return annotation.attributes.firstOrNull()?.value?.value()?.toString()
+            }
+
+            // Parameter names from classpath jars are not present as annotations
+            if (isFromClassPath()) {
+                return name()
             }
         }
 
@@ -103,11 +107,12 @@ class PsiParameterItem(
             getKtParameter()?.hasDefaultValue() ?: false && defaultValue() != INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
-            modifiers.annotations().any { it.isDefaultValue() }
+            modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
         }
     }
 
-    // Note receiver parameter used to be named $receiver in previous UAST versions, now it is $this$functionName
+    // Note receiver parameter used to be named $receiver in previous UAST versions, now it is
+    // $this$functionName
     private fun isReceiver(): Boolean = parameterIndex == 0 && name.startsWith("\$this\$")
 
     private fun getKtParameter(): KtParameter? {
@@ -148,7 +153,8 @@ class PsiParameterItem(
         return null
     }
 
-    override val synthetic: Boolean get() = containingMethod.isEnumSyntheticMethod()
+    override val synthetic: Boolean
+        get() = containingMethod.isEnumSyntheticMethod()
 
     private var defaultValue: String? = null
 
@@ -168,10 +174,10 @@ class PsiParameterItem(
                     return defaultValue.text
                 }
 
-                val defaultExpression: UExpression = UastFacade.convertElement(
-                    defaultValue, null,
-                    UExpression::class.java
-                ) as? UExpression ?: return INVALID_VALUE
+                val defaultExpression: UExpression =
+                    UastFacade.convertElement(defaultValue, null, UExpression::class.java)
+                        as? UExpression
+                        ?: return INVALID_VALUE
                 val constant = defaultExpression.evaluate()
                 return if (constant != null && constant !is Pair<*, *>) {
                     constantToSource(constant)
@@ -185,7 +191,7 @@ class PsiParameterItem(
             return INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
-            val annotation = modifiers.annotations().firstOrNull { it.isDefaultValue() }
+            val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
             if (annotation != null) {
                 return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
@@ -195,13 +201,16 @@ class PsiParameterItem(
     }
 
     override fun type(): TypeItem = type
+
     override fun containingMethod(): MethodItem = containingMethod
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
         }
-        return other is ParameterItem && parameterIndex == other.parameterIndex && containingMethod == other.containingMethod()
+        return other is ParameterItem &&
+            parameterIndex == other.parameterIndex &&
+            containingMethod == other.containingMethod()
     }
 
     override fun hashCode(): Int {
@@ -220,7 +229,6 @@ class PsiParameterItem(
      * syntax.
      *
      * Specifically this will attempt to handle the follow cases:
-     *
      * - Java SAM interface = true
      * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
      * - Kotlin fun interface = true
@@ -252,24 +260,15 @@ class PsiParameterItem(
             // a type is SAM convertible or not, which should handle external dependencies better
             // and avoid any divergence from the actual compiler behaviour, if there are changes.
             val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
-            val bindingContext = codebase.bindingContext(parameter)
-            if (bindingContext != null) { // FE 1.0
-                val type =
-                    parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
-                // True if the type is a SAM type, or a fun interface
-                val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
-                // True if the type is a Kotlin lambda (suspend or not)
-                val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
+            analyze(parameter) {
+                val ktType = parameter.getParameterSymbol().returnType
+                val isSamType = ktType.isFunctionalInterfaceType
+                val isFunctionalType =
+                    ktType.isFunctionType ||
+                        ktType.isSuspendFunctionType ||
+                        ktType.isKFunctionType ||
+                        ktType.isKSuspendFunctionType
                 return isSamType || isFunctionalType
-            } else { // Analysis API
-                analyze(parameter) {
-                    val ktType = parameter.getParameterSymbol().returnType
-                    val isSamType = ktType.isFunctionalInterfaceType
-                    val isFunctionalType =
-                        ktType.isFunctionType || ktType.isSuspendFunctionType ||
-                            ktType.isKFunctionType || ktType.isKSuspendFunctionType
-                    return isSamType || isFunctionalType
-                }
             }
         }
     }
@@ -283,81 +282,59 @@ class PsiParameterItem(
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
             val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
-            // UAST workaround: nullability/type of parameter for UMethod with fake LC PSI
-            // See https://youtrack.jetbrains.com/issue/KTIJ-23837
-            // We will be informed when the fix is ready, since use of [TypeNullability] will break
-            // as per https://youtrack.jetbrains.com/issue/KTIJ-23603
+            val psiType = psiParameter.type
+            // UAST workaround: nullity of element type in last `vararg` parameter's array type
             val workaroundPsiType =
-                if (psiParameter is UParameter &&
-                    psiParameter.sourcePsi is KtParameter &&
-                    psiParameter.javaPsi is UastKotlinPsiParameter
+                if (
+                    psiParameter is UParameter &&
+                        psiParameter.sourcePsi is KtParameter &&
+                        psiParameter.isVarArgs && // last `vararg`
+                        psiType is PsiArrayType
                 ) {
                     val ktParameter = psiParameter.sourcePsi as KtParameter
-                    val nullability = codebase.uastResolveService?.nullability(ktParameter)
-                    val psiType = codebase.uastResolveService
-                        ?.getType(ktParameter, psiParameter.uastParent as? PsiModifierListOwner)
-                        ?.let { psiType ->
-                            // UAST workaround: retrieval of boxed primitive type, if nullable
-                            // See https://youtrack.jetbrains.com/issue/KTIJ-23837
-                            if (nullability == TypeNullability.NULLABLE &&
-                                psiType is PsiPrimitiveType
-                            ) {
-                                psiType.getBoxedType(psiParameter)
-                            } else {
-                                psiType
-                            }
-                        }
-                        ?: psiParameter.type
                     val annotationProvider =
-                        when (nullability) {
-                            TypeNullability.NOT_NULL -> codebase.getNonNullAnnotationProvider()
-                            TypeNullability.NULLABLE -> codebase.getNullableAnnotationProvider()
+                        when (codebase.uastResolveService?.nullability(ktParameter)) {
+                            KtTypeNullability.NON_NULLABLE ->
+                                codebase.getNonNullAnnotationProvider()
+                            KtTypeNullability.NULLABLE -> codebase.getNullableAnnotationProvider()
                             else -> null
                         }
-                    if (ktParameter.isVarArg && psiType is PsiArrayType) {
-                        val annotatedType = if (annotationProvider != null) {
+                    val annotatedType =
+                        if (annotationProvider != null) {
                             psiType.componentType.annotate(annotationProvider)
                         } else {
                             psiType.componentType
                         }
-                        PsiEllipsisType(annotatedType, annotatedType.annotationProvider)
-                    } else {
-                        if (annotationProvider != null) {
-                            psiType.annotate(annotationProvider)
-                        } else {
-                            psiType
-                        }
-                    }
+                    PsiEllipsisType(annotatedType, annotatedType.annotationProvider)
                 } else {
-                    psiParameter.type
+                    psiType
                 }
             val type = codebase.getType(workaroundPsiType)
-            val parameter = PsiParameterItem(
-                codebase = codebase,
-                psiParameter = psiParameter,
-                name = name,
-                parameterIndex = parameterIndex,
-                documentation = commentText,
-                modifiers = modifiers,
-                type = type
-            )
+            val parameter =
+                PsiParameterItem(
+                    codebase = codebase,
+                    psiParameter = psiParameter,
+                    name = name,
+                    parameterIndex = parameterIndex,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    type = type
+                )
             parameter.modifiers.setOwner(parameter)
             return parameter
         }
 
-        fun create(
-            codebase: PsiBasedCodebase,
-            original: PsiParameterItem
-        ): PsiParameterItem {
-            val parameter = PsiParameterItem(
-                codebase = codebase,
-                psiParameter = original.psiParameter,
-                name = original.name,
-                parameterIndex = original.parameterIndex,
-                documentation = original.documentation,
-                modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                type = PsiTypeItem.create(codebase, original.type)
-            )
+        fun create(codebase: PsiBasedCodebase, original: PsiParameterItem): PsiParameterItem {
+            val parameter =
+                PsiParameterItem(
+                    codebase = codebase,
+                    psiParameter = original.psiParameter,
+                    name = original.name,
+                    parameterIndex = original.parameterIndex,
+                    documentation = original.documentation,
+                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    type = PsiTypeItem.create(codebase, original.type)
+                )
             parameter.modifiers.setOwner(parameter)
             return parameter
         }
@@ -374,8 +351,7 @@ class PsiParameterItem(
             psiParameter: PsiParameter,
             commentText: String
         ): PsiModifierItem {
-            val modifiers = PsiModifierItem
-                .create(codebase, psiParameter, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiParameter, commentText)
             // Method parameters don't have a visibility level; they are visible to anyone that can
             // call their method. However, Kotlin constructors sometimes appear to specify the
             // visibility of a constructor parameter by putting visibility inside the constructor
@@ -389,8 +365,9 @@ class PsiParameterItem(
         }
 
         /**
-         * Private marker return value from [#computeDefaultValue] signifying that the parameter
-         * has a default value but we were unable to compute a suitable static string representation for it
+         * Private marker return value from [#computeDefaultValue] signifying that the parameter has
+         * a default value but we were unable to compute a suitable static string representation for
+         * it
          */
         private const val INVALID_VALUE = "__invalid_value__"
     }

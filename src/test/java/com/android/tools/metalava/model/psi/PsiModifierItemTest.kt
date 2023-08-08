@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -169,7 +169,6 @@ class PsiModifierItemTest {
                 """
             )
         ) { codebase ->
-
             assertFalse(codebase.assertClass("TopLevel").modifiers.isStatic())
             assertFalse(codebase.assertClass("TopLevel.Inner").modifiers.isStatic())
             assertFalse(codebase.assertClass("Object").modifiers.isStatic())
