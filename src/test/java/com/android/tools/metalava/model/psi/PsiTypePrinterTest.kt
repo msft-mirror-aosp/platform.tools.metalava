@@ -17,13 +17,13 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.libcoreNonNullSource
-import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.nonNullSource
-import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
+import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.nullableSource
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java

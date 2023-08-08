@@ -33,11 +33,11 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
@@ -1582,48 +1582,10 @@ val longDefAnnotationSource: TestFile =
         )
         .indented()
 
-@Suppress("ConstantConditionIf")
-val nonNullSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.Target;
-
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.PARAMETER;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    /**
-     * Denotes that a parameter, field or method return value can never be null.
-     * @paramDoc This value must never be {@code null}.
-     * @returnDoc This value will never be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD${if (SUPPORT_TYPE_USE_ANNOTATIONS) ", TYPE_USE" else ""}})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
-
-val libcoreNonNullSource: TestFile =
-    java(
-            """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
+val nonNullSource = KnownSourceFiles.nonNullSource
+val nullableSource = KnownSourceFiles.nullableSource
+val libcoreNonNullSource = KnownSourceFiles.libcoreNonNullSource
+val libcoreNullableSource = KnownSourceFiles.libcoreNullableSource
 
 val libcoreNullFromTypeParamSource: TestFile =
     java(
@@ -1636,22 +1598,6 @@ val libcoreNullFromTypeParamSource: TestFile =
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface NullFromTypeParam {
-    }
-    """
-        )
-        .indented()
-
-val libcoreNullableSource: TestFile =
-    java(
-            """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
     }
     """
         )
@@ -1747,29 +1693,6 @@ val broadcastBehaviorSource: TestFile =
         boolean registeredOnly() default false;
         boolean includeBackground() default false;
         boolean protectedBroadcast() default false;
-    }
-    """
-        )
-        .indented()
-
-@Suppress("ConstantConditionIf")
-val nullableSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    /**
-     * Denotes that a parameter, field or method return value can be null.
-     * @paramDoc This value may be {@code null}.
-     * @returnDoc This value may be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD${if (SUPPORT_TYPE_USE_ANNOTATIONS) ", TYPE_USE" else ""}})
-    public @interface Nullable {
     }
     """
         )
