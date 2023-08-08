@@ -1354,7 +1354,7 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                gatherSources(reporter, listOf(stubsDir))
+                gatherSources(options.reporter, listOf(stubsDir))
                     .asSequence()
                     .map { it.path }
                     .toList()
@@ -1371,7 +1371,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 )
             }
             val extraAnnotations =
-                gatherSources(reporter, listOf(extraAnnotationsDir))
+                gatherSources(options.reporter, listOf(extraAnnotationsDir))
                     .asSequence()
                     .map { it.path }
                     .toList()

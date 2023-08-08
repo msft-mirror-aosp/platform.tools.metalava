@@ -226,7 +226,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
     val psiSourceParser =
         PsiSourceParser(
             psiEnvironmentManager,
-            reporter = reporter,
+            reporter = options.reporter,
             annotationManager = options.annotationManager,
             javaLanguageLevel = options.javaLanguageLevel,
             kotlinLanguageLevel = options.kotlinLanguageLevel,
@@ -298,7 +298,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, reporter)
+        val docAnalyzer = DocAnalyzer(codebase, options.reporter)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -493,7 +493,8 @@ private fun addMissingItemsRequiredForGeneratingStubs(
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(psiSourceParser, textCodebase, reporter, options.manifest)
+        val analyzer =
+            ApiAnalyzer(psiSourceParser, textCodebase, options.reporter, options.manifest)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -722,7 +723,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
                     "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
                 )
             }
-            gatherSources(reporter, options.sourcePath)
+            gatherSources(options.reporter, options.sourcePath)
         }
 
     progress("Reading Codebase: ")
@@ -736,7 +737,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
 
     progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(psiSourceParser, codebase, reporter, options.manifest)
+    val analyzer = ApiAnalyzer(psiSourceParser, codebase, options.reporter, options.manifest)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -759,7 +760,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
     analyzer.handleStripping()
 
     // General API checks for Android APIs
-    AndroidApiChecks(reporter).check(codebase)
+    AndroidApiChecks(options.reporter).check(codebase)
 
     if (options.checkApi) {
         progress("API Lint: ")
@@ -799,7 +800,7 @@ private fun getClassResolver(psiSourceParser: PsiSourceParser): ClassResolver? {
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
         val uastEnvironment = psiSourceParser.loadUastFromJars(classpath)
-        PsiBasedClassResolver(uastEnvironment, options.annotationManager, reporter)
+        PsiBasedClassResolver(uastEnvironment, options.annotationManager, options.reporter)
     } else {
         null
     }
@@ -815,11 +816,16 @@ fun loadFromJarFile(
 
     val environment = psiSourceParser.loadUastFromJars(listOf(apiJar))
     val codebase =
-        PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
+        PsiBasedCodebase(
+            apiJar,
+            "Codebase loaded from $apiJar",
+            annotationManager,
+            options.reporter
+        )
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
-    val analyzer = ApiAnalyzer(psiSourceParser, codebase, reporter)
+    val analyzer = ApiAnalyzer(psiSourceParser, codebase, options.reporter)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
@@ -842,7 +848,7 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
     val localTimer = Stopwatch.createStarted()
 
     options.externalAnnotations?.let { outputFile ->
-        ExtractAnnotations(codebase, reporter, outputFile).extractAnnotations()
+        ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
         if (options.verbose) {
             progress(
                 "$PROGRAM_NAME extracted annotations into $file in ${localTimer.elapsed(SECONDS)} seconds\n"
@@ -887,7 +893,7 @@ private fun createStubFiles(
             generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
             docStubs = docStubs,
-            reporter = reporter,
+            reporter = options.reporter,
         )
     codebase.accept(stubWriter)
 
@@ -945,7 +951,7 @@ fun createReportFile(
             apiFile.writeText(text)
         }
     } catch (e: IOException) {
-        reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
+        options.reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
     }
     if (description != null && options.verbose) {
         progress(

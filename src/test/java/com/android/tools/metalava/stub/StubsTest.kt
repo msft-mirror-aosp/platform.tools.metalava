@@ -22,7 +22,7 @@ import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.psi.gatherSources
-import com.android.tools.metalava.reporter
+import com.android.tools.metalava.options
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
@@ -1228,8 +1228,8 @@ class StubsTest : AbstractStubsTest() {
             projectSetup = { dir ->
                 // Make sure we handle blank/doc-only java doc files in root extraction
                 val src = listOf(File(dir, "src"))
-                val files = gatherSources(reporter, src)
-                val roots = extractRoots(reporter, files)
+                val files = gatherSources(options.reporter, src)
+                val roots = extractRoots(options.reporter, files)
                 assertEquals(1, roots.size)
                 assertEquals(src[0].path, roots[0].path)
             }

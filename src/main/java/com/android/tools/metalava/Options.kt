@@ -700,6 +700,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     private var errorMessageCompatibilityReleased: String? = null
 
+    /** [Reporter] for general use. */
+    val reporter: Reporter = DefaultReporter(null, null)
+
     /** [Reporter] for "api-lint" */
     var reporterApiLint: Reporter = DefaultReporter(null, null)
 
@@ -832,7 +835,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        reporter = DefaultReporter(null, null)
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
         val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
@@ -2178,7 +2180,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             val issue =
                 Issues.findIssueById(id)
                     ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        reporter.report(
+                        options.reporter.report(
                             Issues.DEPRECATED_OPTION,
                             null as File?,
                             "Case-insensitive issue matching is deprecated, use " +

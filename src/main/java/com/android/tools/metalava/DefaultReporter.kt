@@ -36,12 +36,6 @@ import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
 
-/**
- * "Global" [Reporter] used by most operations. Certain operations, such as api-lint and
- * compatibility check, may use a custom [Reporter]
- */
-lateinit var reporter: Reporter
-
 internal class DefaultReporter(
     /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
     // See the comment on [getBaseline] for why it's nullable.
