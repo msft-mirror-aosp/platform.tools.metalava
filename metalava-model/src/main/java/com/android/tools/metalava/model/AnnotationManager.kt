@@ -153,7 +153,7 @@ abstract class BaseAnnotationManager : AnnotationManager {
  * * The annotation names are correct and do not need mapping into another form.
  * * The annotations can be used in all stubs.
  */
-class NoOpAnnotationManager : BaseAnnotationManager() {
+internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
@@ -180,3 +180,5 @@ class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override val typedefMode: TypedefMode = TypedefMode.NONE
 }
+
+val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()
