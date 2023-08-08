@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -56,6 +57,7 @@ class ApiAnalyzer(
     private val psiSourceParser: PsiSourceParser,
     /** The code to analyze */
     private val codebase: Codebase,
+    private val reporter: Reporter,
     private val manifest: Manifest = emptyManifest,
 ) {
     /** All packages in the API */
@@ -563,7 +565,7 @@ class ApiAnalyzer(
      */
     fun mergeExternalQualifierAnnotations() {
         if (options.mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(psiSourceParser, codebase)
+            AnnotationsMerger(psiSourceParser, codebase, reporter)
                 .mergeQualifierAnnotations(options.mergeQualifierAnnotations)
         }
     }
@@ -571,7 +573,7 @@ class ApiAnalyzer(
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
         if (options.mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(psiSourceParser, codebase)
+            AnnotationsMerger(psiSourceParser, codebase, reporter)
                 .mergeInclusionAnnotations(options.mergeInclusionAnnotations)
         }
     }

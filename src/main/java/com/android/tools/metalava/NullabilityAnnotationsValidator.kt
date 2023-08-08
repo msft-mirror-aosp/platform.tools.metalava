@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.google.common.io.Files
 import java.io.File
 import java.io.PrintWriter
@@ -34,7 +35,7 @@ import kotlin.text.Charsets.UTF_8
 private const val RETURN_LABEL = "return value"
 
 /** Class that validates nullability annotations in the codebase. */
-class NullabilityAnnotationsValidator {
+class NullabilityAnnotationsValidator(private val reporter: Reporter) {
 
     private enum class ErrorType {
         MULTIPLE,

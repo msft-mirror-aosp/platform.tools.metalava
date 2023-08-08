@@ -298,7 +298,7 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase)
+        val docAnalyzer = DocAnalyzer(codebase, reporter)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -493,7 +493,7 @@ private fun addMissingItemsRequiredForGeneratingStubs(
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(psiSourceParser, textCodebase, options.manifest)
+        val analyzer = ApiAnalyzer(psiSourceParser, textCodebase, reporter, options.manifest)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -730,7 +730,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
 
     progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(psiSourceParser, codebase, options.manifest)
+    val analyzer = ApiAnalyzer(psiSourceParser, codebase, reporter, options.manifest)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -753,7 +753,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
     analyzer.handleStripping()
 
     // General API checks for Android APIs
-    AndroidApiChecks().check(codebase)
+    AndroidApiChecks(reporter).check(codebase)
 
     if (options.checkApi) {
         progress("API Lint: ")
@@ -813,7 +813,7 @@ fun loadFromJarFile(
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
-    val analyzer = ApiAnalyzer(psiSourceParser, codebase)
+    val analyzer = ApiAnalyzer(psiSourceParser, codebase, reporter)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
@@ -836,7 +836,7 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
     val localTimer = Stopwatch.createStarted()
 
     options.externalAnnotations?.let { outputFile ->
-        @Suppress("UNCHECKED_CAST") ExtractAnnotations(codebase, outputFile).extractAnnotations()
+        ExtractAnnotations(codebase, reporter, outputFile).extractAnnotations()
         if (options.verbose) {
             progress(
                 "$PROGRAM_NAME extracted annotations into $file in ${localTimer.elapsed(SECONDS)} seconds\n"
@@ -880,7 +880,8 @@ private fun createStubFiles(
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
-            docStubs = docStubs
+            docStubs = docStubs,
+            reporter = reporter,
         )
     codebase.accept(stubWriter)
 

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
@@ -61,7 +62,8 @@ const val ADD_DEPRECATED_IN_TEXT = false
  */
 class DocAnalyzer(
     /** The codebase to analyze */
-    private val codebase: Codebase
+    private val codebase: Codebase,
+    private val reporter: Reporter,
 ) {
 
     /** Computes the visible part of the API from all the available code in the codebase */

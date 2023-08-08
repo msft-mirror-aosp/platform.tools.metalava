@@ -548,7 +548,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         .trimIndent()
             )
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
-            .convert("<file>") { Manifest(it) }
+            .convert("<file>") { Manifest(it, reporter) }
             .default(emptyManifest, defaultForHelp = "no manifest")
 
     /**
@@ -914,12 +914,12 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
                     nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
+                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator(reporter)
                 }
                 ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
                     validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
                     nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
+                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator(reporter)
                 }
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))

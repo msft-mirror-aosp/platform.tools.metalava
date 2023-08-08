@@ -65,6 +65,7 @@ import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
@@ -85,6 +86,7 @@ import org.xml.sax.SAXParseException
 class AnnotationsMerger(
     private val psiSourceParser: PsiSourceParser,
     private val codebase: Codebase,
+    private val reporter: Reporter,
 ) {
 
     /** Merge annotations which will appear in the output API. */

@@ -31,8 +31,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
-import com.android.tools.metalava.reporter
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -44,7 +44,8 @@ class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean
+    private val docStubs: Boolean,
+    private val reporter: Reporter,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
