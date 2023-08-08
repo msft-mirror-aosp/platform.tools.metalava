@@ -69,6 +69,7 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
+import java.util.Optional
 import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 import org.jetbrains.kotlin.config.ApiVersion
@@ -250,8 +251,30 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
 
+    /**
+     * Backing property for [nullabilityAnnotationsValidator]
+     *
+     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
+     * `null` as a special value.
+     *
+     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
+     * options which may be supplied in different orders.
+     */
+    private val optionalNullabilityAnnotationsValidator by lazy {
+        Optional.ofNullable(
+            if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
+                NullabilityAnnotationsValidator(
+                    reporter,
+                    nullabilityErrorsFatal,
+                    nullabilityWarningsTxt
+                )
+            } else null
+        )
+    }
+
     /** Validator for nullability annotations, if validation is enabled. */
-    var nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null
+    val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
+        get() = optionalNullabilityAnnotationsValidator.orElse(null)
 
     /** Whether nullability validation errors should be considered fatal. */
     var nullabilityErrorsFatal = true
@@ -915,13 +938,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 }
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
-                    nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator(reporter)
                 }
                 ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
                     validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
-                    nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator(reporter)
                 }
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))

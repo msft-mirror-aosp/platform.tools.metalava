@@ -35,7 +35,11 @@ import kotlin.text.Charsets.UTF_8
 private const val RETURN_LABEL = "return value"
 
 /** Class that validates nullability annotations in the codebase. */
-class NullabilityAnnotationsValidator(private val reporter: Reporter) {
+class NullabilityAnnotationsValidator(
+    private val reporter: Reporter,
+    private val nullabilityErrorsFatal: Boolean,
+    private val nullabilityWarningsTxt: File?,
+) {
 
     private enum class ErrorType {
         MULTIPLE,
@@ -194,20 +198,20 @@ class NullabilityAnnotationsValidator(private val reporter: Reporter) {
     fun report() {
         errors.sortBy { it.toString() }
         warnings.sortBy { it.toString() }
-        val warningsTxtFile = options.nullabilityWarningsTxt
+        val warningsTxtFile = nullabilityWarningsTxt
         val fatalIssues = mutableListOf<Issue>()
         val nonFatalIssues = mutableListOf<Issue>()
 
-        // Errors are fatal iff options.nullabilityErrorsFatal is set.
-        if (options.nullabilityErrorsFatal) {
+        // Errors are fatal iff nullabilityErrorsFatal is set.
+        if (nullabilityErrorsFatal) {
             fatalIssues.addAll(errors)
         } else {
             nonFatalIssues.addAll(errors)
         }
 
         // Warnings go to the configured .txt file if present, which means they're not fatal.
-        // Else they're fatal iff options.nullabilityErrorsFatal is set.
-        if (warningsTxtFile == null && options.nullabilityErrorsFatal) {
+        // Else they're fatal iff nullabilityErrorsFatal is set.
+        if (warningsTxtFile == null && nullabilityErrorsFatal) {
             fatalIssues.addAll(warnings)
         } else {
             nonFatalIssues.addAll(warnings)
