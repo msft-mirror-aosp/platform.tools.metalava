@@ -16,10 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
@@ -47,7 +45,6 @@ fun createTestCodebase(
     directory: File,
     vararg sources: TestFile,
 ): PsiBasedCodebase {
-    System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     Disposer.setDebugMode(true)
 
     val sourcePaths = sources.map { it.targetPath }.toTypedArray()
