@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
@@ -66,8 +67,8 @@ import org.junit.rules.TemporaryFolder
 
 const val CHECK_JDIFF = false
 
-abstract class DriverTest {
-    @get:Rule val temporaryFolder = TemporaryFolder()
+abstract class DriverTest : TemporaryFolderOwner {
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
 
@@ -75,32 +76,6 @@ abstract class DriverTest {
     fun setup() {
         System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
         Disposer.setDebugMode(true)
-    }
-
-    protected fun createProject(vararg files: TestFile): File {
-        val dir = newFolder("project")
-
-        files.map { it.createFile(dir) }.forEach { assertNotNull(it) }
-
-        return dir
-    }
-
-    private fun newFolder(children: String = ""): File {
-        var dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
-        } else {
-            temporaryFolder.newFolder(children)
-        }
-    }
-
-    private fun newFile(children: String = ""): File {
-        var dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
-        } else {
-            temporaryFolder.newFile(children)
-        }
     }
 
     // Makes a note to fail the test, but still allows the test to complete before failing
@@ -454,7 +429,7 @@ abstract class DriverTest {
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(*sourceFiles)
+        val project = createProject(sourceFiles)
 
         val sourcePathDir = File(project, "src")
         if (!sourcePathDir.isDirectory) {

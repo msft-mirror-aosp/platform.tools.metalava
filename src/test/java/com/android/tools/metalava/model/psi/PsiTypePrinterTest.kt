@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
@@ -25,6 +24,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.parseSources
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -46,11 +46,14 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
-class PsiTypePrinterTest : DriverTest() {
+class PsiTypePrinterTest : TemporaryFolderOwner {
+
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /** A rule for creating and closing a [PsiEnvironmentManager] */
     @get:Rule val psiEnvironmentManagerRule = PsiEnvironmentManagerRule()
@@ -849,7 +852,7 @@ class PsiTypePrinterTest : DriverTest() {
         include: Set<String> = emptySet(),
         extraAnnotations: List<String> = emptyList()
     ): String {
-        val dir = createProject(*files.toTypedArray())
+        val dir = createProject(files.toTypedArray())
         val sourcePath = listOf(File(dir, "src"))
 
         val sourceFiles = mutableListOf<File>()
