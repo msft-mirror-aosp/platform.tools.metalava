@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
 import com.android.SdkConstants.DOT_XML
 import com.android.ide.common.process.DefaultProcessExecutor
@@ -39,6 +38,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
@@ -1515,34 +1515,16 @@ private fun FileFormat.signatureFormatAsInt(): Int {
     }
 }
 
-/**
- * A slight modification of com.android.tools.lint.checks.infrastructure.findKotlinStdLibPath that
- * prints program name on error. Returns the paths as metalava args expected by Options.
- */
+/** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */
 fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
-    val classPath: String = System.getProperty("java.class.path")
-    val paths = mutableListOf<String>()
-    for (path in classPath.split(':')) {
-        val file = File(path)
-        val name = file.name
-        if (
-            name.startsWith("kotlin-stdlib") ||
-                name.startsWith("kotlin-reflect") ||
-                name.startsWith("kotlin-script-runtime")
-        ) {
-            paths.add(file.path)
-        }
-    }
-    if (paths.isEmpty()) {
-        error("Did not find kotlin-stdlib-jre8 in $PROGRAM_NAME classpath: $classPath")
-    }
-    val kotlinPathArgs =
-        if (paths.isNotEmpty() && sources.asSequence().any { it.endsWith(DOT_KT) }) {
-            arrayOf(ARG_CLASS_PATH, paths.joinToString(separator = File.pathSeparator) { it })
-        } else {
-            emptyArray()
-        }
-    return kotlinPathArgs
+    val kotlinPaths = findKotlinStdlibPaths(sources)
+
+    return if (kotlinPaths.isEmpty()) emptyArray()
+    else
+        arrayOf(
+            ARG_CLASS_PATH,
+            kotlinPaths.joinToString(separator = File.pathSeparator) { it.path }
+        )
 }
 
 val intRangeAnnotationSource: TestFile =
