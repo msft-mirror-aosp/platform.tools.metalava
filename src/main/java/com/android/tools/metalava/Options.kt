@@ -55,6 +55,7 @@ import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -850,6 +851,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     var useK2Uast = false
 
+    val encoding by
+        option("-encoding", hidden = true)
+            .deprecated(
+                "WARNING: option `-encoding` is deprecated; it has no effect please remove",
+                tagValue = "please remove"
+            )
+
     fun parse(
         args: Array<String>,
         /** Writer to direct output to */
@@ -1242,12 +1250,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     mutableConvertToXmlFiles.add(
                         ConvertFile(signatureFile, jDiffFile, baseFile, false)
                     )
-                }
-                "-encoding" -> {
-                    val value = getValue(args, ++index)
-                    if (value.uppercase(Locale.getDefault()) != "UTF-8") {
-                        throw MetalavaCliException("$value: Only UTF-8 encoding is supported")
-                    }
                 }
                 ARG_JAVA_SOURCE,
                 "-source" -> {
