@@ -33,6 +33,7 @@ import kotlin.random.Random
  * 1. Prepend/append {@code ENV_VAR_METALAVA_PREPEND_ARGS} and {@code ENV_VAR_METALAVA_PREPEND_ARGS}
  * 2. Reflect --verbose to {@link options#verbose}.
  */
+@Suppress("DEPRECATION")
 internal fun preprocessArgv(args: Array<String>): Array<String> {
     val modifiedArgs =
         if (args.isEmpty()) {

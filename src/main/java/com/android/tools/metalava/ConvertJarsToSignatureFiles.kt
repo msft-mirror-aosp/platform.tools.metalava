@@ -45,6 +45,7 @@ import org.objectweb.asm.tree.MethodNode
  * In an Android source tree, rewrite the signature files in prebuilts/sdk by reading what's
  * actually there in the android.jar files.
  */
+@Suppress("DEPRECATION")
 class ConvertJarsToSignatureFiles {
     fun convertJars(psiEnvironmentManager: PsiEnvironmentManager, root: File) {
         var api = 1

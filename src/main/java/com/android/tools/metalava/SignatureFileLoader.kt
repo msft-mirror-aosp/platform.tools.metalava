@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
+@Suppress("DEPRECATION")
 object SignatureFileLoader {
     private val map = mutableMapOf<File, TextCodebase>()
 

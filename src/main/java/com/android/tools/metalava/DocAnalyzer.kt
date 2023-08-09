@@ -735,6 +735,7 @@ class DocAnalyzer(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun addApiLevelDocumentation(level: Int, item: Item) {
         if (level > 0) {
             if (item.originallyHidden) {
@@ -803,6 +804,7 @@ class DocAnalyzer(
             ?.let { item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince") }
     }
 
+    @Suppress("DEPRECATION")
     private fun addDeprecatedDocumentation(level: Int, item: Item) {
         if (level > 0) {
             if (item.originallyHidden) {

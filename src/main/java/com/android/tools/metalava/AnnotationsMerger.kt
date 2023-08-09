@@ -83,6 +83,7 @@ import org.w3c.dom.Element
 import org.xml.sax.SAXParseException
 
 /** Merges annotations into classes already registered in the given [Codebase] */
+@Suppress("DEPRECATION")
 class AnnotationsMerger(
     private val psiSourceParser: PsiSourceParser,
     private val codebase: Codebase,

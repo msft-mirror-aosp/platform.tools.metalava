@@ -1179,6 +1179,7 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `Regression test for 124333557`() {
         // Regression test for 124333557: Handle empty java files
         check(

@@ -27,6 +27,7 @@ import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
+@Suppress("DEPRECATION")
 class Baseline(
     /** Description of this baseline. e.g. "api-lint. */
     val description: String,

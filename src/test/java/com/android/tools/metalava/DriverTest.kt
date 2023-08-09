@@ -229,6 +229,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         val strip: Boolean = true,
     )
 
+    @Suppress("DEPRECATION")
     protected fun check(
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,

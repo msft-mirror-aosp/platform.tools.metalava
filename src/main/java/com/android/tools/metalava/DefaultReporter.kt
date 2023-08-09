@@ -36,6 +36,7 @@ import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
 
+@Suppress("DEPRECATION")
 internal class DefaultReporter(
     private val issueConfiguration: IssueConfiguration,
 

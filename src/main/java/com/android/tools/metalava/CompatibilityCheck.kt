@@ -824,6 +824,7 @@ class CompatibilityCheck(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: Item) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -1069,6 +1070,7 @@ class CompatibilityCheck(
     }
 
     companion object {
+        @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,

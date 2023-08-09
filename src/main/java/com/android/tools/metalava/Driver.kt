@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 @file:JvmName("Driver")
+@file:Suppress("DEPRECATION")
 
 package com.android.tools.metalava
 

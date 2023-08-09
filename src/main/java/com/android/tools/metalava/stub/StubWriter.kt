@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate

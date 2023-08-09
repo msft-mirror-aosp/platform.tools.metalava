@@ -53,6 +53,7 @@ import org.jetbrains.uast.UClass
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
  * visibility etc of the APIs
  */
+@Suppress("DEPRECATION")
 class ApiAnalyzer(
     private val psiSourceParser: PsiSourceParser,
     /** The code to analyze */
