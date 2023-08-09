@@ -88,6 +88,21 @@ class ApiPredicate(
             return false
         }
 
+        // If a class item's parent class is an api-only annotation marked class,
+        // the item should be marked visible as well, in order to provide
+        // information about the correct class hierarchy that was concealed for
+        // less restricted APIs.
+        // Only the class definition is marked visible, and class attributes are
+        // not affected.
+        if (
+            member is ClassItem &&
+                member.superClass()?.let {
+                    it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
+                } == true
+        ) {
+            return member.removed == matchRemoved
+        }
+
         var hasShowAnnotation = ignoreShown || member.hasShowAnnotation()
         var docOnly = member.docOnly
         var removed = member.removed

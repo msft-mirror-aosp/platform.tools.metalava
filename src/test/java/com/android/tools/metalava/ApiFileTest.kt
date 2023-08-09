@@ -5682,7 +5682,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Partial signature files do not include affected subclass definitions`() {
+    fun `Partial signature files include affected subclass definitions`() {
         check(
             format = FileFormat.V2,
             sourceFiles =
@@ -5721,6 +5721,8 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 2.0
                 package test.pkg {
+                  public class AnotherPublicClass extends test.pkg.SystemSubClass {
+                  }
                   public class SystemSubClass extends test.pkg.SomePublicClass {
                     ctor public SystemSubClass();
                   }
@@ -5737,7 +5739,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Partial signature files do not include affected subclass definitions in complex class hierarchy`() {
+    fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
         check(
             format = FileFormat.V2,
             sourceFiles =
@@ -5813,6 +5815,8 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 2.0
                 package test.pkg {
+                  public class AnotherPublicClass extends test.pkg.AnotherTestSubClass {
+                  }
                   public class AnotherTestSubClass extends test.pkg.AnotherSystemSubClass {
                     ctor public AnotherTestSubClass();
                   }
