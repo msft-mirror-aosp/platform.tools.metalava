@@ -25,6 +25,7 @@ application {
 
 dependencies {
     implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-psi"))
     implementation(project(":metalava-model-text"))
     implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)
