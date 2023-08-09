@@ -4153,7 +4153,7 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             api = expected,
-            overloadedMethodOrder = Options.OverloadedMethodOrder.SOURCE,
+            overloadedMethodOrder = OverloadedMethodOrder.SOURCE,
             format = FileFormat.V2,
         )
     }

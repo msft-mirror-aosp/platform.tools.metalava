@@ -242,8 +242,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The overloaded method order, defaults to signature. */
-        overloadedMethodOrder: Options.OverloadedMethodOrder? =
-            Options.OverloadedMethodOrder.SIGNATURE,
+        overloadedMethodOrder: OverloadedMethodOrder? = OverloadedMethodOrder.SIGNATURE,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */

@@ -38,7 +38,6 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.psi.defaultJavaLanguageLevel
 import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
@@ -101,15 +100,12 @@ const val ARG_FORMAT = "--format"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
-const val ARG_API = "--api"
-const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
-const val ARG_REMOVED_API = "--removed-api"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
@@ -209,7 +205,10 @@ const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
-class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup() {
+class Options(
+    commonOptions: CommonOptions = defaultCommonOptions,
+    signatureOutputOptions: SignatureOutputOptions = SignatureOutputOptions(),
+) : OptionGroup() {
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
     /** Writer to direct error messages to */
@@ -495,50 +494,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Proguard Keep list file to write */
     var proguard: File? = null
 
-    /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
-    var apiFile: File? = null
-
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>, val help: String) {
-        /** Sort overloaded methods according to source order. */
-        SOURCE(
-            MethodItem.sourceOrderForOverloadedMethodsComparator,
-            help =
-                """
-            preserves the order in which overloaded methods appear in the source files. This means
-            that refactorings of the source files which change the order but not the API can cause
-            unnecessary changes in the API signature files.
-        """
-                    .trimIndent()
-        ),
-
-        /** Sort overloaded methods by their signature. */
-        SIGNATURE(
-            MethodItem.comparator,
-            help =
-                """
-            sorts overloaded methods by their signature. This means that refactorings of the source
-            files which change the order but not the API will have no effect on the API signature
-            files.
-        """
-                    .trimIndent()
-        )
-    }
-
-    /**
-     * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
-     * files.
-     */
-    val apiOverloadedMethodOrder by
-        enumOption(
-            help =
-                """
-                Specifies the order of overloaded methods in signature files.
-                Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API.
-            """
-                    .trimIndent(),
-            enumValueHelpGetter = { it.help },
-            default = OverloadedMethodOrder.SIGNATURE,
-        )
+    val apiFile by signatureOutputOptions::apiFile
+    val removedApiFile by signatureOutputOptions::removedApiFile
+    val apiOverloadedMethodOrder by signatureOutputOptions::apiOverloadedMethodOrder
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -574,12 +532,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
             .convert("<file>") { Manifest(it, reporter) }
             .default(emptyManifest, defaultForHelp = "no manifest")
-
-    /**
-     * If set, a file to write a dex API file to. Corresponds to the
-     * --removed-dex-api/-removedDexApi flag.
-     */
-    var removedApiFile: File? = null
 
     /** Whether output should be colorized */
     var terminal = commonOptions.terminal
@@ -954,10 +906,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_API -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
                 ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_REMOVED_API -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showAnnotationsBuilder.add(annotation)
@@ -1863,17 +1813,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
-                "$ARG_API <file>",
-                "Generate a signature descriptor file",
                 "$ARG_DEX_API <file>",
                 "Generate a DEX signature descriptor file listing the APIs",
-                "$ARG_REMOVED_API <file>",
-                "Generate a signature descriptor file for APIs that have been removed",
-                "$ARG_API_OVERLOADED_METHOD_ORDER <source|signature>",
-                "Specifies the order of overloaded methods in signature files (default `signature`). " +
-                    "Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API. " +
-                    "`$ARG_API_OVERLOADED_METHOD_ORDER source` will preserve the order in which they appear in the source files. " +
-                    "`$ARG_API_OVERLOADED_METHOD_ORDER signature` will sort them based on their signature.",
                 "$ARG_FORMAT=<v1,v2,v3,...>",
                 "Sets the output signature file format to be the given version.",
                 "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]",
@@ -2234,11 +2175,17 @@ internal open class OptionsCommand : CliktCommand(treatUnknownOptionsAsArgs = tr
      */
     private val flags by argument().multiple()
 
+    /** Signature generation options. */
+    private val signatureOutputOptions by SignatureOutputOptions()
+
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
-    private val optionGroup by Options()
+    private val optionGroup by
+        Options(
+            signatureOutputOptions = signatureOutputOptions,
+        )
 
     override fun run() {
         // Get any remaining arguments/options that were not handled by Clikt.
