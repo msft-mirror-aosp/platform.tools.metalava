@@ -687,6 +687,7 @@ fun checkCompatibility(
         apiType,
         baseApi,
         options.reporterCompatibilityReleased,
+        options.issueConfiguration,
     )
 }
 

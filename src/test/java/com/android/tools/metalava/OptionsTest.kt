@@ -604,6 +604,7 @@ $MAIN_HELP_BODY
                     "ArrayReturn"
                 )
         )
+        val issueConfiguration = options.issueConfiguration
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
         assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
@@ -613,6 +614,7 @@ $MAIN_HELP_BODY
     @Test
     fun `Test multiple issue severity options`() {
         check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
+        val issueConfiguration = options.issueConfiguration
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -621,6 +623,7 @@ $MAIN_HELP_BODY
     @Test
     fun `Test issue severity options with inheriting issues`() {
         check(extraArguments = arrayOf("--error", "RemovedClass"))
+        val issueConfiguration = options.issueConfiguration
         assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
         assertEquals(
             Severity.ERROR,
@@ -635,6 +638,7 @@ $MAIN_HELP_BODY
             expectedIssues =
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
+        val issueConfiguration = options.issueConfiguration
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 

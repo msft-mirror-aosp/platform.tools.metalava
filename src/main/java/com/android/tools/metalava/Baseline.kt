@@ -68,7 +68,7 @@ class Baseline(
                     if (updateFile != null) {
                         if (
                             options.baselineErrorsOnly &&
-                                issueConfiguration.getSeverity(issue) != Severity.ERROR
+                                options.issueConfiguration.getSeverity(issue) != Severity.ERROR
                         ) {
                             return true
                         }
@@ -216,6 +216,7 @@ class Baseline(
         val list = counts.entries.toMutableList()
         list.sortWith(compareBy({ -it.value }, { it.key.name }))
         var total = 0
+        val issueConfiguration = options.issueConfiguration
         for (entry in list) {
             val count = entry.value
             val issue = entry.key

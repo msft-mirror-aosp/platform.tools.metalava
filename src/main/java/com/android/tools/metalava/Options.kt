@@ -723,6 +723,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     private var errorMessageCompatibilityReleased: String? = null
 
+    /** [IssueConfiguration] used by all reporters. */
+    val issueConfiguration = IssueConfiguration()
+
     /** [Reporter] for general use. */
     val reporter: Reporter = DefaultReporter(issueConfiguration)
 
@@ -2196,39 +2199,39 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
     }
 
+    private fun setIssueSeverity(id: String, severity: Severity, arg: String) {
+        if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+            id.split(",").forEach { setIssueSeverity(it.trim(), severity, arg) }
+            return
+        }
+        val issue =
+            Issues.findIssueById(id)
+                ?: Issues.findIssueByIdIgnoringCase(id)?.also {
+                    options.reporter.report(
+                        Issues.DEPRECATED_OPTION,
+                        null as File?,
+                        "Case-insensitive issue matching is deprecated, use " +
+                            "$arg ${it.name} instead of $arg $id"
+                    )
+                }
+                    ?: throw MetalavaCliException("Unknown issue id: $arg $id")
+
+        issueConfiguration.setSeverity(issue, severity)
+    }
+
+    private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
+        if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+            id.split(",").forEach { setCategorySeverity(it.trim(), severity, arg) }
+            return
+        }
+        val issues =
+            Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
+                ?: throw MetalavaCliException("Unknown category: $arg $id")
+
+        issues.forEach { issueConfiguration.setSeverity(it, severity) }
+    }
+
     companion object {
-        private fun setIssueSeverity(id: String, severity: Severity, arg: String) {
-            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-                id.split(",").forEach { setIssueSeverity(it.trim(), severity, arg) }
-                return
-            }
-            val issue =
-                Issues.findIssueById(id)
-                    ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        options.reporter.report(
-                            Issues.DEPRECATED_OPTION,
-                            null as File?,
-                            "Case-insensitive issue matching is deprecated, use " +
-                                "$arg ${it.name} instead of $arg $id"
-                        )
-                    }
-                        ?: throw MetalavaCliException("Unknown issue id: $arg $id")
-
-            issueConfiguration.setSeverity(issue, severity)
-        }
-
-        private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
-            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-                id.split(",").forEach { setCategorySeverity(it.trim(), severity, arg) }
-                return
-            }
-            val issues =
-                Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                    ?: throw MetalavaCliException("Unknown category: $arg $id")
-
-            issues.forEach { issueConfiguration.setSeverity(it, severity) }
-        }
-
         private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
             val languageLevel =
                 LanguageVersion.fromVersionString(value)

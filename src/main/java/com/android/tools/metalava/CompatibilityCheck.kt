@@ -52,7 +52,8 @@ class CompatibilityCheck(
     private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null,
-    private val reporter: Reporter
+    private val reporter: Reporter,
+    private val issueConfiguration: IssueConfiguration,
 ) : ComparisonVisitor() {
 
     /**
@@ -1074,6 +1075,7 @@ class CompatibilityCheck(
             apiType: ApiType,
             baseApi: Codebase?,
             reporter: Reporter,
+            issueConfiguration: IssueConfiguration,
         ) {
             val filter =
                 apiType
@@ -1089,6 +1091,7 @@ class CompatibilityCheck(
                     apiType,
                     baseApi,
                     reporter,
+                    issueConfiguration,
                 )
 
             val oldFullCodebase =

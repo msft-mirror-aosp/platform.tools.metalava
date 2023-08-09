@@ -53,6 +53,3 @@ class IssueConfiguration {
         overrides.clear()
     }
 }
-
-/** Current configuration to apply when reporting errors */
-val issueConfiguration = IssueConfiguration()
