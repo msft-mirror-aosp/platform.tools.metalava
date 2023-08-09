@@ -48,8 +48,4 @@ class IssueConfiguration {
     fun hide(issue: Issues.Issue) {
         setSeverity(issue, Severity.HIDDEN)
     }
-
-    fun reset() {
-        overrides.clear()
-    }
 }
