@@ -1072,7 +1072,8 @@ class CompatibilityCheck(
             newCodebase: Codebase,
             oldCodebase: Codebase,
             apiType: ApiType,
-            baseApi: Codebase? = null,
+            baseApi: Codebase?,
+            reporter: Reporter,
         ) {
             val filter =
                 apiType
@@ -1087,7 +1088,7 @@ class CompatibilityCheck(
                     oldCodebase,
                     apiType,
                     baseApi,
-                    options.reporterCompatibilityReleased
+                    reporter,
                 )
 
             val oldFullCodebase =

@@ -680,7 +680,13 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(newCodebase, oldCodebase, apiType, baseApi)
+    CompatibilityCheck.checkCompatibility(
+        newCodebase,
+        oldCodebase,
+        apiType,
+        baseApi,
+        options.reporterCompatibilityReleased,
+    )
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
