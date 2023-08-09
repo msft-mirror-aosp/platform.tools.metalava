@@ -37,15 +37,17 @@ import java.io.PrintWriter
 import java.nio.file.Path
 
 internal class DefaultReporter(
+    private val issueConfiguration: IssueConfiguration,
+
     /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
     // See the comment on [getBaseline] for why it's nullable.
-    private val customBaseline: Baseline?,
+    private val customBaseline: Baseline? = null,
 
     /**
      * An error message associated with this [Reporter], which should be shown to the user when
      * metalava finishes with errors.
      */
-    private val errorMessage: String?
+    private val errorMessage: String? = null,
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0

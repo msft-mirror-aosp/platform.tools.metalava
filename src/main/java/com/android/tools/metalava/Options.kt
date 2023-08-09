@@ -724,16 +724,16 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private var errorMessageCompatibilityReleased: String? = null
 
     /** [Reporter] for general use. */
-    val reporter: Reporter = DefaultReporter(null, null)
+    val reporter: Reporter = DefaultReporter(issueConfiguration)
 
     /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = DefaultReporter(null, null)
+    var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
      * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var reporterCompatibilityReleased: Reporter = DefaultReporter(null, null)
+    var reporterCompatibilityReleased: Reporter = DefaultReporter(issueConfiguration)
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -1445,11 +1445,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
 
         // Override the default reporters.
-        reporterApiLint = DefaultReporter(baselineApiLint ?: baseline, errorMessageApiLint)
+        reporterApiLint =
+            DefaultReporter(
+                issueConfiguration,
+                baselineApiLint ?: baseline,
+                errorMessageApiLint,
+            )
         reporterCompatibilityReleased =
             DefaultReporter(
+                issueConfiguration,
                 baselineCompatibilityReleased ?: baseline,
-                errorMessageCompatibilityReleased
+                errorMessageCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
