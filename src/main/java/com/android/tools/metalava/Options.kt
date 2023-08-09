@@ -133,7 +133,6 @@ const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
-const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
@@ -1126,7 +1125,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val file = stringToExistingFile(getValue(args, ++index))
                     baseApiForCompatCheck = file
                 }
-                ARG_NO_NATIVE_DIFF -> noNativeDiff = true
                 ARG_ERROR,
                 "-error" -> setIssueSeverity(getValue(args, ++index), Severity.ERROR, arg)
                 ARG_WARNING,
