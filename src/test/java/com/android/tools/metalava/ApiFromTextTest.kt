@@ -56,8 +56,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V3,
             signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
+            api = source,
         )
     }
 
@@ -76,8 +75,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V3,
             signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
+            api = source,
         )
     }
 
@@ -107,12 +105,7 @@ class ApiFromTextTest : DriverTest() {
             }
             """
 
-        check(
-            format = FileFormat.V3,
-            signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
-        )
+        check(format = FileFormat.V3, signatureSource = source, api = source)
     }
 
     @Test
@@ -143,8 +136,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V3,
             signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
+            api = source,
         )
     }
 

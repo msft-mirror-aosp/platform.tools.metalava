@@ -126,7 +126,7 @@ API sources:
 Extracting Signature Files:
 --dex-api <file>
                                              Generate a DEX signature descriptor file listing the APIs
---format=<v1,v2,v3,...>
+--format=<v2,v3,...>
                                              Sets the output signature file format to be the given version.
 --output-kotlin-nulls[=yes|no]
                                              Controls whether nullness annotations should be formatted as in Kotlin

@@ -1259,7 +1259,6 @@ class Options(
                     } else if (arg.startsWith(ARG_FORMAT)) {
                         outputFormat =
                             when (arg) {
-                                "$ARG_FORMAT=v1" -> FileFormat.V1
                                 "$ARG_FORMAT=v2" -> FileFormat.V2
                                 "$ARG_FORMAT=v3" -> FileFormat.V3
                                 "$ARG_FORMAT=v4" -> FileFormat.V4
@@ -1268,7 +1267,7 @@ class Options(
                                 else ->
                                     throw MetalavaCliException(
                                         stderr =
-                                            "Unexpected signature format; expected v1, v2, v3 or v4"
+                                            "Unexpected signature format; expected v2, v3 or v4"
                                     )
                             }
                         outputFormat.configureOptions(this)
@@ -1815,7 +1814,7 @@ class Options(
                 // TODO: Document --show-annotation!
                 "$ARG_DEX_API <file>",
                 "Generate a DEX signature descriptor file listing the APIs",
-                "$ARG_FORMAT=<v1,v2,v3,...>",
+                "$ARG_FORMAT=<v2,v3,...>",
                 "Sets the output signature file format to be the given version.",
                 "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]",
                 "Controls whether nullness annotations should be formatted as " +

@@ -66,7 +66,7 @@ class ApiFileTest : DriverTest() {
         // static method in interface is not overridable.
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -271,7 +271,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "some.other.pkg"
                 ),
-            includeSignatureVersion = true
         )
     }
 
@@ -353,14 +352,13 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.collection"
                 ),
-            includeSignatureVersion = true
         )
     }
 
     @Test
     fun `Basic Kotlin class`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -403,7 +401,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@NonNull String property1, int arg2);
+                    ctor public Kotlin(@NonNull String property1 = "Default Value", int arg2);
                     method @NonNull public String getProperty1();
                     method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
@@ -1373,7 +1371,7 @@ class ApiFileTest : DriverTest() {
         // correctly (in particular, using fully qualified names instead of what appears in
         // the source code.)
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1525,7 +1523,7 @@ class ApiFileTest : DriverTest() {
         // methods
         // in the interface are taken to be public etc)
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1552,7 +1550,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Enum class extraction`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1881,7 +1879,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Extract fields with types and initial values`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1946,7 +1944,7 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2124,7 +2122,7 @@ class ApiFileTest : DriverTest() {
         // and that they are listed separately.
 
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2200,7 +2198,7 @@ class ApiFileTest : DriverTest() {
     fun `Check various generics signature subtleties`() {
         // Some additional declarations where PSI default type handling diffs from doclava1
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2259,7 +2257,7 @@ class ApiFileTest : DriverTest() {
         // correctly (there's some special casing around enums to insert extra methods
         // that was broken, as exposed by ChronoUnit#toString)
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2345,7 +2343,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V1, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -2609,7 +2607,7 @@ class ApiFileTest : DriverTest() {
         // implementing
         // class
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2702,7 +2700,7 @@ class ApiFileTest : DriverTest() {
         // class. This is an issue for example for the ZonedDateTime#getLong method
         // implementing the TemporalAccessor#getLong method
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2742,7 +2740,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Implementing interface method 2`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2945,7 +2943,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3009,7 +3007,7 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -3152,7 +3150,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3477,7 +3475,7 @@ class ApiFileTest : DriverTest() {
         // Use the otherwise= visibility in signatures
         // Regression test for issue 118763806
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3903,7 +3901,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V1, signatureSources = arrayOf(source1, source2), api = expected)
+        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
     }
 
     val MERGE_TEST_SOURCE_1 =
@@ -3976,7 +3974,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V1, signatureSources = arrayOf(source1, source2), api = expected)
+        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
     }
 
     @Test
@@ -4692,7 +4690,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "some.other.pkg"
                 ),
-            includeSignatureVersion = true
         )
     }
 
@@ -4774,7 +4771,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.collection"
                 ),
-            includeSignatureVersion = true
         )
     }
 

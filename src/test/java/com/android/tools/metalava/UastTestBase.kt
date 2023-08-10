@@ -168,7 +168,7 @@ abstract class UastTestBase : DriverTest() {
         val n = if (isK2) " @Nullable" else ""
         uastCheck(
             isK2,
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(

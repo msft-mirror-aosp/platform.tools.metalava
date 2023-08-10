@@ -26,7 +26,7 @@ class BaselineTest : DriverTest() {
     @Test
     fun `Check baseline`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -169,7 +169,7 @@ class BaselineTest : DriverTest() {
     fun `Check baseline with show annotations`() {
         // When using show annotations we should only reference errors that are present in the delta
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             includeSystemApiAnnotations = true,
             extraArguments =
                 arrayOf(

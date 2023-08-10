@@ -363,8 +363,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         validateNullability: Set<String>? = null,
         /** Enable nullability validation for the listed classes */
         validateNullabilityFromList: String? = null,
-        /** Whether to include the signature version in signatures */
-        includeSignatureVersion: Boolean = false,
         /** List of signature files to convert to JDiff XML and the expected XML output. */
         convertToJDiff: List<ConvertData> = emptyList(),
         /** Hook for performing additional initialization of the project directory */
@@ -1066,7 +1064,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *stubsSourceListArgs,
                 *docStubsSourceListArgs,
                 "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
-                "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
                 *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,

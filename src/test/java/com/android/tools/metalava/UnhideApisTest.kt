@@ -26,7 +26,7 @@ class UnhideApisTest : DriverTest() {
     @Test
     fun `Report hidden API access rather than opening up access`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -111,7 +111,7 @@ class UnhideApisTest : DriverTest() {
     @Test
     fun `Including private interfaces from types`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             extraArguments = arrayOf(ARG_ERROR, "ReferencesHidden"),
             sourceFiles =
                 arrayOf(
