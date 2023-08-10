@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.MethodItem
@@ -32,28 +33,46 @@ const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_FORMAT = "--format"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 
-enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>, val help: String) {
+enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
     /** Sort overloaded methods according to source order. */
-    SOURCE(
-        MethodItem.sourceOrderForOverloadedMethodsComparator,
-        help =
-            """
-        preserves the order in which overloaded methods appear in the source files. This means
-        that refactorings of the source files which change the order but not the API can cause
-        unnecessary changes in the API signature files.
-    """
-                .trimIndent()
-    ),
+    SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
 
     /** Sort overloaded methods by their signature. */
-    SIGNATURE(
-        MethodItem.comparator,
+    SIGNATURE(MethodItem.comparator)
+}
+
+/**
+ * A special enum to handle the mapping from command line to internal representation for the
+ * [SignatureOutputOptions.apiOverloadedMethodOrder] property.
+ *
+ * This is added purely to provide a convenient way to map from the input to a fixed set of values.
+ * It provides help for each individual option as well as a container for the internal object to
+ * which it maps.
+ *
+ * This MUST not be accessed from anywhere other than the property for which it was created. It
+ * suppresses unused because while the individual values are not used directly they are used via the
+ * [OptionOverloadedMethodOrder.values] method.
+ */
+@Suppress("unused")
+private enum class OptionOverloadedMethodOrder(val order: OverloadedMethodOrder, val help: String) {
+    SOURCE(
+        OverloadedMethodOrder.SOURCE,
         help =
             """
-        sorts overloaded methods by their signature. This means that refactorings of the source
-        files which change the order but not the API will have no effect on the API signature
-        files.
-    """
+                preserves the order in which overloaded methods appear in the source files. This
+                means that refactorings of the source files which change the order but not the API
+                can cause unnecessary changes in the API signature files.
+            """
+                .trimIndent()
+    ),
+    SIGNATURE(
+        OverloadedMethodOrder.SIGNATURE,
+        help =
+            """
+                sorts overloaded methods by their signature. This means that refactorings of the
+                source files which change the order but not the API will have no effect on the API
+                signature files.
+            """
                 .trimIndent()
     )
 }
@@ -98,15 +117,17 @@ class SignatureOutputOptions :
      */
     val apiOverloadedMethodOrder by
         enumOption(
-            help =
-                """
-                Specifies the order of overloaded methods in signature files.
-                Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API.
-            """
-                    .trimIndent(),
-            enumValueHelpGetter = { it.help },
-            default = OverloadedMethodOrder.SIGNATURE,
-        )
+                help =
+                    """
+                        Specifies the order of overloaded methods in signature files.
+                        Applies to the contents of the files specified on $ARG_API and
+                        $ARG_REMOVED_API.
+                    """
+                        .trimIndent(),
+                enumValueHelpGetter = { it.help },
+                default = OptionOverloadedMethodOrder.SIGNATURE,
+            )
+            .map { it.order }
 
     /** The output format version being used */
     val outputFormat by
@@ -129,9 +150,9 @@ class SignatureOutputOptions :
                 ARG_OUTPUT_KOTLIN_NULLS,
                 help =
                     """
-        Controls whether nullness annotations should be formatted as in Kotlin (with "?" for 
+        Controls whether nullness annotations should be formatted as in Kotlin (with "?" for
         nullable types, "" for non nullable types, and "!" for unknown.
-        The default is `yes` if $ARG_FORMAT >= v3 and must be `no` (or unspecified) if 
+        The default is `yes` if $ARG_FORMAT >= v3 and must be `no` (or unspecified) if
         $ARG_FORMAT < v3."
     """
                         .trimIndent()
