@@ -103,9 +103,11 @@ internal open class MetalavaCommand(
 
         // Print the version number if requested.
         versionOption(
-            Version.VERSION,
+            // Use a fake version here to avoid loading the `/version.properties` file unless
+            // needed.
+            "fake-version",
             names = setOf(ARG_VERSION),
-            message = { "$commandName version: $it" },
+            message = { "$commandName version: ${Version.VERSION}" },
         )
     }
 
