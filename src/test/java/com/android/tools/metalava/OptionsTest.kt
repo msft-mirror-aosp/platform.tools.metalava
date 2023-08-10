@@ -132,9 +132,6 @@ Extracting Signature Files:
                                              Controls whether nullness annotations should be formatted as in Kotlin
                                              (with "?" for nullable types, "" for non nullable types, and "!" for
                                              unknown. The default is yes.
---output-default-values[=yes|no]
-                                             Controls whether default values should be included in signature files. The
-                                             default is yes.
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>

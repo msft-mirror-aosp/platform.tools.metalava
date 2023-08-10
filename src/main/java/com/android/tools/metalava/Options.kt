@@ -131,7 +131,6 @@ const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:rele
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
-const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -315,9 +314,6 @@ class Options(
      * with @NonNull/@Nullable.
      */
     var outputKotlinStyleNulls = false // requires v3
-
-    /** Whether default values should be included in signature files */
-    var outputDefaultValues = true
 
     /** The output format version being used */
     var outputFormat: FileFormat = FileFormat.recommended
@@ -1228,13 +1224,6 @@ class Options(
                             } else {
                                 yesNo(arg.substring(ARG_OUTPUT_KOTLIN_NULLS.length + 1))
                             }
-                    } else if (arg.startsWith(ARG_OUTPUT_DEFAULT_VALUES)) {
-                        outputDefaultValues =
-                            if (arg == ARG_OUTPUT_DEFAULT_VALUES) {
-                                true
-                            } else {
-                                yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
-                            }
                     } else if (arg.startsWith(ARG_FORMAT)) {
                         outputFormat =
                             when (arg) {
@@ -1799,9 +1788,6 @@ class Options(
                 "Controls whether nullness annotations should be formatted as " +
                     "in Kotlin (with \"?\" for nullable types, \"\" for non nullable types, and \"!\" for unknown. " +
                     "The default is yes.",
-                "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]",
-                "Controls whether default values should be included in " +
-                    "signature files. The default is yes.",
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
                 "$ARG_SDK_VALUES <dir>",
@@ -2132,7 +2118,6 @@ private fun FileFormat.configureOptions(options: Options) {
     }
     options.outputFormat = this
     options.outputKotlinStyleNulls = this >= FileFormat.V3
-    options.outputDefaultValues = this >= FileFormat.V2
 }
 
 /**
