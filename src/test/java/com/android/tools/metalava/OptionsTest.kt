@@ -126,12 +126,6 @@ API sources:
 Extracting Signature Files:
 --dex-api <file>
                                              Generate a DEX signature descriptor file listing the APIs
---format=<v2,v3,...>
-                                             Sets the output signature file format to be the given version.
---output-kotlin-nulls[=yes|no]
-                                             Controls whether nullness annotations should be formatted as in Kotlin
-                                             (with "?" for nullable types, "" for non nullable types, and "!" for
-                                             unknown. The default is yes.
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
@@ -454,6 +448,12 @@ Signature File Output:
                                              signature (default) - sorts overloaded methods by their signature. This
                                              means that refactorings of the source files which change the order but not
                                              the API will have no effect on the API signature files.
+  --format [v2|v3|v4|recommended|latest]     Sets the output signature file format to be the given version. (default:
+                                             V2)
+  --output-kotlin-nulls [yes|no]             Controls whether nullness annotations should be formatted as in Kotlin
+                                             (with "?" for nullable types, "" for non nullable types, and "!" for
+                                             unknown. The default is `yes` if --format >= v3 and must be `no` (or
+                                             unspecified) if --format < v3."
     """
             .trimIndent()
 

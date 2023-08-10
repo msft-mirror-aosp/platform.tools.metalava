@@ -37,7 +37,6 @@ import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.psi.defaultJavaLanguageLevel
 import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
@@ -96,7 +95,6 @@ var options = Options()
 
 private const val INDENT_WIDTH = 45
 
-const val ARG_FORMAT = "--format"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
@@ -130,7 +128,6 @@ const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
-const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -309,15 +306,6 @@ class Options(
      */
     var enhanceDocumentation = false
 
-    /**
-     * Whether nullness annotations should be displayed as ?/!/empty instead of
-     * with @NonNull/@Nullable.
-     */
-    var outputKotlinStyleNulls = false // requires v3
-
-    /** The output format version being used */
-    var outputFormat: FileFormat = FileFormat.recommended
-
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
 
@@ -492,6 +480,8 @@ class Options(
     val apiFile by signatureOutputOptions::apiFile
     val removedApiFile by signatureOutputOptions::removedApiFile
     val apiOverloadedMethodOrder by signatureOutputOptions::apiOverloadedMethodOrder
+    val outputFormat by signatureOutputOptions::outputFormat
+    val outputKotlinStyleNulls by signatureOutputOptions::effectiveOutputKotlinStyleNulls
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -1217,29 +1207,7 @@ class Options(
                     System.setProperty("user.dir", pwd.path)
                 }
                 else -> {
-                    if (arg.startsWith(ARG_OUTPUT_KOTLIN_NULLS)) {
-                        outputKotlinStyleNulls =
-                            if (arg == ARG_OUTPUT_KOTLIN_NULLS) {
-                                true
-                            } else {
-                                yesNo(arg.substring(ARG_OUTPUT_KOTLIN_NULLS.length + 1))
-                            }
-                    } else if (arg.startsWith(ARG_FORMAT)) {
-                        outputFormat =
-                            when (arg) {
-                                "$ARG_FORMAT=v2" -> FileFormat.V2
-                                "$ARG_FORMAT=v3" -> FileFormat.V3
-                                "$ARG_FORMAT=v4" -> FileFormat.V4
-                                "$ARG_FORMAT=recommended" -> FileFormat.recommended
-                                "$ARG_FORMAT=latest" -> FileFormat.latest
-                                else ->
-                                    throw MetalavaCliException(
-                                        stderr =
-                                            "Unexpected signature format; expected v2, v3 or v4"
-                                    )
-                            }
-                        outputFormat.configureOptions(this)
-                    } else if (arg.startsWith("-")) {
+                    if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
                         throw NoSuchOption(givenName = arg)
                     } else {
@@ -1290,18 +1258,6 @@ class Options(
             throw MetalavaCliException(
                 "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
             )
-        }
-
-        // outputKotlinStyleNulls requires at least format=v3
-        if (outputKotlinStyleNulls) {
-            if (outputFormat < FileFormat.V3) {
-                throw MetalavaCliException(
-                    stderr =
-                        "'$ARG_OUTPUT_KOTLIN_NULLS' requires '$ARG_FORMAT=v3' or higher not " +
-                            "'$ARG_FORMAT=${outputFormat.optionValue}"
-                )
-            }
-            outputFormat.configureOptions(this)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1509,20 +1465,6 @@ class Options(
         return patterns
             .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
-    }
-
-    private fun yesNo(answer: String): Boolean {
-        return when (answer) {
-            "yes",
-            "true",
-            "enabled",
-            "on" -> true
-            "no",
-            "false",
-            "disabled",
-            "off" -> false
-            else -> throw MetalavaCliException(stderr = "Unexpected $answer; expected yes or no")
-        }
     }
 
     /** Makes sure that the flag combinations make sense */
@@ -1786,12 +1728,6 @@ class Options(
                 // TODO: Document --show-annotation!
                 "$ARG_DEX_API <file>",
                 "Generate a DEX signature descriptor file listing the APIs",
-                "$ARG_FORMAT=<v2,v3,...>",
-                "Sets the output signature file format to be the given version.",
-                "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]",
-                "Controls whether nullness annotations should be formatted as " +
-                    "in Kotlin (with \"?\" for nullable types, \"\" for non nullable types, and \"!\" for unknown. " +
-                    "The default is yes.",
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
                 "$ARG_SDK_VALUES <dir>",
@@ -2113,15 +2049,6 @@ class Options(
             return LanguageVersionSettingsImpl(languageLevel, apiVersion)
         }
     }
-}
-
-/** Configures the option object such that the output format will be the given format */
-private fun FileFormat.configureOptions(options: Options) {
-    if (this == FileFormat.JDIFF) {
-        return
-    }
-    options.outputFormat = this
-    options.outputKotlinStyleNulls = this >= FileFormat.V3
 }
 
 /**
