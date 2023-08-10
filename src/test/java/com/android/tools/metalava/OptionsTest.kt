@@ -135,9 +135,6 @@ Extracting Signature Files:
 --output-default-values[=yes|no]
                                              Controls whether default values should be included in signature files. The
                                              default is yes.
---include-signature-version[=yes|no]
-                                             Whether the signature files should include a comment listing the format
-                                             version of the signature file.
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>

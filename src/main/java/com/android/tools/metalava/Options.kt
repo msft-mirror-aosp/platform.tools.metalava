@@ -173,7 +173,6 @@ const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
@@ -626,29 +625,13 @@ class Options(
      */
     var apiVersionNames: List<String>? = null
 
-    /** Whether to include the signature file format version header in most signature files */
-    var includeSignatureFormatVersion: Boolean = true
-
-    /** Whether to include the signature file format version header in removed signature files */
-    val includeSignatureFormatVersionNonRemoved: EmitFileHeader
-        get() =
-            if (includeSignatureFormatVersion) {
-                EmitFileHeader.ALWAYS
-            } else {
-                EmitFileHeader.NEVER
-            }
-
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
         get() =
-            if (includeSignatureFormatVersion) {
-                if (deleteEmptyRemovedSignatures) {
-                    EmitFileHeader.IF_NONEMPTY_FILE
-                } else {
-                    EmitFileHeader.ALWAYS
-                }
+            if (deleteEmptyRemovedSignatures) {
+                EmitFileHeader.IF_NONEMPTY_FILE
             } else {
-                EmitFileHeader.NEVER
+                EmitFileHeader.ALWAYS
             }
 
     /** A baseline to check against */
@@ -1252,10 +1235,6 @@ class Options(
                             } else {
                                 yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
                             }
-                    } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
-                        includeSignatureFormatVersion =
-                            if (arg == ARG_INCLUDE_SIG_VERSION) true
-                            else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
                         outputFormat =
                             when (arg) {
@@ -1823,9 +1802,6 @@ class Options(
                 "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]",
                 "Controls whether default values should be included in " +
                     "signature files. The default is yes.",
-                "$ARG_INCLUDE_SIG_VERSION[=yes|no]",
-                "Whether the signature files should include a comment listing " +
-                    "the format version of the signature file.",
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
                 "$ARG_SDK_VALUES <dir>",
@@ -2157,7 +2133,6 @@ private fun FileFormat.configureOptions(options: Options) {
     options.outputFormat = this
     options.outputKotlinStyleNulls = this >= FileFormat.V3
     options.outputDefaultValues = this >= FileFormat.V2
-    options.includeSignatureFormatVersion = this >= FileFormat.V2
 }
 
 /**

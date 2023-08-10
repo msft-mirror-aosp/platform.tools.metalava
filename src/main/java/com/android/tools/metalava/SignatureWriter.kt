@@ -37,7 +37,7 @@ class SignatureWriter(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved,
+    val emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
 ) :
     ApiVisitor(
@@ -51,18 +51,17 @@ class SignatureWriter(
         showUnannotated = options.showUnannotated
     ) {
     init {
+        // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
             writer.print(options.outputFormat.header())
-            emitHeader = EmitFileHeader.NEVER
         }
     }
 
     fun write(text: String) {
+        // If a header must only be written out when the file is not empty then write it here as
+        // this is not called
         if (emitHeader == EmitFileHeader.IF_NONEMPTY_FILE) {
-            if (options.includeSignatureFormatVersion) {
-                writer.print(options.outputFormat.header())
-            }
-            emitHeader = EmitFileHeader.NEVER
+            writer.print(options.outputFormat.header())
         }
         writer.print(text)
     }
