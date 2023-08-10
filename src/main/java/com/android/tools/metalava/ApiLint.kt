@@ -63,6 +63,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
@@ -185,13 +187,13 @@ class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
-    private val manifest: Manifest = options.manifest,
+    private val manifest: Manifest = @Suppress("DEPRECATION") options.manifest,
 ) :
     ApiVisitor(
         // Sort by source order such that warnings follow source line number order
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
-        ignoreShown = options.showUnannotated,
+        ignoreShown = @Suppress("DEPRECATION") options.showUnannotated,
         // No need to check "for stubs only APIs" (== "implicit" APIs)
         includeApisForStubPurposes = false
     ) {
@@ -2430,9 +2432,9 @@ class ApiLint(
         if (type == "int" || type == "long" || type == "short") {
             if (badUnits.any { name.endsWith(it.key) }) {
                 val typeIsTypeDef =
-                    method.modifiers.annotations().any { annotation ->
-                        val annotationClass = annotation.resolve() ?: return@any false
-                        annotationClass.modifiers.annotations().any { it.isTypeDefAnnotation() }
+                    method.modifiers.hasAnnotation { annotation ->
+                        val annotationClass = annotation.resolve() ?: return@hasAnnotation false
+                        annotationClass.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)
                     }
                 if (!typeIsTypeDef) {
                     val badUnit = badUnits.keys.find { name.endsWith(it) }
@@ -2958,16 +2960,13 @@ class ApiLint(
 
     private fun checkTypedef(cls: ClassItem) {
         if (cls.isAnnotationType()) {
-            cls.modifiers
-                .annotations()
-                .firstOrNull { it.isTypeDefAnnotation() }
-                ?.let {
-                    report(
-                        PUBLIC_TYPEDEF,
-                        cls,
-                        "Don't expose ${AnnotationItem.simpleName(it)}: ${cls.simpleName()} must be hidden."
-                    )
-                }
+            cls.modifiers.findAnnotation(AnnotationItem::isTypeDefAnnotation)?.let {
+                report(
+                    PUBLIC_TYPEDEF,
+                    cls,
+                    "Don't expose ${AnnotationItem.simpleName(it)}: ${cls.simpleName()} must be hidden."
+                )
+            }
         }
     }
 
@@ -3051,6 +3050,7 @@ class ApiLint(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun isInteresting(cls: ClassItem): Boolean {
         val name = cls.qualifiedName()
         for (prefix in options.checkApiIgnorePrefix) {

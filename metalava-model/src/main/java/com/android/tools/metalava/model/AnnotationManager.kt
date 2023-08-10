@@ -44,27 +44,25 @@ interface AnnotationManager {
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget>
 
-    /**
-     * Checks to see if the modifiers contain any show annotations.
-     *
-     * See [AnnotationItem.isShowAnnotation]
-     */
-    fun hasShowAnnotation(modifiers: ModifierList): Boolean = false
+    /** Returns true if [annotationName] is the name of one of the show annotations. */
+    fun isShowAnnotationName(annotationName: String): Boolean = false
 
     /**
-     * Checks to see if the modifiers contain any show single annotations.
+     * Checks to see if this has any show for stubs purposes annotations.
      *
-     * See [AnnotationItem.isShowSingleAnnotation]
+     * Returns true if it has, false otherwise.
      */
-    fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean = false
+    fun hasAnyStubPurposesAnnotations(): Boolean = false
 
     /**
-     * Checks to see if the modifiers contain any show for stubs purposes annotations and no other
-     * show annotations.
+     * Get the [Showability] for the supplied [Item].
      *
-     * See [AnnotationItem.isShowForStubPurposes]
+     * This combines the [Showability] of all the annotations of this item and returns the result.
+     *
+     * If the annotations on the item conflict then this could throw an exception or report an error
+     * as appropriate.
      */
-    fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean = false
+    fun getShowabilityForItem(item: Item): Showability = Showability.NO_EFFECT
 
     /**
      * Checks to see if the modifiers contain any hide annotations.
@@ -158,7 +156,7 @@ abstract class BaseAnnotationManager : AnnotationManager {
  * * The annotation names are correct and do not need mapping into another form.
  * * The annotations can be used in all stubs.
  */
-class NoOpAnnotationManager : BaseAnnotationManager() {
+internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
@@ -185,3 +183,5 @@ class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override val typedefMode: TypedefMode = TypedefMode.NONE
 }
+
+val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()

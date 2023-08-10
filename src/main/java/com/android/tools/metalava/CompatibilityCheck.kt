@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -51,7 +52,8 @@ class CompatibilityCheck(
     private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null,
-    private val reporter: Reporter
+    private val reporter: Reporter,
+    private val issueConfiguration: IssueConfiguration,
 ) : ComparisonVisitor() {
 
     /**
@@ -822,6 +824,7 @@ class CompatibilityCheck(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: Item) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -840,10 +843,10 @@ class CompatibilityCheck(
         // Clarify error message for removed API to make it less ambiguous
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
-        } else if (options.showAnnotations.isNotEmpty()) {
-            if (options.showAnnotations.matchesSuffix("SystemApi")) {
+        } else if (options.allShowAnnotations.isNotEmpty()) {
+            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
                 message += " to the system API"
-            } else if (options.showAnnotations.matchesSuffix("TestApi")) {
+            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
                 message += " to the test API"
             }
         }
@@ -1060,18 +1063,21 @@ class CompatibilityCheck(
         }
         if (
             reporter.report(issue, item, message) &&
-                configuration.getSeverity(issue) == Severity.ERROR
+                issueConfiguration.getSeverity(issue) == Severity.ERROR
         ) {
             foundProblems = true
         }
     }
 
     companion object {
+        @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,
             apiType: ApiType,
-            baseApi: Codebase? = null,
+            baseApi: Codebase?,
+            reporter: Reporter,
+            issueConfiguration: IssueConfiguration,
         ) {
             val filter =
                 apiType
@@ -1086,7 +1092,8 @@ class CompatibilityCheck(
                     oldCodebase,
                     apiType,
                     baseApi,
-                    options.reporterCompatibilityReleased
+                    reporter,
+                    issueConfiguration,
                 )
 
             val oldFullCodebase =
@@ -1106,7 +1113,7 @@ class CompatibilityCheck(
                     "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
-                throw DriverException(exitCode = -1, stderr = message)
+                throw MetalavaCliException(exitCode = -1, stderr = message)
             }
         }
     }
