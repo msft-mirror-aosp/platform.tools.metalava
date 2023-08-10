@@ -23,6 +23,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
@@ -969,7 +970,7 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): MetalavaCommand {
-    val command = MetalavaCommand(stdout, stderr, DriverCommand(), options::getUsage)
+    val command = MetalavaCommand(stdout, stderr, ::DriverCommand, options::getUsage)
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
         SignatureToJDiffCommand(),
@@ -982,7 +983,7 @@ private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): Met
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
  * needs to be run when no subcommand is provided.
  */
-private class DriverCommand : OptionsCommand() {
+private class DriverCommand(commonOptions: CommonOptions) : OptionsCommand(commonOptions) {
     override fun run() {
         // Initialize the global options.
         super.run()

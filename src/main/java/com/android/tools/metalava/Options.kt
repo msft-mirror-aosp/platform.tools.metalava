@@ -26,7 +26,7 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
-import com.android.tools.metalava.cli.common.defaultCommonOptions
+import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.stderr
@@ -201,7 +201,7 @@ const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
-    commonOptions: CommonOptions = defaultCommonOptions,
+    private val commonOptions: CommonOptions = CommonOptions(),
     signatureOutputOptions: SignatureOutputOptions = SignatureOutputOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to */
@@ -441,14 +441,19 @@ class Options(
      */
     var allowClassesFromClasspath = true
 
+    /** This is set directly by [preprocessArgv]. */
+    internal var verbosity: Verbosity = Verbosity.NORMAL
+
     /** Whether to report warnings and other diagnostics along the way */
-    var quiet = commonOptions.verbosity.quiet
+    val quiet: Boolean
+        get() = verbosity.quiet
 
     /**
      * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
      * quiet)
      */
-    var verbose = commonOptions.verbosity.verbose
+    val verbose: Boolean
+        get() = verbosity.verbose
 
     /** If set, a directory to write stub files to. Corresponds to the --stubs/-stubs flag. */
     var stubsDir: File? = null
@@ -519,7 +524,7 @@ class Options(
             .default(emptyManifest, defaultForHelp = "no manifest")
 
     /** Whether output should be colorized */
-    var terminal = commonOptions.terminal
+    val terminal by commonOptions::terminal
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -2055,7 +2060,8 @@ class Options(
  * A command that is passed to [MetalavaCommand.defaultCommand] when the options need to be
  * initialized.
  */
-internal open class OptionsCommand : CliktCommand(treatUnknownOptionsAsArgs = true) {
+internal open class OptionsCommand(commonOptions: CommonOptions) :
+    CliktCommand(treatUnknownOptionsAsArgs = true) {
 
     /**
      * Property into which all the arguments (and unknown options) are gathered.
@@ -2074,6 +2080,7 @@ internal open class OptionsCommand : CliktCommand(treatUnknownOptionsAsArgs = tr
      */
     private val optionGroup by
         Options(
+            commonOptions = commonOptions,
             signatureOutputOptions = signatureOutputOptions,
         )
 
