@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -39,6 +40,8 @@ class SignatureWriter(
     private val preFiltered: Boolean,
     val emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    private val fileFormat: FileFormat = options.outputFormat,
+    private val outputKotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -53,7 +56,7 @@ class SignatureWriter(
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
-            writer.print(options.outputFormat.header())
+            writer.print(fileFormat.header())
         }
     }
 
@@ -61,7 +64,7 @@ class SignatureWriter(
         // If a header must only be written out when the file is not empty then write it here as
         // this is not called
         if (emitHeader == EmitFileHeader.IF_NONEMPTY_FILE) {
-            writer.print(options.outputFormat.header())
+            writer.print(fileFormat.header())
         }
         writer.print(text)
     }
@@ -168,7 +171,7 @@ class SignatureWriter(
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
-            skipNullnessAnnotations = options.outputKotlinStyleNulls,
+            skipNullnessAnnotations = outputKotlinStyleNulls,
             omitCommonPackages = true
         )
     }
@@ -246,7 +249,7 @@ class SignatureWriter(
             if (i > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() && options.outputFormat.conciseDefaultValues) {
+            if (parameter.hasDefaultValue() && fileFormat.conciseDefaultValues) {
                 // Concise representation of a parameter with a default
                 write("optional ")
             }
@@ -257,7 +260,7 @@ class SignatureWriter(
                 write(" ")
                 write(name)
             }
-            if (parameter.isDefaultValueKnown() && !options.outputFormat.conciseDefaultValues) {
+            if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
                 if (defaultValue != null) {
@@ -274,7 +277,6 @@ class SignatureWriter(
     private fun writeType(
         item: Item,
         type: TypeItem?,
-        outputKotlinStyleNulls: Boolean = options.outputKotlinStyleNulls
     ) {
         type ?: return
 

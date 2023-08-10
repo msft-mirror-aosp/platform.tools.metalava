@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -160,7 +161,14 @@ class ConvertJarsToSignatureFiles {
             }
 
             createReportFile(jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(printWriter, apiEmit, apiReference, jarCodebase.preFiltered)
+                SignatureWriter(
+                    printWriter,
+                    apiEmit,
+                    apiReference,
+                    jarCodebase.preFiltered,
+                    fileFormat = FileFormat.V2,
+                    outputKotlinStyleNulls = false,
+                )
             }
 
             // Delete older redundant .xml files
