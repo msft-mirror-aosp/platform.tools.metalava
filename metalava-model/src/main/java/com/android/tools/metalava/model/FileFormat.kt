@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model
 
+import java.util.Locale
+
 /** File formats that metalava can emit APIs to */
 enum class FileFormat(
     val description: String,
     val version: String? = null,
-    val conciseDefaultValues: Boolean = false
+    val conciseDefaultValues: Boolean = false,
 ) {
     UNKNOWN("?"),
     JDIFF("JDiff"),
@@ -32,6 +34,9 @@ enum class FileFormat(
     V2("Metalava signature file", "2.0"),
     V3("Metalava signature file", "3.0"),
     V4("Metalava signature file", "4.0", conciseDefaultValues = true);
+
+    /** The value to use in a command line option. */
+    val optionValue: String = name.lowercase(Locale.US)
 
     fun useKotlinStyleNulls(): Boolean {
         return this >= V3

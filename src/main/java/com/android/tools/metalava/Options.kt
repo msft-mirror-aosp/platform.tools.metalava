@@ -1292,10 +1292,14 @@ class Options(
             )
         }
 
-        // outputKotlinStyleNulls implies at least format=v3
+        // outputKotlinStyleNulls requires at least format=v3
         if (outputKotlinStyleNulls) {
             if (outputFormat < FileFormat.V3) {
-                outputFormat = FileFormat.V3
+                throw MetalavaCliException(
+                    stderr =
+                        "'$ARG_OUTPUT_KOTLIN_NULLS' requires '$ARG_FORMAT=v3' or higher not " +
+                            "'$ARG_FORMAT=${outputFormat.optionValue}"
+                )
             }
             outputFormat.configureOptions(this)
         }
