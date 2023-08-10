@@ -38,7 +38,7 @@ class SignatureWriter(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    val emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
+    private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
     private val fileFormat: FileFormat = options.outputFormat,
     private val outputKotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
@@ -65,6 +65,8 @@ class SignatureWriter(
         // this is not called
         if (emitHeader == EmitFileHeader.IF_NONEMPTY_FILE) {
             writer.print(fileFormat.header())
+            // Remember that the header was written out, so it will not be written again.
+            emitHeader = EmitFileHeader.NEVER
         }
         writer.print(text)
     }
