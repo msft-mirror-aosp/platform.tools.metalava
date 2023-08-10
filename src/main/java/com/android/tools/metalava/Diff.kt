@@ -30,6 +30,7 @@ import kotlin.math.min
 
 /** Returns the universal diff for the two given files, or null if not supported or working */
 fun getNativeDiff(before: File, after: File): String? {
+    @Suppress("DEPRECATION")
     if (options.noNativeDiff) {
         return null
     }
