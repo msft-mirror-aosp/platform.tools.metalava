@@ -314,7 +314,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
         /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = format.useKotlinStyleNulls(),
+        outputKotlinStyleNulls: Boolean = format.signatureFileFormatDefaults.kotlinStyleNulls,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
