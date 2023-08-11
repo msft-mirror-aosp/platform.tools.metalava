@@ -1595,7 +1595,7 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
-    fun `From-text stubs cannot be generated from signature files with conflicting class definitions`() {
+    fun `From-text stubs can be generated from signature files with conflicting class definitions`() {
         check(
             format = FileFormat.V2,
             signatureSources =
@@ -1624,10 +1624,38 @@ class StubsTest : AbstractStubsTest() {
             }
             """, // system-current.txt
                 ),
-            expectedFail =
-                """
-            Aborting: Unable to parse signature file: Incompatible class test.pkg.SystemClassExtendingPublicClass superclass definitions
-            """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicClass {
+                    public PublicClass() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SystemClass extends test.pkg.PublicClass {
+                    public SystemClass() { throw new RuntimeException("Stub!"); }
+                    public void bar() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SystemClassExtendingPublicClass extends test.pkg.SystemClass {
+                    public SystemClassExtendingPublicClass() { throw new RuntimeException("Stub!"); }
+                    public void foo(int i) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                ),
         )
     }
 }

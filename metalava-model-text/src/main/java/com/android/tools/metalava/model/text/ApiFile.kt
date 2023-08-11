@@ -381,19 +381,28 @@ private constructor(
         token = tokenizer.requireToken()
         cl =
             when (val foundClass = api.findClass(cl.qualifiedName())) {
-                null -> cl
+                null -> {
+                    // Duplicate class is not found, thus update super class string
+                    // and keep cl
+                    mapClassToSuper(cl, ext)
+                    cl
+                }
                 else -> {
                     if (!foundClass.isCompatible(cl)) {
                         throw ApiParseException("Incompatible $foundClass definitions", cl.position)
                     } else if (mClassToSuper[foundClass] != ext) {
-                        throw ApiParseException("Incompatible $foundClass superclass definitions")
+                        // Duplicate class with conflicting superclass names are found.
+                        // Since the clas definition found later should be prioritized,
+                        // overwrite the superclass name as ext but set cl as
+                        // foundClass, where the class attributes are stored
+                        // and continue to add methods/fields in foundClass
+                        mapClassToSuper(cl, ext)
+                        foundClass
                     } else {
                         foundClass
                     }
                 }
             }
-        // Resolve superclass after done parsing
-        mapClassToSuper(cl, ext)
         while (true) {
             if ("}" == token) {
                 break
