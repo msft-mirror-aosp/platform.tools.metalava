@@ -429,13 +429,18 @@ Options:
 
 Signature File Output:
 
-  Options controlling the signature file output
+  Options controlling the signature file output.
 
   --api <file>                               Output file into which the API signature will be generated. If this is not
                                              specified then no API signature file will be created.
   --removed-api <file>                       Output file into which the API signatures for removed APIs will be
                                              generated. If this is not specified then no removed API signature file will
                                              be created.
+
+Signature Format Output:
+
+  Options controlling the format of the generated signature files.
+
   --api-overloaded-method-order [source|signature]
                                              Specifies the order of overloaded methods in signature files. Applies to
                                              the contents of the files specified on --api and --removed-api.

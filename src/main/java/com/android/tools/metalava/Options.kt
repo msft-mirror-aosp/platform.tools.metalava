@@ -202,7 +202,8 @@ const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
-    signatureOutputOptions: SignatureOutputOptions = SignatureOutputOptions(),
+    signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
+    signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
@@ -482,9 +483,9 @@ class Options(
     /** Proguard Keep list file to write */
     var proguard: File? = null
 
-    val apiFile by signatureOutputOptions::apiFile
-    val removedApiFile by signatureOutputOptions::removedApiFile
-    val signatureFileFormat by signatureOutputOptions::fileFormat
+    val apiFile by signatureFileOptions::apiFile
+    val removedApiFile by signatureFileOptions::removedApiFile
+    val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -2069,8 +2070,11 @@ internal open class OptionsCommand(commonOptions: CommonOptions) :
      */
     private val flags by argument().multiple()
 
-    /** Signature generation options. */
-    private val signatureOutputOptions by SignatureOutputOptions()
+    /** Signature file options. */
+    private val signatureFileOptions by SignatureFileOptions()
+
+    /** Signature format options. */
+    private val signatureFormatOptions by SignatureFormatOptions()
 
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
@@ -2079,7 +2083,8 @@ internal open class OptionsCommand(commonOptions: CommonOptions) :
     private val optionGroup by
         Options(
             commonOptions = commonOptions,
-            signatureOutputOptions = signatureOutputOptions,
+            signatureFileOptions = signatureFileOptions,
+            signatureFormatOptions = signatureFormatOptions,
         )
 
     override fun run() {

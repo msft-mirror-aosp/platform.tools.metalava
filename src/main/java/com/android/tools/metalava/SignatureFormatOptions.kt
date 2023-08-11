@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.DefaultsVersion
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -28,15 +27,13 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import java.util.Locale
 
-const val ARG_API = "--api"
-const val ARG_REMOVED_API = "--removed-api"
 const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_FORMAT = "--format"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 
 /**
  * A special enum to handle the mapping from command line to internal representation for the
- * [SignatureOutputOptions.apiOverloadedMethodOrder] property.
+ * [SignatureFileOptions.apiOverloadedMethodOrder] property.
  *
  * This is added purely to provide a convenient way to map from the input to a fixed set of values.
  * It provides help for each individual option as well as a container for the internal object to
@@ -72,7 +69,7 @@ private enum class OptionOverloadedMethodOrder(val order: OverloadedMethodOrder,
 
 /**
  * A special enum to handle the mapping from command line to internal representation for the
- * [SignatureOutputOptions.outputFormat] property.
+ * [SignatureFileOptions.outputFormat] property.
  *
  * See [OptionOverloadedMethodOrder] for more information.
  */
@@ -125,39 +122,11 @@ private enum class OptionFormatVersion(val defaults: FileFormat, val help: Strin
     )
 }
 
-class SignatureOutputOptions :
+class SignatureFormatOptions :
     OptionGroup(
-        name = "Signature File Output",
-        help = "Options controlling the signature file output"
+        name = "Signature Format Output",
+        help = "Options controlling the format of the generated signature files."
     ) {
-
-    /** If set, a file to write an API file to. */
-    val apiFile by
-        option(
-                ARG_API,
-                metavar = "<file>",
-                help =
-                    """
-                    Output file into which the API signature will be generated. If this is not
-                    specified then no API signature file will be created.
-                """
-                        .trimIndent()
-            )
-            .newFile()
-
-    /** If set, a file to write an API file containing APIs that have been removed. */
-    val removedApiFile by
-        option(
-                ARG_REMOVED_API,
-                metavar = "<file>",
-                help =
-                    """
-                    Output file into which the API signatures for removed APIs will be generated. If
-                    this is not specified then no removed API signature file will be created.
-                """
-                        .trimIndent()
-            )
-            .newFile()
 
     /**
      * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature

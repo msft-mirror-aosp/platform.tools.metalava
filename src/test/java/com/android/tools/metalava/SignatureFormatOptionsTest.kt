@@ -23,15 +23,15 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-class SignatureOutputOptionsTest {
+class SignatureFormatOptionsTest {
 
-    private fun runTest(vararg args: String, test: (SignatureOutputOptions) -> Unit) {
+    private fun runTest(vararg args: String, test: (SignatureFormatOptions) -> Unit) {
         val command = MockCommand(test)
         command.parse(args.toList())
     }
 
-    private class MockCommand(val test: (SignatureOutputOptions) -> Unit) : CliktCommand() {
-        val options by SignatureOutputOptions()
+    private class MockCommand(val test: (SignatureFormatOptions) -> Unit) : CliktCommand() {
+        val options by SignatureFormatOptions()
 
         override fun run() {
             test(options)
