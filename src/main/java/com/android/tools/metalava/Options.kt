@@ -564,7 +564,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     val manifest by
         option(
                 ARG_MANIFEST,
-                "-manifest",
                 help =
                     """
         A manifest file, used to check permissions to cross check APIs and retrieve min_sdk_version.
@@ -885,16 +884,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         while (index < args.size) {
             when (val arg = args[index]) {
                 // For now we don't distinguish between bootclasspath and classpath
-                ARG_CLASS_PATH,
-                "-classpath",
-                "-bootclasspath" -> {
+                ARG_CLASS_PATH -> {
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
                 }
                 ARG_SOURCE_PATH,
                 "--sources",
-                "--sourcepath",
-                "-sourcepath" -> {
+                "--sourcepath" -> {
                     val path = getValue(args, ++index)
                     if (path.isBlank()) {
                         // Don't compute absolute path; we want to skip this file later on.
@@ -949,17 +945,12 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                "-sdkvalues",
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_API,
-                "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
+                ARG_API -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API,
-                "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_REMOVED_API,
-                "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_SHOW_ANNOTATION,
-                "-showAnnotation" -> {
+                ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
+                ARG_REMOVED_API -> removedApiFile = stringToNewFile(getValue(args, ++index))
+                ARG_SHOW_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showAnnotationsBuilder.add(annotation)
                     // These should also be counted as allShowAnnotations
@@ -971,24 +962,16 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     // These should also be counted as allShowAnnotations
                     allShowAnnotationsBuilder.add(annotation)
                 }
-                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                "--show-for-stub-purposes-annotations",
-                "-show-for-stub-purposes-annotation" -> {
+                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showForStubPurposesAnnotationBuilder.add(annotation)
                     // These should also be counted as allShowAnnotations
                     allShowAnnotationsBuilder.add(annotation)
                 }
-                ARG_SHOW_UNANNOTATED,
-                "-showUnannotated" -> showUnannotated = true
-                ARG_HIDE_ANNOTATION,
-                "--hideAnnotations",
-                "-hideAnnotation" -> hideAnnotationsBuilder.add(getValue(args, ++index))
-                ARG_HIDE_META_ANNOTATION,
-                "--hideMetaAnnotations",
-                "-hideMetaAnnotation" -> mutableHideMetaAnnotations.add(getValue(args, ++index))
-                ARG_STUBS,
-                "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
+                ARG_SHOW_UNANNOTATED -> showUnannotated = true
+                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
+                ARG_HIDE_META_ANNOTATION -> mutableHideMetaAnnotations.add(getValue(args, ++index))
+                ARG_STUBS -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
@@ -1016,10 +999,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
-                ARG_PROGUARD,
-                "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_HIDE_PACKAGE,
-                "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
+                ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
+                ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES,
                 "-stubpackages" -> {
                     val packages = getValue(args, ++index)
@@ -1032,8 +1013,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                             }
                     filter.addPackages(packages)
                 }
-                ARG_STUB_IMPORT_PACKAGES,
-                "-stubimportpackages" -> {
+                ARG_STUB_IMPORT_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     for (pkg in packages.split(File.pathSeparatorChar)) {
                         mutableStubImportPackages.add(pkg)
@@ -1125,37 +1105,20 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val file = stringToExistingFile(getValue(args, ++index))
                     baseApiForCompatCheck = file
                 }
-                ARG_ERROR,
-                "-error" -> setIssueSeverity(getValue(args, ++index), Severity.ERROR, arg)
-                ARG_WARNING,
-                "-warning" -> setIssueSeverity(getValue(args, ++index), Severity.WARNING, arg)
-                ARG_LINT,
-                "-lint" -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
-                ARG_HIDE,
-                "-hide" -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
-                ARG_ERROR_CATEGORY,
-                "-error-category" ->
+                ARG_ERROR -> setIssueSeverity(getValue(args, ++index), Severity.ERROR, arg)
+                ARG_WARNING -> setIssueSeverity(getValue(args, ++index), Severity.WARNING, arg)
+                ARG_LINT -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
+                ARG_HIDE -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
+                ARG_ERROR_CATEGORY ->
                     setCategorySeverity(getValue(args, ++index), Severity.ERROR, arg)
-                ARG_WARNING_CATEGORY,
-                "-warning-category" ->
+                ARG_WARNING_CATEGORY ->
                     setCategorySeverity(getValue(args, ++index), Severity.WARNING, arg)
-                ARG_LINT_CATEGORY,
-                "-lint-category" -> setCategorySeverity(getValue(args, ++index), Severity.LINT, arg)
-                ARG_HIDE_CATEGORY,
-                "-hide-category" ->
+                ARG_LINT_CATEGORY ->
+                    setCategorySeverity(getValue(args, ++index), Severity.LINT, arg)
+                ARG_HIDE_CATEGORY ->
                     setCategorySeverity(getValue(args, ++index), Severity.HIDDEN, arg)
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
-                "-werror" -> {
-                    // Temporarily disabled; this is used in various builds but is pretty much
-                    // never what we want.
-                    // warningsAreErrors = true
-                }
-                "-lerror" -> {
-                    // Temporarily disabled; this is used in various builds but is pretty much
-                    // never what we want.
-                    // lintsAreErrors = true
-                }
                 ARG_API_LINT -> {
                     checkApi = true
                     if (index < args.size - 1) {
