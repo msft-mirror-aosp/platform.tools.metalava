@@ -18,15 +18,13 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MethodItem
 
-typealias FileFormat = SignatureFileFormat
-
 /**
  * Encapsulates all the information related to the format of a signature file.
  *
  * Some of these will be initialized from the version specific defaults and some will be overridden
  * on the command line.
  */
-data class SignatureFileFormat(
+data class FileFormat(
     val defaultsVersion: DefaultsVersion,
     val description: String = "Metalava signature file",
     val version: String,
@@ -65,9 +63,9 @@ data class SignatureFileFormat(
     }
 
     companion object {
-        internal val allDefaults = mutableListOf<SignatureFileFormat>()
+        internal val allDefaults = mutableListOf<FileFormat>()
 
-        private fun addDefaults(defaults: SignatureFileFormat): SignatureFileFormat {
+        private fun addDefaults(defaults: FileFormat): FileFormat {
             allDefaults += defaults
             return defaults
         }
@@ -75,7 +73,7 @@ data class SignatureFileFormat(
         // The defaults associated with version 1.0.
         val V1 =
             addDefaults(
-                SignatureFileFormat(
+                FileFormat(
                     defaultsVersion = DefaultsVersion.V1,
                     description = "Doclava signature file",
                     version = "1.0",
@@ -89,7 +87,7 @@ data class SignatureFileFormat(
         // The defaults associated with version 2.0.
         val V2 =
             addDefaults(
-                SignatureFileFormat(
+                FileFormat(
                     defaultsVersion = DefaultsVersion.V2,
                     version = "2.0",
                     kotlinStyleNulls = false,
@@ -100,7 +98,7 @@ data class SignatureFileFormat(
         // The defaults associated with version 3.0.
         val V3 =
             addDefaults(
-                SignatureFileFormat(
+                FileFormat(
                     defaultsVersion = DefaultsVersion.V3,
                     version = "3.0",
                     kotlinStyleNulls = true,
@@ -111,7 +109,7 @@ data class SignatureFileFormat(
         // The defaults associated with version 4.0.
         val V4 =
             addDefaults(
-                SignatureFileFormat(
+                FileFormat(
                     defaultsVersion = DefaultsVersion.V4,
                     version = "4.0",
                     kotlinStyleNulls = true,

@@ -19,9 +19,9 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.model.text.SignatureFileFormat
-import com.android.tools.metalava.model.text.SignatureFileFormat.DefaultsVersion
-import com.android.tools.metalava.model.text.SignatureFileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.DefaultsVersion
+import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
@@ -77,9 +77,9 @@ private enum class OptionOverloadedMethodOrder(val order: OverloadedMethodOrder,
  * See [OptionOverloadedMethodOrder] for more information.
  */
 @Suppress("unused")
-private enum class OptionFormatVersion(val defaults: SignatureFileFormat, val help: String) {
+private enum class OptionFormatVersion(val defaults: FileFormat, val help: String) {
     V2(
-        SignatureFileFormat.V2,
+        FileFormat.V2,
         help =
             """
                 The main version used in Android.
@@ -87,7 +87,7 @@ private enum class OptionFormatVersion(val defaults: SignatureFileFormat, val he
                 .trimIndent()
     ),
     V3(
-        SignatureFileFormat.V3,
+        FileFormat.V3,
         help =
             """
                 Adds support for using kotlin style syntax to embed nullability information instead
@@ -97,7 +97,7 @@ private enum class OptionFormatVersion(val defaults: SignatureFileFormat, val he
                 .trimIndent()
     ),
     V4(
-        SignatureFileFormat.V4,
+        FileFormat.V4,
         help =
             """
                 Adds support for using concise default values in parameters. Instead of specifying
@@ -106,7 +106,7 @@ private enum class OptionFormatVersion(val defaults: SignatureFileFormat, val he
                 .trimIndent()
     ),
     LATEST(
-        SignatureFileFormat.LATEST,
+        FileFormat.LATEST,
         help =
             """
                 The latest in the supported versions. Only use this if you want to have the very
@@ -115,7 +115,7 @@ private enum class OptionFormatVersion(val defaults: SignatureFileFormat, val he
                 .trimIndent()
     ),
     RECOMMENDED(
-        SignatureFileFormat.V2,
+        FileFormat.V2,
         help =
             """
                 The recommended version to use. This is currently set to `v2` and will only change
@@ -215,10 +215,10 @@ class SignatureOutputOptions :
             }
 
     /**
-     * The [SignatureFileFormat] produced by merging all the format related options into one
-     * cohesive set of format related properties. It combines the defaults
+     * The [FileFormat] produced by merging all the format related options into one cohesive set of
+     * format related properties. It combines the defaults
      */
-    val signatureFileFormat: SignatureFileFormat by
+    val fileFormat: FileFormat by
         lazy(LazyThreadSafetyMode.NONE) {
             val effectiveOutputKotlinStyleNulls =
                 outputKotlinStyleNulls ?: formatDefaults.kotlinStyleNulls

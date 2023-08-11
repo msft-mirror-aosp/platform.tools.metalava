@@ -484,7 +484,7 @@ class Options(
 
     val apiFile by signatureOutputOptions::apiFile
     val removedApiFile by signatureOutputOptions::removedApiFile
-    val signatureFileFormat by signatureOutputOptions::signatureFileFormat
+    val signatureFileFormat by signatureOutputOptions::fileFormat
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null

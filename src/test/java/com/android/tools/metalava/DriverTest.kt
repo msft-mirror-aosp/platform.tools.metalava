@@ -39,7 +39,7 @@ import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.SignatureFileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner

@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiSourceParser
-import com.android.tools.metalava.model.text.SignatureFileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.io.ByteStreams
 import java.io.File
@@ -166,7 +166,7 @@ class ConvertJarsToSignatureFiles {
                     apiEmit,
                     apiReference,
                     jarCodebase.preFiltered,
-                    signatureFileFormat = SignatureFileFormat.V2,
+                    fileFormat = FileFormat.V2,
                 )
             }
 
