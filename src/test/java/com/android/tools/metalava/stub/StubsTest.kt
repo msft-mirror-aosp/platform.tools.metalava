@@ -1593,4 +1593,41 @@ class StubsTest : AbstractStubsTest() {
             docStubs = true
         )
     }
+
+    @Test
+    fun `From-text stubs cannot be generated from signature files with conflicting class definitions`() {
+        check(
+            format = FileFormat.V2,
+            signatureSources =
+                arrayOf(
+                    """
+            // Signature format: 2.0
+            package test.pkg {
+              public class SystemClassExtendingPublicClass extends test.pkg.PublicClass {
+                ctor public SystemClassExtendingPublicClass();
+                method public void foo(int i);
+              }
+              public class PublicClass {
+                ctor public PublicClass();
+              }
+            }
+            """, // current.txt
+                    """
+            // Signature format: 2.0
+            package test.pkg {
+              public class SystemClass extends test.pkg.PublicClass {
+                ctor public SystemClass();
+                method public void bar();
+              }
+              public class SystemClassExtendingPublicClass extends test.pkg.SystemClass {
+              }
+            }
+            """, // system-current.txt
+                ),
+            expectedFail =
+                """
+            Aborting: Unable to parse signature file: Incompatible class test.pkg.SystemClassExtendingPublicClass superclass definitions
+            """,
+        )
+    }
 }

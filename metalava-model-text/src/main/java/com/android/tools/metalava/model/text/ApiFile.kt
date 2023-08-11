@@ -321,7 +321,7 @@ private constructor(
             rawName = rawName.substring(0, variableIndex)
         }
         token = tokenizer.requireToken()
-        val maybeExistingClass =
+        var cl =
             TextClassItem(
                 api,
                 tokenizer.pos(),
@@ -334,20 +334,6 @@ private constructor(
                 rawName,
                 annotations
             )
-        val cl =
-            when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
-                null -> maybeExistingClass
-                else -> {
-                    if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException(
-                            "Incompatible $foundClass definitions",
-                            maybeExistingClass.position
-                        )
-                    } else {
-                        foundClass
-                    }
-                }
-            }
 
         cl.setContainingPackage(pkg)
         cl.setTypeInfo(typeInfo)
@@ -358,8 +344,6 @@ private constructor(
             ext = token
             token = tokenizer.requireToken()
         }
-        // Resolve superclass after done parsing
-        mapClassToSuper(cl, ext)
         if (
             "implements" == token ||
                 "extends" == token ||
@@ -395,6 +379,21 @@ private constructor(
             throw ApiParseException("expected {, was $token", tokenizer)
         }
         token = tokenizer.requireToken()
+        cl =
+            when (val foundClass = api.findClass(cl.qualifiedName())) {
+                null -> cl
+                else -> {
+                    if (!foundClass.isCompatible(cl)) {
+                        throw ApiParseException("Incompatible $foundClass definitions", cl.position)
+                    } else if (mClassToSuper[foundClass] != ext) {
+                        throw ApiParseException("Incompatible $foundClass superclass definitions")
+                    } else {
+                        foundClass
+                    }
+                }
+            }
+        // Resolve superclass after done parsing
+        mapClassToSuper(cl, ext)
         while (true) {
             if ("}" == token) {
                 break
@@ -1486,6 +1485,5 @@ private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
         isInterface() == cls.isInterface() &&
         isEnum() == cls.isEnum() &&
         isAnnotation == cls.isAnnotation &&
-        superClass() == cls.superClass() &&
         allInterfaces().toSet() == cls.allInterfaces().toSet()
 }
