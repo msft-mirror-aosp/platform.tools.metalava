@@ -4200,7 +4200,7 @@ class ApiFileTest : DriverTest() {
             signatureSources = arrayOf(source1, source2),
             expectedFail =
                 "Aborting: Unable to parse signature file: Cannot merge different formats of signature files. " +
-                    "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
+                    "First file format=2.0, current file format=3.0: file=TESTROOT/project/load-api2.txt"
         )
     }
 

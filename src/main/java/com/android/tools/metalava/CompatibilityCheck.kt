@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
-import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -67,15 +66,11 @@ class CompatibilityCheck(
         }
     }
 
-    val oldFormat = (oldCodebase as? TextCodebase)?.format
-    /**
-     * In old signature files, methods inherited from hidden super classes are not included. An
-     * example of this is StringBuilder.setLength. More details about this are listed in
-     * Compatibility.skipInheritedMethods. We may see these in the codebase but not in the (old)
-     * signature files, so in these cases we want to ignore certain changes such as considering
-     * StringBuilder.setLength a newly added method.
-     */
-    private val comparingWithPartialSignatures = oldFormat == FileFormat.V1
+    /** See [com.android.tools.metalava.model.SignatureFileFormat.hasPartialSignatures]. */
+    private val comparingWithPartialSignatures = let {
+        val oldFormat = (oldCodebase as? TextCodebase)?.format
+        oldFormat?.hasPartialSignatures ?: false
+    }
 
     var foundProblems = false
 

@@ -56,7 +56,7 @@ class ApiFile(
     private var kotlinStyleNulls: Boolean = false
 
     /** The file format of the file being parsed. */
-    lateinit var format: FileFormat
+    lateinit var format: SignatureFileFormat
 
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
     private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
@@ -142,7 +142,7 @@ class ApiFile(
             return api
         }
 
-        fun parseHeader(filename: String, reader: BufferedReader): FileFormat? {
+        fun parseHeader(filename: String, reader: BufferedReader): SignatureFileFormat? {
             var line = reader.readLine()
             while (line != null && line.isBlank()) {
                 line = reader.readLine()
@@ -151,12 +151,12 @@ class ApiFile(
                 return null
             }
 
-            for (format in FileFormat.values()) {
+            for (format in SignatureFileFormat.allDefaults) {
                 val header = format.header()
                 if (header == null) {
                     if (line.startsWith("package ")) {
                         // Old signature files
-                        return FileFormat.V1
+                        return SignatureFileFormat.V1
                     }
                 } else if (header.startsWith(line)) {
                     return format
@@ -186,8 +186,8 @@ class ApiFile(
         val reader = BufferedReader(StringReader(apiText), 128)
 
         // Infer the format.
-        format = parseHeader(filename, reader) ?: FileFormat.V2
-        kotlinStyleNulls = format.useKotlinStyleNulls()
+        format = parseHeader(filename, reader) ?: SignatureFileFormat.V2
+        kotlinStyleNulls = format.kotlinStyleNulls
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
         // the prior files.
@@ -200,8 +200,8 @@ class ApiFile(
                 throw ApiParseException(
                     String.format(
                         "Cannot merge different formats of signature files. First file format=%s, current file format=%s: file=%s",
-                        api.format,
-                        format,
+                        api.format.version,
+                        format.version,
                         filename
                     )
                 )

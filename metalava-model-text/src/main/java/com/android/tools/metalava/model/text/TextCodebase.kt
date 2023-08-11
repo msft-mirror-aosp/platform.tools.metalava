@@ -47,7 +47,7 @@ class TextCodebase(
     override fun trustedApi(): Boolean = true
 
     /** Signature file format version, if found. */
-    var format: FileFormat = FileFormat.V1 // not specifying format: assumed to be doclava, 1.0
+    lateinit var format: SignatureFileFormat
 
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(mPackages.values)

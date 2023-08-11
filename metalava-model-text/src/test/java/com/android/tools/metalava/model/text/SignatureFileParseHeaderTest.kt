@@ -29,7 +29,7 @@ class SignatureFileParseHeaderTest {
     @Test
     fun `Check format parsing (v1)`() {
         assertSame(
-            FileFormat.V1,
+            SignatureFileFormat.V1,
             parseHeader(
                 """
                 package test.pkg {
@@ -45,7 +45,7 @@ class SignatureFileParseHeaderTest {
     @Test
     fun `Check format parsing (v2)`() {
         assertSame(
-            FileFormat.V2,
+            SignatureFileFormat.V2,
             parseHeader(
                 """
             // Signature format: 2.0
@@ -64,7 +64,7 @@ class SignatureFileParseHeaderTest {
     @Test
     fun `Check format parsing (v3)`() {
         assertSame(
-            FileFormat.V3,
+            SignatureFileFormat.V3,
             parseHeader(
                 """
             // Signature format: 3.0
@@ -82,7 +82,7 @@ class SignatureFileParseHeaderTest {
     @Test
     fun `Check format parsing (v2 non-unix newlines)`() {
         assertSame(
-            FileFormat.V2,
+            SignatureFileFormat.V2,
             parseHeader(
                 "// Signature format: 2.0\r\n" +
                     "package libcore.util {\\r\n" +

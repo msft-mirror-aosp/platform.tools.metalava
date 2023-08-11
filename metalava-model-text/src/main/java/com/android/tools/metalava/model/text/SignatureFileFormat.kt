@@ -33,6 +33,13 @@ data class SignatureFileFormat(
     val overloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
     val kotlinStyleNulls: Boolean,
     val conciseDefaultValues: Boolean,
+    /**
+     * In old signature files, methods inherited from hidden super classes are not included. An
+     * example of this is StringBuilder.setLength. We may see these in the codebase but not in the
+     * (old) signature files, so in these cases we want to ignore certain changes such as
+     * considering StringBuilder.setLength a newly added method.
+     */
+    val hasPartialSignatures: Boolean = false,
 ) {
     /** The base version of the file format. */
     enum class DefaultsVersion {
@@ -56,7 +63,7 @@ data class SignatureFileFormat(
     }
 
     companion object {
-        private val allDefaults = mutableListOf<SignatureFileFormat>()
+        internal val allDefaults = mutableListOf<SignatureFileFormat>()
 
         private fun addDefaults(defaults: SignatureFileFormat): SignatureFileFormat {
             allDefaults += defaults
@@ -73,6 +80,7 @@ data class SignatureFileFormat(
                     headerPrefix = null,
                     kotlinStyleNulls = false,
                     conciseDefaultValues = false,
+                    hasPartialSignatures = true,
                 )
             )
 
