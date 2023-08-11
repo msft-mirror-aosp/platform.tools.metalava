@@ -27,7 +27,7 @@ abstract class UastTestBase : DriverTest() {
 
     private fun uastCheck(
         isK2: Boolean,
-        format: FileFormat = FileFormat.latest,
+        format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         @Language("TEXT") api: String? = null,
         extraArguments: Array<String> = emptyArray(),

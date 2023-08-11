@@ -59,6 +59,7 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URL
+import java.util.Locale
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -259,7 +260,7 @@ abstract class DriverTest : TemporaryFolderOwner {
          */
         docStubs: Boolean = false,
         /** Signature file format */
-        format: FileFormat = FileFormat.latest,
+        format: FileFormat = FileFormat.LATEST,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /**
@@ -314,7 +315,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
         /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = format.signatureFileFormatDefaults.kotlinStyleNulls,
+        outputKotlinStyleNulls: Boolean = format.kotlinStyleNulls,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -1494,16 +1495,7 @@ abstract class DriverTest : TemporaryFolderOwner {
 }
 
 private fun FileFormat.outputFlag(): String {
-    return "$ARG_FORMAT=v${signatureFormatAsInt()}"
-}
-
-private fun FileFormat.signatureFormatAsInt(): Int {
-    return when (this) {
-        FileFormat.V1 -> 1
-        FileFormat.V2 -> 2
-        FileFormat.V3 -> 3
-        FileFormat.V4 -> 4
-    }
+    return "$ARG_FORMAT=${defaultsVersion.name.lowercase(Locale.US)}"
 }
 
 /** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */

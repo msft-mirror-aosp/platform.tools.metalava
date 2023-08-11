@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MethodItem
 
+typealias FileFormat = SignatureFileFormat
+
 /**
  * Encapsulates all the information related to the format of a signature file.
  *

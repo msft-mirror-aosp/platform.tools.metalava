@@ -36,7 +36,7 @@ open class AbstractStubsTest : DriverTest() {
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
-        format: FileFormat = FileFormat.latest,
+        format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
         checkTextStubEquivalence: Boolean = false
