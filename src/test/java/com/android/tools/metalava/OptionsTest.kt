@@ -450,7 +450,7 @@ Options:
                                              signature (default) - sorts overloaded methods by their signature. This
                                              means that refactorings of the source files which change the order but not
                                              the API will have no effect on the API signature files.
-  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
