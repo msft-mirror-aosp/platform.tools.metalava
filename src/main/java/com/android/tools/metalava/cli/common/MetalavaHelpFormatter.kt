@@ -95,14 +95,19 @@ internal open class MetalavaHelpFormatter(
         // help needs those to come first. It is not possible (or at least not easy) to add group
         // names to some of those options at creation time so it is done here.
         val transformedParameters =
-            parameters.map {
-                when (it) {
-                    is HelpFormatter.ParameterHelp.Option ->
-                        if (it.groupName == null) it.copy(groupName = defaultOptionGroupName)
-                        else it
-                    else -> it
+            parameters
+                .map {
+                    when (it) {
+                        is HelpFormatter.ParameterHelp.Option ->
+                            if (it.groupName == null) it.copy(groupName = defaultOptionGroupName)
+                            else it
+                        else -> it
+                    }
                 }
-            }
+                // Force the options in the default group (like help) to come first.
+                .sortedBy {
+                    (it as? HelpFormatter.ParameterHelp.Option)?.groupName != defaultOptionGroupName
+                }
 
         // Use the default help format.
         val help = super.formatHelp(prolog, epilog, transformedParameters, formattedProgramName)

@@ -47,7 +47,7 @@ import org.objectweb.asm.tree.MethodNode
  * actually there in the android.jar files.
  */
 @Suppress("DEPRECATION")
-class ConvertJarsToSignatureFiles {
+class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
     fun convertJars(psiEnvironmentManager: PsiEnvironmentManager, root: File) {
         var api = 1
         while (true) {
@@ -166,7 +166,7 @@ class ConvertJarsToSignatureFiles {
                     apiEmit,
                     apiReference,
                     jarCodebase.preFiltered,
-                    fileFormat = FileFormat.V2,
+                    fileFormat = fileFormat,
                 )
             }
 
