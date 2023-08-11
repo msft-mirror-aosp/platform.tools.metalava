@@ -429,7 +429,8 @@ Options:
 
 Signature File Output:
 
-  Options controlling the signature file output.
+  Options controlling the signature file output. The format of the generated file is determined by the options in the
+  `Signature Format Output` section.
 
   --api <file>                               Output file into which the API signature will be generated. If this is not
                                              specified then no API signature file will be created.
