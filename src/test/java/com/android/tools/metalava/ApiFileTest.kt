@@ -4183,7 +4183,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test cannot merging API signature files with different file formats`() {
+    fun `Test can merge API signature files with different file formats`() {
         val source1 =
             """
             // Signature format: 2.0
@@ -4198,9 +4198,6 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail =
-                "Aborting: Unable to parse signature file: Cannot merge different formats of signature files. " +
-                    "First file format=2.0, current file format=3.0: file=TESTROOT/project/load-api2.txt"
         )
     }
 
