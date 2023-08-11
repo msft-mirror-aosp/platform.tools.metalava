@@ -39,7 +39,6 @@ import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
@@ -345,7 +344,6 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
                 apiEmit,
                 apiReference,
                 codebase.preFiltered,
-                methodComparator = options.apiOverloadedMethodOrder.comparator
             )
         }
     }
@@ -379,7 +377,6 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
                 removedReference,
                 codebase.original != null,
                 options.includeSignatureFormatVersionRemoved,
-                options.apiOverloadedMethodOrder.comparator
             )
         }
     }
@@ -651,13 +648,6 @@ fun checkCompatibility(
             val classResolver = getClassResolver(psiSourceParser)
             SignatureFileLoader.load(signatureFile, classResolver)
         }
-
-    val oldFormat = (oldCodebase as? TextCodebase)?.format
-    if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
-        throw MetalavaCliException(
-            "Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat"
-        )
-    }
 
     var baseApi: Codebase? = null
 

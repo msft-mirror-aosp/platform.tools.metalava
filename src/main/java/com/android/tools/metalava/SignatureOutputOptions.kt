@@ -19,8 +19,9 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFileFormat
+import com.android.tools.metalava.model.text.SignatureFileFormat.OverloadedMethodOrder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
@@ -31,14 +32,6 @@ const val ARG_REMOVED_API = "--removed-api"
 const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_FORMAT = "--format"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
-
-enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
-    /** Sort overloaded methods according to source order. */
-    SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
-
-    /** Sort overloaded methods by their signature. */
-    SIGNATURE(MethodItem.comparator)
-}
 
 /**
  * A special enum to handle the mapping from command line to internal representation for the
@@ -225,6 +218,19 @@ class SignatureOutputOptions :
      * unfortunately, it is not possible in Clikt to specify a default that depends on another
      * property, so instead the default is implemented here.
      */
-    val effectiveOutputKotlinStyleNulls
+    private val effectiveOutputKotlinStyleNulls
         get() = outputKotlinStyleNulls ?: (outputFormat.useKotlinStyleNulls())
+
+    /**
+     * The [SignatureFileFormat] produced by merging all the format related options into one
+     * cohesive set of format related properties. It combines the defaults
+     */
+    val signatureFileFormat: SignatureFileFormat by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val format = outputFormat.signatureFileFormatDefaults
+            format.copy(
+                overloadedMethodOrder = apiOverloadedMethodOrder,
+                kotlinStyleNulls = effectiveOutputKotlinStyleNulls,
+            )
+        }
 }

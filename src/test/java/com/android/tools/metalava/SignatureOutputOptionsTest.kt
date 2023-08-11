@@ -71,7 +71,7 @@ class SignatureOutputOptionsTest {
     @Test
     fun `Can override format default with --output-kotlin-nulls=no`() {
         runTest("--output-kotlin-nulls=no", "--format=v3") {
-            assertThat(it.effectiveOutputKotlinStyleNulls).isFalse()
+            assertThat(it.signatureFileFormat.kotlinStyleNulls).isFalse()
         }
     }
 }

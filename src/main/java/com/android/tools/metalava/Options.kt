@@ -484,9 +484,7 @@ class Options(
 
     val apiFile by signatureOutputOptions::apiFile
     val removedApiFile by signatureOutputOptions::removedApiFile
-    val apiOverloadedMethodOrder by signatureOutputOptions::apiOverloadedMethodOrder
-    val outputFormat by signatureOutputOptions::outputFormat
-    val outputKotlinStyleNulls by signatureOutputOptions::effectiveOutputKotlinStyleNulls
+    val signatureFileFormat by signatureOutputOptions::signatureFileFormat
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null

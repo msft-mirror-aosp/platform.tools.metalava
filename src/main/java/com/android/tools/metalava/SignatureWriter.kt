@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
@@ -39,15 +39,13 @@ class SignatureWriter(
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
-    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
-    private val fileFormat: FileFormat = options.outputFormat,
-    private val outputKotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
+    private val signatureFileFormat: SignatureFileFormat = options.signatureFileFormat,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
         inlineInheritedFields = true,
-        methodComparator = methodComparator,
+        methodComparator = signatureFileFormat.overloadedMethodOrder.comparator,
         fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
@@ -56,15 +54,15 @@ class SignatureWriter(
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
-            writer.print(fileFormat.header())
+            writer.print(signatureFileFormat.header())
         }
     }
 
-    fun write(text: String) {
+    internal fun write(text: String) {
         // If a header must only be written out when the file is not empty then write it here as
         // this is not called
         if (emitHeader == EmitFileHeader.IF_NONEMPTY_FILE) {
-            writer.print(fileFormat.header())
+            writer.print(signatureFileFormat.header())
             // Remember that the header was written out, so it will not be written again.
             emitHeader = EmitFileHeader.NEVER
         }
@@ -173,7 +171,7 @@ class SignatureWriter(
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
-            skipNullnessAnnotations = outputKotlinStyleNulls,
+            skipNullnessAnnotations = signatureFileFormat.kotlinStyleNulls,
             omitCommonPackages = true
         )
     }
@@ -251,7 +249,7 @@ class SignatureWriter(
             if (i > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() && fileFormat.conciseDefaultValues) {
+            if (parameter.hasDefaultValue() && signatureFileFormat.conciseDefaultValues) {
                 // Concise representation of a parameter with a default
                 write("optional ")
             }
@@ -262,7 +260,7 @@ class SignatureWriter(
                 write(" ")
                 write(name)
             }
-            if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
+            if (parameter.isDefaultValueKnown() && !signatureFileFormat.conciseDefaultValues) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
                 if (defaultValue != null) {
@@ -287,7 +285,8 @@ class SignatureWriter(
                 outerAnnotations = false,
                 innerAnnotations = true,
                 erased = false,
-                kotlinStyleNulls = outputKotlinStyleNulls && !item.hasInheritedGenericType(),
+                kotlinStyleNulls =
+                    signatureFileFormat.kotlinStyleNulls && !item.hasInheritedGenericType(),
                 context = item,
                 filter = filterReference
             )

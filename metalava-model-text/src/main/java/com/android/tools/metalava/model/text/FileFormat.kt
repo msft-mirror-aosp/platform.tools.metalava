@@ -20,35 +20,21 @@ import java.util.Locale
 
 /** File formats that metalava can emit APIs to */
 enum class FileFormat(
-    val description: String,
-    val version: String? = null,
-    val conciseDefaultValues: Boolean = false,
+    val signatureFileFormatDefaults: SignatureFileFormat,
 ) {
-    V1("Doclava signature file", "1.0"),
-    V2("Metalava signature file", "2.0"),
-    V3("Metalava signature file", "3.0"),
-    V4("Metalava signature file", "4.0", conciseDefaultValues = true);
+    V1(SignatureFileFormat.V1),
+    V2(SignatureFileFormat.V2),
+    V3(SignatureFileFormat.V3),
+    V4(SignatureFileFormat.V4);
 
     /** The value to use in a command line option. */
     val optionValue: String = name.lowercase(Locale.US)
 
     fun useKotlinStyleNulls(): Boolean {
-        return this >= V3
+        return signatureFileFormatDefaults.kotlinStyleNulls
     }
 
-    fun header(): String? {
-        val prefix = headerPrefix() ?: return null
-        return prefix + version + "\n"
-    }
-
-    private fun headerPrefix(): String? {
-        return when (this) {
-            V1 -> null
-            V2,
-            V3,
-            V4 -> "// Signature format: "
-        }
-    }
+    fun header(): String? = signatureFileFormatDefaults.header()
 
     companion object {
         /** The latest signature file version, equivalent to --format=latest */

@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFileFormat
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -24,7 +24,10 @@ import org.junit.Test
 
 class SignatureWriterTest {
 
-    private fun runTest(body: (SignatureWriter) -> Unit): String {
+    private fun runTest(
+        signatureFileFormat: SignatureFileFormat = SignatureFileFormat.V2,
+        body: (SignatureWriter) -> Unit,
+    ): String {
         val output =
             StringWriter().use {
                 PrintWriter(it).use {
@@ -35,8 +38,7 @@ class SignatureWriterTest {
                             filterReference = { true },
                             preFiltered = false,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
-                            fileFormat = FileFormat.V2,
-                            outputKotlinStyleNulls = true,
+                            signatureFileFormat = signatureFileFormat,
                         )
                     body(writer)
                 }
