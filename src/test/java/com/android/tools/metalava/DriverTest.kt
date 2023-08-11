@@ -1493,11 +1493,7 @@ abstract class DriverTest : TemporaryFolderOwner {
 }
 
 private fun FileFormat.outputFlag(): String {
-    return if (isSignatureFormat()) {
-        "$ARG_FORMAT=v${signatureFormatAsInt()}"
-    } else {
-        ""
-    }
+    return "$ARG_FORMAT=v${signatureFormatAsInt()}"
 }
 
 private fun FileFormat.signatureFormatAsInt(): Int {
@@ -1506,10 +1502,6 @@ private fun FileFormat.signatureFormatAsInt(): Int {
         FileFormat.V2 -> 2
         FileFormat.V3 -> 3
         FileFormat.V4 -> 4
-        FileFormat.BASELINE,
-        FileFormat.JDIFF,
-        FileFormat.SINCE_XML,
-        FileFormat.UNKNOWN -> error("this method is only allowed on signature formats, was $this")
     }
 }
 

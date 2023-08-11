@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.model.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
@@ -56,7 +55,7 @@ class ApiFile(
     private var kotlinStyleNulls: Boolean = false
 
     /** The file format of the file being parsed. */
-    var format: FileFormat = FileFormat.UNKNOWN
+    lateinit var format: FileFormat
 
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
     private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
@@ -141,6 +140,37 @@ class ApiFile(
             parser.postProcess(api)
             return api
         }
+
+        private fun firstLine(s: String): String {
+            val index = s.indexOf('\n')
+            if (index == -1) {
+                return s
+            }
+            // Chop off \r if a Windows \r\n file
+            val end = if (index > 0 && s[index - 1] == '\r') index - 1 else index
+            return s.substring(0, end)
+        }
+
+        fun parseHeader(filename: String, fileContents: String): FileFormat? {
+            if (fileContents.isBlank()) {
+                return null
+            }
+
+            val firstLine = firstLine(fileContents)
+            for (format in FileFormat.values()) {
+                val header = format.header()
+                if (header == null) {
+                    if (firstLine.startsWith("package ")) {
+                        // Old signature files
+                        return FileFormat.V1
+                    }
+                } else if (header.startsWith(firstLine)) {
+                    return format
+                }
+            }
+
+            throw ApiParseException("Unknown file format of $filename")
+        }
     }
 
     /**
@@ -159,7 +189,8 @@ class ApiFile(
         apiText: String,
     ) {
         // Infer the format.
-        format = parseHeader(apiText)
+        format = parseHeader(filename, apiText) ?: FileFormat.V2
+        kotlinStyleNulls = format.useKotlinStyleNulls()
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
         // the prior files.
@@ -182,14 +213,6 @@ class ApiFile(
             if (apiText.isBlank()) {
                 return
             }
-        }
-
-        if (format.isSignatureFormat()) {
-            kotlinStyleNulls = format.useKotlinStyleNulls()
-        } else if (apiText.isBlank()) {
-            // Sometimes, signature files are empty, and we do want to accept them.
-        } else {
-            throw ApiParseException("Unknown file format of $filename")
         }
 
         val tokenizer = Tokenizer(filename, apiText.toCharArray())

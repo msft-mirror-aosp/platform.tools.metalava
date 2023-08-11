@@ -24,12 +24,6 @@ enum class FileFormat(
     val version: String? = null,
     val conciseDefaultValues: Boolean = false,
 ) {
-    UNKNOWN("?"),
-    JDIFF("JDiff"),
-    BASELINE("Metalava baseline file", "1.0"),
-    SINCE_XML("Metalava API-level file", "1.0"),
-
-    // signature formats should be last to make comparisons work (for example in [configureOptions])
     V1("Doclava signature file", "1.0"),
     V2("Metalava signature file", "2.0"),
     V3("Metalava signature file", "3.0"),
@@ -53,15 +47,7 @@ enum class FileFormat(
             V2,
             V3,
             V4 -> "// Signature format: "
-            BASELINE -> "// Baseline format: "
-            JDIFF,
-            SINCE_XML -> "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-            UNKNOWN -> null
         }
-    }
-
-    fun isSignatureFormat(): Boolean {
-        return this == V1 || this == V2 || this == V3 || this == V4
     }
 
     companion object {
@@ -70,48 +56,5 @@ enum class FileFormat(
 
         /** The latest signature file version, equivalent to --format=latest */
         val latest = values().maxOrNull()!!
-
-        private fun firstLine(s: String): String {
-            val index = s.indexOf('\n')
-            if (index == -1) {
-                return s
-            }
-            // Chop off \r if a Windows \r\n file
-            val end = if (index > 0 && s[index - 1] == '\r') index - 1 else index
-            return s.substring(0, end)
-        }
-
-        fun parseHeader(fileContents: String): FileFormat {
-            val firstLine = firstLine(fileContents)
-            for (format in values()) {
-                val header = format.header()
-                if (header == null) {
-                    if (firstLine.startsWith("package ")) {
-                        // Old signature files
-                        return V1
-                    } else if (firstLine.startsWith("<api")) {
-                        return JDIFF
-                    }
-                } else if (header.startsWith(firstLine)) {
-                    if (format == JDIFF) {
-                        if (!fileContents.contains("<api")) {
-                            // The JDIFF header is the general XML header: don't accept XML
-                            // documents that
-                            // don't contain an empty API definition
-                            return UNKNOWN
-                        }
-                        // Both JDiff and API-level files use <api> as the root tag (unfortunate but
-                        // too late to
-                        // change) so distinguish on whether the file contains any since elements
-                        if (fileContents.contains("since=")) {
-                            return SINCE_XML
-                        }
-                    }
-                    return format
-                }
-            }
-
-            return UNKNOWN
-        }
     }
 }
