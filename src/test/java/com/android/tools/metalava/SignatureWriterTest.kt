@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals

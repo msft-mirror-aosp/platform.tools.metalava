@@ -17,8 +17,8 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
