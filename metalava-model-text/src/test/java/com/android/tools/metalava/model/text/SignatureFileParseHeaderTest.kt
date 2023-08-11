@@ -16,16 +16,21 @@
 
 package com.android.tools.metalava.model.text
 
-import org.junit.Assert.*
+import java.io.BufferedReader
+import java.io.StringReader
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class SignatureFileParseHeaderTest {
+    private fun parseHeader(apiText: String) =
+        ApiFile.parseHeader("api.txt", BufferedReader(StringReader(apiText.trimIndent())))
+
     @Test
     fun `Check format parsing (v1)`() {
         assertSame(
             FileFormat.V1,
-            ApiFile.parseHeader(
-                "api.txt",
+            parseHeader(
                 """
                 package test.pkg {
                   public class MyTest {
@@ -33,7 +38,6 @@ class SignatureFileParseHeaderTest {
                   }
                 }
                 """
-                    .trimIndent()
             )
         )
     }
@@ -42,8 +46,7 @@ class SignatureFileParseHeaderTest {
     fun `Check format parsing (v2)`() {
         assertSame(
             FileFormat.V2,
-            ApiFile.parseHeader(
-                "api.txt",
+            parseHeader(
                 """
             // Signature format: 2.0
             package libcore.util {
@@ -62,8 +65,7 @@ class SignatureFileParseHeaderTest {
     fun `Check format parsing (v3)`() {
         assertSame(
             FileFormat.V3,
-            ApiFile.parseHeader(
-                "api.txt",
+            parseHeader(
                 """
             // Signature format: 3.0
             package androidx.collection {
@@ -81,8 +83,7 @@ class SignatureFileParseHeaderTest {
     fun `Check format parsing (v2 non-unix newlines)`() {
         assertSame(
             FileFormat.V2,
-            ApiFile.parseHeader(
-                "api.txt",
+            parseHeader(
                 "// Signature format: 2.0\r\n" +
                     "package libcore.util {\\r\n" +
                     "  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {\r\n" +
@@ -97,10 +98,9 @@ class SignatureFileParseHeaderTest {
     @Test
     fun `Check format parsing (invalid)`() {
         assertThrows("Unknown file format of api.txt", ApiParseException::class.java) {
-            ApiFile.parseHeader(
-                "api.txt",
+            parseHeader(
                 """
-            blah blah
+                    blah blah
                 """
                     .trimIndent()
             )
@@ -109,7 +109,29 @@ class SignatureFileParseHeaderTest {
 
     @Test
     fun `Check format parsing (blank)`() {
+        assertSame(null, parseHeader(""))
+    }
 
-        assertSame(null, ApiFile.parseHeader("api.txt", ""))
+    @Test
+    fun `Check format parsing (blank - multiple lines)`() {
+        assertSame(null, parseHeader("""
+
+
+
+                """))
+    }
+
+    @Test
+    fun `Check format parsing (not blank, multiple lines of white space, then some text)`() {
+        assertThrows("Unknown file format of api.txt", ApiParseException::class.java) {
+            parseHeader(
+                """
+
+
+                    blah blah
+                """
+                    .trimIndent()
+            )
+        }
     }
 }

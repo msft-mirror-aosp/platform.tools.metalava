@@ -36,8 +36,10 @@ import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
+import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
 class ApiFile(
@@ -140,30 +142,23 @@ class ApiFile(
             return api
         }
 
-        private fun firstLine(s: String): String {
-            val index = s.indexOf('\n')
-            if (index == -1) {
-                return s
+        fun parseHeader(filename: String, reader: BufferedReader): FileFormat? {
+            var line = reader.readLine()
+            while (line != null && line.isBlank()) {
+                line = reader.readLine()
             }
-            // Chop off \r if a Windows \r\n file
-            val end = if (index > 0 && s[index - 1] == '\r') index - 1 else index
-            return s.substring(0, end)
-        }
-
-        fun parseHeader(filename: String, fileContents: String): FileFormat? {
-            if (fileContents.isBlank()) {
+            if (line == null) {
                 return null
             }
 
-            val firstLine = firstLine(fileContents)
             for (format in FileFormat.values()) {
                 val header = format.header()
                 if (header == null) {
-                    if (firstLine.startsWith("package ")) {
+                    if (line.startsWith("package ")) {
                         // Old signature files
                         return FileFormat.V1
                     }
-                } else if (header.startsWith(firstLine)) {
+                } else if (header.startsWith(line)) {
                     return format
                 }
             }
@@ -187,8 +182,11 @@ class ApiFile(
         filename: String,
         apiText: String,
     ) {
+        // Wrap the body into a small buffer, big enough to read a signature version line.
+        val reader = BufferedReader(StringReader(apiText), 128)
+
         // Infer the format.
-        format = parseHeader(filename, apiText) ?: FileFormat.V2
+        format = parseHeader(filename, reader) ?: FileFormat.V2
         kotlinStyleNulls = format.useKotlinStyleNulls()
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
