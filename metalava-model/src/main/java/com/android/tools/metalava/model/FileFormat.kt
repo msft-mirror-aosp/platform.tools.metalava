@@ -51,9 +51,6 @@ enum class FileFormat(
     }
 
     companion object {
-        /** The recommended signature file version, equivalent to --format=recommended */
-        val recommended = V2
-
         /** The latest signature file version, equivalent to --format=latest */
         val latest = values().maxOrNull()!!
     }

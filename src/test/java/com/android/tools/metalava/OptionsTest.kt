@@ -448,8 +448,24 @@ Signature File Output:
                                              signature (default) - sorts overloaded methods by their signature. This
                                              means that refactorings of the source files which change the order but not
                                              the API will have no effect on the API signature files.
-  --format [v2|v3|v4|recommended|latest]     Sets the output signature file format to be the given version. (default:
-                                             V2)
+  --format [v2|v3|v4|latest|recommended]     Sets the output signature file format to be the given version.
+
+                                             v2 - The main version used in Android.
+
+                                             v3 - Adds support for using kotlin style syntax to embed nullability
+                                             information instead of using explicit and verbose @NonNull and @Nullable
+                                             annotations. This can be used for Java files and Kotlin files alike.
+
+                                             v4 - Adds support for using concise default values in parameters. Instead
+                                             of specifying the actual default values it just uses the `default` keyword.
+
+                                             latest - The latest in the supported versions. Only use this if you want to
+                                             have the very latest and are prepared to update signature files on a
+                                             continuous basis.
+
+                                             recommended (default) - The recommended version to use. This is currently
+                                             set to `v2` and will only change very infrequently so can be considered
+                                             stable.
   --output-kotlin-nulls [yes|no]             Controls whether nullness annotations should be formatted as in Kotlin
                                              (with "?" for nullable types, "" for non nullable types, and "!" for
                                              unknown. The default is `yes` if --format >= v3 and must be `no` (or
