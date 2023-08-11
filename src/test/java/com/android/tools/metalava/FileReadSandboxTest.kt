@@ -16,16 +16,16 @@
 
 package com.android.tools.metalava
 
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import com.android.tools.metalava.cli.common.FileReadSandbox
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class FileReadSandboxTest {
-    @get:Rule
-    var temporaryFolder = TemporaryFolder()
+    @get:Rule var temporaryFolder = TemporaryFolder()
 
     @Test
     fun `Test sandbox`() {
@@ -73,7 +73,9 @@ class FileReadSandboxTest {
         FileReadSandbox.allowAccess(goodDir)
         FileReadSandbox.allowAccess(subSubDirGoodFile)
 
-        val allowedSet = mutableSetOf(root, goodFile, goodDir, goodDirFile, subDir, subSubDir, subSubDirGoodFile).map { it.absolutePath }
+        val allowedSet =
+            mutableSetOf(root, goodFile, goodDir, goodDirFile, subDir, subSubDir, subSubDirGoodFile)
+                .map { it.absolutePath }
         val emptySet = setOf<String>()
         val violations = mutableSetOf<String>()
 
@@ -94,11 +96,12 @@ class FileReadSandboxTest {
             assertEquals(emptySet, violations.intersect(fileSet))
         }
 
-        val listener = object : FileReadSandbox.Listener {
-            override fun onViolation(absolutePath: String, isDirectory: Boolean) {
-                violations.add(absolutePath)
+        val listener =
+            object : FileReadSandbox.Listener {
+                override fun onViolation(absolutePath: String, isDirectory: Boolean) {
+                    violations.add(absolutePath)
+                }
             }
-        }
 
         // Activate the sandbox.
         FileReadSandbox.activate(listener)

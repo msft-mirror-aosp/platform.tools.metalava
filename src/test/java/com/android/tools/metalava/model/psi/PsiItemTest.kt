@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.java
+import com.android.tools.metalava.testing.java
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -61,7 +61,10 @@ class PsiItemTest {
             assertEquals(barJavadoc, method.findTagDocumentation("param", "bar"))
             assertEquals(bazJavadoc, method.findTagDocumentation("param", "baz"))
 
-            assertEquals("/**\n     * This method does foo.\n     *\n     * ", method.findMainDocumentation())
+            assertEquals(
+                "/**\n     * This method does foo.\n     *\n     * ",
+                method.findMainDocumentation()
+            )
         }
     }
 }

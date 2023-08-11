@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -31,34 +32,40 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
+@Suppress("DEPRECATION")
 class SignatureWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved
-) : ApiVisitor(
-    visitConstructorsAsMethods = false,
-    nestInnerClasses = false,
-    inlineInheritedFields = true,
-    methodComparator = MethodItem.comparator,
-    fieldComparator = FieldItem.comparator,
-    filterEmit = filterEmit,
-    filterReference = filterReference,
-    showUnannotated = options.showUnannotated
-) {
+    private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
+    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    private val fileFormat: FileFormat = options.outputFormat,
+    private val outputKotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
+) :
+    ApiVisitor(
+        visitConstructorsAsMethods = false,
+        nestInnerClasses = false,
+        inlineInheritedFields = true,
+        methodComparator = methodComparator,
+        fieldComparator = FieldItem.comparator,
+        filterEmit = filterEmit,
+        filterReference = filterReference,
+        showUnannotated = options.showUnannotated
+    ) {
     init {
+        // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
-            writer.print(options.outputFormat.header())
-            emitHeader = EmitFileHeader.NEVER
+            writer.print(fileFormat.header())
         }
     }
 
     fun write(text: String) {
+        // If a header must only be written out when the file is not empty then write it here as
+        // this is not called
         if (emitHeader == EmitFileHeader.IF_NONEMPTY_FILE) {
-            if (options.includeSignatureFormatVersion) {
-                writer.print(options.outputFormat.header())
-            }
+            writer.print(fileFormat.header())
+            // Remember that the header was written out, so it will not be written again.
             emitHeader = EmitFileHeader.NEVER
         }
         writer.print(text)
@@ -77,8 +84,7 @@ class SignatureWriter(
     override fun visitConstructor(constructor: ConstructorItem) {
         write("    ctor ")
         writeModifiers(constructor)
-        // Note - we don't write out the type parameter list (constructor.typeParameterList()) in signature files!
-        // writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
+        writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
         write(constructor.containingClass().fullName())
         writeParameterList(constructor)
         writeThrowsList(constructor)
@@ -94,7 +100,11 @@ class SignatureWriter(
         writeType(field, field.type())
         write(" ")
         write(field.name())
-        field.writeValueWithSemicolon(writer, allowDefaultValue = false, requireInitialValue = false)
+        field.writeValueWithSemicolon(
+            writer,
+            allowDefaultValue = false,
+            requireInitialValue = false
+        )
         write("\n")
     }
 
@@ -163,7 +173,7 @@ class SignatureWriter(
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
-            skipNullnessAnnotations = options.outputKotlinStyleNulls,
+            skipNullnessAnnotations = outputKotlinStyleNulls,
             omitCommonPackages = true
         )
     }
@@ -173,9 +183,8 @@ class SignatureWriter(
             return
         }
 
-        val superClass = if (preFiltered)
-            cls.superClassType()
-        else cls.filteredSuperClassType(filterReference)
+        val superClass =
+            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
                 superClass.toTypeString(
@@ -194,9 +203,9 @@ class SignatureWriter(
         }
         val isInterface = cls.isInterface()
 
-        val interfaces = if (preFiltered)
-            cls.interfaceTypes().asSequence()
-        else cls.filteredInterfaceTypes(filterReference).asSequence()
+        val interfaces =
+            if (preFiltered) cls.interfaceTypes().asSequence()
+            else cls.filteredInterfaceTypes(filterReference).asSequence()
 
         if (interfaces.any()) {
             val label =
@@ -242,10 +251,7 @@ class SignatureWriter(
             if (i > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() &&
-                options.outputDefaultValues &&
-                options.outputFormat.conciseDefaultValues
-            ) {
+            if (parameter.hasDefaultValue() && fileFormat.conciseDefaultValues) {
                 // Concise representation of a parameter with a default
                 write("optional ")
             }
@@ -256,10 +262,7 @@ class SignatureWriter(
                 write(" ")
                 write(name)
             }
-            if (parameter.isDefaultValueKnown() &&
-                options.outputDefaultValues &&
-                !options.outputFormat.conciseDefaultValues
-            ) {
+            if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
                 if (defaultValue != null) {
@@ -276,18 +279,18 @@ class SignatureWriter(
     private fun writeType(
         item: Item,
         type: TypeItem?,
-        outputKotlinStyleNulls: Boolean = options.outputKotlinStyleNulls
     ) {
         type ?: return
 
-        var typeString = type.toTypeString(
-            outerAnnotations = false,
-            innerAnnotations = true,
-            erased = false,
-            kotlinStyleNulls = outputKotlinStyleNulls,
-            context = item,
-            filter = filterReference
-        )
+        var typeString =
+            type.toTypeString(
+                outerAnnotations = false,
+                innerAnnotations = true,
+                erased = false,
+                kotlinStyleNulls = outputKotlinStyleNulls && !item.hasInheritedGenericType(),
+                context = item,
+                filter = filterReference
+            )
 
         // Strip java.lang. prefix
         typeString = TypeItem.shortenTypes(typeString)
@@ -296,10 +299,11 @@ class SignatureWriter(
     }
 
     private fun writeThrowsList(method: MethodItem) {
-        val throws = when {
-            preFiltered -> method.throwsTypes().asSequence()
-            else -> method.filteredThrowsTypes(filterReference).asSequence()
-        }
+        val throws =
+            when {
+                preFiltered -> method.throwsTypes().asSequence()
+                else -> method.filteredThrowsTypes(filterReference).asSequence()
+            }
         if (throws.any()) {
             write(" throws ")
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
