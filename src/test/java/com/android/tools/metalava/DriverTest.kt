@@ -1108,13 +1108,13 @@ abstract class DriverTest : TemporaryFolderOwner {
         if (expectedIssues != null || allReportedIssues.toString() != "") {
             assertEquals(
                 expectedIssues?.trimIndent()?.trim() ?: "",
-                cleanupString(allReportedIssues.toString(), project)
+                allReportedIssues.toString().trim(),
             )
         }
         if (errorSeverityExpectedIssues != null) {
             assertEquals(
                 errorSeverityExpectedIssues.trimIndent().trim(),
-                cleanupString(errorSeverityReportedIssues.toString(), project)
+                errorSeverityReportedIssues.toString().trim(),
             )
         }
 
@@ -1411,35 +1411,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         } finally {
             Closeables.closeQuietly(stream)
         }
-    }
-
-    /** Hides path prefixes from /tmp folders used by the testing infrastructure */
-    private fun cleanupString(
-        string: String,
-        project: File?,
-        dropTestRoot: Boolean = false
-    ): String {
-        var s = string
-
-        if (project != null) {
-            s = s.replace(project.path, "TESTROOT")
-            s = s.replace(project.canonicalPath, "TESTROOT")
-        }
-
-        s = s.replace(temporaryFolder.root.path, "TESTROOT")
-
-        val tmp = System.getProperty("java.io.tmpdir")
-        if (tmp != null) {
-            s = s.replace(tmp, "TEST")
-        }
-
-        s = s.trim()
-
-        if (dropTestRoot) {
-            s = s.replace("TESTROOT/", "")
-        }
-
-        return s
     }
 
     private fun runCommand(executable: String, args: Array<String>): Boolean {
