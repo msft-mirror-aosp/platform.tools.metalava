@@ -18,8 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.FileReadSandbox
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -28,7 +26,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-@Suppress("PrivatePropertyName", "DEPRECATION")
+@Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
     private val FLAGS =
         """
@@ -411,18 +409,7 @@ Options:
 
                                              inline - will include the constants themselves into each usage site
 
-Issue Reporting:
-
-  Options that control which issues are reported and the severity of the reports.
-
-  --error <id>                               Report issues of the given id as errors
-  --warning <id>                             Report issues of the given id as warnings
-  --lint <id>                                Report issues of the given id as having lint-severity
-  --hide <id>                                Hide/skip issues of the given id
-  --error-category <name>                    Report all issues in the given category as errors
-  --warning-category <name>                  Report all issues in the given category as warnings
-  --lint-category <name>                     Report all issues in the given category as having lint-severity
-  --hide-category <name>                     Hide/skip all issues in the given category
+$REPORTING_OPTIONS_HELP
 
 Signature File Output:
 
@@ -562,110 +549,6 @@ $MAIN_HELP_BODY
                 .trimIndent(),
             stdout.toString()
         )
-    }
-
-    @Test
-    fun `Test issue severity options`() {
-        check(
-            extraArguments =
-                arrayOf(
-                    "--hide",
-                    "StartWithLower",
-                    "--lint",
-                    "EndsWithImpl",
-                    "--warning",
-                    "StartWithUpper",
-                    "--error",
-                    "ArrayReturn"
-                )
-        )
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
-        assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test multiple issue severity options`() {
-        // Purposely includes some whitespace as that is something callers of metalava do.
-        check(extraArguments = arrayOf("--hide", "StartWithLower ,StartWithUpper, ArrayReturn"))
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with inheriting issues`() {
-        check(extraArguments = arrayOf("--error", "RemovedClass"))
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(
-            Severity.ERROR,
-            issueConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
-        )
-    }
-
-    @Test
-    fun `Test issue severity options with case insensitive names`() {
-        check(
-            extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues =
-                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
-        )
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with non-existing issue`() {
-        check(
-            extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Aborting: Unknown issue id: '--hide' 'ThisIssueDoesNotExist'"
-        )
-    }
-
-    @Test
-    fun `Test options process in order`() {
-        // Interleave and change the order so that if all the hide options are processed before all
-        // the error options (or vice versa) they would result in different behavior.
-        check(
-            extraArguments =
-                arrayOf(
-                    "--hide",
-                    "UnavailableSymbol",
-                    "--error",
-                    "HiddenSuperclass",
-                    "--hide",
-                    "HiddenSuperclass",
-                    "--error",
-                    "UnavailableSymbol",
-                ),
-        )
-
-        // Make sure the two issues both default to warning.
-        val baseConfiguration = IssueConfiguration()
-        assertEquals(Severity.WARNING, baseConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
-        assertEquals(Severity.WARNING, baseConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
-
-        // Now make sure the issues fine.
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
-        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
-    }
-
-    @Test
-    fun `Test issue severity options can affect issues related to processing the options`() {
-        check(
-            extraArguments = arrayOf("--error", "DeprecatedOption", "--hide", "arrayreturn"),
-            expectedIssues =
-                "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]",
-        )
-
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
     }
 
     @Test
