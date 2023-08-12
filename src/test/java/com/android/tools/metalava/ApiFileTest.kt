@@ -3856,6 +3856,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files`() {
         val source1 =
@@ -3934,6 +3935,7 @@ class ApiFileTest : DriverTest() {
             }
             """
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another`() {
         check(
@@ -3942,6 +3944,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another, in reverse order`() {
         // Exactly the same as the previous test, but read them in the reverse order
@@ -3951,6 +3954,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files with reverse dependency`() {
         val source1 =
@@ -3981,6 +3985,7 @@ class ApiFileTest : DriverTest() {
         check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging 3 API signature files`() {
         val source1 =
@@ -4038,6 +4043,7 @@ class ApiFileTest : DriverTest() {
         check(signatureSources = arrayOf(source1, source2, source3), api = expected)
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test can merge API signature files with duplicate class`() {
         val source1 =
@@ -4160,6 +4166,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test cannot merge API signature files with incompatible class definitions`() {
         val source1 =
@@ -4185,6 +4192,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test can merge API signature files with different file formats`() {
         val source1 =

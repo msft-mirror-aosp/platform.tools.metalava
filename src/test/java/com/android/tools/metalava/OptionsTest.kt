@@ -432,6 +432,7 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
 Sub-commands:
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree by
+  merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
   version                                    Show the version
         """
