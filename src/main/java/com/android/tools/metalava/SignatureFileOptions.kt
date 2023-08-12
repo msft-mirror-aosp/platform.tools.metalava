@@ -26,7 +26,12 @@ const val ARG_REMOVED_API = "--removed-api"
 class SignatureFileOptions :
     OptionGroup(
         name = "Signature File Output",
-        help = "Options controlling the signature file output."
+        help =
+            """
+                Options controlling the signature file output. The format of the generated file is
+                determined by the options in the `$SIGNATURE_FORMAT_OUTPUT_GROUP` section.
+            """
+                .trimIndent()
     ) {
 
     /** If set, a file to write an API file to. */
@@ -36,9 +41,9 @@ class SignatureFileOptions :
                 metavar = "<file>",
                 help =
                     """
-                    Output file into which the API signature will be generated. If this is not
-                    specified then no API signature file will be created.
-                """
+                        Output file into which the API signature will be generated. If this is not
+                        specified then no API signature file will be created.
+                    """
                         .trimIndent()
             )
             .newFile()
@@ -50,9 +55,10 @@ class SignatureFileOptions :
                 metavar = "<file>",
                 help =
                     """
-                    Output file into which the API signatures for removed APIs will be generated. If
-                    this is not specified then no removed API signature file will be created.
-                """
+                        Output file into which the API signatures for removed APIs will be
+                        generated. If this is not specified then no removed API signature file will
+                        be created.
+                    """
                         .trimIndent()
             )
             .newFile()
