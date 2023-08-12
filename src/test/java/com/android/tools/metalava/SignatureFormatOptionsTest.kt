@@ -16,12 +16,19 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.source
 import com.github.ajalt.clikt.core.BadParameterValue
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.truth.Truth.assertThat
+import java.io.File
+import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 val SIGNATURE_FORMAT_OPTIONS_HELP =
     """
@@ -63,10 +70,27 @@ Signature Format Output:
                                              (with "?" for nullable types, "" for non nullable types, and "!" for
                                              unknown. The default is `yes` if --format >= v3 and must be `no` (or
                                              unspecified) if --format < v3."
+  --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
+                                             the specified file. It is an error if the file does not exist. If the file
+                                             is empty then this will behave as if it was not specified. If the file is
+                                             not a valid signature file then it will fail. Otherwise, the format read
+                                             from the file will be used.
+
+                                             If this is specified (and the file is not empty) then this will be used in
+                                             preference to most of the other options in this group. Those options will
+                                             be validated but otherwise ignored. The exception is the
+                                             --api-overloaded-method-order option which if present will be used.
+
+                                             The intention is that the other options will be used to specify the default
+                                             for new empty API files (e.g. created using `touch`) while this option is
+                                             used to specify the format for generating updates to the existing non-empty
+                                             files.
     """
         .trimIndent()
 
 class SignatureFormatOptionsTest {
+
+    @get:Rule val temporaryFolder = TemporaryFolder()
 
     private fun runTest(vararg args: String, test: (SignatureFormatOptions) -> Unit) {
         val command = MockCommand(test)
@@ -116,5 +140,58 @@ class SignatureFormatOptionsTest {
         runTest("--output-kotlin-nulls=no", "--format=v3") {
             assertThat(it.fileFormat.kotlinStyleNulls).isFalse()
         }
+    }
+
+    @Test
+    fun `--use-same-format-as reads from a valid file and ignores --format`() {
+        val path = source("api.txt", "// Signature format: 3.0\n").createFile(temporaryFolder.root)
+        runTest("--use-same-format-as", path.path, "--format", "v4") {
+            assertThat(it.fileFormat).isEqualTo(FileFormat.V3)
+        }
+    }
+
+    @Test
+    fun `--use-same-format-as ignores empty file and falls back to format`() {
+        val path = source("api.txt", "").createFile(temporaryFolder.root)
+        runTest("--use-same-format-as", path.path, "--format", "v4") {
+            assertThat(it.fileFormat).isEqualTo(FileFormat.V4)
+        }
+    }
+
+    @Test
+    fun `--use-same-format-as will honor --api-overloaded-method-order=source`() {
+        val path = source("api.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest("--use-same-format-as", path.path, "--api-overloaded-method-order=source") {
+            assertThat(it.fileFormat)
+                .isEqualTo(
+                    FileFormat.V2.copy(
+                        overloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun `--use-same-format-as fails on non-existent file`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest("--use-same-format-as", "unknown.txt") {}
+            }
+        val path = File("unknown.txt").absolutePath
+        assertEquals("""Invalid value for "--use-same-format-as": $path is not a file""", e.message)
+    }
+
+    @Test
+    fun `--use-same-format-as fails to read from an invalid file`() {
+        val path =
+            source("api.txt", "// Not a signature file").createFile(temporaryFolder.root).path
+        val e =
+            assertThrows(ApiParseException::class.java) {
+                runTest("--use-same-format-as", path) {
+                    // Get the file format as the file is only read when needed.
+                    it.fileFormat
+                }
+            }
+        assertEquals("""Unknown file format of $path""", e.message)
     }
 }
