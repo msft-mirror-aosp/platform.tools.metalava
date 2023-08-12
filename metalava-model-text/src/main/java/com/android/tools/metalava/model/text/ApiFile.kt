@@ -195,17 +195,6 @@ class ApiFile(
             // This is the first file to process.
             api.format = format
         } else {
-            // If we're appending to another API file, make sure the format is the same.
-            if (format != api.format) {
-                throw ApiParseException(
-                    String.format(
-                        "Cannot merge different formats of signature files. First file format=%s, current file format=%s: file=%s",
-                        api.format.version,
-                        format.version,
-                        filename
-                    )
-                )
-            }
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
                 return
