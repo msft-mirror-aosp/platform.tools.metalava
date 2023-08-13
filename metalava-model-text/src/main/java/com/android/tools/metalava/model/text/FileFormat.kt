@@ -26,9 +26,6 @@ import com.android.tools.metalava.model.MethodItem
  */
 data class FileFormat(
     val defaultsVersion: DefaultsVersion,
-    val description: String = "Metalava signature file",
-    val version: String,
-    val headerPrefix: String? = "// Signature format: ",
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
     val kotlinStyleNulls: Boolean,
@@ -42,11 +39,63 @@ data class FileFormat(
     val hasPartialSignatures: Boolean = false,
 ) {
     /** The base version of the file format. */
-    enum class DefaultsVersion {
-        V1,
-        V2,
-        V3,
-        V4
+    enum class DefaultsVersion(
+        internal val description: String = "Metalava signature file",
+        internal val version: String,
+        internal val headerPrefix: String? = "// Signature format: ",
+        factory: (DefaultsVersion) -> FileFormat,
+    ) {
+        V1(
+            description = "Doclava signature file",
+            version = "1.0",
+            headerPrefix = null,
+            factory = { defaultsVersion ->
+                FileFormat(
+                    defaultsVersion = defaultsVersion,
+                    kotlinStyleNulls = false,
+                    conciseDefaultValues = false,
+                    hasPartialSignatures = true,
+                )
+            }
+        ),
+        V2(
+            version = "2.0",
+            factory = { defaultsVersion ->
+                FileFormat(
+                    defaultsVersion = defaultsVersion,
+                    kotlinStyleNulls = false,
+                    conciseDefaultValues = false,
+                )
+            }
+        ),
+        V3(
+            version = "3.0",
+            factory = { defaultsVersion ->
+                FileFormat(
+                    defaultsVersion = defaultsVersion,
+                    kotlinStyleNulls = true,
+                    conciseDefaultValues = false,
+                )
+            }
+        ),
+        V4(
+            version = "4.0",
+            factory = { defaultsVersion ->
+                FileFormat(
+                    defaultsVersion = defaultsVersion,
+                    kotlinStyleNulls = true,
+                    conciseDefaultValues = true,
+                )
+            }
+        );
+
+        /**
+         * The defaults associated with this version.
+         *
+         * It is initialized via a factory to break the cycles where the [DefaultsVersion]
+         * constructor depends on the [FileFormat] constructor and vice versa.
+         */
+        val defaults = factory(this)
     }
 
     enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
@@ -58,64 +107,24 @@ data class FileFormat(
     }
 
     fun header(): String? {
-        val prefix = headerPrefix ?: return null
-        return prefix + version + "\n"
+        val prefix = defaultsVersion.headerPrefix ?: return null
+        return prefix + defaultsVersion.version + "\n"
     }
 
     companion object {
-        internal val allDefaults = mutableListOf<FileFormat>()
-
-        private fun addDefaults(defaults: FileFormat): FileFormat {
-            allDefaults += defaults
-            return defaults
-        }
+        internal val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
 
         // The defaults associated with version 1.0.
-        val V1 =
-            addDefaults(
-                FileFormat(
-                    defaultsVersion = DefaultsVersion.V1,
-                    description = "Doclava signature file",
-                    version = "1.0",
-                    headerPrefix = null,
-                    kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
-                    hasPartialSignatures = true,
-                )
-            )
+        val V1 = DefaultsVersion.V1.defaults
 
         // The defaults associated with version 2.0.
-        val V2 =
-            addDefaults(
-                FileFormat(
-                    defaultsVersion = DefaultsVersion.V2,
-                    version = "2.0",
-                    kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
-                )
-            )
+        val V2 = DefaultsVersion.V2.defaults
 
         // The defaults associated with version 3.0.
-        val V3 =
-            addDefaults(
-                FileFormat(
-                    defaultsVersion = DefaultsVersion.V3,
-                    version = "3.0",
-                    kotlinStyleNulls = true,
-                    conciseDefaultValues = false,
-                )
-            )
+        val V3 = DefaultsVersion.V3.defaults
 
         // The defaults associated with version 4.0.
-        val V4 =
-            addDefaults(
-                FileFormat(
-                    defaultsVersion = DefaultsVersion.V4,
-                    version = "4.0",
-                    kotlinStyleNulls = true,
-                    conciseDefaultValues = true,
-                )
-            )
+        val V4 = DefaultsVersion.V4.defaults
 
         val LATEST = allDefaults.last()
     }
