@@ -629,6 +629,48 @@ $MAIN_HELP_BODY
     }
 
     @Test
+    fun `Test options process in order`() {
+        // Interleave and change the order so that if all the hide options are processed before all
+        // the error options (or vice versa) they would result in different behavior.
+        check(
+            extraArguments =
+                arrayOf(
+                    "--hide",
+                    "UnavailableSymbol",
+                    "--error",
+                    "HiddenSuperclass",
+                    "--hide",
+                    "HiddenSuperclass",
+                    "--error",
+                    "UnavailableSymbol",
+                ),
+        )
+
+        // Make sure the two issues both default to warning.
+        val baseConfiguration = IssueConfiguration()
+        assertEquals(Severity.WARNING, baseConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
+        assertEquals(Severity.WARNING, baseConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
+
+        // Now make sure the issues fine.
+        val issueConfiguration = options.issueConfiguration
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
+        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
+    }
+
+    @Test
+    fun `Test issue severity options can affect issues related to processing the options`() {
+        check(
+            extraArguments = arrayOf("--error", "DeprecatedOption", "--hide", "arrayreturn"),
+            expectedIssues =
+                "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]",
+        )
+
+        val issueConfiguration = options.issueConfiguration
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
+    }
+
+    @Test
     fun `Test for --strict-input-files-exempt`() {
         val top = temporaryFolder.newFolder()
 
