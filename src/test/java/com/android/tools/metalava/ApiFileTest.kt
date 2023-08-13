@@ -4181,7 +4181,7 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             expectedFail =
-                "Aborting: Unable to parse signature file: Incompatible class Test.pkg.Class1 definitions"
+                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 

@@ -42,7 +42,8 @@ import java.io.IOException
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
-class ApiFile(
+class ApiFile
+private constructor(
     /** Implements [ResolverContext] interface */
     override val classResolver: ClassResolver?
 ) : ResolverContext {
@@ -366,7 +367,10 @@ class ApiFile(
                 null -> maybeExistingClass
                 else -> {
                     if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException("Incompatible $foundClass definitions")
+                        throw ApiParseException(
+                            "Incompatible $foundClass definitions",
+                            maybeExistingClass.position
+                        )
                     } else {
                         foundClass
                     }
