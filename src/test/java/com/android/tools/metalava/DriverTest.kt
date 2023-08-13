@@ -263,13 +263,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         docStubs: Boolean = false,
         /** Signature file format */
         format: FileFormat = FileFormat.LATEST,
-        /** Whether to trim the output (leading/trailing whitespace removal) */
-        trim: Boolean = true,
-        /**
-         * Whether to remove blank lines in the output (the signature file usually contains a lot of
-         * these)
-         */
-        stripBlankLines: Boolean = true,
         /** All expected issues to be generated when analyzing these sources */
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
@@ -1143,7 +1136,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${apiXmlFile.path} does not exist even though $ARG_XML_API was used",
                 apiXmlFile.exists()
             )
-            val actualText = readFile(apiXmlFile, stripBlankLines, trim)
+            val actualText = readFile(apiXmlFile)
             assertEquals(
                 stripComments(apiXml, DOT_XML, stripLineComments = false).trimIndent(),
                 actualText
@@ -1163,7 +1156,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 return
             }
             assertTrue("${file.path} does not exist even though $arg was used", file.exists())
-            val actualText = readFile(file, stripBlankLines, trim)
+            val actualText = readFile(file)
 
             // Compare against:
             // If "merged baseline" is set, use it.
@@ -1199,7 +1192,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     "${converted.path} does not exist even though $ARG_CONVERT_TO_JDIFF was used",
                     converted.exists()
                 )
-                val actualText = readFile(converted, stripBlankLines, trim)
+                val actualText = readFile(converted)
                 if (actualText.contains("<api")) {
                     parseDocument(actualText, false)
                 }
@@ -1216,7 +1209,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${dexApiFile.path} does not exist even though --dex-api was used",
                 dexApiFile.exists()
             )
-            val actualText = readFile(dexApiFile, stripBlankLines, trim)
+            val actualText = readFile(dexApiFile)
             assertEquals(
                 stripComments(dexApi, DOT_TXT, stripLineComments = false).trimIndent(),
                 actualText
@@ -1228,51 +1221,51 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${removedApiFile.path} does not exist even though --removed-api was used",
                 removedApiFile.exists()
             )
-            val actualText = readFile(removedApiFile, stripBlankLines, trim)
+            val actualText = readFile(removedApiFile)
             assertEquals(prepareExpectedApi(removedApi, format), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.annotationManager)
         }
 
         if (proguard != null && proguardFile != null) {
-            val expectedProguard = readFile(proguardFile)
             assertTrue(
                 "${proguardFile.path} does not exist even though --proguard was used",
                 proguardFile.exists()
             )
+            val expectedProguard = readFile(proguardFile)
             assertEquals(
                 stripComments(proguard, DOT_TXT, stripLineComments = false).trimIndent(),
-                expectedProguard.trim()
+                expectedProguard
             )
         }
 
         if (sdk_broadcast_actions != null) {
-            val actual = readFile(File(sdkFilesDir, "broadcast_actions.txt"), stripBlankLines, trim)
+            val actual = readFile(File(sdkFilesDir, "broadcast_actions.txt"))
             assertEquals(sdk_broadcast_actions.trimIndent().trim(), actual.trim())
         }
 
         if (sdk_activity_actions != null) {
-            val actual = readFile(File(sdkFilesDir, "activity_actions.txt"), stripBlankLines, trim)
+            val actual = readFile(File(sdkFilesDir, "activity_actions.txt"))
             assertEquals(sdk_activity_actions.trimIndent().trim(), actual.trim())
         }
 
         if (sdk_service_actions != null) {
-            val actual = readFile(File(sdkFilesDir, "service_actions.txt"), stripBlankLines, trim)
+            val actual = readFile(File(sdkFilesDir, "service_actions.txt"))
             assertEquals(sdk_service_actions.trimIndent().trim(), actual.trim())
         }
 
         if (sdk_categories != null) {
-            val actual = readFile(File(sdkFilesDir, "categories.txt"), stripBlankLines, trim)
+            val actual = readFile(File(sdkFilesDir, "categories.txt"))
             assertEquals(sdk_categories.trimIndent().trim(), actual.trim())
         }
 
         if (sdk_features != null) {
-            val actual = readFile(File(sdkFilesDir, "features.txt"), stripBlankLines, trim)
+            val actual = readFile(File(sdkFilesDir, "features.txt"))
             assertEquals(sdk_features.trimIndent().trim(), actual.trim())
         }
 
         if (sdk_widgets != null) {
-            val actual = readFile(File(sdkFilesDir, "widgets.txt"), stripBlankLines, trim)
+            val actual = readFile(File(sdkFilesDir, "widgets.txt"))
             assertEquals(sdk_widgets.trimIndent().trim(), actual.trim())
         }
 
@@ -1314,7 +1307,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                             "Found these files: \n  $existing"
                     )
                 }
-                val actualContents = readFile(actual, stripBlankLines, trim)
+                val actualContents = readFile(actual)
                 val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
@@ -1328,7 +1321,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 stubsSourceListFile.exists()
             )
             val actualText =
-                cleanupString(readFile(stubsSourceListFile, stripBlankLines, trim), project)
+                cleanupString(readFile(stubsSourceListFile), project)
                     // To make golden files look better put one entry per line instead of a single
                     // space separated line
                     .replace(' ', '\n')
@@ -1344,7 +1337,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 docStubsSourceListFile.exists()
             )
             val actualText =
-                cleanupString(readFile(docStubsSourceListFile, stripBlankLines, trim), project)
+                cleanupString(readFile(docStubsSourceListFile), project)
                     // To make golden files look better put one entry per line instead of a single
                     // space separated line
                     .replace(' ', '\n')
@@ -1452,20 +1445,10 @@ abstract class DriverTest : TemporaryFolderOwner {
 
     companion object {
         @JvmStatic
-        protected fun readFile(
-            file: File,
-            stripBlankLines: Boolean = false,
-            trim: Boolean = false
-        ): String {
+        protected fun readFile(file: File): String {
             var apiLines: List<String> = Files.asCharSource(file, UTF_8).readLines()
-            if (stripBlankLines) {
-                apiLines = apiLines.asSequence().filter { it.isNotBlank() }.toList()
-            }
-            var apiText = apiLines.joinToString(separator = "\n") { it }
-            if (trim) {
-                apiText = apiText.trim()
-            }
-            return apiText
+            apiLines = apiLines.filter { it.isNotBlank() }
+            return apiLines.joinToString(separator = "\n") { it }.trim()
         }
     }
 }
