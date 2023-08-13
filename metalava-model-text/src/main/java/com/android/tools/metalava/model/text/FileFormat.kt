@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MethodItem
+import java.io.LineNumberReader
+import java.io.Reader
 
 /**
  * Encapsulates all the information related to the format of a signature file.
@@ -112,7 +114,7 @@ data class FileFormat(
     }
 
     companion object {
-        internal val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
+        private val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
 
         // The defaults associated with version 1.0.
         val V1 = DefaultsVersion.V1.defaults
@@ -126,6 +128,47 @@ data class FileFormat(
         // The defaults associated with version 4.0.
         val V4 = DefaultsVersion.V4.defaults
 
+        // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
+
+        /**
+         * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
+         *
+         * @return the [FileFormat] or null if the reader was blank.
+         */
+        fun parseHeader(filename: String, reader: Reader): FileFormat? {
+            val lineNumberReader =
+                if (reader is LineNumberReader) reader else LineNumberReader(reader, 128)
+            return parseHeader(filename, lineNumberReader)
+        }
+
+        /**
+         * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
+         *
+         * @return the [FileFormat] or null if the reader was blank.
+         */
+        private fun parseHeader(filename: String, reader: LineNumberReader): FileFormat? {
+            var line = reader.readLine()
+            while (line != null && line.isBlank()) {
+                line = reader.readLine()
+            }
+            if (line == null) {
+                return null
+            }
+
+            for (format in allDefaults) {
+                val header = format.header()
+                if (header == null) {
+                    if (line.startsWith("package ")) {
+                        // Old signature files
+                        return FileFormat.V1
+                    }
+                } else if (header.startsWith(line)) {
+                    return format
+                }
+            }
+
+            throw ApiParseException("Unknown file format of $filename")
+        }
     }
 }
