@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -1128,8 +1129,11 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            val actualText = readFile(apiFile, stripBlankLines, trim)
-            assertEquals(prepareExpectedApi(api, format), actualText)
+            assertSignatureFilesMatch(
+                api,
+                apiFile.readText(Charsets.UTF_8),
+                expectedFormat = format
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.annotationManager)
         }
