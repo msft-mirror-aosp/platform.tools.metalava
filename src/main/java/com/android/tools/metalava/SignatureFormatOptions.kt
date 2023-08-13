@@ -192,7 +192,6 @@ class SignatureFormatOptions :
     private val useSameFormatAs by
         option(
                 ARG_USE_SAME_FORMAT_AS,
-                metavar = "<file>",
                 help =
                     """
                         Specifies that the output format should be the same as the format used in
