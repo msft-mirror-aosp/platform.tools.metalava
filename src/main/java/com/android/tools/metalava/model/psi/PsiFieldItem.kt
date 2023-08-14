@@ -19,11 +19,17 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.isNonNullAnnotation
+import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
+import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UElement
 
 class PsiFieldItem(
     override val codebase: PsiBasedCodebase,
@@ -47,6 +53,7 @@ class PsiFieldItem(
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
+
     override fun initialValue(requireConstant: Boolean): Any? {
         if (initialValue != null) {
             return initialValue
@@ -65,12 +72,16 @@ class PsiFieldItem(
     }
 
     override fun isEnumConstant(): Boolean = isEnumConstant
+
     override fun name(): String = name
-    override fun containingClass(): ClassItem = containingClass
+
+    override fun containingClass(): PsiClassItem = containingClass
+
+    override fun psi(): PsiField = psiField
 
     override fun isCloned(): Boolean {
         val psiClass = run {
-            val p = containingClass().psi() as? PsiClass ?: return false
+            val p = containingClass().psi()
             if (p is UClass) {
                 p.sourcePsi as? PsiClass ?: return false
             } else {
@@ -106,7 +117,9 @@ class PsiFieldItem(
         if (this === other) {
             return true
         }
-        return other is FieldItem && name == other.name() && containingClass == other.containingClass()
+        return other is FieldItem &&
+            name == other.name() &&
+            containingClass == other.containingClass()
     }
 
     override fun hashCode(): Int {
@@ -116,7 +129,11 @@ class PsiFieldItem(
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, containingClass: PsiClassItem, psiField: PsiField): PsiFieldItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            containingClass: PsiClassItem,
+            psiField: PsiField
+        ): PsiFieldItem {
             val name = psiField.name
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
@@ -125,19 +142,63 @@ class PsiFieldItem(
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 
-            val field = PsiFieldItem(
-                codebase = codebase,
-                psiField = psiField,
-                containingClass = containingClass,
-                name = name,
-                documentation = commentText,
-                modifiers = modifiers,
-                fieldType = fieldType,
-                isEnumConstant = isEnumConstant,
-                initialValue = initialValue
-            )
+            val field =
+                PsiFieldItem(
+                    codebase = codebase,
+                    psiField = psiField,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    fieldType = fieldType,
+                    isEnumConstant = isEnumConstant,
+                    initialValue = initialValue
+                )
             field.modifiers.setOwner(field)
             return field
         }
+    }
+
+    override fun implicitNullness(): Boolean? {
+        // Is this a Kotlin object declaration (such as a companion object) ?
+        // If so, it is always non-null.
+        if (psiField is UElement && psiField.sourcePsi is KtObjectDeclaration) {
+            return false
+        }
+
+        // Delegate to the super class, only dropping through if it did not determine an implicit
+        // nullness.
+        super<FieldItem>.implicitNullness()?.let { nullable ->
+            return nullable
+        }
+
+        if (modifiers.isFinal()) {
+            // If we're looking at a final field, look on the right hand side of the field to the
+            // field initialization. If that right hand side for example represents a method call,
+            // and the method we're calling is annotated with @NonNull, then the field (since it is
+            // final) will always be @NonNull as well.
+            when (val initializer = psiField.initializer) {
+                is PsiReference -> {
+                    val resolved = initializer.resolve()
+                    if (
+                        resolved is PsiModifierListOwner &&
+                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
+                    ) {
+                        return false
+                    }
+                }
+                is PsiCallExpression -> {
+                    val resolved = initializer.resolveMethod()
+                    if (
+                        resolved != null &&
+                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
+                    ) {
+                        return false
+                    }
+                }
+            }
+        }
+
+        return null
     }
 }
