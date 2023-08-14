@@ -108,6 +108,38 @@ data class FileFormat(
         SIGNATURE(MethodItem.comparator)
     }
 
+    /**
+     * Apply some optional overrides, provided from the command line, to this format, returning a
+     * new format.
+     *
+     * @param thisIsFromCommandLine If true then this format came from the command line, otherwise
+     *   it came from reading a file. This is needed as generally command line options cannot
+     *   override properties read from a file, the exception being [overloadedMethodOrder].
+     * @param kotlinStyleNulls If non-null then override the [kotlinStyleNulls] property.
+     * @param overloadedMethodOrder If non-null then override the [overloadedMethodOrder] property.
+     * @return a format with the overrides applied.
+     */
+    fun applyOptionalCommandLineSuppliedOverrides(
+        thisIsFromCommandLine: Boolean,
+        kotlinStyleNulls: Boolean? = null,
+        overloadedMethodOrder: OverloadedMethodOrder? = null,
+    ): FileFormat {
+        // kotlinStyleNulls
+        val effectiveKotlinStyleNulls =
+            if (kotlinStyleNulls == null || !thisIsFromCommandLine) this.kotlinStyleNulls
+            else kotlinStyleNulls
+
+        // Always apply the overloadedMethodOrder command line override to the format from the file
+        // because the overloadedMethodOrder is not determined by the version (yet) but only by the
+        // command line argument and its default.
+        val effectiveOverloadedMethodOrder = overloadedMethodOrder ?: this.overloadedMethodOrder
+
+        return copy(
+            kotlinStyleNulls = effectiveKotlinStyleNulls,
+            overloadedMethodOrder = effectiveOverloadedMethodOrder,
+        )
+    }
+
     fun header(): String? {
         val prefix = defaultsVersion.headerPrefix ?: return null
         return prefix + defaultsVersion.version + "\n"

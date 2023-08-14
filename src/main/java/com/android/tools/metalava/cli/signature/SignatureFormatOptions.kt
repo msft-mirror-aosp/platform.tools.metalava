@@ -229,15 +229,16 @@ class SignatureFormatOptions :
             val format =
                 useSameFormatAs
                     ?: let {
-                        val effectiveOutputKotlinStyleNulls =
-                            outputKotlinStyleNulls ?: formatDefaults.kotlinStyleNulls
-                        formatDefaults.copy(
-                            kotlinStyleNulls = effectiveOutputKotlinStyleNulls,
+                        formatDefaults.applyOptionalCommandLineSuppliedOverrides(
+                            (useSameFormatAs == null)
                         )
                     }
 
-            // Always copy the apiOverloadedMethodOrder because that is not determined by the
-            // version (yet) but only by the command line argument.
-            format.copy(overloadedMethodOrder = apiOverloadedMethodOrder)
+            // Apply any additional overrides.
+            format.applyOptionalCommandLineSuppliedOverrides(
+                thisIsFromCommandLine = (useSameFormatAs == null),
+                kotlinStyleNulls = outputKotlinStyleNulls,
+                overloadedMethodOrder = apiOverloadedMethodOrder,
+            )
         }
 }

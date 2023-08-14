@@ -1120,6 +1120,20 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
 
+        // Calculate the effective output format from the different parameters provided. This is
+        // used to construct the signature header to prepend to the expected signature output for
+        // those tests which do not provide a signature header. Usually tests should not use code
+        // under test in preparing the expected test output but in this case it does not matter as
+        // this is only provided as a convenience for those tests that are not testing the signature
+        // format specifically. Tests that are testing that will just provide their own header and
+        // this will just be ignored.
+        val effectiveFormat =
+            format.applyOptionalCommandLineSuppliedOverrides(
+                thisIsFromCommandLine = true,
+                kotlinStyleNulls = outputKotlinStyleNulls,
+                overloadedMethodOrder = overloadedMethodOrder,
+            )
+
         if (api != null) {
             assertTrue(
                 "${apiFile.path} does not exist even though --api was used",
@@ -1128,7 +1142,7 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertSignatureFilesMatch(
                 api,
                 apiFile.readText(Charsets.UTF_8),
-                expectedFormat = format
+                expectedFormat = effectiveFormat
             )
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.annotationManager)
@@ -1225,7 +1239,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 removedApiFile.exists()
             )
             val actualText = readFile(removedApiFile)
-            assertEquals(prepareExpectedApi(removedApi, format), actualText)
+            assertEquals(prepareExpectedApi(removedApi, effectiveFormat), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.annotationManager)
         }
