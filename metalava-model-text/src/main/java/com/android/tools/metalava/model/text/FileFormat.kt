@@ -141,18 +141,28 @@ data class FileFormat(
         const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 
         /**
+         * The size of the buffer and read ahead limit.
+         *
+         * Should be big enough to handle any first package line, even one with lots of annotations.
+         */
+        private const val BUFFER_SIZE = 1024
+
+        /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
         fun parseHeader(filename: String, reader: Reader): FileFormat? {
             val lineNumberReader =
-                if (reader is LineNumberReader) reader else LineNumberReader(reader, 128)
+                if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
             return parseHeader(filename, lineNumberReader)
         }
 
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
+         *
+         * This consumes only the content that makes up the header. So, the rest of the file
+         * contents can be read from the reader.
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
