@@ -696,6 +696,7 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """,
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0

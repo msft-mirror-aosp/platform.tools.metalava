@@ -157,7 +157,8 @@ abstract class UastTestBase : DriverTest() {
                     """
                     )
                 ),
-            api = api
+            format = FileFormat.V4,
+            api = api,
         )
     }
 

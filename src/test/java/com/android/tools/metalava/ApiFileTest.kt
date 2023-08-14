@@ -5123,6 +5123,7 @@ class ApiFileTest : DriverTest() {
                     restrictToSource
                 ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5548,6 +5549,7 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.annotation"
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5596,6 +5598,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
