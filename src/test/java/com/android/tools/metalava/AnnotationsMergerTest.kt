@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 class AnnotationsMergerTest : DriverTest() {
@@ -31,9 +32,10 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import androidx.annotation.NonNull;
@@ -47,18 +49,22 @@ class AnnotationsMergerTest : DriverTest() {
                         public @Nullable Double convert(@NonNull Float f) { return null; }
                         public @IntRange(from=10,to=20) int clamp(int i) { return 10; }
                     }"""
+                    ),
+                    uiThreadSource,
+                    intRangeAnnotationSource,
+                    androidxNonNullSource,
+                    androidxNullableSource
                 ),
-                uiThreadSource,
-                intRangeAnnotationSource,
-                androidxNonNullSource,
-                androidxNullableSource
-            ),
             // Skip the annotations themselves from the output
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "androidx.annotation",
-            ),
-            api = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                    ARG_HIDE_PACKAGE,
+                    "androidx.annotation",
+                ),
+            api =
+                """
                 package test.pkg {
                   @UiThread public class MyTest {
                     ctor public MyTest();
@@ -75,9 +81,10 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merged class and method annotations with no arguments`() {
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class MyTest {
@@ -86,10 +93,11 @@ class AnnotationsMergerTest : DriverTest() {
                         public int clamp(int i) { return 10; }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
-            mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
+            mergeXmlAnnotations =
+                """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest">
                     <annotation name="androidx.annotation.UiThread" />
@@ -117,7 +125,8 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                   </root>
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   @UiThread public class MyTest {
                     ctor public MyTest();
@@ -134,20 +143,22 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge signature files`() {
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public interface Appendable {
                         Appendable append(CharSequence csq) throws IOException;
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
-            inputKotlinStyleNulls = true,
-            mergeSignatureAnnotations = """
+            mergeSignatureAnnotations =
+                """
+                // Signature format: 3.0
                 package test.pkg {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);
@@ -159,17 +170,19 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public interface Appendable {
                     method @NonNull public test.pkg.Appendable append(@Nullable CharSequence);
                   }
                 }
                 """,
-            expectedIssues = """
-                TESTROOT/merged-annotations.txt:4: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
-                TESTROOT/merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
-                TESTROOT/merged-annotations.txt:7: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
+            expectedIssues =
+                """
+                merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
+                merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
+                merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
             """
         )
     }
@@ -178,21 +191,23 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files`() {
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public interface Appendable {
                         Appendable append(CharSequence csq) throws IOException;
                     }
                     """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullableSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.NonNull;
@@ -202,16 +217,15 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public interface Appendable {
                     method @NonNull public test.pkg.Appendable append(@Nullable CharSequence);
                   }
                 }
                 """,
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "libcore.util"
-            )
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
         )
     }
 
@@ -219,18 +233,19 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
             includeSystemApiAnnotations = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public interface Appendable {
                         Appendable append(CharSequence csq) throws IOException;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     /** @hide */
@@ -239,12 +254,13 @@ class AnnotationsMergerTest : DriverTest() {
                         void foo();
                     }
                     """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullableSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.NonNull;
@@ -254,9 +270,10 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface Appendable {
@@ -264,9 +281,9 @@ class AnnotationsMergerTest : DriverTest() {
                     public test.pkg.Appendable append(@android.annotation.Nullable java.lang.CharSequence csq);
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -274,18 +291,17 @@ class AnnotationsMergerTest : DriverTest() {
                     public void foo();
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public interface ForTesting {
                     method public void foo();
                   }
                 }
                 """,
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "libcore.util"
-            )
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
         )
     }
 
@@ -294,9 +310,10 @@ class AnnotationsMergerTest : DriverTest() {
         // See b/123223339
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                 package test.pkg;
 
                 public class Test {
@@ -304,19 +321,21 @@ class AnnotationsMergerTest : DriverTest() {
                     public void foo(Object... args) { }
                 }
                 """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullableSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 public class Test {
                     public void foo(java.lang.@libcore.util.Nullable Object @libcore.util.NonNull ... args) { throw new RuntimeException("Stub!"); }
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public class Test {
                     method public void foo(@NonNull java.lang.Object...);
@@ -331,28 +350,30 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files making sure they apply to public members of hidden superclasses`() {
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     class HiddenSuperClass {
                         @Override public String publicMethod(Object object) {return "";}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     public class PublicClass extends HiddenSuperClass {
                     }
                     """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullableSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.NonNull;
@@ -362,7 +383,8 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull public @NonNull String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public class PublicClass {
                     ctor public PublicClass();
@@ -378,10 +400,11 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge inclusion annotations from Java stub files`() {
         check(
             expectedIssues = "",
-            sourceFiles = arrayOf(
-                java(
-                    "src/test/pkg/Example.annotated.java",
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "src/test/pkg/Example.annotated.java",
+                        """
                     package test.pkg;
 
                     public interface Example {
@@ -390,23 +413,24 @@ class AnnotationsMergerTest : DriverTest() {
                         void cShown();
                     }
                     """
-                ),
-                java(
-                    "src/test/pkg/HiddenExample.annotated.java",
-                    """
+                    ),
+                    java(
+                        "src/test/pkg/HiddenExample.annotated.java",
+                        """
                     package test.pkg;
 
                     public interface HiddenExample {
                         void method();
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
             hideAnnotations = arrayOf("test.annotation.Hide"),
             showAnnotations = arrayOf("test.annotation.Show"),
             showUnannotated = true,
-            mergeInclusionAnnotations = """
+            mergeInclusionAnnotations =
+                """
                 package test.pkg;
 
                 public interface Example {
@@ -420,7 +444,8 @@ class AnnotationsMergerTest : DriverTest() {
                     void method();
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public interface Example {
                     method public void aNotAnnotated();
@@ -434,10 +459,11 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations from Java stub files using --show-single-annotation`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    "src/test/pkg/Example.annotated.java",
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "src/test/pkg/Example.annotated.java",
+                        """
                     package test.pkg;
 
                     public interface Example {
@@ -445,15 +471,19 @@ class AnnotationsMergerTest : DriverTest() {
                         void bShown();
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
-            extraArguments = arrayOf(
-                ARG_HIDE_ANNOTATION, "test.annotation.Hide",
-                ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
-            ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "test.annotation.Hide",
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "test.annotation.Show"
+                ),
             showUnannotated = true,
-            mergeInclusionAnnotations = """
+            mergeInclusionAnnotations =
+                """
                 package test.pkg;
 
                 @test.annotation.Hide
@@ -463,7 +493,8 @@ class AnnotationsMergerTest : DriverTest() {
                     @test.annotation.Show void bShown();
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public interface Example {
                     method public void bShown();
@@ -476,10 +507,11 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations on api in java namespace`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    "src/java/net/Example.java",
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "src/java/net/Example.java",
+                        """
                     package java.net;
 
                     public class Example {
@@ -487,13 +519,12 @@ class AnnotationsMergerTest : DriverTest() {
                         public void bShown() { }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
-            extraArguments = arrayOf(
-                ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
-            ),
-            mergeInclusionAnnotations = """
+            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"),
+            mergeInclusionAnnotations =
+                """
                 package java.net;
 
                 public class Example {
@@ -501,7 +532,8 @@ class AnnotationsMergerTest : DriverTest() {
                     @test.annotation.Show void bShown();
                 }
                 """,
-            api = """
+            api =
+                """
                 package java.net {
                   public class Example {
                     method public void bShown();
@@ -514,9 +546,10 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Redefining java lang object plus using some internal classes`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package java.util;
                     public class HashMap {
                         static class Node {
@@ -525,9 +558,9 @@ class AnnotationsMergerTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package java.util;
 
                     public class LinkedHashMap<K,V>
@@ -539,21 +572,20 @@ class AnnotationsMergerTest : DriverTest() {
                     }
 
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package java.lang;
 
                     public class Object {
                         protected void finalize() throws Throwable { }
                     }
                     """
-                )
-            ),
-            extraArguments = arrayOf(
-                ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"
-            ),
-            mergeInclusionAnnotations = """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"),
+            mergeInclusionAnnotations =
+                """
                 package java.util;
 
                 public class LinkedHashMap extends java.util.HashMap {
@@ -569,16 +601,17 @@ class AnnotationsMergerTest : DriverTest() {
         // method1, the inherited method1 is still found
         check(
             format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Child extends Parent {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
 
                     public class Parent {
@@ -586,9 +619,10 @@ class AnnotationsMergerTest : DriverTest() {
                         }
                     }
                     """
-                )
-            ),
-            mergeJavaStubAnnotations = """
+                    )
+                ),
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 public class Child {
@@ -596,7 +630,8 @@ class AnnotationsMergerTest : DriverTest() {
                     }
                 }
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
                     ctor public Child();
@@ -614,9 +649,10 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge Contract and Language annotations from XML files`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.text;
 
                     public class TextUtils {
@@ -625,19 +661,20 @@ class AnnotationsMergerTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.graphics;
                     public class RuntimeShader {
                         public RuntimeShader(@NonNull String sksl) {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
-            mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
+            mergeXmlAnnotations =
+                """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence)">
                     <annotation name="org.jetbrains.annotations.Contract">
@@ -659,7 +696,8 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """,
-            api = """
+            api =
+                """
                 // Signature format: 4.0
                 package android.graphics {
                   public class RuntimeShader {
@@ -673,8 +711,10 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extractAnnotations = mapOf(
-                "android.text" to """
+            extractAnnotations =
+                mapOf(
+                    "android.text" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence)">
@@ -684,7 +724,8 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """,
-                "android.graphics" to """
+                    "android.graphics" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String) 0">
@@ -694,16 +735,17 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 
     @Test
     fun `Merge Contract and Language annotations from signature files`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.text;
 
                     public class TextUtils {
@@ -712,19 +754,20 @@ class AnnotationsMergerTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package android.graphics;
                     public class RuntimeShader {
                         public RuntimeShader(@NonNull String sksl) {
                         }
                     }
                     """
-                )
-            ),
+                    )
+                ),
             outputKotlinStyleNulls = false,
-            mergeSignatureAnnotations = """
+            mergeSignatureAnnotations =
+                """
                 // Signature format: 4.0
                 package android.graphics {
                   public class RuntimeShader {
@@ -737,8 +780,10 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
             """,
-            extractAnnotations = mapOf(
-                "android.text" to """
+            extractAnnotations =
+                mapOf(
+                    "android.text" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence)">
@@ -748,7 +793,8 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """,
-                "android.graphics" to """
+                    "android.graphics" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String) 0">
@@ -758,7 +804,7 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 }
