@@ -108,7 +108,7 @@ class SignatureFormatOptionsTest :
         val e = assertThrows(BadParameterValue::class.java) { runTest("--format=v1") {} }
         assertThat(e.message)
             .startsWith(
-                """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
+                """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', '5.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
             )
     }
 
