@@ -1139,11 +1139,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            assertSignatureFilesMatch(
-                api,
-                apiFile.readText(Charsets.UTF_8),
-                expectedFormat = effectiveFormat
-            )
+            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = effectiveFormat)
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.annotationManager)
         }
@@ -1238,8 +1234,11 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${removedApiFile.path} does not exist even though --removed-api was used",
                 removedApiFile.exists()
             )
-            val actualText = readFile(removedApiFile)
-            assertEquals(prepareExpectedApi(removedApi, effectiveFormat), actualText)
+            assertSignatureFilesMatch(
+                removedApi,
+                removedApiFile.readText(),
+                expectedFormat = effectiveFormat
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.annotationManager)
         }
@@ -1446,18 +1445,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             return false
         }
         return true
-    }
-
-    /** Strip comments, trim indent, and add a signature format version header if one is missing */
-    private fun prepareExpectedApi(expectedApi: String, format: FileFormat): String {
-        val header = format.header()
-
-        return stripComments(expectedApi, DOT_TXT, stripLineComments = false)
-            .trimIndent()
-            .let {
-                if (header != null && !it.startsWith("// Signature format:")) header + it else it
-            }
-            .trim()
     }
 
     companion object {
