@@ -32,6 +32,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_VERBOSE

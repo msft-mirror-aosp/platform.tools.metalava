@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.BaseOptionGroupTest
+import com.android.tools.metalava.DefaultReporter
+import com.android.tools.metalava.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
 import org.junit.Assert.assertEquals

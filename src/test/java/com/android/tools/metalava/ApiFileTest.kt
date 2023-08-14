@@ -19,6 +19,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java

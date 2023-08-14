@@ -20,10 +20,13 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
