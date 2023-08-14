@@ -94,7 +94,9 @@ class ReporterOptions :
                         val label = ConfigLabel.fromOptionName(name)
 
                         // Update the configuration immediately
-                        values.forEach { label.setAspectForId(reporter, issueConfiguration, it) }
+                        values.forEach {
+                            label.setAspectForId(reporter, issueConfiguration, it.trim())
+                        }
                     }
                 }
             )
@@ -125,7 +127,7 @@ private enum class ConfigurableAspect {
                                 "$optionName ${it.name} instead of $optionName $id"
                         )
                     }
-                        ?: throw MetalavaCliException("Unknown issue id: $optionName $id")
+                        ?: throw MetalavaCliException("Unknown issue id: '$optionName' '$id'")
 
             configuration.setSeverity(issue, severity)
         }

@@ -588,7 +588,8 @@ $MAIN_HELP_BODY
 
     @Test
     fun `Test multiple issue severity options`() {
-        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
+        // Purposely includes some whitespace as that is something callers of metalava do.
+        check(extraArguments = arrayOf("--hide", "StartWithLower ,StartWithUpper, ArrayReturn"))
         val issueConfiguration = options.issueConfiguration
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
@@ -621,7 +622,7 @@ $MAIN_HELP_BODY
     fun `Test issue severity options with non-existing issue`() {
         check(
             extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Aborting: Unknown issue id: --hide ThisIssueDoesNotExist"
+            expectedFail = "Aborting: Unknown issue id: '--hide' 'ThisIssueDoesNotExist'"
         )
     }
 
