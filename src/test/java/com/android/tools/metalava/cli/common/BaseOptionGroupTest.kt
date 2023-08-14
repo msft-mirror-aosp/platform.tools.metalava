@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
-import com.android.tools.metalava.cli.common.MetalavaLocalization
-import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintHelpMessage

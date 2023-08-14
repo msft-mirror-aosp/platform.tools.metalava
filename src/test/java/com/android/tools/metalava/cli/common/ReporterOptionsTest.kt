@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.BaseOptionGroupTest
 import com.android.tools.metalava.DefaultReporter
 import com.android.tools.metalava.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
