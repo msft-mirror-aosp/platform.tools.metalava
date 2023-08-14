@@ -36,6 +36,9 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.signature.ARG_API_OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.cli.signature.ARG_OUTPUT_KOTLIN_NULLS
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile

@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
