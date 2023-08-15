@@ -69,7 +69,7 @@ internal var hasFileReadViolations = false
 
 /**
  * The metadata driver is a command line interface to extracting various metadata from a source tree
- * (or existing signature files etc). Run with --help to see more details.
+ * (or existing signature files etc.). Run with --help to see more details.
  */
 fun run(
     originalArgs: Array<String>,
@@ -669,7 +669,7 @@ fun checkCompatibility(
         // This option does not make sense with showAnnotation, as the "base" in that case
         // is the non-annotated APIs.
         throw MetalavaCliException(
-            ARG_CHECK_COMPATIBILITY_BASE_API + " is not compatible with --showAnnotation."
+            "$ARG_CHECK_COMPATIBILITY_BASE_API is not compatible with --showAnnotation."
         )
     }
 
@@ -683,19 +683,6 @@ fun checkCompatibility(
         options.reporterCompatibilityReleased,
         options.issueConfiguration,
     )
-}
-
-fun createTempFile(namePrefix: String, nameSuffix: String): File {
-    val tempFolder = options.tempFolder
-    return if (tempFolder != null) {
-        val preferred = File(tempFolder, namePrefix + nameSuffix)
-        if (!preferred.exists()) {
-            return preferred
-        }
-        File.createTempFile(namePrefix, nameSuffix, tempFolder)
-    } else {
-        File.createTempFile(namePrefix, nameSuffix)
-    }
 }
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
@@ -834,9 +821,9 @@ fun loadFromJarFile(
 }
 
 internal fun disableStderrDumping(): Boolean {
-    val disableStderrDumping =
-        !assertionsEnabled() && System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null && !isUnderTest()
-    return disableStderrDumping
+    return !assertionsEnabled() &&
+        System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
+        !isUnderTest()
 }
 
 private fun extractAnnotations(codebase: Codebase, file: File) {
@@ -896,7 +883,7 @@ private fun createStubFiles(
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
             val overview = codebase.getPackageDocs()?.getOverviewDocumentation(empty)
-            if (overview != null && overview.isNotBlank()) {
+            if (!overview.isNullOrBlank()) {
                 stubWriter.writeDocOverview(empty, overview)
             }
         }

@@ -374,7 +374,10 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
             .trimIndent()
 
-    /** The options from [CommonOptions] plus Clikt defined opiotns from [Options]. */
+    /**
+     * The options from [com.android.tools.metalava.cli.common.CommonOptions] plus Clikt defined
+     * options from [Options].
+     */
     private val CLIKT_OPTIONS =
         """
 Options:
@@ -559,9 +562,9 @@ $MAIN_HELP_BODY
     fun `Test for --strict-input-files-exempt`() {
         val top = temporaryFolder.newFolder()
 
-        val dir = File(top, "childdir").apply { mkdirs() }
-        val grandchild1 = File(dir, "grandchiild1").apply { createNewFile() }
-        val grandchild2 = File(dir, "grandchiild2").apply { createNewFile() }
+        val dir = File(top, "child-dir").apply { mkdirs() }
+        val grandchild1 = File(dir, "grandchild1").apply { createNewFile() }
+        val grandchild2 = File(dir, "grandchild2").apply { createNewFile() }
         val file1 = File(top, "file1").apply { createNewFile() }
         val file2 = File(top, "file2").apply { createNewFile() }
 

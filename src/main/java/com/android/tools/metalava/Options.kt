@@ -270,13 +270,13 @@ class Options(
         get() = optionalNullabilityAnnotationsValidator.orElse(null)
 
     /** Whether nullability validation errors should be considered fatal. */
-    var nullabilityErrorsFatal = true
+    private var nullabilityErrorsFatal = true
 
     /**
      * A file to write non-fatal nullability validation issues to. If null, all issues are treated
      * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
      */
-    var nullabilityWarningsTxt: File? = null
+    private var nullabilityWarningsTxt: File? = null
 
     /**
      * Whether to validate nullability for all the classes where we are merging annotations from
@@ -372,7 +372,7 @@ class Options(
 
     val checkApiIgnorePrefix: MutableList<String> = mutableListOf()
 
-    /** If non null, an API file to use to hide for controlling what parts of the API are new */
+    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
 
     /** Packages to include (if null, include all) */
@@ -525,10 +525,10 @@ class Options(
     var generateAnnotations = false
 
     /** The set of annotation classes that should be passed through unchanged */
-    var passThroughAnnotations = mutablePassThroughAnnotations
+    private var passThroughAnnotations = mutablePassThroughAnnotations
 
     /** The set of annotation classes that should be removed from all outputs */
-    var excludeAnnotations = mutableExcludeAnnotations
+    private var excludeAnnotations = mutableExcludeAnnotations
 
     /** A signature file to migrate nullness data from */
     var migrateNullsFrom: File? = null
@@ -541,9 +541,6 @@ class Options(
 
     /** The API to use a base for the otherwise checked API during compat checks. */
     var baseApiForCompatCheck: File? = null
-
-    /** If false, attempt to use the native diff utility on the system */
-    var noNativeDiff = false
 
     /** Existing external annotation files to merge in */
     var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -594,8 +591,8 @@ class Options(
     var sdkJarRoot: File? = null
 
     /**
-     * Rules to filter out some of the extension SDK APIs from the API, and assign extensions to the
-     * APIs that are kept
+     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
+     * that are kept
      */
     var sdkInfoFile: File? = null
 
@@ -668,7 +665,7 @@ class Options(
     /** If updating baselines and the baseline is empty, delete the file */
     var deleteEmptyBaselines = false
 
-    /** If generating a removed signature file and it is empty, delete it */
+    /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
     /** Whether the baseline should only contain errors */
@@ -706,7 +703,7 @@ class Options(
 
     /**
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
-     * For R preview, if would be "R".
+     * For R preview, it would be "R".
      */
     private var compileSdkVersion: String? = null
 
@@ -717,7 +714,7 @@ class Options(
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
      */
-    val typedefMode by
+    private val typedefMode by
         enumOption(
             ARG_TYPEDEFS_IN_SIGNATURES,
             help = """Whether to include typedef annotations in signature files.""",
@@ -764,7 +761,7 @@ class Options(
     var strictInputViolationsPrintWriter: PrintWriter? = null
 
     /** Temporary folder to use instead of the JDK default, if any */
-    var tempFolder: File? = null
+    private var tempFolder: File? = null
 
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
     var repeatErrorsMax = 0
@@ -812,7 +809,7 @@ class Options(
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
-                // For now we don't distinguish between bootclasspath and classpath
+                // For now, we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH -> {
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
