@@ -18,7 +18,9 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -26,7 +28,7 @@ class UnhideApisTest : DriverTest() {
     @Test
     fun `Report hidden API access rather than opening up access`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -111,7 +113,7 @@ class UnhideApisTest : DriverTest() {
     @Test
     fun `Including private interfaces from types`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             extraArguments = arrayOf(ARG_ERROR, "ReferencesHidden"),
             sourceFiles =
                 arrayOf(

@@ -22,8 +22,6 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.model.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
@@ -40,9 +38,11 @@ import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
 import java.io.File
 import java.io.IOException
+import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
-class ApiFile(
+class ApiFile
+private constructor(
     /** Implements [ResolverContext] interface */
     override val classResolver: ClassResolver?
 ) : ResolverContext {
@@ -56,7 +56,7 @@ class ApiFile(
     private var kotlinStyleNulls: Boolean = false
 
     /** The file format of the file being parsed. */
-    var format: FileFormat = FileFormat.UNKNOWN
+    lateinit var format: FileFormat
 
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
     private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
@@ -158,8 +158,9 @@ class ApiFile(
         filename: String,
         apiText: String,
     ) {
-        // Infer the format.
-        format = parseHeader(apiText)
+        // Parse the header of the signature file to determine the format.
+        format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
+        kotlinStyleNulls = format.kotlinStyleNulls
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
         // the prior files.
@@ -167,29 +168,10 @@ class ApiFile(
             // This is the first file to process.
             api.format = format
         } else {
-            // If we're appending to another API file, make sure the format is the same.
-            if (format != api.format) {
-                throw ApiParseException(
-                    String.format(
-                        "Cannot merge different formats of signature files. First file format=%s, current file format=%s: file=%s",
-                        api.format,
-                        format,
-                        filename
-                    )
-                )
-            }
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
                 return
             }
-        }
-
-        if (format.isSignatureFormat()) {
-            kotlinStyleNulls = format.useKotlinStyleNulls()
-        } else if (apiText.isBlank()) {
-            // Sometimes, signature files are empty, and we do want to accept them.
-        } else {
-            throw ApiParseException("Unknown file format of $filename")
         }
 
         val tokenizer = Tokenizer(filename, apiText.toCharArray())
@@ -357,7 +339,10 @@ class ApiFile(
                 null -> maybeExistingClass
                 else -> {
                     if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException("Incompatible $foundClass definitions")
+                        throw ApiParseException(
+                            "Incompatible $foundClass definitions",
+                            maybeExistingClass.position
+                        )
                     } else {
                         foundClass
                     }

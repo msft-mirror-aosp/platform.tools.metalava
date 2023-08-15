@@ -23,15 +23,16 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -344,7 +345,6 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
                 apiEmit,
                 apiReference,
                 codebase.preFiltered,
-                methodComparator = options.apiOverloadedMethodOrder.comparator
             )
         }
     }
@@ -378,7 +378,6 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
                 removedReference,
                 codebase.original != null,
                 options.includeSignatureFormatVersionRemoved,
-                options.apiOverloadedMethodOrder.comparator
             )
         }
     }
@@ -650,13 +649,6 @@ fun checkCompatibility(
             val classResolver = getClassResolver(psiSourceParser)
             SignatureFileLoader.load(signatureFile, classResolver)
         }
-
-    val oldFormat = (oldCodebase as? TextCodebase)?.format
-    if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
-        throw MetalavaCliException(
-            "Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat"
-        )
-    }
 
     var baseApi: Codebase? = null
 
@@ -969,9 +961,10 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): MetalavaCommand {
-    val command = MetalavaCommand(stdout, stderr, DriverCommand(), options::getUsage)
+    val command = MetalavaCommand(stdout, stderr, ::DriverCommand, options::getUsage)
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
+        MergeSignaturesCommand(),
         SignatureToJDiffCommand(),
         VersionCommand(),
     )
@@ -982,7 +975,7 @@ private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): Met
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
  * needs to be run when no subcommand is provided.
  */
-private class DriverCommand : OptionsCommand() {
+private class DriverCommand(commonOptions: CommonOptions) : OptionsCommand(commonOptions) {
     override fun run() {
         // Initialize the global options.
         super.run()
