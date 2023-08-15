@@ -35,6 +35,7 @@ import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
+import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.signature.ARG_API_OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.cli.signature.ARG_FORMAT

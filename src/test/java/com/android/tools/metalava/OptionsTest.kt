@@ -32,11 +32,6 @@ import org.junit.Test
 class OptionsTest : DriverTest() {
     private val FLAGS =
         """
-General:
---repeat-errors-max <N>
-                                             When specified, repeat at most N errors before finishing.
-
-
 API sources:
 --source-files <files>
                                              A comma separated list of source files to be parsed. Can also be @ followed
@@ -390,6 +385,7 @@ Options:
                                              --quiet - Only include vital output.
                                              --verbose - Include extra diagnostic output.
                                              (default: Neither --quiet or --verbose)
+  --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
   -h, --help                                 Show this message and exit
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature

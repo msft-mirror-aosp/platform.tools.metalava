@@ -190,7 +190,6 @@ const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
 const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
-const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -764,7 +763,7 @@ class Options(
     private var tempFolder: File? = null
 
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
-    var repeatErrorsMax = 0
+    val repeatErrorsMax by commonOptions::repeatErrorsMax
 
     var useK2Uast = false
 
@@ -1169,9 +1168,6 @@ class Options(
                         // allowed list.
                         stringToExistingFilesOrDirs(path)
                     }
-                }
-                ARG_REPEAT_ERRORS_MAX -> {
-                    repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
                 ARG_SDK_JAR_ROOT -> {
@@ -1621,10 +1617,6 @@ class Options(
     private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
         val args =
             arrayOf(
-                "",
-                "General:",
-                "$ARG_REPEAT_ERRORS_MAX <N>",
-                "When specified, repeat at most N errors before finishing.",
                 "",
                 "API sources:",
                 "$ARG_SOURCE_FILES <files>",
