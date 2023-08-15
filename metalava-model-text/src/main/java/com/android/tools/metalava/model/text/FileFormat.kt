@@ -32,34 +32,12 @@ data class FileFormat(
     val overloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
     val kotlinStyleNulls: Boolean,
     val conciseDefaultValues: Boolean,
-    /**
-     * In old signature files, methods inherited from hidden super classes are not included. An
-     * example of this is StringBuilder.setLength. We may see these in the codebase but not in the
-     * (old) signature files, so in these cases we want to ignore certain changes such as
-     * considering StringBuilder.setLength a newly added method.
-     */
-    val hasPartialSignatures: Boolean = false,
 ) {
     /** The base version of the file format. */
     enum class DefaultsVersion(
-        internal val description: String = "Metalava signature file",
         internal val version: String,
-        internal val headerPrefix: String? = "// Signature format: ",
         factory: (DefaultsVersion) -> FileFormat,
     ) {
-        V1(
-            description = "Doclava signature file",
-            version = "1.0",
-            headerPrefix = null,
-            factory = { defaultsVersion ->
-                FileFormat(
-                    defaultsVersion = defaultsVersion,
-                    kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
-                    hasPartialSignatures = true,
-                )
-            }
-        ),
         V2(
             version = "2.0",
             factory = { defaultsVersion ->
@@ -140,16 +118,13 @@ data class FileFormat(
         )
     }
 
-    fun header(): String? {
-        val prefix = defaultsVersion.headerPrefix ?: return null
+    fun header(): String {
+        val prefix = SIGNATURE_FORMAT_PREFIX
         return prefix + defaultsVersion.version + "\n"
     }
 
     companion object {
         private val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
-
-        // The defaults associated with version 1.0.
-        val V1 = DefaultsVersion.V1.defaults
 
         // The defaults associated with version 2.0.
         val V2 = DefaultsVersion.V2.defaults
@@ -162,6 +137,8 @@ data class FileFormat(
 
         // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
+
+        const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
@@ -190,12 +167,7 @@ data class FileFormat(
 
             for (format in allDefaults) {
                 val header = format.header()
-                if (header == null) {
-                    if (line.startsWith("package ")) {
-                        // Old signature files
-                        return FileFormat.V1
-                    }
-                } else if (header.startsWith(line)) {
+                if (header.startsWith(line)) {
                     return format
                 }
             }

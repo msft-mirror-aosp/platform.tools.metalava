@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import java.io.StringReader
+import kotlin.test.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -27,18 +28,19 @@ class FileFormatTest {
 
     @Test
     fun `Check format parsing (v1)`() {
-        assertSame(
-            FileFormat.V1,
-            parseHeader(
-                """
+        val e =
+            assertThrows(ApiParseException::class.java) {
+                parseHeader(
+                    """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
                   }
                 }
                 """
-            )
-        )
+                )
+            }
+        assertEquals("Unknown file format of api.txt", e.message)
     }
 
     @Test

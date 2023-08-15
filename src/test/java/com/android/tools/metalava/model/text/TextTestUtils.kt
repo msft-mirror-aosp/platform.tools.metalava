@@ -38,6 +38,6 @@ fun prepareSignatureFileForTest(expectedApi: String, format: FileFormat): String
 
     return stripComments(expectedApi, SdkConstants.DOT_TXT, stripLineComments = false)
         .trimIndent()
-        .let { if (header != null && !it.startsWith("// Signature format: ")) header + it else it }
+        .let { if (!it.startsWith(FileFormat.SIGNATURE_FORMAT_PREFIX)) header + it else it }
         .trim()
 }
