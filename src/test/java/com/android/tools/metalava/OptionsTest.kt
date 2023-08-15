@@ -118,8 +118,6 @@ Extracting Signature Files:
 
 
 Generating Stubs:
---stubs <dir>
-                                             Generate stub source files for the API
 --doc-stubs <dir>
                                              Generate documentation stub source files for the API. Documentation stub
                                              files are similar to regular stub files, but there are some differences.
@@ -131,10 +129,6 @@ Generating Stubs:
 --kotlin-stubs
                                              [CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source
                                              code will be written in Kotlin rather than the Java programming language.
---include-annotations
-                                             Include annotations such as @Nullable in the stub files.
---exclude-all-annotations
-                                             Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
@@ -237,11 +231,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---force-convert-to-warning-nullability-annotations <package1:-package2:...>
-                                             On every API declared in a class referenced by the given filter, makes
-                                             nullability issues appear to callers as warnings rather than errors by
-                                             replacing @Nullable/@NonNull in these APIs with
-                                             @RecentlyNullable/@RecentlyNonNull
 --copy-annotations <source> <dest>
                                              For a source folder full of annotation sources, generates corresponding
                                              package private versions of the same annotations.
@@ -392,6 +381,8 @@ Signature File Output:
                                              be created.
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
+
+$STUB_GENERATION_OPTIONS_HELP
 """
             .trimIndent()
 

@@ -909,6 +909,9 @@ private class DriverCommand(commonOptions: CommonOptions) :
     /** Signature format options. */
     private val signatureFormatOptions by SignatureFormatOptions()
 
+    /** Stub generation options. */
+    private val stubGenerationOptions by StubGenerationOptions()
+
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
@@ -919,6 +922,7 @@ private class DriverCommand(commonOptions: CommonOptions) :
             reporterOptions = reporterOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
+            stubGenerationOptions = stubGenerationOptions,
         )
 
     override fun run() {

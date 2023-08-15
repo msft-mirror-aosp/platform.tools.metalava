@@ -34,6 +34,7 @@ import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
+import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
@@ -109,7 +110,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
-const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
@@ -117,7 +117,6 @@ const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
@@ -153,7 +152,6 @@ const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
-const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
@@ -174,8 +172,6 @@ const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
-const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
-    "--force-convert-to-warning-nullability-annotations"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
@@ -188,6 +184,7 @@ class Options(
     reporterOptions: ReporterOptions = ReporterOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
+    stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
@@ -434,8 +431,10 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
-    /** If set, a directory to write stub files to. Corresponds to the --stubs/-stubs flag. */
-    var stubsDir: File? = null
+    val stubsDir by stubGenerationOptions::stubsDir
+    val forceConvertToWarningNullabilityAnnotations by
+        stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
+    val generateAnnotations by stubGenerationOptions::includeAnnotations
 
     /**
      * If set, a directory to write documentation stub files to. Corresponds to the --stubs/-stubs
@@ -503,9 +502,6 @@ class Options(
     /** Whether output should be colorized */
     val terminal by commonOptions::terminal
 
-    /** Whether to generate annotations into the stubs */
-    var generateAnnotations = false
-
     /** The set of annotation classes that should be passed through unchanged */
     private var passThroughAnnotations = mutablePassThroughAnnotations
 
@@ -527,12 +523,6 @@ class Options(
     /** Existing external annotation files to merge in */
     var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
-
-    /**
-     * We modify the annotations on these APIs to ask kotlinc to treat it as only a warning if a
-     * caller of one of these APIs makes an incorrect assumption about its nullability.
-     */
-    var forceConvertToWarningNullabilityAnnotations: PackageFilter? = null
 
     /**
      * An optional <b>jar</b> file to load classes from instead of from source. This is similar to
@@ -800,10 +790,6 @@ class Options(
                     mutableMergeInclusionAnnotations.addAll(
                         stringToExistingDirsOrFiles(getValue(args, ++index))
                     )
-                ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS -> {
-                    val nextArg = getValue(args, ++index)
-                    forceConvertToWarningNullabilityAnnotations = PackageFilter.parse(nextArg)
-                }
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
                 }
@@ -836,20 +822,13 @@ class Options(
                 }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
-                ARG_STUBS -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST ->
                     docStubsSourceList = stringToNewFile(getValue(args, ++index))
-                ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
-
-                // Note that this only affects stub generation, not signature files.
-                // For signature files, clear the compatibility mode
-                // (--annotations-in-signatures)
-                ARG_INCLUDE_ANNOTATIONS -> generateAnnotations = true
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
@@ -1475,28 +1454,6 @@ class Options(
         return file
     }
 
-    private fun stringToNewDir(value: String): File {
-        val output = fileForPathInner(value)
-        val ok =
-            if (output.exists()) {
-                if (output.isDirectory) {
-                    output.deleteRecursively()
-                }
-                if (output.exists()) {
-                    true
-                } else {
-                    output.mkdir()
-                }
-            } else {
-                output.mkdirs()
-            }
-        if (!ok) {
-            throw MetalavaCliException("Could not create $output")
-        }
-
-        return output
-    }
-
     fun getUsage(terminal: Terminal, width: Int): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
@@ -1595,8 +1552,6 @@ class Options(
                 "Write SDK values files to the given directory",
                 "",
                 "Generating Stubs:",
-                "$ARG_STUBS <dir>",
-                "Generate stub source files for the API",
                 "$ARG_DOC_STUBS <dir>",
                 "Generate documentation stub source files for the API. Documentation stub " +
                     "files are similar to regular stub files, but there are some differences. For example, in " +
@@ -1607,10 +1562,6 @@ class Options(
                 ARG_KOTLIN_STUBS,
                 "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
                     "be written in Kotlin rather than the Java programming language.",
-                ARG_INCLUDE_ANNOTATIONS,
-                "Include annotations such as @Nullable in the stub files.",
-                ARG_EXCLUDE_ALL_ANNOTATIONS,
-                "Exclude annotations such as @Nullable from the stub files; the default.",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",
@@ -1705,11 +1656,6 @@ class Options(
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
-                "$ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS <package1:-package2:...>",
-                "On every API declared " +
-                    "in a class referenced by the given filter, makes nullability issues appear to callers as warnings " +
-                    "rather than errors by replacing @Nullable/@NonNull in these APIs with " +
-                    "@RecentlyNullable/@RecentlyNonNull",
                 "$ARG_COPY_ANNOTATIONS <source> <dest>",
                 "For a source folder full of annotation " +
                     "sources, generates corresponding package private versions of the same annotations.",

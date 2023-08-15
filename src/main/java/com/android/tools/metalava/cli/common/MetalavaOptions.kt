@@ -59,6 +59,11 @@ fun RawOption.newFile(): NullableOption<File, File> {
     return fileConversion(::stringToNewFile)
 }
 
+/** Convert the option to a [File] that represents a new directory. */
+fun RawOption.newDir(): NullableOption<File, File> {
+    return fileConversion(::stringToNewDir)
+}
+
 /** Convert the argument to a [File] that represents a new file. */
 fun RawArgument.newFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewFile)
@@ -119,6 +124,35 @@ internal fun stringToExistingDir(value: String): File {
         throw MetalavaCliException("$file is not a directory")
     }
     return file
+}
+
+/**
+ * Convert a string representing a new directory to a [File].
+ *
+ * This will fail if:
+ * * the directory exists and cannot be deleted.
+ * * the directory cannot be created.
+ */
+internal fun stringToNewDir(value: String): File {
+    val output = fileForPathInner(value)
+    val ok =
+        if (output.exists()) {
+            if (output.isDirectory) {
+                output.deleteRecursively()
+            }
+            if (output.exists()) {
+                true
+            } else {
+                output.mkdir()
+            }
+        } else {
+            output.mkdirs()
+        }
+    if (!ok) {
+        throw MetalavaCliException("Could not create $output")
+    }
+
+    return output
 }
 
 /**
