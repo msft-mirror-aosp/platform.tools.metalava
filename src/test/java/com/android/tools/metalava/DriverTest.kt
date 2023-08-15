@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
+import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -459,7 +460,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 sources.forEach { file ->
                     val signatureFile =
                         File(project, "load-api${ if (++num == 1) "" else num.toString() }.txt")
-                    signatureFile.writeText(file.trimIndent())
+                    signatureFile.writeSignatureText(file.trimIndent())
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
@@ -557,7 +558,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     arrayOf(ARG_API_LINT)
                 } else {
                     val file = File(project, "prev-api-lint.txt")
-                    file.writeText(apiLint.trimIndent())
+                    file.writeSignatureText(apiLint.trimIndent())
                     arrayOf(ARG_API_LINT, file.path)
                 }
             } else {
@@ -571,7 +572,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "released-api.txt")
-                    file.writeText(checkCompatibilityApiReleased.trimIndent())
+                    file.writeSignatureText(checkCompatibilityApiReleased.trimIndent())
                     file
                 }
             } else {
@@ -585,7 +586,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "removed-released-api.txt")
-                    file.writeText(checkCompatibilityRemovedApiReleased.trimIndent())
+                    file.writeSignatureText(checkCompatibilityRemovedApiReleased)
                     file
                 }
             } else {
@@ -599,7 +600,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     maybeFile
                 } else {
                     val file = File(project, "compatibility-base-api.txt")
-                    file.writeText(checkCompatibilityBaseApi.trimIndent())
+                    file.writeSignatureText(checkCompatibilityBaseApi.trimIndent())
                     file
                 }
             } else {
@@ -613,7 +614,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "stable-api.txt")
-                    file.writeText(migrateNullsApi.trimIndent())
+                    file.writeSignatureText(migrateNullsApi.trimIndent())
                     file
                 }
             } else {
@@ -797,7 +798,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         val subtractApiArgs =
             if (subtractApi != null) {
                 subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeText(subtractApi.trimIndent())
+                subtractApiFile.writeSignatureText(subtractApi.trimIndent())
                 arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
             } else {
                 emptyArray()
@@ -1459,6 +1460,10 @@ abstract class DriverTest : TemporaryFolderOwner {
 
 private fun FileFormat.outputFlag(): String {
     return "$ARG_FORMAT=${defaultsVersion.name.lowercase(Locale.US)}"
+}
+
+private fun File.writeSignatureText(contents: String) {
+    writeText(prepareSignatureFileForTest(contents, FileFormat.V2))
 }
 
 /** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */

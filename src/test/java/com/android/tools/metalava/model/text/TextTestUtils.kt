@@ -27,13 +27,13 @@ fun assertSignatureFilesMatch(
     expectedFormat: FileFormat = FileFormat.LATEST,
     message: String? = null
 ) {
-    val expectedPrepared = prepareExpectedApi(expected, expectedFormat)
+    val expectedPrepared = prepareSignatureFileForTest(expected, expectedFormat)
     val actualStripped = actual.lines().filter { it.isNotBlank() }.joinToString("\n")
     assertEquals(message, expectedPrepared, actualStripped)
 }
 
 /** Strip comments, trim indent, and add a signature format version header if one is missing */
-private fun prepareExpectedApi(expectedApi: String, format: FileFormat): String {
+fun prepareSignatureFileForTest(expectedApi: String, format: FileFormat): String {
     val header = format.header()
 
     return stripComments(expectedApi, SdkConstants.DOT_TXT, stripLineComments = false)
