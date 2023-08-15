@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -24,6 +26,9 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
+import com.android.tools.metalava.model.psi.PsiSourceParser
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.io.ByteStreams
 import java.io.File
@@ -41,8 +46,9 @@ import org.objectweb.asm.tree.MethodNode
  * In an Android source tree, rewrite the signature files in prebuilts/sdk by reading what's
  * actually there in the android.jar files.
  */
-class ConvertJarsToSignatureFiles {
-    fun convertJars(root: File) {
+@Suppress("DEPRECATION")
+class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
+    fun convertJars(psiEnvironmentManager: PsiEnvironmentManager, root: File) {
         var api = 1
         while (true) {
             val apiJar =
@@ -68,7 +74,12 @@ class ConvertJarsToSignatureFiles {
             // be
             // there: package private super classes etc.
             val jarCodebase =
-                loadFromJarFile(apiJar, preFiltered = false, DefaultAnnotationManager())
+                loadFromJarFile(
+                    PsiSourceParser(psiEnvironmentManager, options.reporter),
+                    apiJar,
+                    preFiltered = false,
+                    DefaultAnnotationManager()
+                )
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
 
@@ -92,13 +103,10 @@ class ConvertJarsToSignatureFiles {
                             val modifiers = new.mutableModifiers()
                             modifiers.removeAnnotation(annotation)
 
-                            // Don't map annotation names - this would turn newly non null back into
-                            // non null
                             modifiers.addAnnotation(
                                 new.codebase.createAnnotation(
                                     "@$annotationClass",
                                     new,
-                                    mapName = false
                                 )
                             )
                         }
@@ -153,7 +161,13 @@ class ConvertJarsToSignatureFiles {
             }
 
             createReportFile(jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(printWriter, apiEmit, apiReference, jarCodebase.preFiltered)
+                SignatureWriter(
+                    printWriter,
+                    apiEmit,
+                    apiReference,
+                    jarCodebase.preFiltered,
+                    fileFormat = fileFormat,
+                )
             }
 
             // Delete older redundant .xml files

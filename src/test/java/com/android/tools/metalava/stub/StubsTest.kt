@@ -18,15 +18,16 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
-import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.deprecatedForSdkSource
-import com.android.tools.metalava.extractRoots
-import com.android.tools.metalava.gatherSources
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
+import com.android.tools.metalava.model.psi.extractRoots
+import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.options
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -650,7 +651,7 @@ class StubsTest : AbstractStubsTest() {
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
-                    method public java.util.List<X!>! foo();
+                    method protected java.util.List<X!>! foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
                     method public java.util.Map<A!,java.util.Map<B!,java.lang.String!>!>! createMap(java.util.List<A!>!) throws java.io.IOException;
@@ -670,7 +671,7 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     public MyClass() { throw new RuntimeException("Stub!"); }
-                    public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
+                    protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1178,13 +1179,14 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `Regression test for 124333557`() {
         // Regression test for 124333557: Handle empty java files
         check(
             expectedIssues =
                 """
-            src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
-            src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
+            src/test/Something2.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
+            src/test/Something2.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
             """,
             sourceFiles =
                 arrayOf(
@@ -1227,8 +1229,8 @@ class StubsTest : AbstractStubsTest() {
             projectSetup = { dir ->
                 // Make sure we handle blank/doc-only java doc files in root extraction
                 val src = listOf(File(dir, "src"))
-                val files = gatherSources(src)
-                val roots = extractRoots(files)
+                val files = gatherSources(options.reporter, src)
+                val roots = extractRoots(options.reporter, files)
                 assertEquals(1, roots.size)
                 assertEquals(src[0].path, roots[0].path)
             }
@@ -1589,6 +1591,71 @@ class StubsTest : AbstractStubsTest() {
                     )
                 ),
             docStubs = true
+        )
+    }
+
+    @Test
+    fun `From-text stubs can be generated from signature files with conflicting class definitions`() {
+        check(
+            format = FileFormat.V2,
+            signatureSources =
+                arrayOf(
+                    """
+            // Signature format: 2.0
+            package test.pkg {
+              public class SystemClassExtendingPublicClass extends test.pkg.PublicClass {
+                ctor public SystemClassExtendingPublicClass();
+                method public void foo(int i);
+              }
+              public class PublicClass {
+                ctor public PublicClass();
+              }
+            }
+            """, // current.txt
+                    """
+            // Signature format: 2.0
+            package test.pkg {
+              public class SystemClass extends test.pkg.PublicClass {
+                ctor public SystemClass();
+                method public void bar();
+              }
+              public class SystemClassExtendingPublicClass extends test.pkg.SystemClass {
+              }
+            }
+            """, // system-current.txt
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicClass {
+                    public PublicClass() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SystemClass extends test.pkg.PublicClass {
+                    public SystemClass() { throw new RuntimeException("Stub!"); }
+                    public void bar() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SystemClassExtendingPublicClass extends test.pkg.SystemClass {
+                    public SystemClassExtendingPublicClass() { throw new RuntimeException("Stub!"); }
+                    public void foo(int i) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                ),
         )
     }
 }

@@ -17,10 +17,10 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
-import com.android.tools.metalava.FileFormat
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -292,7 +292,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
     @Test
     fun `Rewriting type parameters in interfaces from hidden super classes and in throws lists`() {
         checkStubs(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -343,7 +343,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
-                    method public java.util.List<X> foo();
+                    method protected java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
                     method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
@@ -364,7 +364,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
+                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                 }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -387,7 +387,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
+                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                 }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})

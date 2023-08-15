@@ -17,6 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.intellij.lang.annotations.Language
 
 // Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
@@ -24,7 +27,7 @@ abstract class UastTestBase : DriverTest() {
 
     private fun uastCheck(
         isK2: Boolean,
-        format: FileFormat = FileFormat.latest,
+        format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         @Language("TEXT") api: String? = null,
         extraArguments: Array<String> = emptyArray(),
@@ -154,7 +157,8 @@ abstract class UastTestBase : DriverTest() {
                     """
                     )
                 ),
-            api = api
+            format = FileFormat.V4,
+            api = api,
         )
     }
 
@@ -165,7 +169,7 @@ abstract class UastTestBase : DriverTest() {
         val n = if (isK2) " @Nullable" else ""
         uastCheck(
             isK2,
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(

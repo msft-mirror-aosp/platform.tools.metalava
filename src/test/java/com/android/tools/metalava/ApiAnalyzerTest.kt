@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class ApiAnalyzerTest : DriverTest() {
@@ -120,6 +121,71 @@ class ApiAnalyzerTest : DriverTest() {
                 """
                     ),
                     systemApiSource
+                )
+        )
+    }
+
+    @Test
+    fun `Deprecation mismatch check look at inherited docs for overriding methods`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/MyClass.java:20: error: Method test.pkg.MyClass.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                src/test/pkg/MyClass.java:23: error: Method test.pkg.MyClass.notInheritedNoComment(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                src/test/pkg/MyInterface.java:17: error: Method test.pkg.MyInterface.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface MyInterface {
+                                /** @deprecated Use XYZ instead. */
+                                @Deprecated
+                                void inheritedNoComment();
+
+                                /** @deprecated Use XYZ instead. */
+                                @Deprecated
+                                void inheritedWithComment();
+
+                                /** @deprecated Use XYZ instead. */
+                                @Deprecated
+                                void inheritedWithInheritDoc();
+
+                                @Deprecated
+                                void inheritedNoCommentInParent();
+                            }
+                            """,
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class MyClass implements MyInterface {
+                                @Deprecated
+                                @Override
+                                public void inheritedNoComment() {}
+
+                                /** @deprecated Use XYZ instead. */
+                                @Deprecated
+                                @Override
+                                public void inheritedWithComment() {}
+
+                                /** {@inheritDoc} */
+                                @Deprecated
+                                @Override
+                                public void inheritedWithInheritDoc() {}
+
+                                @Deprecated
+                                @Override
+                                public void inheritedNoCommentInParent() {}
+
+                                @Deprecated
+                                public void notInheritedNoComment() {}
+                            }
+                        """
+                    )
                 )
         )
     }

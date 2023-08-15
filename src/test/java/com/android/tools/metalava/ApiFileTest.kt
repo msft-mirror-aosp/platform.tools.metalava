@@ -19,6 +19,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -63,7 +70,7 @@ class ApiFileTest : DriverTest() {
         // static method in interface is not overridable.
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -268,7 +275,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "some.other.pkg"
                 ),
-            includeSignatureVersion = true
         )
     }
 
@@ -350,14 +356,13 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.collection"
                 ),
-            includeSignatureVersion = true
         )
     }
 
     @Test
     fun `Basic Kotlin class`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -400,7 +405,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@NonNull String property1, int arg2);
+                    ctor public Kotlin(@NonNull String property1 = "Default Value", int arg2);
                     method @NonNull public String getProperty1();
                     method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
@@ -1370,7 +1375,7 @@ class ApiFileTest : DriverTest() {
         // correctly (in particular, using fully qualified names instead of what appears in
         // the source code.)
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1522,7 +1527,7 @@ class ApiFileTest : DriverTest() {
         // methods
         // in the interface are taken to be public etc)
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1549,7 +1554,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Enum class extraction`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1878,7 +1883,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Extract fields with types and initial values`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1943,7 +1948,7 @@ class ApiFileTest : DriverTest() {
         // Note also how the "protected" modifier on the interface method gets
         // promoted to public.
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2121,7 +2126,7 @@ class ApiFileTest : DriverTest() {
         // and that they are listed separately.
 
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2197,7 +2202,7 @@ class ApiFileTest : DriverTest() {
     fun `Check various generics signature subtleties`() {
         // Some additional declarations where PSI default type handling diffs from doclava1
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2256,7 +2261,7 @@ class ApiFileTest : DriverTest() {
         // correctly (there's some special casing around enums to insert extra methods
         // that was broken, as exposed by ChronoUnit#toString)
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2342,7 +2347,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V1, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -2606,7 +2611,7 @@ class ApiFileTest : DriverTest() {
         // implementing
         // class
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2699,7 +2704,7 @@ class ApiFileTest : DriverTest() {
         // class. This is an issue for example for the ZonedDateTime#getLong method
         // implementing the TemporalAccessor#getLong method
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2739,7 +2744,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Implementing interface method 2`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2942,7 +2947,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test include overridden @Deprecated even if annotated with @hide`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3006,7 +3011,7 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -3149,7 +3154,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3474,7 +3479,7 @@ class ApiFileTest : DriverTest() {
         // Use the otherwise= visibility in signatures
         // Regression test for issue 118763806
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3851,6 +3856,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files`() {
         val source1 =
@@ -3900,7 +3906,7 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V1, signatureSources = arrayOf(source1, source2), api = expected)
+        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
     }
 
     val MERGE_TEST_SOURCE_1 =
@@ -3929,6 +3935,7 @@ class ApiFileTest : DriverTest() {
             }
             """
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another`() {
         check(
@@ -3937,6 +3944,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another, in reverse order`() {
         // Exactly the same as the previous test, but read them in the reverse order
@@ -3946,6 +3954,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files with reverse dependency`() {
         val source1 =
@@ -3973,9 +3982,10 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(format = FileFormat.V1, signatureSources = arrayOf(source1, source2), api = expected)
+        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging 3 API signature files`() {
         val source1 =
@@ -4033,6 +4043,7 @@ class ApiFileTest : DriverTest() {
         check(signatureSources = arrayOf(source1, source2, source3), api = expected)
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test can merge API signature files with duplicate class`() {
         val source1 =
@@ -4067,19 +4078,6 @@ class ApiFileTest : DriverTest() {
         val source1 =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
-                method public static void disableForCurrentProcess(@NonNull String);
-                method public static void invalidateCache(@NonNull String, @NonNull String);
-                field public static final String MODULE_BLUETOOTH = "bluetooth";
-                field public static final String MODULE_SYSTEM = "system_server";
-                field public static final String MODULE_TEST = "test";
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
               public class IpcDataCache<Query, Result> {
                 ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
@@ -4088,6 +4086,19 @@ class ApiFileTest : DriverTest() {
                 method public static void invalidateCache(@NonNull String, @NonNull String);
                 method @Nullable public Result query(@NonNull Query);
                 field public static final String MODULE_BLUETOOTH = "bluetooth";
+              }
+            }
+                    """
+        val source2 =
+            """
+            package Test.pkg {
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
+                method public static void disableForCurrentProcess(@NonNull String);
+                method public static void invalidateCache(@NonNull String, @NonNull String);
+                field public static final String MODULE_BLUETOOTH = "bluetooth";
+                field public static final String MODULE_SYSTEM = "system_server";
+                field public static final String MODULE_TEST = "test";
               }
             }
                     """
@@ -4107,7 +4118,10 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(signatureSources = arrayOf(source1, source2), api = expected)
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected,
+        )
     }
 
     @Test
@@ -4150,11 +4164,12 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             api = expected,
-            overloadedMethodOrder = Options.OverloadedMethodOrder.SOURCE,
+            overloadedMethodOrder = OverloadedMethodOrder.SOURCE,
             format = FileFormat.V2,
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test cannot merge API signature files with incompatible class definitions`() {
         val source1 =
@@ -4176,12 +4191,13 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             expectedFail =
-                "Aborting: Unable to parse signature file: Incompatible class Test.pkg.Class1 definitions"
+                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
-    fun `Test cannot merging API signature files with different file formats`() {
+    fun `Test can merge API signature files with different file formats`() {
         val source1 =
             """
             // Signature format: 2.0
@@ -4196,9 +4212,6 @@ class ApiFileTest : DriverTest() {
                     """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail =
-                "Aborting: Unable to parse signature file: Cannot merge different formats of signature files. " +
-                    "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
         )
     }
 
@@ -4689,7 +4702,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "some.other.pkg"
                 ),
-            includeSignatureVersion = true
         )
     }
 
@@ -4771,7 +4783,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.collection"
                 ),
-            includeSignatureVersion = true
         )
     }
 
@@ -5112,6 +5123,7 @@ class ApiFileTest : DriverTest() {
                     restrictToSource
                 ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5537,6 +5549,7 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.annotation"
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5585,6 +5598,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5675,6 +5689,224 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Partial signature files include affected subclass definitions`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class SystemSubClass extends SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class AnotherPublicClass extends SystemSubClass {
+                        }
+                    """
+                    ),
+                    systemApiSource
+                ),
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class AnotherPublicClass extends test.pkg.SystemSubClass {
+                  }
+                  public class SystemSubClass extends test.pkg.SomePublicClass {
+                    ctor public SystemSubClass();
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                )
+        )
+    }
+
+    @Test
+    fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class SystemSubClass extends SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.TestApi;
+
+                        /** @hide */
+                        @TestApi
+                        public class TestSubClass extends SystemSubClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class AnotherSystemSubClass extends TestSubClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.TestApi;
+
+                        /** @hide */
+                        @TestApi
+                        public class AnotherTestSubClass extends AnotherSystemSubClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class AnotherPublicClass extends AnotherTestSubClass {
+                        }
+                    """
+                    ),
+                    systemApiSource,
+                    testApiSource,
+                ),
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class AnotherPublicClass extends test.pkg.AnotherTestSubClass {
+                  }
+                  public class AnotherTestSubClass extends test.pkg.AnotherSystemSubClass {
+                    ctor public AnotherTestSubClass();
+                  }
+                  public class TestSubClass extends test.pkg.SystemSubClass {
+                    ctor public TestSubClass();
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi",
+                )
+        )
+    }
+
+    @Test
+    fun `Subclass definition is not included in removed api file`() {
+        check(
+            format = FileFormat.V2,
+            expectedIssues =
+                """
+                src/test/pkg/AnotherPublicClass.java:3: warning: Public class test.pkg.AnotherPublicClass stripped of unavailable superclass test.pkg.SystemSubClass [HiddenSuperclass]
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /**
+                         * @hide
+                         * @removed
+                         */
+                        @SystemApi
+                        public class SystemSubClass extends SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class AnotherPublicClass extends SystemSubClass {
+                        }
+                    """
+                    ),
+                    systemApiSource
+                ),
+            removedApi =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class SystemSubClass extends test.pkg.SomePublicClass {
+                    ctor public SystemSubClass();
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                )
         )
     }
 }

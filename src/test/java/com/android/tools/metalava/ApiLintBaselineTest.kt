@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 /** Test for [ApiLint] specifically with baseline arguments. */
@@ -109,7 +111,7 @@ class ApiLintBaselineTest : DriverTest() {
             """,
             expectedIssues =
                 """
-                src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum] [See https://s.android.com/api-guidelines#avoid-enum]
+                src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -135,7 +137,7 @@ class ApiLintBaselineTest : DriverTest() {
             errorMessageApiLint = "*** api-lint failed ***",
             expectedIssues =
                 """
-                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl] [See https://s.android.com/api-guidelines#dont-end-with-impl]
+                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl]
                 """,
             sourceFiles =
                 arrayOf(
@@ -164,7 +166,7 @@ class ApiLintBaselineTest : DriverTest() {
             baselineApiLint = "",
             expectedIssues =
                 """
-                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl] [See https://s.android.com/api-guidelines#dont-end-with-impl]
+                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl]
                 """,
             sourceFiles =
                 arrayOf(
