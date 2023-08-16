@@ -28,11 +28,14 @@ import java.io.Reader
  */
 data class FileFormat(
     val defaultsVersion: DefaultsVersion,
-    // This defaults to SIGNATURE but can be overridden on the command line.
-    val overloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
+    val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
     val conciseDefaultValues: Boolean,
 ) {
+    // This defaults to SIGNATURE but can be overridden on the command line.
+    val overloadedMethodOrder
+        get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
+
     /** The base version of the file format. */
     enum class DefaultsVersion(
         internal val version: String,
@@ -99,10 +102,11 @@ data class FileFormat(
         // Always apply the overloadedMethodOrder command line override to the format from the file
         // because the overloadedMethodOrder is not determined by the version (yet) but only by the
         // command line argument and its default.
-        val effectiveOverloadedMethodOrder = overloadedMethodOrder ?: this.overloadedMethodOrder
+        val effectiveOverloadedMethodOrder =
+            overloadedMethodOrder ?: this.specifiedOverloadedMethodOrder
 
         return copy(
-            overloadedMethodOrder = effectiveOverloadedMethodOrder,
+            specifiedOverloadedMethodOrder = effectiveOverloadedMethodOrder,
         )
     }
 

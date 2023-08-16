@@ -118,7 +118,7 @@ class SignatureFormatOptionsTest :
             assertThat(it.fileFormat)
                 .isEqualTo(
                     FileFormat.V2.copy(
-                        overloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE
+                        specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE
                     )
                 )
         }

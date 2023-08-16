@@ -246,19 +246,16 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
     key: (T) -> String,
     default: T
 ): OptionWithValues<T, T, T> {
-    val optionToValue = enumValues.associateBy { key(it) }
+    // Filter out any enum values that do not provide any help.
+    val optionToValue = enumValues.filter { enumValueHelpGetter(it) != "" }.associateBy { key(it) }
 
-    // Create a reverse mapping from enum value to option. This may break if two enum value uses
-    // the same name in different cases, but that is highly unlikely as it breaks all coding
-    // standards.
-    val valueToOption = optionToValue.entries.associateBy({ it.value }, { it.key })
-    val defaultForHelp =
-        valueToOption.get(default) ?: throw IllegalStateException("Unknown enum value $default")
+    // Get the help representation of the default value.
+    val defaultForHelp = key(default)
 
     val constructedHelp = buildString {
         append(help)
         append(HARD_NEWLINE)
-        for (enumValue in enumValues) {
+        for (enumValue in optionToValue.values) {
             val value = key(enumValue)
             // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
             // which is used to deconstruct this.

@@ -43,26 +43,51 @@ const val ARG_USE_SAME_FORMAT_AS = "--use-same-format-as"
  * [OptionOverloadedMethodOrder.values] method.
  */
 @Suppress("unused")
-private enum class OptionOverloadedMethodOrder(val order: OverloadedMethodOrder, val help: String) {
+private enum class OptionOverloadedMethodOrder(
+    val order: OverloadedMethodOrder?,
+    val optionName: String,
+    val help: String,
+) {
     SOURCE(
         OverloadedMethodOrder.SOURCE,
+        optionName = "source",
         help =
             """
                 preserves the order in which overloaded methods appear in the source files. This
                 means that refactorings of the source files which change the order but not the API
                 can cause unnecessary changes in the API signature files.
             """
-                .trimIndent()
+                .trimIndent(),
     ),
     SIGNATURE(
         OverloadedMethodOrder.SIGNATURE,
+        optionName = "signature",
         help =
             """
                 sorts overloaded methods by their signature. This means that refactorings of the
                 source files which change the order but not the API will have no effect on the API
                 signature files.
             """
-                .trimIndent()
+                .trimIndent(),
+    ),
+
+    /**
+     * A special value that is used as the default in the [enumOption] use.
+     *
+     * It does two things:
+     * 1. Sets the default value displayed in the help to be the CLI value of [SIGNATURE] which
+     *    while not the default given to the option is the default provided by
+     *    [FileFormat.overloadedMethodOrder].
+     * 2. Maps to `null` so that consuming code can differentiate between specifying no option on
+     *    the command line and specifying `signature.`.
+     */
+    DEFAULT(
+        // Allow consuming code to differentiate between `signature` and no option.
+        null,
+        // Set the default value displayed in the help.
+        optionName = SIGNATURE.optionName,
+        // Hide this from the list of available values for the option.
+        help = "",
     )
 }
 
@@ -149,8 +174,9 @@ class SignatureFormatOptions :
                         $ARG_REMOVED_API.
                     """
                         .trimIndent(),
+                key = { it.optionName },
                 enumValueHelpGetter = { it.help },
-                default = OptionOverloadedMethodOrder.SIGNATURE,
+                default = OptionOverloadedMethodOrder.DEFAULT,
             )
             .map { it.order }
 
