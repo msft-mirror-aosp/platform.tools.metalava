@@ -155,17 +155,6 @@ interface AnnotationItem {
      */
     fun isHideAnnotation(): Boolean
 
-    /**
-     * Returns true iff this annotation is a hide meta-annotation.
-     *
-     * Hide meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn], which
-     * allows developers to create annotations that describe experimental features -- sets of
-     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
-     * hidden meta-annotation.
-     */
-    fun isHideMetaAnnotation(): Boolean
-
     fun isSuppressCompatibilityAnnotation(): Boolean
 
     /** Returns the retention of this annotation */
@@ -311,8 +300,6 @@ private constructor(
     override fun isShowForStubPurposes(): Boolean = info.showability.forStubsOnly
 
     override fun isHideAnnotation(): Boolean = info.hide
-
-    override fun isHideMetaAnnotation(): Boolean = info.hideMeta
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
 

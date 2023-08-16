@@ -136,7 +136,6 @@ const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
-const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
@@ -221,8 +220,6 @@ class Options(
     private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideAnnotations] */
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [hideMetaAnnotations] */
-    private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -389,9 +386,6 @@ class Options(
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
-    /** Meta-annotations to hide */
-    var hideMetaAnnotations = mutableHideMetaAnnotations
-
     val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             reporter = reporter,
@@ -402,7 +396,6 @@ class Options(
                 showSingleAnnotations = showSingleAnnotations,
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
-                hideMetaAnnotations = hideMetaAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
@@ -893,7 +886,6 @@ class Options(
                 }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
-                ARG_HIDE_META_ANNOTATION -> mutableHideMetaAnnotations.add(getValue(args, ++index))
                 ARG_STUBS -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
@@ -1672,9 +1664,6 @@ class Options(
                     "in certain kinds of output such as stubs, but not in others, such as the signature file and API lint",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
-                "$ARG_HIDE_META_ANNOTATION <meta-annotation class>",
-                "Treat as hidden any elements annotated with an " +
-                    "annotation which is itself annotated with the given meta-annotation",
                 ARG_SHOW_UNANNOTATED,
                 "Include un-annotated public APIs in the signature file as well",
                 "$ARG_JAVA_SOURCE <level>",

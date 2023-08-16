@@ -4350,11 +4350,18 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
+                    ctor public ClassUsingExternalExperimentalApi();
+                  }
+                  @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
+                    ctor public ClassUsingInLibraryExperimentalApi();
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
-            """,
-            extraArguments = arrayOf(ARG_HIDE_META_ANNOTATION, "kotlin.RequiresOptIn")
+                """,
+            extraArguments =
+                arrayOf(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION, "kotlin.RequiresOptIn")
         )
     }
 

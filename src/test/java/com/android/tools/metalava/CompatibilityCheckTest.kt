@@ -4913,7 +4913,6 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased = signature,
             signatureSource = signature,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaSuppressCompatibility"),
-            hideMetaAnnotations = arrayOf("test.pkg.MetaHide")
         )
     }
 

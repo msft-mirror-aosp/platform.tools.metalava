@@ -61,15 +61,6 @@ open class AnnotationInfo(
     open val hide: Boolean
         get() = false
 
-    /**
-     * If true then this annotation will cause annotated annotations to be treated as [hide]
-     * annotations.
-     *
-     * This is true if this annotation is explicitly specified as a hide meta annotation.
-     */
-    open val hideMeta: Boolean
-        get() = false
-
     open val suppressCompatibility: Boolean
         get() = false
 }

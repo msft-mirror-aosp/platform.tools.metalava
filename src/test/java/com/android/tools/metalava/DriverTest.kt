@@ -308,8 +308,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
-        /** Hide meta-annotations (--hide-meta-annotation arguments) */
-        hideMetaAnnotations: Array<String> = emptyArray(),
         /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
         suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
@@ -728,18 +726,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        val hideMetaAnnotationArguments =
-            if (hideMetaAnnotations.isNotEmpty()) {
-                val args = mutableListOf<String>()
-                for (annotation in hideMetaAnnotations) {
-                    args.add(ARG_HIDE_META_ANNOTATION)
-                    args.add(annotation)
-                }
-                args.toTypedArray()
-            } else {
-                emptyArray()
-            }
-
         val suppressCompatMetaAnnotationArguments =
             if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
                 val args = mutableListOf<String>()
@@ -1086,7 +1072,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *baselineCheckCompatibilityReleasedArgs,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
-                *hideMetaAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
                 *showForStubPurposesAnnotationArguments,
                 *showUnannotatedArgs,

@@ -88,9 +88,6 @@ API sources:
                                              signature file and API lint
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
---hide-meta-annotation <meta-annotation class>
-                                             Treat as hidden any elements annotated with an annotation which is itself
-                                             annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>

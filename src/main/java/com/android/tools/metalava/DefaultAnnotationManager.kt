@@ -69,7 +69,6 @@ class DefaultAnnotationManager(
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val hideMetaAnnotations: List<String> = emptyList(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -494,7 +493,7 @@ class DefaultAnnotationManager(
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
+        if (config.hideAnnotations.isEmpty()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
@@ -655,25 +654,8 @@ private class LazyAnnotationInfo(
     override val hide: Boolean by
         lazy(LazyThreadSafetyMode.NONE) {
             val hideAnnotations = config.hideAnnotations
-            if (hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)) {
-                return@lazy true
-            }
-
-            // If there are no hide meta annotations then there is no way this could be a hide
-            // annotation.
-            if (config.hideMetaAnnotations.isEmpty()) {
-                return@lazy false
-            }
-
-            // Check the annotation class to see if it has been annotated with a hide meta
-            // annotation.
-            checkResolvedAnnotationClass { resolved ->
-                resolved.modifiers.annotations().any(AnnotationItem::isHideMetaAnnotation)
-            }
+            hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)
         }
-
-    override val hideMeta: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) { config.hideMetaAnnotations.contains(qualifiedName) }
 
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.
