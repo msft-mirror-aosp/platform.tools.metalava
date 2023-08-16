@@ -111,8 +111,29 @@ data class FileFormat(
     }
 
     fun header(): String {
-        val prefix = SIGNATURE_FORMAT_PREFIX
-        return prefix + defaultsVersion.version + "\n"
+        return "$SIGNATURE_FORMAT_PREFIX${specifier()}\n"
+    }
+
+    fun specifier(): String {
+        return buildString {
+            append(defaultsVersion.version)
+
+            val defaults = defaultsVersion.defaults
+            if (this@FileFormat != defaults) {
+                var separator = VERSION_PROPERTIES_SEPARATOR
+                OverrideableProperty.values().forEach { prop ->
+                    val thisValue = prop.stringFromFormat(this@FileFormat)
+                    val defaultValue = prop.stringFromFormat(defaults)
+                    if (thisValue != defaultValue) {
+                        append(separator)
+                        separator = ","
+                        append(prop.propertyName)
+                        append("=")
+                        append(thisValue)
+                    }
+                }
+            }
+        }
     }
 
     companion object {
@@ -199,16 +220,12 @@ data class FileFormat(
                 )
             }
 
-            val version = reader.readLine()
-
-            return versionToDefaults[version]
-                ?: throw ApiParseException(
-                    "Unknown file format of $filename: invalid version, found '$version', expected one of '${
-                        versionToDefaults.keys.joinToString(
-                            "', '"
-                        )
-                    }'"
-                )
+            val specifier = reader.readLine()
+            try {
+                return parseSpecifier(specifier)
+            } catch (e: ApiParseException) {
+                throw ApiParseException("Unknown file format of $filename: ${e.message}")
+            }
         }
 
         private const val VERSION_PROPERTIES_SEPARATOR = ":"
@@ -279,12 +296,18 @@ data class FileFormat(
             override fun setFromString(builder: Builder, value: String) {
                 builder.conciseDefaultValues = yesNo(value)
             }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.conciseDefaultValues)
         },
         /** kotlin-style-nulls=[yes|no] */
         KOTLIN_STYLE_NULLS {
             override fun setFromString(builder: Builder, value: String) {
                 builder.kotlinStyleNulls = yesNo(value)
             }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinStyleNulls)
         },
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER {
@@ -299,6 +322,9 @@ data class FileFormat(
                             )
                     }
             }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                format.overloadedMethodOrder.name.lowercase(Locale.US)
         };
 
         /** The property name in the [parseSpecifier] input. */
@@ -309,6 +335,12 @@ data class FileFormat(
          * the string representation [value].
          */
         abstract fun setFromString(builder: Builder, value: String)
+
+        /**
+         * Get the string representation of the corresponding property from the supplied
+         * [FileFormat].
+         */
+        abstract fun stringFromFormat(format: FileFormat): String
 
         /** Convert a "yes|no" string into a boolean. */
         fun yesNo(value: String): Boolean {
@@ -321,6 +353,9 @@ data class FileFormat(
                     )
             }
         }
+
+        /** Convert a boolean into a `yes|no` string. */
+        fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
         companion object {
             val byPropertyName = values().associateBy { it.propertyName }

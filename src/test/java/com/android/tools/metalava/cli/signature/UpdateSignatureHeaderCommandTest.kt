@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.signature
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
-import java.util.Locale
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -35,7 +34,7 @@ class UpdateSignatureHeaderCommandTest : BaseCommandTest(::UpdateSignatureHeader
             args += "update-signature-header"
 
             args += "--format"
-            args += format.defaultsVersion.name.lowercase(Locale.US)
+            args += format.specifier()
 
             val input = inputFile("api.txt", contents.trimIndent())
             args += input.path
@@ -43,12 +42,12 @@ class UpdateSignatureHeaderCommandTest : BaseCommandTest(::UpdateSignatureHeader
             if (expectedOutput == null) {
                 verify {
                     // Make sure that the input file has not changed.
-                    assertEquals(contents, input.readText())
+                    assertEquals(contents.trimIndent(), input.readText())
                 }
             } else {
                 verify {
                     assertSignatureFilesMatch(
-                        expectedOutput,
+                        expectedOutput.trimIndent(),
                         input.readText(),
                         expectedFormat = format
                     )
@@ -108,17 +107,13 @@ Arguments:
     @Test
     fun `Update signature (blank to v2)`() {
         checkUpdateSignatures(
-            contents =
-                """
+            contents = """
 
-                """
-                    .trimIndent(),
+                """,
             format = FileFormat.V2,
-            expectedOutput =
-                """
+            expectedOutput = """
 
-                """
-                    .trimIndent(),
+                """,
         )
     }
 
@@ -139,30 +134,64 @@ Arguments:
                     // Signature format: 2.0
                     package test.pkg {
                     }
-                """
-                    .trimIndent(),
+                """,
             format = FileFormat.V3,
             expectedOutput =
                 """
                     // Signature format: 3.0
                     package test.pkg {
                     }
-                """
-                    .trimIndent(),
+                """,
         )
     }
 
     @Test
     fun `Update signature (wrong file to v3)`() {
         checkUpdateSignatures(
-            contents =
-                """
+            contents = """
                     Wrong file
-                """
-                    .trimIndent(),
+                """,
             format = FileFormat.V3,
             expectedStderr =
                 "Could not update header for TESTROOT/api.txt: Unknown file format of TESTROOT/api.txt: invalid prefix, found 'Wrong file', expected '// Signature format: '",
+        )
+    }
+
+    @Test
+    fun `Update signature (v2 to v2 + kotlin-style-nulls=true)`() {
+        checkUpdateSignatures(
+            contents =
+                """
+                    // Signature format: 2.0
+                    package pkg {
+                    }
+                """,
+            format = FileFormat.V2.copy(kotlinStyleNulls = true),
+            expectedOutput =
+                """
+                    // Signature format: 2.0:kotlin-style-nulls=yes
+                    package pkg {
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Update signature (v2 to v3 + kotlin-style-nulls=false)`() {
+        checkUpdateSignatures(
+            contents =
+                """
+                    // Signature format: 2.0
+                    package pkg {
+                    }
+                """,
+            format = FileFormat.V3.copy(kotlinStyleNulls = false),
+            expectedOutput =
+                """
+                    // Signature format: 3.0:kotlin-style-nulls=no
+                    package pkg {
+                    }
+                """
         )
     }
 }

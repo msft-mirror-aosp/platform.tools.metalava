@@ -20,7 +20,6 @@ import java.io.LineNumberReader
 import java.io.StringReader
 import kotlin.test.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -34,8 +33,7 @@ class FileFormatTest {
         val reader = LineNumberReader(StringReader(apiText.trimIndent()))
         if (expectedError == null) {
             val format = FileFormat.parseHeader("api.txt", reader)
-            assertSame(expectedFormat, format)
-
+            assertEquals(expectedFormat, format)
             val nextLine = reader.readLine()
             assertEquals(expectedNextLine, nextLine, "next line mismatch")
         } else {
@@ -181,6 +179,60 @@ class FileFormatTest {
             """,
             expectedError =
                 "Unknown file format of api.txt: invalid prefix, found '', expected '// Signature format: '",
+        )
+    }
+
+    @Test
+    fun `Check format parsing (v3 + corrupt properties)`() {
+        checkParseHeader(
+            """
+                // Signature format: 3.0:blah blah
+            """,
+            expectedError =
+                "Unknown file format of api.txt: expected <property>=<value> but found 'blah blah'",
+        )
+    }
+
+    @Test
+    fun `Check format parsing (v3 + kotlin-style-nulls=no)`() {
+        checkParseHeader(
+            """
+                // Signature format: 3.0:kotlin-style-nulls=no
+                
+            """,
+            expectedFormat = FileFormat.V3.copy(kotlinStyleNulls = false)
+        )
+    }
+
+    @Test
+    fun `Check format parsing (v2 + kotlin-style-nulls=yes)`() {
+        checkParseHeader(
+            """
+                // Signature format: 2.0:kotlin-style-nulls=yes
+                
+            """,
+            expectedFormat = FileFormat.V2.copy(kotlinStyleNulls = true)
+        )
+    }
+
+    @Test
+    fun `Check header (v2)`() {
+        assertEquals("// Signature format: 2.0\n", FileFormat.V2.header())
+    }
+
+    @Test
+    fun `Check header (v2 + kotlin-style-nulls=yes)`() {
+        assertEquals(
+            "// Signature format: 2.0:kotlin-style-nulls=yes\n",
+            FileFormat.V2.copy(kotlinStyleNulls = true).header()
+        )
+    }
+
+    @Test
+    fun `Check header (v3 + kotlin-style-nulls=no)`() {
+        assertEquals(
+            "// Signature format: 3.0:kotlin-style-nulls=no\n",
+            FileFormat.V3.copy(kotlinStyleNulls = false).header()
         )
     }
 }
