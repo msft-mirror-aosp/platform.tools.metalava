@@ -45,7 +45,6 @@ import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.psi.defaultJavaLanguageLevel
 import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.CliktCommand
@@ -986,27 +985,8 @@ class Options(
                     privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
                     privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
                 }
-                "--previous-api" -> {
-                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION,
-                        null as File?,
-                        "--previous-api is deprecated; instead " +
-                            "use $ARG_MIGRATE_NULLNESS $migrateNullsFrom"
-                    )
-                }
                 ARG_MIGRATE_NULLNESS -> {
-                    // See if the next argument specifies the nullness API codebase
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            val file = stringToExistingFile(nextArg)
-                            if (file.isFile) {
-                                index++
-                                migrateNullsFrom = file
-                            }
-                        }
-                    }
+                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
                 }
                 ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
