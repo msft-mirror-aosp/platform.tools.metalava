@@ -16,123 +16,136 @@
 
 package com.android.tools.metalava.model.text
 
+import java.io.LineNumberReader
 import java.io.StringReader
 import kotlin.test.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class FileFormatTest {
-    private fun parseHeader(apiText: String) =
-        FileFormat.parseHeader("api.txt", StringReader(apiText.trimIndent()))
+    private fun checkParseHeader(
+        apiText: String,
+        expectedFormat: FileFormat? = null,
+        expectedError: String? = null,
+        expectedNextLine: String? = null
+    ) {
+        val reader = LineNumberReader(StringReader(apiText.trimIndent()))
+        if (expectedError == null) {
+            val format = FileFormat.parseHeader("api.txt", reader)
+            assertSame(expectedFormat, format)
+
+            val nextLine = reader.readLine()
+            assertEquals(expectedNextLine, nextLine, "next line mismatch")
+        } else {
+            assertNull("cannot specify both expectedFormat and expectedError", expectedFormat)
+            val e =
+                assertThrows(ApiParseException::class.java) {
+                    FileFormat.parseHeader("api.txt", reader)
+                }
+            assertEquals(expectedError, e.message)
+        }
+    }
 
     @Test
     fun `Check format parsing (v1)`() {
-        val e =
-            assertThrows(ApiParseException::class.java) {
-                parseHeader(
-                    """
+        checkParseHeader(
+            """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
                   }
                 }
-                """
-                )
-            }
-        assertEquals("Unknown file format of api.txt", e.message)
+            """,
+            expectedError = "Unknown file format of api.txt",
+        )
     }
 
     @Test
     fun `Check format parsing (v2)`() {
-        assertSame(
-            FileFormat.V2,
-            parseHeader(
-                """
-            // Signature format: 2.0
-            package libcore.util {
-              @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
-                method public abstract int from() default java.lang.Integer.MIN_VALUE;
-                method public abstract int to() default java.lang.Integer.MAX_VALUE;
-              }
-            }
-                """
-                    .trimIndent()
-            )
+        checkParseHeader(
+            """
+                // Signature format: 2.0
+                package libcore.util {
+                  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
+                    method public abstract int from() default java.lang.Integer.MIN_VALUE;
+                    method public abstract int to() default java.lang.Integer.MAX_VALUE;
+                  }
+                }
+            """,
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "package libcore.util {",
         )
     }
 
     @Test
     fun `Check format parsing (v3)`() {
-        assertSame(
-            FileFormat.V3,
-            parseHeader(
-                """
-            // Signature format: 3.0
-            package androidx.collection {
-              public final class LruCacheKt {
-                ctor public LruCacheKt();
-              }
-            }
-                """
-                    .trimIndent()
-            )
+        checkParseHeader(
+            """
+                // Signature format: 3.0
+                package androidx.collection {
+                  public final class LruCacheKt {
+                    ctor public LruCacheKt();
+                  }
+                }
+            """,
+            expectedFormat = FileFormat.V3,
+            expectedNextLine = "package androidx.collection {",
         )
     }
 
     @Test
     fun `Check format parsing (v2 non-unix newlines)`() {
-        assertSame(
-            FileFormat.V2,
-            parseHeader(
+        checkParseHeader(
+            "" +
                 "// Signature format: 2.0\r\n" +
-                    "package libcore.util {\\r\n" +
-                    "  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {\r\n" +
-                    "    method public abstract int from() default java.lang.Integer.MIN_VALUE;\r\n" +
-                    "    method public abstract int to() default java.lang.Integer.MAX_VALUE;\r\n" +
-                    "  }\r\n" +
-                    "}\r\n"
-            )
+                "package libcore.util {\r\n" +
+                "  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {\r\n" +
+                "    method public abstract int from() default java.lang.Integer.MIN_VALUE;\r\n" +
+                "    method public abstract int to() default java.lang.Integer.MAX_VALUE;\r\n" +
+                "  }\r\n" +
+                "}\r\n",
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "package libcore.util {",
         )
     }
 
     @Test
     fun `Check format parsing (invalid)`() {
-        assertThrows("Unknown file format of api.txt", ApiParseException::class.java) {
-            parseHeader(
-                """
-                    blah blah
-                """
-                    .trimIndent()
-            )
-        }
+        checkParseHeader(
+            """
+                blah blah
+            """,
+            expectedError = "Unknown file format of api.txt",
+        )
     }
 
     @Test
     fun `Check format parsing (blank)`() {
-        assertSame(null, parseHeader(""))
+        checkParseHeader("")
     }
 
     @Test
     fun `Check format parsing (blank - multiple lines)`() {
-        assertSame(null, parseHeader("""
+        checkParseHeader(
+            """
 
 
 
-                """))
+            """,
+        )
     }
 
     @Test
     fun `Check format parsing (not blank, multiple lines of white space, then some text)`() {
-        assertThrows("Unknown file format of api.txt", ApiParseException::class.java) {
-            parseHeader(
-                """
+        checkParseHeader(
+            """
 
 
-                    blah blah
-                """
-                    .trimIndent()
-            )
-        }
+                blah blah
+            """,
+            expectedError = "Unknown file format of api.txt",
+        )
     }
 }
