@@ -154,7 +154,7 @@ class CompatibilityCheckTest : DriverTest() {
                 load-api.txt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
                 load-api.txt:9: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -203,7 +203,7 @@ class CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
                 src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                     // Signature format: 3.0
@@ -287,7 +287,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
                 """,
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -317,7 +317,7 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Kotlin Coroutines`() {
         check(
             expectedIssues = "",
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -1883,7 +1883,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -1932,7 +1932,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -3821,7 +3821,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
             load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
             """,
-            outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -3853,7 +3852,6 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
             """,
-            outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -3923,7 +3921,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
             src/androidx/room/Relation.java:5: error: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
             """,
-            outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0

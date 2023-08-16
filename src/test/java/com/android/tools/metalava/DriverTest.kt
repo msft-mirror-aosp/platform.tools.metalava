@@ -39,7 +39,6 @@ import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.signature.ARG_API_OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
-import com.android.tools.metalava.cli.signature.ARG_OUTPUT_KOTLIN_NULLS
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
@@ -314,8 +313,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
-        /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = format.kotlinStyleNulls,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -1053,7 +1050,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *stubsArgs,
                 *stubsSourceListArgs,
                 *docStubsSourceListArgs,
-                "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
                 *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1118,8 +1114,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         // this will just be ignored.
         val effectiveFormat =
             format.applyOptionalCommandLineSuppliedOverrides(
-                thisIsFromCommandLine = true,
-                kotlinStyleNulls = outputKotlinStyleNulls,
                 overloadedMethodOrder = overloadedMethodOrder,
             )
 

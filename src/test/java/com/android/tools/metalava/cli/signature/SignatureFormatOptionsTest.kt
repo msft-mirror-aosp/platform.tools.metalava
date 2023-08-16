@@ -63,10 +63,6 @@ Signature Format Output:
                                              recommended (default) - The recommended version to use. This is currently
                                              set to `v2` and will only change very infrequently so can be considered
                                              stable.
-  --output-kotlin-nulls [yes|no]             Controls whether nullness annotations should be formatted as in Kotlin
-                                             (with "?" for nullable types, "" for non nullable types, and "!" for
-                                             unknown. The default is `yes` if --format >= v3 and must be `no` (or
-                                             unspecified) if --format < v3."
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is
@@ -95,37 +91,6 @@ class SignatureFormatOptionsTest :
     fun `V1 not supported`() {
         val e = assertThrows(BadParameterValue::class.java) { runTest("--format=v1") {} }
         assertThat(e.message).startsWith("""Invalid value for "--format": invalid choice: v1.""")
-    }
-
-    @Test
-    fun `V2 not compatible with --output-kotlin-nulls=yes (format first)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--format=v2", "--output-kotlin-nulls=yes") {}
-            }
-        assertThat(e.message)
-            .startsWith(
-                """Invalid value for "--output-kotlin-nulls": '--output-kotlin-nulls=yes' requires '--format=v3'"""
-            )
-    }
-
-    @Test
-    fun `V2 not compatible with --output-kotlin-nulls=yes (format last)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--output-kotlin-nulls=yes", "--format=v2") {}
-            }
-        assertThat(e.message)
-            .startsWith(
-                """Invalid value for "--output-kotlin-nulls": '--output-kotlin-nulls=yes' requires '--format=v3'"""
-            )
-    }
-
-    @Test
-    fun `Can override format default with --output-kotlin-nulls=no`() {
-        runTest("--output-kotlin-nulls=no", "--format=v3") {
-            assertThat(it.fileFormat.kotlinStyleNulls).isFalse()
-        }
     }
 
     @Test

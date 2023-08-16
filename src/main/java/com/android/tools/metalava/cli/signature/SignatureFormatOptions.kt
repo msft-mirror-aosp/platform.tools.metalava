@@ -22,18 +22,13 @@ import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.FileFormat.DefaultsVersion
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.validate
-import com.github.ajalt.clikt.parameters.types.choice
-import java.util.Locale
 
 const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_FORMAT = "--format"
 const val ARG_USE_SAME_FORMAT_AS = "--use-same-format-as"
-const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 
 /**
  * A special enum to handle the mapping from command line to internal representation for the
@@ -163,33 +158,6 @@ class SignatureFormatOptions :
             )
             .map { it.defaults }
 
-    /**
-     * Whether nullness annotations should be displayed as ?/!/empty instead of
-     * with @NonNull/@Nullable/empty.
-     */
-    private val outputKotlinStyleNulls by
-        option(
-                ARG_OUTPUT_KOTLIN_NULLS,
-                help =
-                    """
-        Controls whether nullness annotations should be formatted as in Kotlin (with "?" for
-        nullable types, "" for non nullable types, and "!" for unknown.
-        The default is `yes` if $ARG_FORMAT >= v3 and must be `no` (or unspecified) if
-        $ARG_FORMAT < v3."
-    """
-                        .trimIndent()
-            )
-            .choice(
-                "yes" to true,
-                "no" to false,
-            )
-            .validate {
-                require(!it || formatDefaults.defaultsVersion >= DefaultsVersion.V3) {
-                    "'$ARG_OUTPUT_KOTLIN_NULLS=yes' requires '$ARG_FORMAT=v3' or higher not " +
-                        "'$ARG_FORMAT=${formatDefaults.defaultsVersion.name.lowercase(Locale.US)}"
-                }
-            }
-
     private val useSameFormatAs by
         option(
                 ARG_USE_SAME_FORMAT_AS,
@@ -226,18 +194,10 @@ class SignatureFormatOptions :
         lazy(LazyThreadSafetyMode.NONE) {
             // Check the useSameFormatAs first and if it is not specified (or is an empty file) then
             // fall back to the other options.
-            val format =
-                useSameFormatAs
-                    ?: let {
-                        formatDefaults.applyOptionalCommandLineSuppliedOverrides(
-                            (useSameFormatAs == null)
-                        )
-                    }
+            val format = useSameFormatAs ?: formatDefaults
 
             // Apply any additional overrides.
             format.applyOptionalCommandLineSuppliedOverrides(
-                thisIsFromCommandLine = (useSameFormatAs == null),
-                kotlinStyleNulls = outputKotlinStyleNulls,
                 overloadedMethodOrder = apiOverloadedMethodOrder,
             )
         }
