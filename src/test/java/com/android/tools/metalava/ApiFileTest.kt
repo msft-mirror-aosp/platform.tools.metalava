@@ -1001,7 +1001,6 @@ class ApiFileTest : DriverTest() {
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
             format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2011,7 +2010,6 @@ class ApiFileTest : DriverTest() {
         // promoted to public.
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
