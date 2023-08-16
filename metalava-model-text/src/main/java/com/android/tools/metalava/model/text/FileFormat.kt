@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.MethodItem
 import java.io.LineNumberReader
 import java.io.Reader
+import java.util.Locale
 
 /**
  * Encapsulates all the information related to the format of a signature file.
@@ -209,6 +210,127 @@ data class FileFormat(
                         )
                     }'"
                 )
+        }
+
+        private const val VERSION_PROPERTIES_SEPARATOR = ":"
+
+        /**
+         * Apply some optional additional properties from a string.
+         *
+         * This parses the string into property/value pairs, makes sure that they are valid
+         * properties and values and then returns a new copy of this with its values overridden by
+         * the values from the properties string.
+         *
+         * @param extraVersions extra versions to add to the error message if a version is not
+         *   recommended but otherwise ignored. This allows the caller to handle some additional
+         *   versions first but still report a helpful message.
+         */
+        fun parseSpecifier(specifier: String, extraVersions: Set<String> = emptySet()): FileFormat {
+            val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
+            val version = specifierParts[0]
+            val versionDefaults =
+                versionToDefaults[version]
+                    ?: throw ApiParseException(
+                        "invalid version, found '$version', expected one of '${
+                            (versionToDefaults.keys + extraVersions).joinToString(
+                                "', '"
+                            )
+                        }'"
+                    )
+            if (specifierParts.size == 1) {
+                return versionDefaults
+            }
+
+            val properties = specifierParts[1]
+
+            val builder = Builder(versionDefaults)
+            properties.trim().split(",").forEach {
+                val propertyParts = it.split("=")
+                if (propertyParts.size != 2) {
+                    throw ApiParseException("expected <property>=<value> but found '$it'")
+                }
+                val name = propertyParts[0]
+                val value = propertyParts[1]
+                val overrideable = OverrideableProperty.getByName(name)
+                overrideable.setFromString(builder, value)
+            }
+            return builder.build()
+        }
+    }
+
+    /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
+    private class Builder(private val base: FileFormat) {
+        var conciseDefaultValues: Boolean? = null
+        var kotlinStyleNulls: Boolean? = null
+        var overloadedMethodOrder: OverloadedMethodOrder? = null
+
+        fun build(): FileFormat =
+            base.copy(
+                conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
+                kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
+                specifiedOverloadedMethodOrder = overloadedMethodOrder
+                        ?: base.specifiedOverloadedMethodOrder,
+            )
+    }
+
+    /** Information about the different overrideable properties in [FileFormat]. */
+    private enum class OverrideableProperty {
+        /** concise-default-values=[yes|no] */
+        CONCISE_DEFAULT_VALUES {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.conciseDefaultValues = yesNo(value)
+            }
+        },
+        /** kotlin-style-nulls=[yes|no] */
+        KOTLIN_STYLE_NULLS {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.kotlinStyleNulls = yesNo(value)
+            }
+        },
+        /** overloaded-method-other=[source|signature] */
+        OVERLOADED_METHOD_ORDER {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.overloadedMethodOrder =
+                    when (value) {
+                        "source" -> OverloadedMethodOrder.SOURCE
+                        "signature" -> OverloadedMethodOrder.SIGNATURE
+                        else ->
+                            throw ApiParseException(
+                                "unexpected value for $propertyName, found '$value', expected one of 'source' or 'signature'"
+                            )
+                    }
+            }
+        };
+
+        /** The property name in the [parseSpecifier] input. */
+        val propertyName: String = name.lowercase(Locale.US).replace("_", "-")
+
+        /**
+         * Set the corresponding property in the supplied [Builder] to the value corresponding to
+         * the string representation [value].
+         */
+        abstract fun setFromString(builder: Builder, value: String)
+
+        /** Convert a "yes|no" string into a boolean. */
+        fun yesNo(value: String): Boolean {
+            return when (value) {
+                "yes" -> true
+                "no" -> false
+                else ->
+                    throw ApiParseException(
+                        "unexpected value for $propertyName, found '$value', expected one of 'yes' or 'no'"
+                    )
+            }
+        }
+
+        companion object {
+            val byPropertyName = values().associateBy { it.propertyName }
+
+            fun getByName(name: String): OverrideableProperty =
+                byPropertyName[name]
+                    ?: throw ApiParseException(
+                        "unknown format property name `$name`, expected one of '${byPropertyName.keys.joinToString("', '")}'"
+                    )
         }
     }
 }

@@ -24,6 +24,8 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 
 const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
@@ -91,63 +93,17 @@ private enum class OptionOverloadedMethodOrder(
     )
 }
 
-/**
- * A special enum to handle the mapping from command line to internal representation for the
- * [SignatureFormatOptions.formatDefaults] property.
- *
- * See [OptionOverloadedMethodOrder] for more information.
- */
-@Suppress("unused")
-private enum class OptionFormatVersion(val defaults: FileFormat, val help: String) {
-    V2(
-        FileFormat.V2,
-        help =
-            """
-                The main version used in Android.
-            """
-                .trimIndent()
-    ),
-    V3(
-        FileFormat.V3,
-        help =
-            """
-                Adds support for using kotlin style syntax to embed nullability information instead
-                of using explicit and verbose @NonNull and @Nullable annotations. This can be used
-                for Java files and Kotlin files alike.
-            """
-                .trimIndent()
-    ),
-    V4(
-        FileFormat.V4,
-        help =
-            """
-                Adds support for using concise default values in parameters. Instead of specifying
-                the actual default values it just uses the `default` keyword.
-            """
-                .trimIndent()
-    ),
-    LATEST(
-        FileFormat.LATEST,
-        help =
-            """
-                The latest in the supported versions. Only use this if you want to have the very
-                latest and are prepared to update signature files on a continuous basis.
-            """
-                .trimIndent()
-    ),
-    RECOMMENDED(
-        FileFormat.V2,
-        help =
-            """
-                The recommended version to use. This is currently set to `v2` and will only change
-                very infrequently so can be considered stable.
-            """
-                .trimIndent()
-    )
-}
-
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
+
+private val versionToFileFormat =
+    mapOf(
+        "v2" to FileFormat.V2,
+        "v3" to FileFormat.V3,
+        "v4" to FileFormat.V4,
+        "latest" to FileFormat.LATEST,
+        "recommended" to FileFormat.V2,
+    )
 
 class SignatureFormatOptions :
     OptionGroup(
@@ -181,14 +137,51 @@ class SignatureFormatOptions :
             .map { it.order }
 
     /** The output format version being used */
-    private val formatDefaults by
-        enumOption(
+    private val formatSpecifier by
+        option(
                 ARG_FORMAT,
-                help = "Sets the output signature file format to be the given version.",
-                enumValueHelpGetter = { it.help },
-                default = OptionFormatVersion.RECOMMENDED,
+                metavar = "[v2|v3|v4|latest|recommended|<specifier>]",
+                help =
+                    """
+                        Specifies the output signature file format.
+
+                        The preferred way of specifying the format is to use one of the following
+                        values (in no particular order):
+
+                        latest - The latest in the supported versions. Only use this if you want to
+                        have the very latest and are prepared to update signature files on a
+                        continuous basis.
+
+                        recommended (default) - The recommended version to use. This is currently
+                        set to `v2` and will only change very infrequently so can be considered
+                        stable.
+
+                        <specifier> - which has the following syntax:
+                        ```
+                        <version>[:<property>=<value>[,<property>=<value>]*]
+                        ```
+
+                        Where:
+
+
+                        The following values are still supported but should be considered
+                        deprecated.
+
+                        v2 - The main version used in Android.
+
+                        v3 - Adds support for using kotlin style syntax to embed nullability
+                        information instead of using explicit and verbose @NonNull and @Nullable
+                        annotations. This can be used for Java files and Kotlin files alike.
+
+                        v4 - Adds support for using concise default values in parameters. Instead
+                        of specifying the actual default values it just uses the `default` keyword.
+                    """
+                        .trimIndent(),
             )
-            .map { it.defaults }
+            .convert {
+                versionToFileFormat[it] ?: FileFormat.parseSpecifier(it, versionToFileFormat.keys)
+            }
+            .default(FileFormat.V2, defaultForHelp = "recommended")
 
     private val useSameFormatAs by
         option(
@@ -226,7 +219,7 @@ class SignatureFormatOptions :
         lazy(LazyThreadSafetyMode.NONE) {
             // Check the useSameFormatAs first and if it is not specified (or is an empty file) then
             // fall back to the other options.
-            val format = useSameFormatAs ?: formatDefaults
+            val format = useSameFormatAs ?: formatSpecifier
 
             // Apply any additional overrides.
             format.applyOptionalCommandLineSuppliedOverrides(
