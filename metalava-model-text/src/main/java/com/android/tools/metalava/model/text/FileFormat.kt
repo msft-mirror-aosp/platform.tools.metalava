@@ -114,6 +114,8 @@ data class FileFormat(
     companion object {
         private val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
 
+        private val versionToDefaults = allDefaults.associateBy { it.defaultsVersion.version }
+
         // The defaults associated with version 2.0.
         val V2 = DefaultsVersion.V2.defaults
 
@@ -155,22 +157,54 @@ data class FileFormat(
          * @return the [FileFormat] or null if the reader was blank.
          */
         private fun parseHeader(filename: String, reader: LineNumberReader): FileFormat? {
-            var line = reader.readLine()
-            while (line != null && line.isBlank()) {
-                line = reader.readLine()
-            }
-            if (line == null) {
-                return null
-            }
-
-            for (format in allDefaults) {
-                val header = format.header()
-                if (header.startsWith(line)) {
-                    return format
+            // This reads the minimal amount to determine whether this is likely to be a
+            // signature file.
+            val prefixLength = SIGNATURE_FORMAT_PREFIX.length
+            val buffer = CharArray(prefixLength)
+            val prefix =
+                reader.read(buffer, 0, prefixLength).let { count ->
+                    if (count == -1) {
+                        // An empty file.
+                        return null
+                    }
+                    String(buffer, 0, count)
                 }
+
+            if (prefix != SIGNATURE_FORMAT_PREFIX) {
+                // If the prefix is blank then either the whole file is blank in which case it is
+                // handled specially, or the file is not blank and is not a signature file in which
+                // case it is an error.
+                if (prefix.isBlank()) {
+                    var line = reader.readLine()
+                    while (line != null && line.isBlank()) {
+                        line = reader.readLine()
+                    }
+                    // If the line is null then te whole file is blank which is handled specially.
+                    if (line == null) {
+                        return null
+                    }
+                }
+
+                // An error occurred as the prefix did not match. A valid prefix must appear on a
+                // single line so just in case what was read contains multiple lines trim it down to
+                // a single line for error reporting. The LineNumberReader has translated non-unix
+                // newline characters into `\n` so this is safe.
+                val firstLine = prefix.substringBefore("\n")
+                throw ApiParseException(
+                    "Unknown file format of $filename: invalid prefix, found '$firstLine', expected '$SIGNATURE_FORMAT_PREFIX'"
+                )
             }
 
-            throw ApiParseException("Unknown file format of $filename")
+            val version = reader.readLine()
+
+            return versionToDefaults[version]
+                ?: throw ApiParseException(
+                    "Unknown file format of $filename: invalid version, found '$version', expected one of '${
+                        versionToDefaults.keys.joinToString(
+                            "', '"
+                        )
+                    }'"
+                )
         }
     }
 }

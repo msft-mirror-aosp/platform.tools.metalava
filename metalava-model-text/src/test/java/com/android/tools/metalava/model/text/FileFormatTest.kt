@@ -58,7 +58,24 @@ class FileFormatTest {
                   }
                 }
             """,
-            expectedError = "Unknown file format of api.txt",
+            expectedError =
+                "Unknown file format of api.txt: invalid prefix, found 'package test.pkg {', expected '// Signature format: '",
+        )
+    }
+
+    @Test
+    fun `Check format parsing (unknown version)`() {
+        checkParseHeader(
+            """
+                // Signature format: 3.14
+                package test.pkg {
+                  public class MyTest {
+                    ctor public MyTest();
+                  }
+                }
+                """,
+            expectedError =
+                "Unknown file format of api.txt: invalid version, found '3.14', expected one of '2.0', '3.0', '4.0'",
         )
     }
 
@@ -112,12 +129,29 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check format parsing, shortened prefix (v2 non-unix newlines)`() {
+        checkParseHeader(
+            "" +
+                "// Signature for\r\n" +
+                "package libcore.util {\r\n" +
+                "  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {\r\n" +
+                "    method public abstract int from() default java.lang.Integer.MIN_VALUE;\r\n" +
+                "    method public abstract int to() default java.lang.Integer.MAX_VALUE;\r\n" +
+                "  }\r\n" +
+                "}\r\n",
+            expectedError =
+                "Unknown file format of api.txt: invalid prefix, found '// Signature for', expected '// Signature format: '",
+        )
+    }
+
+    @Test
     fun `Check format parsing (invalid)`() {
         checkParseHeader(
             """
                 blah blah
             """,
-            expectedError = "Unknown file format of api.txt",
+            expectedError =
+                "Unknown file format of api.txt: invalid prefix, found 'blah blah', expected '// Signature format: '",
         )
     }
 
@@ -145,7 +179,8 @@ class FileFormatTest {
 
                 blah blah
             """,
-            expectedError = "Unknown file format of api.txt",
+            expectedError =
+                "Unknown file format of api.txt: invalid prefix, found '', expected '// Signature format: '",
         )
     }
 }

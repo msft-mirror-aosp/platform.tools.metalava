@@ -143,6 +143,9 @@ class SignatureFormatOptionsTest :
                     it.fileFormat
                 }
             }
-        assertEquals("""Unknown file format of $path""", e.message)
+        assertEquals(
+            """Unknown file format of $path: invalid prefix, found '// Not a signature fi', expected '// Signature format: '""",
+            e.message
+        )
     }
 }
