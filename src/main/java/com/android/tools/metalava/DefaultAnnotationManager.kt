@@ -535,6 +535,9 @@ class DefaultAnnotationManager(
                     // SHOW cannot be beaten so break out.
                     itemShowability = showability
                     break
+                } else if (itemShowability.hide() && showability.show()) {
+                    // show beats hide.
+                    itemShowability = showability
                 } else {
                     val message =
                         "${item.describe(capitalize = true)} has conflicting show annotations $primaryAnnotation ($itemShowability) and $annotation ($showability)"
@@ -582,6 +585,7 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
+                config.hideAnnotations.matches(annotationItem) -> HIDE
                 else -> Showability.NO_EFFECT
             }
         }
@@ -601,6 +605,12 @@ private class LazyAnnotationInfo(
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
         val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val HIDE = Showability(show = false, recursive = true, forStubsOnly = false)
 
         /**
          * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
@@ -644,18 +654,6 @@ private class LazyAnnotationInfo(
             isCheckingResolvedAnnotationClass = false
         }
     }
-
-    /**
-     * Compute lazily to avoid doing any more work than strictly necessary.
-     *
-     * This is `true` either if an annotation is matched by [Config.hideAnnotations] or the
-     * annotation is itself annotated with an annotation whose [hideMeta] is `true`.
-     */
-    override val hide: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val hideAnnotations = config.hideAnnotations
-            hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)
-        }
 
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.
