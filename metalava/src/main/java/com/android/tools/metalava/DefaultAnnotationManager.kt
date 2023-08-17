@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.hasAnnotation
@@ -556,6 +557,7 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
+                config.hideAnnotations.matches(annotationItem) -> HIDE
                 else -> Showability.NO_EFFECT
             }
         }
@@ -565,16 +567,34 @@ private class LazyAnnotationInfo(
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown.
          */
-        val SHOW = Showability(show = true, recursive = true, forStubsOnly = false)
+        val SHOW =
+            Showability(show = ShowOrHide.SHOW, recursive = ShowOrHide.SHOW, forStubsOnly = false)
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown in the stubs only.
          */
-        val SHOW_FOR_STUBS = Showability(show = false, recursive = false, forStubsOnly = true)
+        val SHOW_FOR_STUBS =
+            Showability(
+                show = ShowOrHide.NO_EFFECT,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = true
+            )
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
-        val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+        val SHOW_SINGLE =
+            Showability(
+                show = ShowOrHide.SHOW,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = false
+            )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val HIDE =
+            Showability(show = ShowOrHide.HIDE, recursive = ShowOrHide.HIDE, forStubsOnly = false)
 
         /**
          * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
@@ -618,18 +638,6 @@ private class LazyAnnotationInfo(
             isCheckingResolvedAnnotationClass = false
         }
     }
-
-    /**
-     * Compute lazily to avoid doing any more work than strictly necessary.
-     *
-     * This is `true` either if an annotation is matched by [Config.hideAnnotations] or the
-     * annotation is itself annotated with an annotation whose [hideMeta] is `true`.
-     */
-    override val hide: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val hideAnnotations = config.hideAnnotations
-            hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)
-        }
 
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.

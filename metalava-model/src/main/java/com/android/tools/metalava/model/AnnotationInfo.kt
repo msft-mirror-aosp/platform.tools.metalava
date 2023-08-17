@@ -46,20 +46,11 @@ open class AnnotationInfo(
         }
 
     /**
-     * Determines whether this annotation affects whether the annotated item is shown and if so how
-     * it is shown.
+     * Determines whether this annotation affects whether the annotated item is shown or hidden and
+     * if so how.
      */
     open val showability: Showability
         get() = Showability.NO_EFFECT
-
-    /**
-     * If true then this annotation will cause annotated items to be hidden from the API.
-     *
-     * This is true if this annotation is explicitly specified as a hide annotation, or is annotated
-     * with a meta hide annotation, see [hideMeta].
-     */
-    open val hide: Boolean
-        get() = false
 
     open val suppressCompatibility: Boolean
         get() = false
@@ -68,6 +59,32 @@ open class AnnotationInfo(
 internal enum class Nullability {
     NULLABLE,
     NON_NULL,
+}
+
+/**
+ * The set of possible effects on whether an `Item` is part of an API.
+ *
+ * They are in order from the lowest priority to the highest priority, see [highestPriority].
+ */
+enum class ShowOrHide(private val show: Boolean?) {
+    /** No effect either way. */
+    NO_EFFECT(show = null),
+
+    /** Hide an item from the API. */
+    HIDE(show = false),
+
+    /** Show an item as part of the API. */
+    SHOW(show = true),
+    ;
+
+    /** Return true if this shows an `Item` as part of the API. */
+    fun show(): Boolean = show == true
+
+    /** Return true if this hides an `Item` from the API. */
+    fun hide(): Boolean = show == false
+
+    /** Return the highest priority between this and another [ShowOrHide]. */
+    fun highestPriority(other: ShowOrHide): ShowOrHide = maxOf(this, other)
 }
 
 /** Available ways in which an annotation can affect whether, and if so how, an item is shown. */
@@ -79,8 +96,13 @@ data class Showability(
      * Is `true` for annotations that match `--show-annotation`, or `--show-single-annotation`, but
      * not `--show-for-stub-purposes-annotation`, and items that are annotated with such an
      * annotation that is not overridden in some way.
+     *
+     * If false then the annotated item will NOT be shown as part of the API, unless overridden in
+     * some way.
+     *
+     * If null then this has no effect on whether an annotated item will be shown or not.
      */
-    private val show: Boolean,
+    private val show: ShowOrHide,
 
     /**
      * If true then the annotated item will recursively affect enclosed items, unless overridden by
@@ -90,7 +112,7 @@ data class Showability(
      * or `--show-for-stub-purposes-annotation`, and items that are annotated with such an
      * annotation that is not overridden in some way.
      */
-    private val recursive: Boolean,
+    private val recursive: ShowOrHide,
 
     /**
      * If true then the annotated item will only be included in stubs of the API, otherwise it can
@@ -107,7 +129,7 @@ data class Showability(
      * Returns `true` if the item is annotated with a `--show-annotation`,
      * `--show-single-annotation`, or `--show-for-stub-purposes-annotation`.
      */
-    fun show() = show || forStubsOnly
+    fun show() = show.show() || forStubsOnly
 
     /**
      * Check whether the annotated item should only be considered part of the API when generating
@@ -123,24 +145,36 @@ data class Showability(
      *
      * Returns `true` if they do, `false` if they can also affect nested `Item`s.
      */
-    fun showNonRecursive() = show && !recursive && !forStubsOnly
+    fun showNonRecursive() = show.show() && !recursive.show() && !forStubsOnly
+
+    /**
+     * Check whether the annotated item should be hidden from the API.
+     *
+     * Returns `true` if the annotation matches an `--hide-annotation`.
+     */
+    fun hide() = show.hide()
 
     /** Combine this with [other] to produce a combination [Showability]. */
     fun combineWith(other: Showability): Showability {
         // Show wins over not showing.
-        val newShow = show || other.show
+        val newShow = show.highestPriority(other.show)
 
         // Recursive wins over not recursive.
-        val newRecursive = recursive || other.recursive
+        val newRecursive = recursive.highestPriority(other.recursive)
 
         // For everything wins over only for stubs.
-        val forStubsOnly = !newShow && (forStubsOnly || other.forStubsOnly)
+        val forStubsOnly = !newShow.show() && (forStubsOnly || other.forStubsOnly)
 
         return Showability(newShow, newRecursive, forStubsOnly)
     }
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
-        val NO_EFFECT = Showability(show = false, recursive = false, forStubsOnly = false)
+        val NO_EFFECT =
+            Showability(
+                show = ShowOrHide.NO_EFFECT,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = false
+            )
     }
 }
