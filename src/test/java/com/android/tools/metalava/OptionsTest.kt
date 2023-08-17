@@ -354,7 +354,6 @@ Options:
                                              --quiet - Only include vital output.
                                              --verbose - Include extra diagnostic output.
                                              (default: Neither --quiet or --verbose)
-  --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
   -h, --help                                 Show this message and exit
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature

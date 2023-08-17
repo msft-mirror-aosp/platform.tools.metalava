@@ -708,9 +708,6 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
-    val repeatErrorsMax by commonOptions::repeatErrorsMax
-
     var useK2Uast = false
 
     val encoding by

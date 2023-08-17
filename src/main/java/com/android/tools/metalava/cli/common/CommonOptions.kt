@@ -22,8 +22,6 @@ import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
-import com.github.ajalt.clikt.parameters.types.int
-import com.github.ajalt.clikt.parameters.types.restrictTo
 
 const val ARG_QUIET = "--quiet"
 const val ARG_VERBOSE = "--verbose"
@@ -120,14 +118,4 @@ class CommonOptions : OptionGroup() {
                 ARG_VERBOSE to Verbosity.VERBOSE,
             )
             .default(Verbosity.NORMAL, defaultForHelp = "Neither $ARG_QUIET or $ARG_VERBOSE")
-
-    val repeatErrorsMax by
-        option(
-                ARG_REPEAT_ERRORS_MAX,
-                metavar = "<n>",
-                help = """When specified, repeat at most N errors before finishing."""
-            )
-            .int()
-            .restrictTo(min = 0)
-            .default(0)
 }

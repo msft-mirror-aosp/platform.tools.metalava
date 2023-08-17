@@ -958,8 +958,8 @@ private class DriverCommand(commonOptions: CommonOptions) :
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
-            if (options.repeatErrorsMax > 0) {
-                repeatErrors(stderr, options.allReporters, options.repeatErrorsMax)
+            if (reporterOptions.repeatErrorsMax > 0) {
+                repeatErrors(stderr, options.allReporters, reporterOptions.repeatErrorsMax)
             }
 
             // Make sure that the process exits with an error code.
