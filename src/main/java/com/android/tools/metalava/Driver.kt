@@ -61,7 +61,15 @@ import kotlin.text.Charsets.UTF_8
 const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
-    run(args, setExitCode = true)
+    val stdout = PrintWriter(OutputStreamWriter(System.out))
+    val stderr = PrintWriter(OutputStreamWriter(System.err))
+
+    val exitCode = run(args, stdout, stderr)
+
+    stdout.flush()
+    stderr.flush()
+
+    exitProcess(exitCode)
 }
 
 /**
@@ -70,10 +78,9 @@ fun main(args: Array<String>) {
  */
 fun run(
     originalArgs: Array<String>,
-    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-    setExitCode: Boolean = false
-): Boolean {
+    stdout: PrintWriter,
+    stderr: PrintWriter,
+): Int {
     var exitCode = 0
 
     try {
@@ -135,20 +142,11 @@ fun run(
     stdout.flush()
     stderr.flush()
 
-    if (setExitCode) {
-        exit(exitCode)
-    }
-
-    return exitCode == 0
-}
-
-private fun exit(exitCode: Int = 0) {
     if (options.verbose) {
         progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
     }
-    options.stdout.flush()
-    options.stderr.flush()
-    exitProcess(exitCode)
+
+    return exitCode
 }
 
 private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
