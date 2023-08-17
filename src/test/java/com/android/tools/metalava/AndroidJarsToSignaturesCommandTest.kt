@@ -34,8 +34,9 @@ class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
                 """
 Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir>
 
-  Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by reading the API defined in
-  the `android.jar` files.
+  Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree.
+
+  It does this by reading the API defined in the corresponding `android.jar` files.
 
 Options:
   -h, -?, --help                             Show this message and exit
