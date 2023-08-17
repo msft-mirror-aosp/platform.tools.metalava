@@ -76,18 +76,23 @@ data class Showability(
      * If true then the annotated item will be shown as part of the API, unless overridden in some
      * way.
      */
-    val show: Boolean,
+    private val show: Boolean,
     /**
      * If true then the annotated item will recursively affect enclosed items, unless overridden by
      * a closer annotation.
      */
-    val recursive: Boolean,
+    private val recursive: Boolean,
     /**
      * If true then the annotated item will only be included in stubs of the API, otherwise it can
      * appear in all representations of the API, e.g. signature files.
      */
-    val forStubsOnly: Boolean,
+    private val forStubsOnly: Boolean,
 ) {
+    fun show() = show
+
+    fun showForStubsOnly() = forStubsOnly
+
+    fun showNonRecursive() = show && !recursive
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
