@@ -16,15 +16,14 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.cli.clikt.allHelpParams
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
-import com.github.ajalt.clikt.parameters.arguments.Argument
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -219,7 +218,8 @@ internal open class MetalavaCommand(
      */
     private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
         return if (currentContext.command === this)
-            parameters + allHelpParams(defaultCommand).filter(::excludeArgumentsWithNoHelp)
+            parameters +
+                defaultCommand.allHelpParams(currentContext).filter(::excludeArgumentsWithNoHelp)
         else {
             parameters
         }
@@ -239,14 +239,6 @@ internal open class MetalavaCommand(
         return true
     }
 
-    /** Get a list of all the parameter related help information. */
-    private fun allHelpParams(command: CliktCommand): List<ParameterHelp> {
-        return command.registeredOptions().mapNotNull { it.parameterHelp(currentContext) } +
-            command.registeredArguments().mapNotNull { it.parameterHelp(currentContext) } +
-            command.registeredParameterGroups().mapNotNull { it.parameterHelp(currentContext) } +
-            command.registeredSubcommands().mapNotNull { it.parameterHelp() }
-    }
-
     /**
      * Create an error message that incorporates the specific usage error as well as providing
      * documentation for all the available options.
@@ -257,7 +249,7 @@ internal open class MetalavaCommand(
             e.message?.let { append(errorContext.localization.usageError(it)).append("\n\n") }
             e.context?.let {
                 val programName = it.commandNameWithParents().joinToString(" ")
-                val helpParams = allHelpParams(it.command)
+                val helpParams = it.command.allHelpParams(currentContext)
                 val commandHelp = it.helpFormatter.formatHelp("", "", helpParams, programName)
                 append(commandHelp)
             }
@@ -297,21 +289,6 @@ internal open class MetalavaCommand(
         if (showHelp || remainingArgs.contains("-?")) {
             throw PrintHelpMessage(this)
         }
-    }
-}
-
-/**
- * Add a method to get a [HelpFormatter.ParameterHelp] instance from a [CliktCommand].
- *
- * Other classes that contribute to the help provide `parameterHelp` methods that return an instance
- * of the appropriate sub-class of [HelpFormatter.ParameterHelp], e.g. [Argument.parameterHelp].
- */
-fun CliktCommand.parameterHelp(): ParameterHelp? {
-    return if (this is MetalavaSubCommand) {
-        // Can only work
-        parameterHelp()
-    } else {
-        null
     }
 }
 
