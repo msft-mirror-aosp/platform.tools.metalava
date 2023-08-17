@@ -24,7 +24,6 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
-import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.VersionCommand
@@ -65,8 +64,6 @@ fun main(args: Array<String>) {
     run(args, setExitCode = true)
 }
 
-internal var hasFileReadViolations = false
-
 /**
  * The metadata driver is a command line interface to extracting various metadata from a source tree
  * (or existing signature files etc.). Run with --help to see more details.
@@ -97,17 +94,6 @@ fun run(
                 repeatErrors(stderr, options.allReporters, options.repeatErrorsMax)
             }
             exitCode = -1
-        }
-        if (hasFileReadViolations) {
-            if (options.strictInputFiles.shouldFail) {
-                stderr.print("Error: ")
-                exitCode = -1
-            } else {
-                stderr.print("Warning: ")
-            }
-            stderr.println(
-                "$PROGRAM_NAME detected access to files that are not explicitly specified. See ${options.strictInputViolationsFile} for details."
-            )
         }
     } catch (e: MetalavaCliException) {
         stdout.flush()
@@ -142,7 +128,6 @@ fun run(
     }
 
     options.reportEvenIfSuppressedWriter?.close()
-    options.strictInputViolationsPrintWriter?.close()
 
     // Show failure messages, if any.
     options.allReporters.forEach { it.writeErrorMessage(stderr) }
@@ -164,44 +149,6 @@ private fun exit(exitCode: Int = 0) {
     options.stdout.flush()
     options.stderr.flush()
     exitProcess(exitCode)
-}
-
-internal fun maybeActivateSandbox() {
-    // Set up a sandbox to detect access to files that are not explicitly specified.
-    if (options.strictInputFiles == Options.StrictInputFileMode.PERMISSIVE) {
-        return
-    }
-
-    val writer = options.strictInputViolationsPrintWriter!!
-
-    // Writes all violations to [Options.strictInputFiles].
-    // If Options.StrictInputFile.Mode is STRICT, then all violations on reads are logged, and the
-    // tool exits with a negative error code if there are any file read violations. Directory read
-    // violations are logged, but are considered to be a "warning" and doesn't affect the exit code.
-    // If STRICT_WARN, all violations on reads are logged similar to STRICT, but the exit code is
-    // unaffected.
-    // If STRICT_WITH_STACK, similar to STRICT, but also logs the stack trace to
-    // Options.strictInputFiles.
-    // See [FileReadSandbox] for the details.
-    FileReadSandbox.activate(
-        object : FileReadSandbox.Listener {
-            var seen = mutableSetOf<String>()
-
-            override fun onViolation(absolutePath: String, isDirectory: Boolean) {
-                if (!seen.contains(absolutePath)) {
-                    val suffix = if (isDirectory) "/" else ""
-                    writer.println("$absolutePath$suffix")
-                    if (options.strictInputFiles == Options.StrictInputFileMode.STRICT_WITH_STACK) {
-                        Throwable().printStackTrace(writer)
-                    }
-                    seen.add(absolutePath)
-                    if (!isDirectory) {
-                        hasFileReadViolations = true
-                    }
-                }
-            }
-        }
-    )
 }
 
 private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
@@ -233,7 +180,6 @@ internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
             annotationManager = options.annotationManager,
             javaLanguageLevel = options.javaLanguageLevel,
             kotlinLanguageLevel = options.kotlinLanguageLevel,
-            allowImplicitRoot = options.allowImplicitRoot,
             useK2Uast = options.useK2Uast,
             jdkHome = options.jdkHome,
         )
@@ -968,8 +914,6 @@ private class DriverCommand(commonOptions: CommonOptions) : OptionsCommand(commo
     override fun run() {
         // Initialize the global options.
         super.run()
-
-        maybeActivateSandbox()
 
         PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
             processFlags(psiEnvironmentManager)

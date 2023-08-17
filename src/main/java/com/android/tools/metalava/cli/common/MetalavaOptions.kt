@@ -91,9 +91,6 @@ fun RawArgument.fileConversion(conversion: (String) -> File): ProcessedArgument<
  * behavior:
  * - "~" will be expanded into the home directory path.
  * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
- *
- * Note, unlike the other "stringToXxx" methods, this method won't register the given path to
- * [FileReadSandbox].
  */
 internal fun fileForPathInner(path: String): File {
     // java.io.File doesn't automatically handle ~/ -> home directory expansion.
@@ -121,7 +118,7 @@ internal fun stringToExistingDir(value: String): File {
     if (!file.isDirectory) {
         throw MetalavaCliException("$file is not a directory")
     }
-    return FileReadSandbox.allowAccess(file)
+    return file
 }
 
 /**
@@ -135,7 +132,7 @@ internal fun stringToExistingFile(value: String): File {
     if (!file.isFile) {
         throw MetalavaCliException("$file is not a file")
     }
-    return FileReadSandbox.allowAccess(file)
+    return file
 }
 
 /**
@@ -164,7 +161,7 @@ internal fun stringToNewFile(value: String): File {
         }
     }
 
-    return FileReadSandbox.allowAccess(output)
+    return output
 }
 
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just

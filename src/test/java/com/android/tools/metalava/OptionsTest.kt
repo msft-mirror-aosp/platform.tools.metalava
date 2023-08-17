@@ -17,15 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
-import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @Suppress("PrivatePropertyName")
@@ -39,10 +35,7 @@ API sources:
                                              parse.
 --source-path <paths>
                                              One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy). If --strict-input-files, --strict-input-files:warn,
-                                             or --strict-input-files:stack are used, files accessed under --source-path
-                                             that are not explicitly specified in --source-files are reported as
-                                             violations.
+                                             a package hierarchy).
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -324,27 +317,6 @@ Generating API version history:
                                              Required to generate API version JSON.
 
 
-Sandboxing:
---no-implicit-root
-                                             Disable implicit root directory detection. Otherwise, metalava adds in
-                                             source roots implied by the source files
---strict-input-files <file>
-                                             Do not read files that are not explicitly specified in the command line.
-                                             All violations are written to the given file. Reads on directories are
-                                             always allowed, but metalava still tracks reads on directories that are not
-                                             specified in the command line, and write them to the file.
---strict-input-files:warn <file>
-                                             Warn when files not explicitly specified on the command line are read. All
-                                             violations are written to the given file. Reads on directories not
-                                             specified in the command line are allowed but also logged.
---strict-input-files:stack <file>
-                                             Same as --strict-input-files but also print stacktraces.
---strict-input-files-exempt <files or dirs>
-                                             Used with --strict-input-files. Explicitly allow access to files and/or
-                                             directories (separated by `:). Can also be @ followed by a path to a text
-                                             file containing paths to the full set of files and/or directories.
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.
@@ -549,35 +521,6 @@ $MAIN_HELP_BODY
                 .trimIndent(),
             stdout.toString()
         )
-    }
-
-    @Test
-    fun `Test for --strict-input-files-exempt`() {
-        val top = temporaryFolder.newFolder()
-
-        val dir = File(top, "child-dir").apply { mkdirs() }
-        val grandchild1 = File(dir, "grandchild1").apply { createNewFile() }
-        val grandchild2 = File(dir, "grandchild2").apply { createNewFile() }
-        val file1 = File(top, "file1").apply { createNewFile() }
-        val file2 = File(top, "file2").apply { createNewFile() }
-
-        try {
-            check(
-                extraArguments =
-                    arrayOf(
-                        "--strict-input-files-exempt",
-                        file1.path + File.pathSeparatorChar + dir.path
-                    )
-            )
-
-            assertTrue(FileReadSandbox.isAccessAllowed(file1))
-            assertTrue(FileReadSandbox.isAccessAllowed(grandchild1))
-            assertTrue(FileReadSandbox.isAccessAllowed(grandchild2))
-
-            assertFalse(FileReadSandbox.isAccessAllowed(file2)) // Access *not* allowed
-        } finally {
-            FileReadSandbox.reset()
-        }
     }
 
     @Test
