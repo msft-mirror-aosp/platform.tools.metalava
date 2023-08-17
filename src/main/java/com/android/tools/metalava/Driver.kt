@@ -30,6 +30,7 @@ import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -875,6 +876,7 @@ private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): Met
     val command = MetalavaCommand(stdout, stderr, ::DriverCommand, options::getUsage)
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
+        HelpCommand(),
         MergeSignaturesCommand(),
         SignatureToJDiffCommand(),
         UpdateSignatureHeaderCommand(),

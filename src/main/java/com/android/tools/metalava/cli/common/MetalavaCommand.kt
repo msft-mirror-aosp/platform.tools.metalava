@@ -305,3 +305,11 @@ val CliktCommand.stdout: PrintWriter
         val metalavaConsole = currentContext.console as MetalavaConsole
         return metalavaConsole.stdout
     }
+
+val CliktCommand.commonOptions
+    // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
+    get() = currentContext.findObject<CommonOptions>()
+
+val CliktCommand.terminal
+    // Retrieve the terminal from the CommonOptions.
+    get() = commonOptions?.terminal ?: plainTerminal

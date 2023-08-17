@@ -400,6 +400,7 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
 Sub-commands:
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree.
+  help                                       Provides help for general metalava concepts
   merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
   update-signature-header                    Updates the header of signature files to a different format.

@@ -46,9 +46,7 @@ abstract class MetalavaSubCommand(
             // Override the help formatter to use metalava styling of the help.
             helpFormatter =
                 MetalavaHelpFormatter(
-                    // Retrieve the terminal from the CommonOptions that is made available by the
-                    // containing MetalavaCommand.
-                    { currentContext.findObject<CommonOptions>()?.terminal ?: plainTerminal },
+                    this@MetalavaSubCommand::terminal,
                     localization,
                 )
         }
