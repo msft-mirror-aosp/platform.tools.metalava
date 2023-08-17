@@ -142,6 +142,9 @@ internal open class MetalavaCommand(
             )
             .multiple()
 
+    /** A list of actions to perform after the command has been executed. */
+    private val postCommandActions = mutableListOf<() -> Unit>()
+
     /** Process the command, handling [MetalavaCliException]s. */
     fun process(args: Array<String>): Int {
         var exitCode = 0
@@ -167,7 +170,23 @@ internal open class MetalavaCommand(
             exitCode = e.exitCode
         }
 
+        // Perform any subcommand specific actions, e.g. flushing files they have opened, etc.
+        performPostCommandActions()
+
         return exitCode
+    }
+
+    /**
+     * Register a command to run after the command has been executed and after any thrown
+     * [MetalavaCliException]s have been caught.
+     */
+    fun registerPostCommandAction(action: () -> Unit) {
+        postCommandActions.add(action)
+    }
+
+    /** Perform actions registered by [registerPostCommandAction]. */
+    fun performPostCommandActions() {
+        postCommandActions.forEach { it() }
     }
 
     /** Process the command, throwing [MetalavaCliException]s. */
@@ -345,3 +364,7 @@ val CliktCommand.terminal
 val CliktCommand.progressTracker
     // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
     get() = metalavaCommand.progressTracker
+
+fun CliktCommand.registerPostCommandAction(action: () -> Unit) {
+    metalavaCommand.registerPostCommandAction(action)
+}

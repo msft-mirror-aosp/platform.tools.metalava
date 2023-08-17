@@ -30,6 +30,7 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.help.HelpCommand
@@ -117,23 +118,6 @@ fun run(
             progressTracker,
         )
     val exitCode = command.process(modifiedArgs)
-
-    // Update and close all baseline files.
-    options.allBaselines.forEach { baseline ->
-        if (options.verbose) {
-            baseline.dumpStats(options.stdout)
-        }
-        if (baseline.close()) {
-            if (!options.quiet) {
-                stdout.println("$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}")
-            }
-        }
-    }
-
-    options.reportEvenIfSuppressedWriter?.close()
-
-    // Show failure messages, if any.
-    options.allReporters.forEach { it.writeErrorMessage(stderr) }
 
     stdout.flush()
     stderr.flush()
@@ -985,6 +969,28 @@ private class DriverCommand(
         )
 
     override fun run() {
+        // Make sure to flush out the baseline files, close files and write any final messages.
+        registerPostCommandAction {
+            // Update and close all baseline files.
+            options.allBaselines.forEach { baseline ->
+                if (options.verbose) {
+                    baseline.dumpStats(options.stdout)
+                }
+                if (baseline.close()) {
+                    if (!options.quiet) {
+                        stdout.println(
+                            "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
+                        )
+                    }
+                }
+            }
+
+            options.reportEvenIfSuppressedWriter?.close()
+
+            // Show failure messages, if any.
+            options.allReporters.forEach { it.writeErrorMessage(stderr) }
+        }
+
         // Get any remaining arguments/options that were not handled by Clikt.
         val remainingArgs = flags.toTypedArray()
 
