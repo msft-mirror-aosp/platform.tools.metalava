@@ -90,38 +90,16 @@ fun run(
     stdout: PrintWriter,
     stderr: PrintWriter,
 ): Int {
-    var exitCode = 0
+    val modifiedArgs = preprocessArgv(originalArgs)
 
-    try {
-        val modifiedArgs = preprocessArgv(originalArgs)
+    progress("$PROGRAM_NAME started\n")
 
-        progress("$PROGRAM_NAME started\n")
+    // Dump the arguments, and maybe generate a rerun-script.
+    maybeDumpArgv(stdout, originalArgs, modifiedArgs)
 
-        // Dump the arguments, and maybe generate a rerun-script.
-        maybeDumpArgv(stdout, originalArgs, modifiedArgs)
-
-        // Actual work begins here.
-        val command = createMetalavaCommand(stdout, stderr)
-        command.process(modifiedArgs)
-    } catch (e: MetalavaCliException) {
-        stdout.flush()
-        stderr.flush()
-
-        val prefix =
-            if (e.exitCode != 0) {
-                "Aborting: "
-            } else {
-                ""
-            }
-
-        if (e.stderr.isNotBlank()) {
-            stderr.println("\n${prefix}${e.stderr}")
-        }
-        if (e.stdout.isNotBlank()) {
-            stdout.println("\n${prefix}${e.stdout}")
-        }
-        exitCode = e.exitCode
-    }
+    // Actual work begins here.
+    val command = createMetalavaCommand(stdout, stderr)
+    val exitCode = command.process(modifiedArgs)
 
     // Update and close all baseline files.
     options.allBaselines.forEach { baseline ->

@@ -139,8 +139,36 @@ internal open class MetalavaCommand(
             )
             .multiple()
 
-    /** Process the command. */
-    fun process(args: Array<String>) {
+    /** Process the command, handling [MetalavaCliException]s. */
+    fun process(args: Array<String>): Int {
+        var exitCode = 0
+        try {
+            processThrowCliException(args)
+        } catch (e: MetalavaCliException) {
+            stdout.flush()
+            stderr.flush()
+
+            val prefix =
+                if (e.exitCode != 0) {
+                    "Aborting: "
+                } else {
+                    ""
+                }
+
+            if (e.stderr.isNotBlank()) {
+                stderr.println("\n${prefix}${e.stderr}")
+            }
+            if (e.stdout.isNotBlank()) {
+                stdout.println("\n${prefix}${e.stdout}")
+            }
+            exitCode = e.exitCode
+        }
+
+        return exitCode
+    }
+
+    /** Process the command, throwing [MetalavaCliException]s. */
+    fun processThrowCliException(args: Array<String>) {
         try {
             parse(args)
         } catch (e: PrintHelpMessage) {
