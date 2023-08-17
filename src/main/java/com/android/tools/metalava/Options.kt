@@ -24,7 +24,6 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
@@ -46,9 +45,7 @@ import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
-import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
-import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -1847,54 +1844,5 @@ class Options(
             val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
             return LanguageVersionSettingsImpl(languageLevel, apiVersion)
         }
-    }
-}
-
-/**
- * A command that is passed to [MetalavaCommand.defaultCommand] when the options need to be
- * initialized.
- */
-internal open class OptionsCommand(commonOptions: CommonOptions) :
-    CliktCommand(treatUnknownOptionsAsArgs = true) {
-
-    /**
-     * Property into which all the arguments (and unknown options) are gathered.
-     *
-     * This does not provide any `help` so that it is excluded from the `help` by
-     * [MetalavaCommand.excludeArgumentsWithNoHelp].
-     */
-    private val flags by argument().multiple()
-
-    /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions()
-
-    /** Signature file options. */
-    private val signatureFileOptions by SignatureFileOptions()
-
-    /** Signature format options. */
-    private val signatureFormatOptions by SignatureFormatOptions()
-
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    private val optionGroup by
-        Options(
-            commonOptions = commonOptions,
-            reporterOptions = reporterOptions,
-            signatureFileOptions = signatureFileOptions,
-            signatureFormatOptions = signatureFormatOptions,
-        )
-
-    override fun run() {
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(remainingArgs, stdout, stderr)
-
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
     }
 }

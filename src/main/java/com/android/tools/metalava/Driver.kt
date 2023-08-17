@@ -26,8 +26,12 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
@@ -46,7 +50,12 @@ import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.base.Stopwatch
 import java.io.File
 import java.io.IOException
@@ -908,10 +917,48 @@ private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): Met
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
  * needs to be run when no subcommand is provided.
  */
-private class DriverCommand(commonOptions: CommonOptions) : OptionsCommand(commonOptions) {
+private class DriverCommand(commonOptions: CommonOptions) :
+    CliktCommand(treatUnknownOptionsAsArgs = true) {
+
+    /**
+     * Property into which all the arguments (and unknown options) are gathered.
+     *
+     * This does not provide any `help` so that it is excluded from the `help` by
+     * [MetalavaCommand.excludeArgumentsWithNoHelp].
+     */
+    private val flags by argument().multiple()
+
+    /** Issue reporter configuration. */
+    private val reporterOptions by ReporterOptions()
+
+    /** Signature file options. */
+    private val signatureFileOptions by SignatureFileOptions()
+
+    /** Signature format options. */
+    private val signatureFormatOptions by SignatureFormatOptions()
+
+    /**
+     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
+     * Clikt.
+     */
+    private val optionGroup by
+        Options(
+            commonOptions = commonOptions,
+            reporterOptions = reporterOptions,
+            signatureFileOptions = signatureFileOptions,
+            signatureFormatOptions = signatureFormatOptions,
+        )
+
     override fun run() {
-        // Initialize the global options.
-        super.run()
+        // Get any remaining arguments/options that were not handled by Clikt.
+        val remainingArgs = flags.toTypedArray()
+
+        // Parse any remaining arguments
+        optionGroup.parse(remainingArgs, stdout, stderr)
+
+        // Update the global options.
+        @Suppress("DEPRECATION")
+        options = optionGroup
 
         PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
             processFlags(psiEnvironmentManager)
