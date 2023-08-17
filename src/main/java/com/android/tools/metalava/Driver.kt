@@ -103,14 +103,6 @@ fun run(
         // Actual work begins here.
         val command = createMetalavaCommand(stdout, stderr)
         command.process(modifiedArgs)
-
-        if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
-            // Repeat the errors at the end to make it easy to find the actual problems.
-            if (options.repeatErrorsMax > 0) {
-                repeatErrors(stderr, options.allReporters, options.repeatErrorsMax)
-            }
-            exitCode = -1
-        }
     } catch (e: MetalavaCliException) {
         stdout.flush()
         stderr.flush()
@@ -962,6 +954,16 @@ private class DriverCommand(commonOptions: CommonOptions) :
 
         PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
             processFlags(psiEnvironmentManager)
+        }
+
+        if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
+            // Repeat the errors at the end to make it easy to find the actual problems.
+            if (options.repeatErrorsMax > 0) {
+                repeatErrors(stderr, options.allReporters, options.repeatErrorsMax)
+            }
+
+            // Make sure that the process exits with an error code.
+            throw MetalavaCliException(exitCode = -1)
         }
     }
 }
