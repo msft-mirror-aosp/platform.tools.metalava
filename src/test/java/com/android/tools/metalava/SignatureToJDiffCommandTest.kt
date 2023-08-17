@@ -16,14 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.CommandTestConfig
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
-import com.android.tools.metalava.testing.BaseCommandTest
-import com.android.tools.metalava.testing.CommandTestConfig
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class SignatureToJDiffCommandTest : BaseCommandTest() {
+class SignatureToJDiffCommandTest : BaseCommandTest(::SignatureToJDiffCommand) {
 
     @Test
     fun `Test help`() {

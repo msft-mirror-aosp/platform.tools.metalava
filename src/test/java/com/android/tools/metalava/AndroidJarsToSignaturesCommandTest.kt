@@ -16,14 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
-import com.android.tools.metalava.testing.BaseCommandTest
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
-class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
+class AndroidJarsToSignaturesCommandTest : BaseCommandTest(::AndroidJarsToSignaturesCommand) {
 
     @Test
     fun `Test help`() {

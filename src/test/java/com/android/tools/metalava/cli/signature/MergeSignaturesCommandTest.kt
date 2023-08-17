@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
-import com.android.tools.metalava.testing.BaseCommandTest
 import java.util.Locale
 import org.junit.Assert.fail
 import org.junit.Test
 
-class MergeSignaturesCommandTest : BaseCommandTest() {
+class MergeSignaturesCommandTest : BaseCommandTest(::MergeSignaturesCommand) {
 
     private fun checkMergeSignatures(
         vararg files: String,

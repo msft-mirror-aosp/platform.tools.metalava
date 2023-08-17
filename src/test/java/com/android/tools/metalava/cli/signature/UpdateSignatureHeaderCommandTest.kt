@@ -16,14 +16,14 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
-import com.android.tools.metalava.testing.BaseCommandTest
 import java.util.Locale
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class UpdateSignatureHeaderCommandTest : BaseCommandTest() {
+class UpdateSignatureHeaderCommandTest : BaseCommandTest(::UpdateSignatureHeaderCommand) {
 
     private fun checkUpdateSignatures(
         contents: String,

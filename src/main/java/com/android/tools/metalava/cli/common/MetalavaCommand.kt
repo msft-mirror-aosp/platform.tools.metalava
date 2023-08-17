@@ -61,11 +61,13 @@ internal open class MetalavaCommand(
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
 
     /** Provider for additional non-Clikt usage information. */
-    private val nonCliktUsageProvider: (Terminal, Int) -> String = { _, _ -> "" },
+    private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
 ) :
     CliktCommand(
-        // Gather all the options and arguments into a list so that they can be passed to Options().
-        treatUnknownOptionsAsArgs = true,
+        // Gather all the options and arguments into a list so that they can be handled by some
+        // non-Clikt option processor which it is assumed that this command has iff this is passed a
+        // non-null nonCliktUsageProvider.
+        treatUnknownOptionsAsArgs = nonCliktUsageProvider != null,
         // Call run on this command even if no sub-command is provided.
         invokeWithoutSubcommand = true,
         help =
@@ -94,7 +96,7 @@ internal open class MetalavaCommand(
                     { common.terminal },
                     localization,
                     ::mergeDefaultParameterHelp,
-                    nonCliktUsageProvider,
+                    nonCliktUsageProvider ?: { _, _ -> "" },
                 )
 
             // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
