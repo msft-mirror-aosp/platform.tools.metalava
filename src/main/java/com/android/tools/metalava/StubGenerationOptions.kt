@@ -70,6 +70,8 @@ class StubGenerationOptions :
                         nullability issues appear to callers as warnings rather than errors by
                         replacing @Nullable/@NonNull in these APIs with
                         @RecentlyNullable/@RecentlyNonNull.
+
+                        See `metalava help package-filters` for more information.
                     """
                         .trimIndent()
             )

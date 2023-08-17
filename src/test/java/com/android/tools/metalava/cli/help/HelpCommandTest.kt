@@ -34,6 +34,39 @@ Usage: metalava help <concept>...
 
 Concepts
   issues                                     Provides help related to issues and issue reporting
+  package-filters                            Explains the syntax and behavior of package filters used in options like
+                                             --stub-packages.
+                """
+                    .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test help package-filters`() {
+        commandTest {
+            args += listOf("help", "package-filters")
+
+            expectedStdout =
+                """
+Usage: metalava help package-filters
+
+  Explains the syntax and behavior of package filters used in options like --stub-packages.
+
+  A package filter is specified as a sequence of package matchers, separated by `:`. A matcher consists of an option
+  leading `+` or `-` following by a pattern. If `-` is specified then it will exclude all packages that match the
+  pattern, otherwise (i.e. with `+` or without either) it will include all packages that match the pattern. If a package
+  is matched by multiple matchers then the last one wins.
+
+  Patterns can be one of the following:
+
+  `*` - match every package.
+
+  `<package>` - an exact match, e.g. `foo` will only match `foo` and `foo.bar` will only match `foo.bar`.
+
+  `<package>*` - a prefix match, e.g. `foo*` will match `foo` and `foobar` and `foo.bar`.
+
+  `<package>.*` - a recursive match, will match `<package>` and any nested packages, e.g. `foo.*` will match `foo` and
+  `foo.bar` and `foo.bar.baz` but not `foobar`.
                 """
                     .trimIndent()
         }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.help
 
+import com.android.tools.metalava.ARG_STUB_PACKAGES
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
@@ -50,6 +51,7 @@ class HelpCommand :
         }
         subcommands(
             IssuesCommand(),
+            packageFilterHelp,
         )
     }
 
@@ -59,3 +61,31 @@ class HelpCommand :
         }
     }
 }
+
+private val packageFilterHelp =
+    SimpleHelpCommand(
+        name = "package-filters",
+        help =
+            """
+Explains the syntax and behavior of package filters used in options like $ARG_STUB_PACKAGES.
+
+A package filter is specified as a sequence of package matchers, separated by `:`. A matcher
+consists of an option leading `+` or `-` following by a pattern. If `-` is specified then it will
+exclude all packages that match the pattern, otherwise (i.e. with `+` or without either) it will
+include all packages that match the pattern. If a package is matched by multiple matchers then the
+last one wins.
+
+Patterns can be one of the following:
+
+`*` - match every package.
+
+`<package>` - an exact match, e.g. `foo` will only match `foo` and `foo.bar` will only match
+`foo.bar`.
+
+`<package>*` - a prefix match, e.g. `foo*` will match `foo` and `foobar` and `foo.bar`.
+
+`<package>.*` - a recursive match, will match `<package>` and any nested packages, e.g. `foo.*`
+will match `foo` and `foo.bar` and `foo.bar.baz` but not `foobar`.
+            """
+                .trimIndent()
+    )
