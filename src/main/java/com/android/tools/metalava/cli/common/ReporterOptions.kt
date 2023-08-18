@@ -47,6 +47,9 @@ class ReporterOptions :
             """
             Options that control which issues are reported, the severity of the reports, how, when
             and where they are reported.
+
+            See `metalava help issues` for more help including a table of the available issues and
+            their category and default severity.
         """
                 .trimIndent()
     ) {
