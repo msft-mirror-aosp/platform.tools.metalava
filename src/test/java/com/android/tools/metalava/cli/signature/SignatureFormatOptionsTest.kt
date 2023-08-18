@@ -33,6 +33,8 @@ Signature Format Output:
 
   Options controlling the format of the generated signature files.
 
+  See `metalava help signature-file-formats` for more information.
+
   --api-overloaded-method-order [source|signature]
                                              Specifies the order of overloaded methods in signature files. Applies to
                                              the contents of the files specified on --api and --removed-api.

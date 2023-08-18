@@ -127,7 +127,13 @@ const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
 class SignatureFormatOptions :
     OptionGroup(
         name = SIGNATURE_FORMAT_OUTPUT_GROUP,
-        help = "Options controlling the format of the generated signature files."
+        help =
+            """
+                Options controlling the format of the generated signature files.
+
+                See `metalava help signature-file-formats` for more information.
+            """
+                .trimIndent()
     ) {
 
     /**

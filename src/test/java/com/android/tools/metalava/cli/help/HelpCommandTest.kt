@@ -36,6 +36,7 @@ Concepts
   issues                                     Provides help related to issues and issue reporting
   package-filters                            Explains the syntax and behavior of package filters used in options like
                                              --stub-packages.
+  signature-file-formats                     Describes the different signature file formats.
                 """
                     .trimIndent()
         }
@@ -67,6 +68,63 @@ Usage: metalava help package-filters
 
   `<package>.*` - a recursive match, will match `<package>` and any nested packages, e.g. `foo.*` will match `foo` and
   `foo.bar` and `foo.bar.baz` but not `foobar`.
+                """
+                    .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test help signature-file-formats`() {
+        commandTest {
+            args += listOf("help", "signature-file-formats")
+
+            expectedStdout =
+                """
+Usage: metalava help signature-file-formats
+
+  Describes the different signature file formats.
+
+  See `FORMAT.md` in the top level metalava directory for more information.
+
+  Conceptually, a signature file format is a set of properties that determine the types of information that will be
+  output to the API signature file and how it is represented. A format version is simply a set of defaults for those
+  properties.
+
+  The supported properties are:
+
+  * `kotlin-style-nulls = yes|no` - if `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
+  indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
+  it's not defined.
+
+  If `yes` then the signature file will use a type suffix of `?`, no type suffix and a type suffix of `!` to indicate
+  the that the type accepts `null`, does not accept `null` or it's not defined respectively.
+
+  * `concise-default-values = yes|no` - if `no` then Kotlin parameters that have a default value will include that value
+  in the signature file. If `yes` then those parameters will simply be prefixed with `optional`, as if it was a keyword
+  and no value will be included.
+
+  Currently, metalava supports the following versions:
+
+  * `2.0` (--format=v2) - this is the base version (more details in `FORMAT.md`) on which all the others are based. It
+  sets the properties as follows:
+
+  + kotlin-style-nulls = no
+  + concise-default-values = no
+
+  * `3.0` (--format=v3) - this is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
+
+  + kotlin-style-nulls = yes
+  + concise-default-values = no
+
+  * `4.0` (--format=v4) - this is 3.0` plus `concise-default-values = yes` giving the following properties:
+
+  + kotlin-style-nulls = yes
+  + concise-default-values = yes
+
+  The `--api-overloaded-method-order` option also affects the contents in the signature file, i.e. whether overloaded
+  methods are sorted based on their source order or purely based on their signature. However, it is orthogonal to a
+  specific version and should be considered as purely a temporary measure, provided to aid migration and as such will be
+  removed at some time in future.
                 """
                     .trimIndent()
         }
