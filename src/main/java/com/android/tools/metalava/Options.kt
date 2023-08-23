@@ -52,6 +52,7 @@ import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -167,6 +168,7 @@ const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:comp
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
@@ -683,6 +685,18 @@ class Options(
     private var tempFolder: File? = null
 
     var useK2Uast = false
+
+    val sourceModelProvider by
+        option(
+                ARG_SOURCE_MODEL_PROVIDER,
+                hidden = true,
+            )
+            .choice("psi", "turbine")
+            .default("psi")
+            .deprecated(
+                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
+                    .trimIndent()
+            )
 
     val encoding by
         option("-encoding", hidden = true)
