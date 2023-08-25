@@ -32,34 +32,12 @@ data class FileFormat(
     val overloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
     val kotlinStyleNulls: Boolean,
     val conciseDefaultValues: Boolean,
-    /**
-     * In old signature files, methods inherited from hidden super classes are not included. An
-     * example of this is StringBuilder.setLength. We may see these in the codebase but not in the
-     * (old) signature files, so in these cases we want to ignore certain changes such as
-     * considering StringBuilder.setLength a newly added method.
-     */
-    val hasPartialSignatures: Boolean = false,
 ) {
     /** The base version of the file format. */
     enum class DefaultsVersion(
-        internal val description: String = "Metalava signature file",
         internal val version: String,
-        internal val headerPrefix: String? = "// Signature format: ",
         factory: (DefaultsVersion) -> FileFormat,
     ) {
-        V1(
-            description = "Doclava signature file",
-            version = "1.0",
-            headerPrefix = null,
-            factory = { defaultsVersion ->
-                FileFormat(
-                    defaultsVersion = defaultsVersion,
-                    kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
-                    hasPartialSignatures = true,
-                )
-            }
-        ),
         V2(
             version = "2.0",
             factory = { defaultsVersion ->
@@ -112,44 +90,31 @@ data class FileFormat(
      * Apply some optional overrides, provided from the command line, to this format, returning a
      * new format.
      *
-     * @param thisIsFromCommandLine If true then this format came from the command line, otherwise
-     *   it came from reading a file. This is needed as generally command line options cannot
-     *   override properties read from a file, the exception being [overloadedMethodOrder].
-     * @param kotlinStyleNulls If non-null then override the [kotlinStyleNulls] property.
      * @param overloadedMethodOrder If non-null then override the [overloadedMethodOrder] property.
      * @return a format with the overrides applied.
      */
     fun applyOptionalCommandLineSuppliedOverrides(
-        thisIsFromCommandLine: Boolean,
-        kotlinStyleNulls: Boolean? = null,
         overloadedMethodOrder: OverloadedMethodOrder? = null,
     ): FileFormat {
-        // kotlinStyleNulls
-        val effectiveKotlinStyleNulls =
-            if (kotlinStyleNulls == null || !thisIsFromCommandLine) this.kotlinStyleNulls
-            else kotlinStyleNulls
-
         // Always apply the overloadedMethodOrder command line override to the format from the file
         // because the overloadedMethodOrder is not determined by the version (yet) but only by the
         // command line argument and its default.
         val effectiveOverloadedMethodOrder = overloadedMethodOrder ?: this.overloadedMethodOrder
 
         return copy(
-            kotlinStyleNulls = effectiveKotlinStyleNulls,
             overloadedMethodOrder = effectiveOverloadedMethodOrder,
         )
     }
 
-    fun header(): String? {
-        val prefix = defaultsVersion.headerPrefix ?: return null
+    fun header(): String {
+        val prefix = SIGNATURE_FORMAT_PREFIX
         return prefix + defaultsVersion.version + "\n"
     }
 
     companion object {
         private val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
 
-        // The defaults associated with version 1.0.
-        val V1 = DefaultsVersion.V1.defaults
+        private val versionToDefaults = allDefaults.associateBy { it.defaultsVersion.version }
 
         // The defaults associated with version 2.0.
         val V2 = DefaultsVersion.V2.defaults
@@ -163,6 +128,15 @@ data class FileFormat(
         // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
 
+        const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
+
+        /**
+         * The size of the buffer and read ahead limit.
+         *
+         * Should be big enough to handle any first package line, even one with lots of annotations.
+         */
+        private const val BUFFER_SIZE = 1024
+
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
@@ -170,37 +144,67 @@ data class FileFormat(
          */
         fun parseHeader(filename: String, reader: Reader): FileFormat? {
             val lineNumberReader =
-                if (reader is LineNumberReader) reader else LineNumberReader(reader, 128)
+                if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
             return parseHeader(filename, lineNumberReader)
         }
 
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
+         * This consumes only the content that makes up the header. So, the rest of the file
+         * contents can be read from the reader.
+         *
          * @return the [FileFormat] or null if the reader was blank.
          */
         private fun parseHeader(filename: String, reader: LineNumberReader): FileFormat? {
-            var line = reader.readLine()
-            while (line != null && line.isBlank()) {
-                line = reader.readLine()
-            }
-            if (line == null) {
-                return null
-            }
-
-            for (format in allDefaults) {
-                val header = format.header()
-                if (header == null) {
-                    if (line.startsWith("package ")) {
-                        // Old signature files
-                        return FileFormat.V1
+            // This reads the minimal amount to determine whether this is likely to be a
+            // signature file.
+            val prefixLength = SIGNATURE_FORMAT_PREFIX.length
+            val buffer = CharArray(prefixLength)
+            val prefix =
+                reader.read(buffer, 0, prefixLength).let { count ->
+                    if (count == -1) {
+                        // An empty file.
+                        return null
                     }
-                } else if (header.startsWith(line)) {
-                    return format
+                    String(buffer, 0, count)
                 }
+
+            if (prefix != SIGNATURE_FORMAT_PREFIX) {
+                // If the prefix is blank then either the whole file is blank in which case it is
+                // handled specially, or the file is not blank and is not a signature file in which
+                // case it is an error.
+                if (prefix.isBlank()) {
+                    var line = reader.readLine()
+                    while (line != null && line.isBlank()) {
+                        line = reader.readLine()
+                    }
+                    // If the line is null then te whole file is blank which is handled specially.
+                    if (line == null) {
+                        return null
+                    }
+                }
+
+                // An error occurred as the prefix did not match. A valid prefix must appear on a
+                // single line so just in case what was read contains multiple lines trim it down to
+                // a single line for error reporting. The LineNumberReader has translated non-unix
+                // newline characters into `\n` so this is safe.
+                val firstLine = prefix.substringBefore("\n")
+                throw ApiParseException(
+                    "Unknown file format of $filename: invalid prefix, found '$firstLine', expected '$SIGNATURE_FORMAT_PREFIX'"
+                )
             }
 
-            throw ApiParseException("Unknown file format of $filename")
+            val version = reader.readLine()
+
+            return versionToDefaults[version]
+                ?: throw ApiParseException(
+                    "Unknown file format of $filename: invalid version, found '$version', expected one of '${
+                        versionToDefaults.keys.joinToString(
+                            "', '"
+                        )
+                    }'"
+                )
         }
     }
 }

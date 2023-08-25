@@ -162,12 +162,7 @@ private constructor(
         format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
-        // If it's the first file, set the format. Otherwise, make sure the format is the same as
-        // the prior files.
-        if (!appending) {
-            // This is the first file to process.
-            api.format = format
-        } else {
+        if (appending) {
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
                 return
@@ -441,7 +436,9 @@ private constructor(
             varArgs = true
         }
         if (kotlinStyleNulls) {
-            if (type.endsWith("?")) {
+            if (varArgs) {
+                mergeAnnotations(annotations, ANDROIDX_NONNULL)
+            } else if (type.endsWith("?")) {
                 type = type.substring(0, type.length - 1)
                 mergeAnnotations(annotations, ANDROIDX_NULLABLE)
             } else if (type.endsWith("!")) {

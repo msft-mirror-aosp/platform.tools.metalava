@@ -31,8 +31,9 @@ class AndroidJarsToSignaturesCommand :
     MetalavaSubCommand(
         help =
             """
-    Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by
-    reading the API defined in the `android.jar` files.
+    Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree.
+
+    It does this by reading the API defined in the corresponding `android.jar` files.
 """
                 .trimIndent(),
     ) {

@@ -1001,7 +1001,6 @@ class ApiFileTest : DriverTest() {
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
             format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2011,7 +2010,6 @@ class ApiFileTest : DriverTest() {
         // promoted to public.
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -4191,7 +4189,7 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             expectedFail =
-                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Incompatible class Test.pkg.Class1 definitions"
+                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:3: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 
@@ -4350,11 +4348,18 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
+                    ctor public ClassUsingExternalExperimentalApi();
+                  }
+                  @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
+                    ctor public ClassUsingInLibraryExperimentalApi();
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
-            """,
-            extraArguments = arrayOf(ARG_HIDE_META_ANNOTATION, "kotlin.RequiresOptIn")
+                """,
+            extraArguments =
+                arrayOf(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION, "kotlin.RequiresOptIn")
         )
     }
 

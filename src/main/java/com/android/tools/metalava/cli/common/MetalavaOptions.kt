@@ -59,6 +59,11 @@ fun RawOption.newFile(): NullableOption<File, File> {
     return fileConversion(::stringToNewFile)
 }
 
+/** Convert the option to a [File] that represents a new directory. */
+fun RawOption.newDir(): NullableOption<File, File> {
+    return fileConversion(::stringToNewDir)
+}
+
 /** Convert the argument to a [File] that represents a new file. */
 fun RawArgument.newFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewFile)
@@ -91,9 +96,6 @@ fun RawArgument.fileConversion(conversion: (String) -> File): ProcessedArgument<
  * behavior:
  * - "~" will be expanded into the home directory path.
  * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
- *
- * Note, unlike the other "stringToXxx" methods, this method won't register the given path to
- * [FileReadSandbox].
  */
 internal fun fileForPathInner(path: String): File {
     // java.io.File doesn't automatically handle ~/ -> home directory expansion.
@@ -121,7 +123,36 @@ internal fun stringToExistingDir(value: String): File {
     if (!file.isDirectory) {
         throw MetalavaCliException("$file is not a directory")
     }
-    return FileReadSandbox.allowAccess(file)
+    return file
+}
+
+/**
+ * Convert a string representing a new directory to a [File].
+ *
+ * This will fail if:
+ * * the directory exists and cannot be deleted.
+ * * the directory cannot be created.
+ */
+internal fun stringToNewDir(value: String): File {
+    val output = fileForPathInner(value)
+    val ok =
+        if (output.exists()) {
+            if (output.isDirectory) {
+                output.deleteRecursively()
+            }
+            if (output.exists()) {
+                true
+            } else {
+                output.mkdir()
+            }
+        } else {
+            output.mkdirs()
+        }
+    if (!ok) {
+        throw MetalavaCliException("Could not create $output")
+    }
+
+    return output
 }
 
 /**
@@ -135,7 +166,7 @@ internal fun stringToExistingFile(value: String): File {
     if (!file.isFile) {
         throw MetalavaCliException("$file is not a file")
     }
-    return FileReadSandbox.allowAccess(file)
+    return file
 }
 
 /**
@@ -164,7 +195,7 @@ internal fun stringToNewFile(value: String): File {
         }
     }
 
-    return FileReadSandbox.allowAccess(output)
+    return output
 }
 
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
