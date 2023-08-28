@@ -16,29 +16,12 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import org.intellij.lang.annotations.Language
 
 // Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
 abstract class UastTestBase : DriverTest() {
-
-    private fun uastCheck(
-        isK2: Boolean,
-        format: FileFormat = FileFormat.LATEST,
-        sourceFiles: Array<TestFile> = emptyArray(),
-        @Language("TEXT") api: String? = null,
-        extraArguments: Array<String> = emptyArray(),
-    ) {
-        check(
-            format = format,
-            sourceFiles = sourceFiles,
-            api = api,
-            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 })
-        )
-    }
 
     protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
         // See http://b/248341155 for more details

@@ -1384,6 +1384,27 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
+    protected fun uastCheck(
+        isK2: Boolean,
+        @Language("TEXT") api: String? = null,
+        format: FileFormat = FileFormat.LATEST,
+        expectedIssues: String? = "",
+        extraArguments: Array<String> = emptyArray(),
+        expectedFail: String? = null,
+        @Language("TEXT") apiLint: String? = null,
+        sourceFiles: Array<TestFile> = emptyArray(),
+    ) {
+        check(
+            api = api,
+            format = format,
+            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 }),
+            expectedIssues = expectedIssues,
+            expectedFail = expectedFail,
+            apiLint = apiLint,
+            sourceFiles = sourceFiles,
+        )
+    }
+
     /** Checks that the given zip annotations file contains the given XML package contents */
     private fun assertPackageXml(pkg: String, output: File, @Language("XML") expected: String) {
         assertNotNull(output)
