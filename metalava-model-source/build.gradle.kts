@@ -14,31 +14,19 @@
  * limitations under the License.
  */
 
+// Subproject containing code that is common to all models that are produced from source code.
+
 plugins {
     `java-library`
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
     id("maven-publish")
-
-    // This project provides an implementation of the metalava-model.
-    id("metalava-model-provider-plugin")
 }
 
 dependencies {
     implementation(project(":metalava-model"))
-    implementation(project(":metalava-model-source"))
     implementation(project(":metalava-reporter"))
-    implementation(libs.androidToolsExternalUast)
-    implementation(libs.androidToolsExternalKotlinCompiler)
-    implementation(libs.androidToolsExternalIntellijCore)
-    implementation(libs.androidLintApi)
-    implementation(libs.androidLintChecks)
-    implementation(libs.androidLintGradle)
-    implementation(libs.androidLint)
-    implementation(libs.androidToolsCommon)
 
-    testImplementation(project(":metalava-model-testsuite"))
-    testImplementation(project(":metalava-testing"))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
