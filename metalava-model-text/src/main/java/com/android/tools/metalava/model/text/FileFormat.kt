@@ -100,11 +100,10 @@ data class FileFormat(
     fun applyOptionalCommandLineSuppliedOverrides(
         overloadedMethodOrder: OverloadedMethodOrder? = null,
     ): FileFormat {
-        // Always apply the overloadedMethodOrder command line override to the format from the file
-        // because the overloadedMethodOrder is not determined by the version (yet) but only by the
-        // command line argument and its default.
+        // Only apply the overloadedMethodOrder command line override to the format if it has not
+        // already been specified.
         val effectiveOverloadedMethodOrder =
-            overloadedMethodOrder ?: this.specifiedOverloadedMethodOrder
+            this.specifiedOverloadedMethodOrder ?: overloadedMethodOrder
 
         return copy(
             specifiedOverloadedMethodOrder = effectiveOverloadedMethodOrder,

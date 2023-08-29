@@ -206,7 +206,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
+                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
                 ),
                 it.fileFormat
             )
