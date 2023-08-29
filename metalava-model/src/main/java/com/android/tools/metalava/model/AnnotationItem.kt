@@ -299,7 +299,7 @@ private constructor(
 
     override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
 
-    override fun isHideAnnotation(): Boolean = info.showability.hide()
+    override fun isHideAnnotation(): Boolean = info.hide
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
 
