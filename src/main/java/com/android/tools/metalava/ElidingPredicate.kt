@@ -24,22 +24,41 @@ import java.util.function.Predicate
  * Filter that will elide exact duplicate methods that are already included in another
  * superclass/interfaces.
  */
-class ElidingPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
+class ElidingPredicate(
+    private val wrapped: Predicate<Item>,
 
+    /** Whether if overriding methods essential for compiling the stubs should be elided or not. */
+    private val addAdditionalOverrides: Boolean =
+        try {
+            @Suppress("DEPRECATION")
+            options.signatureFileFormat.specifiedAddAdditionalOverrides == true
+        } catch (e: IllegalStateException) {
+            false
+        },
+) : Predicate<Item> {
+
+    // Returning true means we are keeping this item
+    // i.e. when this returns false, we are eliding the item
     override fun test(method: Item): Boolean {
         // This method should be included, but if it's an exact duplicate
         // override then we can elide it.
         return if (method is MethodItem && !method.isConstructor()) {
             val differentSuper =
                 method.findPredicateSuperMethod(
-                    Predicate { test ->
+                    // This predicate returns true if
+                    // the potential super method has same signature
+                    Predicate { maybeEqualSuperMethod ->
                         // We're looking for included and perfect signature
-                        wrapped.test(test) &&
-                            test is MethodItem &&
-                            MethodItem.sameSignature(method, test, false)
+                        wrapped.test(maybeEqualSuperMethod) &&
+                            maybeEqualSuperMethod is MethodItem &&
+                            MethodItem.sameSignature(method, maybeEqualSuperMethod, false)
                     }
                 )
-            differentSuper == null
+
+            val doNotElideForAdditionalOverridePurpose =
+                addAdditionalOverrides && method.isRequiredOverridingMethodForTextStub()
+
+            differentSuper == null || doNotElideForAdditionalOverridePurpose
         } else {
             true
         }

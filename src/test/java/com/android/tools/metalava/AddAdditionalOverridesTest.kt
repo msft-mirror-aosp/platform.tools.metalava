@@ -18,15 +18,49 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class AddAdditionalOverridesTest : DriverTest() {
-    @Test
-    fun `Add additional overrides -- Does not emit Object method override to signature file`() {
+
+    private fun checkAddAdditionalOverrides(
+        sourceFiles: Array<TestFile>,
+        apiOriginal: String,
+        apiWithAdditionalOverrides: String,
+        format: FileFormat = FileFormat.V2,
+        extraArguments: Array<String> = emptyArray(),
+    ) {
+        // Signature content without additional overrides check
         check(
-            format = FileFormat.V2,
+            format = format,
+            sourceFiles = sourceFiles,
+            api = apiOriginal,
+            extraArguments = extraArguments,
+        )
+
+        // Signature content with additional overrides check
+        check(
+            format = format.copy(specifiedAddAdditionalOverrides = true),
+            sourceFiles = sourceFiles,
+            api = apiWithAdditionalOverrides,
+            extraArguments = extraArguments,
+        )
+    }
+
+    @Test
+    fun `Add additional overrides -- Does emit Object method override to signature file to prevent compile error`() {
+
+        // Currently, ChildClass.hashCode() is not emitted to signature files as it possess
+        // identical signature to java.lang.Object.hashCode(). However, omitting this method will
+        // lead to a compile error as ChildClass extends ParentClass, which overrides hashCode() as
+        // an abstract method. In other words, if there are "multiple" super methods for Object
+        // methods (e.g. ChildClass.hashCode()'s super methods are Object.hashCode() and
+        // ParentClass.hashCode()), whether the super method of the non-Object class needs to be
+        // overridden or not has to be used to determine if the method needs to be included in the
+        // signature file or not.
+        checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
                     java(
@@ -58,7 +92,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            apiOriginal =
                 """
             // Signature format: 2.0
             package test.pkg {
@@ -73,13 +107,32 @@ class AddAdditionalOverridesTest : DriverTest() {
               }
             }
         """,
+            apiWithAdditionalOverrides =
+                """
+            // Signature format: 2.0
+            package test.pkg {
+              public class ChildClass extends test.pkg.ParentClass {
+                ctor public ChildClass();
+                method public int hashCode();
+                method public int someMethod();
+              }
+              public abstract class ParentClass implements java.util.Comparator<java.lang.Object> {
+                ctor public ParentClass();
+                method public abstract int hashCode();
+                method public abstract int someMethod();
+              }
+            }
+        """,
         )
     }
 
     @Test
-    fun `Add additional overrides -- Does not emit override with identical signature`() {
-        check(
-            format = FileFormat.V2,
+    fun `Add additional overrides -- Does emit override with identical signature to prevent compile error`() {
+
+        // ChildClass.someMethod() possess identical signature to that of
+        // ChildInterface.someMethod(), but needs to be implemented in ChildClass to resolve compile
+        // error and thus needs to be included in the signature file.
+        checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
                     java(
@@ -94,6 +147,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                         """
                     package test.pkg;
                     public abstract class ParentClass implements ParentInterface {
+                        public abstract void someMethod();
                     }
                     """
                     ),
@@ -114,7 +168,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            apiOriginal =
                 """
             // Signature format: 2.0
             package test.pkg {
@@ -126,6 +180,27 @@ class AddAdditionalOverridesTest : DriverTest() {
               }
               public abstract class ParentClass implements test.pkg.ParentInterface {
                 ctor public ParentClass();
+                method public abstract void someMethod();
+              }
+              public interface ParentInterface {
+                method public default void someMethod();
+              }
+            }
+        """,
+            apiWithAdditionalOverrides =
+                """
+            // Signature format: 2.0
+            package test.pkg {
+              public class ChildClass extends test.pkg.ParentClass implements test.pkg.ChildInterface {
+                ctor public ChildClass();
+                method public void someMethod();
+              }
+              public interface ChildInterface extends test.pkg.ParentInterface {
+                method public void someMethod();
+              }
+              public abstract class ParentClass implements test.pkg.ParentInterface {
+                ctor public ParentClass();
+                method public abstract void someMethod();
               }
               public interface ParentInterface {
                 method public default void someMethod();
@@ -136,9 +211,12 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add additional overrides -- Does not add override-equivalent signatures`() {
-        check(
-            format = FileFormat.V2,
+    fun `Add additional overrides -- Does add override-equivalent signatures`() {
+
+        // When an interface inherits several methods with override-equivalent signatures
+        // but it is not defined, it leads to a compile error thus needs to be included in the
+        // signature file.
+        checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
                     java(
@@ -166,11 +244,26 @@ class AddAdditionalOverridesTest : DriverTest() {
                     """
                     ),
                 ),
-            api =
+            apiOriginal =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface ChildInterface extends test.pkg.ParentInterface1 test.pkg.ParentInterface2 {
+                  }
+                  public interface ParentInterface1 {
+                    method public default void someMethod();
+                  }
+                  public interface ParentInterface2 {
+                    method public void someMethod();
+                  }
+                }
+            """,
+            apiWithAdditionalOverrides =
                 """
             // Signature format: 2.0
             package test.pkg {
               public interface ChildInterface extends test.pkg.ParentInterface1 test.pkg.ParentInterface2 {
+                method public void someMethod();
               }
               public interface ParentInterface1 {
                 method public default void someMethod();
