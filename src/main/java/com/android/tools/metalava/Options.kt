@@ -23,9 +23,7 @@ import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
-import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
@@ -47,9 +45,7 @@ import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
-import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
-import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -183,11 +179,6 @@ const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
-const val ARG_NO_IMPLICIT_ROOT = "--no-implicit-root"
-const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
-const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
-const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
-const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -714,43 +705,6 @@ class Options(
             key = { it.optionValue },
         )
 
-    /** Allow implicit root detection (which is the default behavior). See [ARG_NO_IMPLICIT_ROOT] */
-    var allowImplicitRoot = true
-
-    enum class StrictInputFileMode {
-        PERMISSIVE,
-        STRICT {
-            override val shouldFail = true
-        },
-        STRICT_WARN,
-        STRICT_WITH_STACK {
-            override val shouldFail = true
-        };
-
-        open val shouldFail = false
-
-        companion object {
-            fun fromArgument(arg: String): StrictInputFileMode {
-                return when (arg) {
-                    ARG_STRICT_INPUT_FILES -> STRICT
-                    ARG_STRICT_INPUT_FILES_WARN -> STRICT_WARN
-                    ARG_STRICT_INPUT_FILES_STACK -> STRICT_WITH_STACK
-                    else -> PERMISSIVE
-                }
-            }
-        }
-    }
-
-    /**
-     * Whether we should allow metalava to read files that are not explicitly specified in the
-     * command line. See [ARG_STRICT_INPUT_FILES], [ARG_STRICT_INPUT_FILES_WARN] and
-     * [ARG_STRICT_INPUT_FILES_STACK].
-     */
-    var strictInputFiles = StrictInputFileMode.PERMISSIVE
-
-    var strictInputViolationsFile: File? = null
-    var strictInputViolationsPrintWriter: PrintWriter? = null
-
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
@@ -819,7 +773,7 @@ class Options(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path, false))
+                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
                     }
                 }
                 ARG_SOURCE_FILES -> {
@@ -1116,31 +1070,6 @@ class Options(
                 ARG_COMPILE_SDK_VERSION -> {
                     compileSdkVersion = getValue(args, ++index)
                 }
-                ARG_NO_IMPLICIT_ROOT -> {
-                    allowImplicitRoot = false
-                }
-                ARG_STRICT_INPUT_FILES,
-                ARG_STRICT_INPUT_FILES_WARN,
-                ARG_STRICT_INPUT_FILES_STACK -> {
-                    if (strictInputViolationsFile != null) {
-                        throw MetalavaCliException(
-                            "$ARG_STRICT_INPUT_FILES, $ARG_STRICT_INPUT_FILES_WARN and $ARG_STRICT_INPUT_FILES_STACK may be specified only once"
-                        )
-                    }
-                    strictInputFiles = StrictInputFileMode.fromArgument(arg)
-
-                    val file = stringToNewOrExistingFile(getValue(args, ++index))
-                    strictInputViolationsFile = file
-                    strictInputViolationsPrintWriter = file.printWriter()
-                }
-                ARG_STRICT_INPUT_FILES_EXEMPT -> {
-                    val listString = getValue(args, ++index)
-                    listString.split(File.pathSeparatorChar).forEach { path ->
-                        // Throw away the result; just let the function add the files to the
-                        // allowed list.
-                        stringToExistingFilesOrDirs(path)
-                    }
-                }
                 ARG_USE_K2_UAST -> useK2Uast = true
                 ARG_SDK_JAR_ROOT -> {
                     sdkJarRoot = stringToExistingDir(getValue(args, ++index))
@@ -1414,7 +1343,6 @@ class Options(
     }
 
     private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
-        // Note this method doesn't register the result to [FileReadSandbox]
         return patterns
             .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
@@ -1446,10 +1374,10 @@ class Options(
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        return files
     }
 
-    private fun stringToExistingDirsOrJars(value: String, exempt: Boolean = true): List<File> {
+    private fun stringToExistingDirsOrJars(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
@@ -1457,9 +1385,6 @@ class Options(
                 throw MetalavaCliException("$file is not a jar or directory")
             }
             files.add(file)
-        }
-        if (exempt) {
-            return FileReadSandbox.allowAccess(files)
         }
         return files
     }
@@ -1473,7 +1398,7 @@ class Options(
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        return files
     }
 
     @Suppress("unused")
@@ -1482,15 +1407,11 @@ class Options(
         if (!file.exists()) {
             throw MetalavaCliException("$file is not a file or directory")
         }
-        return FileReadSandbox.allowAccess(file)
+        return file
     }
 
     private fun stringToExistingFiles(value: String): List<File> {
         return stringToExistingFilesOrDirsInternal(value, false)
-    }
-
-    private fun stringToExistingFilesOrDirs(value: String): List<File> {
-        return stringToExistingFilesOrDirsInternal(value, true)
     }
 
     private fun stringToExistingFilesOrDirsInternal(value: String, allowDirs: Boolean): List<File> {
@@ -1529,7 +1450,7 @@ class Options(
                     files.add(file)
                 }
             }
-        return FileReadSandbox.allowAccess(files)
+        return files
     }
 
     private fun stringToNewOrExistingDir(value: String): File {
@@ -1540,7 +1461,7 @@ class Options(
                 throw MetalavaCliException("Could not create $dir")
             }
         }
-        return FileReadSandbox.allowAccess(dir)
+        return dir
     }
 
     private fun stringToNewOrExistingFile(value: String): File {
@@ -1554,7 +1475,7 @@ class Options(
                 }
             }
         }
-        return FileReadSandbox.allowAccess(file)
+        return file
     }
 
     private fun stringToNewDir(value: String): File {
@@ -1576,7 +1497,7 @@ class Options(
             throw MetalavaCliException("Could not create $output")
         }
 
-        return FileReadSandbox.allowAccess(output)
+        return output
     }
 
     fun getUsage(terminal: Terminal, width: Int): String {
@@ -1596,10 +1517,7 @@ class Options(
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
                 "$ARG_SOURCE_PATH <paths>",
                 "One or more directories (separated by `${File.pathSeparator}`) " +
-                    "containing source files (within a package hierarchy). If $ARG_STRICT_INPUT_FILES, " +
-                    "$ARG_STRICT_INPUT_FILES_WARN, or $ARG_STRICT_INPUT_FILES_STACK are used, files accessed under " +
-                    "$ARG_SOURCE_PATH that are not explicitly specified in $ARG_SOURCE_FILES are reported as " +
-                    "violations.",
+                    "containing source files (within a package hierarchy).",
                 "$ARG_CLASS_PATH <paths>",
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
@@ -1866,26 +1784,6 @@ class Options(
                     "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
                     "Required to generate API version JSON.",
                 "",
-                "Sandboxing:",
-                ARG_NO_IMPLICIT_ROOT,
-                "Disable implicit root directory detection. " +
-                    "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
-                "$ARG_STRICT_INPUT_FILES <file>",
-                "Do not read files that are not explicitly specified in the command line. " +
-                    "All violations are written to the given file. Reads on directories are always allowed, but " +
-                    "$PROGRAM_NAME still tracks reads on directories that are not specified in the command line, " +
-                    "and write them to the file.",
-                "$ARG_STRICT_INPUT_FILES_WARN <file>",
-                "Warn when files not explicitly specified on the command line are " +
-                    "read. All violations are written to the given file. Reads on directories not specified in the command " +
-                    "line are allowed but also logged.",
-                "$ARG_STRICT_INPUT_FILES_STACK <file>",
-                "Same as $ARG_STRICT_INPUT_FILES but also print stacktraces.",
-                "$ARG_STRICT_INPUT_FILES_EXEMPT <files or dirs>",
-                "Used with $ARG_STRICT_INPUT_FILES. Explicitly allow " +
-                    "access to files and/or directories (separated by `${File.pathSeparator}). Can also be " +
-                    "@ followed by a path to a text file containing paths to the full set of files and/or directories.",
-                "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
                 "Set to true to have metalava emit all the arguments it was invoked with. " +
@@ -1946,54 +1844,5 @@ class Options(
             val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
             return LanguageVersionSettingsImpl(languageLevel, apiVersion)
         }
-    }
-}
-
-/**
- * A command that is passed to [MetalavaCommand.defaultCommand] when the options need to be
- * initialized.
- */
-internal open class OptionsCommand(commonOptions: CommonOptions) :
-    CliktCommand(treatUnknownOptionsAsArgs = true) {
-
-    /**
-     * Property into which all the arguments (and unknown options) are gathered.
-     *
-     * This does not provide any `help` so that it is excluded from the `help` by
-     * [MetalavaCommand.excludeArgumentsWithNoHelp].
-     */
-    private val flags by argument().multiple()
-
-    /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions()
-
-    /** Signature file options. */
-    private val signatureFileOptions by SignatureFileOptions()
-
-    /** Signature format options. */
-    private val signatureFormatOptions by SignatureFormatOptions()
-
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    private val optionGroup by
-        Options(
-            commonOptions = commonOptions,
-            reporterOptions = reporterOptions,
-            signatureFileOptions = signatureFileOptions,
-            signatureFormatOptions = signatureFormatOptions,
-        )
-
-    override fun run() {
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(remainingArgs, stdout, stderr)
-
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
     }
 }
