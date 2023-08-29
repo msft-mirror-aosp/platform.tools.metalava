@@ -31,6 +31,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
+import org.jetbrains.uast.UClass
+import org.jetbrains.uast.kotlin.isKotlin
 import java.util.Locale
 import java.util.function.Predicate
 
@@ -54,6 +57,8 @@ class ApiAnalyzer(
         // Apply options for packages that should be hidden
         hidePackages()
         skipEmitPackages()
+        // Suppress kotlin file facade classes with no public api
+        hideEmptyKotlinFileFacadeClasses()
 
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
@@ -191,7 +196,6 @@ class ApiAnalyzer(
         // Find default constructor, if one doesn't exist
         val allConstructors = cls.constructors()
         if (allConstructors.isNotEmpty()) {
-
             // Try and use a publicly accessible constructor first.
             val constructors = cls.filteredConstructors(filter).toList()
             if (constructors.isNotEmpty()) {
@@ -291,7 +295,7 @@ class ApiAnalyzer(
                     if (interfaceTypes == null) {
                         interfaceTypes = cls.interfaceTypes().toMutableList()
                         interfaceTypeClasses =
-                            interfaceTypes.asSequence().map { it.asClass() }.filterNotNull().toMutableList()
+                            interfaceTypes.mapNotNull { it.asClass() }.toMutableList()
                         if (cls.isInterface()) {
                             cls.superClass()?.let { interfaceTypeClasses.add(it) }
                         }
@@ -325,11 +329,10 @@ class ApiAnalyzer(
         filterEmit: Predicate<Item>,
         filterReference: Predicate<Item>
     ) {
-
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
         // (2) are overriding some method that is in a public interface accessible from this class.
-        val interfaces: Set<TypeItem> = cls.allInterfaceTypes(filterReference).asSequence().toSet()
+        val interfaces: Set<TypeItem> = cls.allInterfaceTypes(filterReference).toSet()
 
         // Note that we can't just call method.superMethods() to and see whether any of their containing
         // classes are among our target APIs because it's possible that the super class doesn't actually
@@ -368,7 +371,6 @@ class ApiAnalyzer(
 
         // Also add in any concrete public methods from hidden super classes
         for (superClass in hiddenSuperClasses) {
-
             // Determine if there is a non-hidden class between the superClass and this class.
             // If non hidden classes are found, don't include the methods for this hiddenSuperClass,
             // as it will already have been included in a previous super class
@@ -515,6 +517,27 @@ class ApiAnalyzer(
         for (pkgName in options.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.emit = false
+        }
+    }
+
+    /** If a file facade class has no public members, don't add it to the api **/
+    private fun hideEmptyKotlinFileFacadeClasses() {
+        codebase.getPackages().allClasses().forEach { cls ->
+            val psi = cls.psi()
+            if (isKotlin(psi) &&
+                psi is UClass &&
+                psi.javaPsi is KtLightClassForFacade &&
+                // a facade class needs to be emitted if it has any top-level fun/prop to emit
+                cls.members().none { member ->
+                    // a member needs to be emitted if
+                    //  1) it doesn't have a hide annotation and
+                    //  2) it is either public or has a show annotation
+                    !member.hasHideAnnotation() &&
+                        (member.isPublic || member.hasShowAnnotation())
+                }
+            ) {
+                cls.emit = false
+            }
         }
     }
 
@@ -968,7 +991,7 @@ class ApiAnalyzer(
         // be written, e.g. hidden things
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
-                val publiclyConstructable =
+                val publiclyConstructable = !cl.modifiers.isSealed() &&
                     cl.constructors().any { it.checkLevel() }
                 for (m in cl.methods()) {
                     if (!m.checkLevel()) {
