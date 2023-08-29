@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.testing.BaseCommandTest
 import com.android.tools.metalava.testing.CommandTestConfig
 import kotlin.test.assertEquals
@@ -30,7 +32,6 @@ class SignatureToJDiffCommandTest : BaseCommandTest() {
 
             expectedStdout =
                 """
-
 Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
 
   Convert an API signature file into a file in the JDiff XML format.
@@ -45,7 +46,36 @@ Options:
 Arguments:
   <api-file>                                 API signature file to convert to the JDiff XML format.
   <xml-file>                                 Output JDiff XML format file.
+            """
+                    .trimIndent()
+        }
+    }
 
+    @Test
+    fun `Test invalid option`() {
+
+        commandTest {
+            args += listOf("signature-to-jdiff", "--trip")
+
+            args += inputFile("input.txt", "").path
+            args += outputFile("output.xml").path
+
+            expectedStderr =
+                """
+Aborting: Error: no such option: "--trip". (Possible options: --strip, --no-strip)
+
+Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
+
+Options:
+  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
+                                             output or not. (default: false)
+  --base-api <base-api-file>                 Optional base API file. If provided then the output will only include API
+                                             items that are not in this file.
+  -h, -?, --help                             Show this message and exit
+
+Arguments:
+  <api-file>                                 API signature file to convert to the JDiff XML format.
+  <xml-file>                                 Output JDiff XML format file.
             """
                     .trimIndent()
         }
@@ -494,11 +524,21 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig) {
             // Create a unique folder to allow multiple configs to be run in the same test.
             val folder = commandTestConfig.folder()
 
-            val apiFile = inputFile("api.txt", api.trimIndent(), parentDir = folder)
+            val apiFile =
+                inputFile(
+                    "api.txt",
+                    prepareSignatureFileForTest(api.trimIndent(), FileFormat.V2),
+                    parentDir = folder
+                )
             args += apiFile.path
 
             baseApi?.let {
-                val baseApiFile = inputFile("base-api.txt", it.trimIndent(), parentDir = folder)
+                val baseApiFile =
+                    inputFile(
+                        "base-api.txt",
+                        prepareSignatureFileForTest(it.trimIndent(), FileFormat.V2),
+                        parentDir = folder
+                    )
                 args += "--base-api"
                 args += baseApiFile.path
             }

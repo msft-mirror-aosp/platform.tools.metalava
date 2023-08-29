@@ -41,4 +41,11 @@ settings.gradle.beforeProject {
 if (!System.getenv("INTEGRATION").isNullOrBlank()) {
     include(":integration")
 }
+
+include(":metalava-model")
+include(":metalava-model-psi")
+include(":metalava-model-testsuite")
+include(":metalava-model-text")
+include(":metalava-reporter")
+include(":metalava-testing")
 include(":stub-annotations")

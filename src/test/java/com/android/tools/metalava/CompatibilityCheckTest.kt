@@ -16,9 +16,14 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 import org.junit.Ignore
@@ -30,8 +35,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -69,8 +74,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -108,9 +113,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
-                released-api.txt:4: error: Removed field test.pkg.MyTest1.field [RemovedField]
-                released-api.txt:6: error: Removed class test.pkg.MyTest2 [RemovedClass]
+                released-api.txt:4: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
+                released-api.txt:5: error: Removed field test.pkg.MyTest1.field [RemovedField]
+                released-api.txt:7: error: Removed class test.pkg.MyTest2 [RemovedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -142,14 +147,14 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:5: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                load-api.txt:5: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                load-api.txt:6: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                load-api.txt:6: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                load-api.txt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
+                load-api.txt:6: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
+                load-api.txt:6: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
+                load-api.txt:7: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
+                load-api.txt:7: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
+                load-api.txt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
+                load-api.txt:9: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -198,7 +203,7 @@ class CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
                 src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                     // Signature format: 3.0
@@ -282,7 +287,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
                 """,
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -312,7 +317,7 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Kotlin Coroutines`() {
         check(
             expectedIssues = "",
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -397,10 +402,112 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Add final`() {
-        // Adding final on class or method is incompatible; adding it on a parameter is fine.
-        // Field is iffy.
+    fun `Add final to class that can be extended`() {
+        // Adding final on a class is incompatible.
         check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            expectedIssues =
+                """
+                src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:3: error: Constructor test.pkg.Java has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:3: error: Constructor test.pkg.Kotlin has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    ctor public Java();
+                    method public void method(int);
+                  }
+                  public class Kotlin {
+                    ctor public Kotlin();
+                    method public void method(String s);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    class Kotlin {
+                        fun method(s: String) { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public final class Java {
+                            public Java() { }
+                            public void method(int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to class that cannot be extended`() {
+        // Adding final on a class is incompatible unless the class could not be extended.
+        check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            expectedIssues =
+                """
+                src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method added 'final' qualifier but containing class test.pkg.Kotlin was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    method public void method(int);
+                  }
+                  public class Kotlin {
+                    method public void method(String s);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    class Kotlin
+                    private constructor() {
+                        fun method(s: String) { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public final class Java {
+                            private Java() { }
+                            public void method(int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to method of class that can be extended`() {
+        // Adding final on a method is incompatible.
+        check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
@@ -410,6 +517,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Java {
+                    ctor public Java();
                     method public void method(int);
                   }
                   public class Kotlin {
@@ -433,8 +541,85 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                         package test.pkg;
                         public class Java {
+                            public Java() { }
+                            public final void method(final int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to method of class that cannot be extended`() {
+        // Adding final on a method is incompatible unless the containing class could not be
+        // extended.
+        check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            expectedIssues =
+                """
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method added 'final' qualifier but containing class test.pkg.Kotlin was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+            """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    method public void method(int);
+                  }
+                  public class Kotlin {
+                    method public void method(String s);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    open class Kotlin
+                    private constructor() {
+                        fun method(s: String) { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class Java {
                             private Java() { }
                             public final void method(final int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to method parameter`() {
+        // Adding final on a method parameter is fine.
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    ctor public Java();
+                    method public void method(int);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Java {
+                            public Java() { }
+                            public void method(final int parameter) { }
                         }
                         """
                     )
@@ -1048,7 +1233,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
+                released-api.txt:4: error: Removed constructor test.pkg.Class1() [RemovedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1212,7 +1397,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -1236,7 +1421,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -1305,6 +1490,7 @@ class CompatibilityCheckTest : DriverTest() {
                   public abstract class Outer {
                   }
                   public class Outer.Class1 {
+                    ctor public Class1();
                     method public void method1();
                   }
                   public final class Outer.Class2 {
@@ -1327,7 +1513,7 @@ class CompatibilityCheckTest : DriverTest() {
                     public abstract class Outer {
                         private Outer() {}
                         public class Class1 {
-                            private Class1() {}
+                            public Class1() {}
                             public final void method1() { } // Added final
                         }
                         public final class Class2 {
@@ -1567,8 +1753,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:2: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                released-api.txt:5: error: Removed package test.pkg3 [RemovedPackage]
+                released-api.txt:3: error: Removed class test.pkg.MyOldClass [RemovedClass]
+                released-api.txt:6: error: Removed package test.pkg3 [RemovedPackage]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1618,7 +1804,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
+                released-api.txt:4: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1697,7 +1883,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -1746,7 +1932,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            outputKotlinStyleNulls = true,
+            format = FileFormat.V2,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -1890,7 +2076,7 @@ class CompatibilityCheckTest : DriverTest() {
             includeSystemApiAnnotations = true,
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
+                released-api.txt:5: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2012,7 +2198,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:5: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
+                released-api.txt:6: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
                 """,
             signatureSource =
                 """
@@ -2056,7 +2242,7 @@ class CompatibilityCheckTest : DriverTest() {
             includeSystemApiAnnotations = true,
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
+                released-api.txt:5: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2185,7 +2371,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:6: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
+                released-api.txt:7: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2252,11 +2438,11 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
+                released-api.txt:4: error: Removed constructor test.pkg.Class1() [RemovedMethod]
                 src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
-                released-api.txt:14: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                released-api.txt:17: error: Removed package test.pkg3 [RemovedPackage]
+                released-api.txt:15: error: Removed class test.pkg.MyOldClass [RemovedClass]
+                released-api.txt:18: error: Removed package test.pkg3 [RemovedPackage]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2341,9 +2527,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:6: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
-                released-api.txt:3: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
-                released-api.txt:4: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
+                released-api.txt:7: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
+                released-api.txt:4: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
+                released-api.txt:5: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2445,7 +2631,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-            released-api.txt:6: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
+            released-api.txt:7: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
             """
                     .trimIndent()
         )
@@ -2560,28 +2746,6 @@ class CompatibilityCheckTest : DriverTest() {
                         )
                         .indented()
                 )
-        )
-    }
-
-    @Test
-    fun `Comparing annotations with methods with v1 signature files`() {
-        check(
-            checkCompatibilityApiReleased =
-                """
-                package androidx.annotation {
-                  public abstract class RestrictTo implements java.lang.annotation.Annotation {
-                  }
-                  public static final class RestrictTo.Scope extends java.lang.Enum {
-                    enum_constant public static final deprecated androidx.annotation.RestrictTo.Scope GROUP_ID;
-                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
-                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
-                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP_PREFIX;
-                    enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
-                    enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(restrictToSource)
         )
     }
 
@@ -3079,7 +3243,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                released-api.txt:5: error: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
+                released-api.txt:6: error: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
                 """
         )
     }
@@ -3159,7 +3323,7 @@ class CompatibilityCheckTest : DriverTest() {
             // saying that SomeInterface no longer implements wait()
             expectedIssues =
                 """
-                released-api.txt:1: error: Removed package java.lang [RemovedPackage]
+                released-api.txt:2: error: Removed package java.lang [RemovedPackage]
                 """
         )
     }
@@ -3257,7 +3421,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package java.security;
                     public abstract class Permission {
                         public abstract boolean implies(Permission permission);
-                        }
                     }
                     """
                     )
@@ -3658,7 +3821,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
             load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
             """,
-            outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -3690,7 +3852,6 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
             """,
-            outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -3760,7 +3921,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
             src/androidx/room/Relation.java:5: error: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
             """,
-            outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 3.0
@@ -3790,8 +3950,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:11: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
-                load-api.txt:8: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
+                load-api.txt:12: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
+                load-api.txt:9: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -3973,7 +4133,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+                load-api.txt:3: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
             """
                     .trimIndent(),
             signatureSource =
@@ -3999,18 +4159,18 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:2: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:3: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:7: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:6: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:12: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:14: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:13: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:4: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:8: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:6: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:7: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:11: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:9: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:10: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
             """
                     .trimIndent(),
             signatureSource =
@@ -4084,9 +4244,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-                load-api.txt:4: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
-                load-api.txt:5: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+                load-api.txt:4: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                load-api.txt:5: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                load-api.txt:6: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
             """,
             signatureSource =
                 """
@@ -4143,9 +4303,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-                load-api.txt:4: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
-                load-api.txt:5: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+                load-api.txt:4: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                load-api.txt:5: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                load-api.txt:6: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
             """,
             signatureSource =
                 """
@@ -4199,8 +4359,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:3: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:5: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
             """,
             signatureSource =
                 """
@@ -4252,7 +4412,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
+                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
             """,
             signatureSource =
                 """
@@ -4473,7 +4633,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:2: error: Removed class test.pkg.MyTest1 from compatibility checked API surface [BecameUnchecked]
+                released-api.txt:3: error: Removed class test.pkg.MyTest1 from compatibility checked API surface [BecameUnchecked]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -4750,7 +4910,6 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased = signature,
             signatureSource = signature,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaSuppressCompatibility"),
-            hideMetaAnnotations = arrayOf("test.pkg.MetaHide")
         )
     }
 
