@@ -31,6 +31,23 @@ interface SourceParser {
     fun getClassResolver(classPath: List<File>): ClassResolver
 
     /**
+     * Parse a set of sources into a [SourceCodebase].
+     *
+     * @param sources the list of source files.
+     * @param description the description to use for [Codebase.description].
+     * @param sourcePath a possibly empty list of root directories within which sources files may be
+     *   found.
+     * @param classPath the possibly empty list of jar files which may provide additional classes
+     *   referenced by the sources.
+     */
+    fun parseSources(
+        sources: List<File>,
+        description: String,
+        sourcePath: List<File>,
+        classPath: List<File>,
+    ): SourceCodebase
+
+    /**
      * Load a [SourceCodebase] from a single jar.
      *
      * @param apiJar the jar file from which the [SourceCodebase] will be loaded.

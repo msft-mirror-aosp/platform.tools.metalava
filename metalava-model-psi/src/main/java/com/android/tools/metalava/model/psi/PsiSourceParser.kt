@@ -82,7 +82,7 @@ class PsiSourceParser(
      *
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
-    fun parseSources(
+    override fun parseSources(
         sources: List<File>,
         description: String,
         sourcePath: List<File>,
