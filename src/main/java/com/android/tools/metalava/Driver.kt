@@ -39,11 +39,11 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
@@ -701,12 +701,11 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
     return codebase
 }
 
-private fun getClassResolver(psiSourceParser: PsiSourceParser): ClassResolver? {
+private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        val uastEnvironment = psiSourceParser.loadUastFromJars(classpath)
-        PsiBasedClassResolver(uastEnvironment, options.annotationManager, options.reporter)
+        sourceParser.getClassResolver(classpath)
     } else {
         null
     }

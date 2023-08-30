@@ -22,8 +22,10 @@ import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.Lists
@@ -66,7 +68,13 @@ class PsiSourceParser(
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
     private val useK2Uast: Boolean = false,
     private val jdkHome: File? = null,
-) {
+) : SourceParser {
+
+    override fun getClassResolver(classPath: List<File>): ClassResolver {
+        val uastEnvironment = loadUastFromJars(classPath)
+        return PsiBasedClassResolver(uastEnvironment, annotationManager, reporter)
+    }
+
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
      * description.
