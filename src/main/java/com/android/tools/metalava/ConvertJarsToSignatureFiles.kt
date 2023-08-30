@@ -71,10 +71,11 @@ class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
 
             // Treat android.jar file as not filtered since they contain misc stuff that shouldn't
             // be there: package private super classes etc.
+            val annotationManager = DefaultAnnotationManager()
             val sourceParser =
                 environmentManager.createSourceParser(
                     options.reporter,
-                    DefaultAnnotationManager(),
+                    annotationManager,
                 )
             val jarCodebase = loadFromJarFile(sourceParser, apiJar, preFiltered = false)
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
@@ -142,19 +143,27 @@ class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
             // ASM doesn't seem to pick up everything that's actually there according to
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
-                val oldCodebase = SignatureFileLoader.load(oldApiFile)
-                val visitor =
-                    object : ComparisonVisitor() {
-                        override fun compare(old: Item, new: Item) {
-                            if (old.deprecated && !new.deprecated && old !is PackageItem) {
-                                new.deprecated = true
-                                progress(
-                                    "Recorded deprecation from previous signature file for $old"
-                                )
+                try {
+                    val oldCodebase =
+                        SignatureFileLoader.load(
+                            oldApiFile,
+                            annotationManager = annotationManager,
+                        )
+                    val visitor =
+                        object : ComparisonVisitor() {
+                            override fun compare(old: Item, new: Item) {
+                                if (old.deprecated && !new.deprecated && old !is PackageItem) {
+                                    new.deprecated = true
+                                    progress(
+                                        "Recorded deprecation from previous signature file for $old"
+                                    )
+                                }
                             }
                         }
-                    }
-                CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
+                    CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
+                } catch (e: Exception) {
+                    throw IllegalStateException("Could not load $oldApiFile: ${e.message}", e)
+                }
             }
 
             createReportFile(jarCodebase, newApiFile, "API") { printWriter ->
