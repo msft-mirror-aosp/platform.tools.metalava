@@ -86,7 +86,7 @@ class PsiSourceParser(
         sources: List<File>,
         description: String,
         sourcePath: List<File>,
-        classpath: List<File>,
+        classPath: List<File>,
     ): PsiBasedCodebase {
         val absoluteSources = sources.map { it.absoluteFile }
 
@@ -96,7 +96,7 @@ class PsiSourceParser(
         // Add in source roots implied by the source files
         extractRoots(reporter, absoluteSources, absoluteSourceRoots)
 
-        val absoluteClasspath = classpath.map { it.absoluteFile }
+        val absoluteClasspath = classPath.map { it.absoluteFile }
 
         return parseAbsoluteSources(
             absoluteSources,

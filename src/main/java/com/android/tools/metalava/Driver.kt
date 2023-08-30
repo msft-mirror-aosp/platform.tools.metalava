@@ -636,7 +636,7 @@ private fun loadFromSources(psiSourceParser: PsiSourceParser): Codebase {
             sources,
             "Codebase loaded from source folders",
             sourcePath = options.sourcePath,
-            classpath = options.classpath,
+            classPath = options.classpath,
         )
 
     progress("Analyzing API: ")

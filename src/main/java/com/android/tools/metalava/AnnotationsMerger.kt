@@ -130,7 +130,7 @@ class AnnotationsMerger(
                     javaStubFiles,
                     "Codebase loaded from stubs",
                     sourcePath = roots,
-                    classpath = options.classpath
+                    classPath = options.classpath
                 )
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
