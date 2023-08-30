@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
@@ -98,7 +99,7 @@ open class PsiBasedCodebase(
     annotationManager: AnnotationManager,
     private val reporter: Reporter,
     val fromClasspath: Boolean = false
-) : DefaultCodebase(location, description, false, annotationManager) {
+) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
@@ -777,11 +778,7 @@ open class PsiBasedCodebase(
         }
     }
 
-    /**
-     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
-     */
-    fun getTopLevelClassesFromSource(): List<ClassItem> {
+    override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
     }
 

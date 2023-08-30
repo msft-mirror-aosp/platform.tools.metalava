@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -162,6 +163,14 @@ class PsiSourceParser(
 
     private fun isJdkModular(homePath: File): Boolean {
         return File(homePath, "jmods").isDirectory
+    }
+
+    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+        val environment = loadUastFromJars(listOf(apiJar))
+        val codebase =
+            PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
+        codebase.initialize(environment, apiJar, preFiltered)
+        return codebase
     }
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */

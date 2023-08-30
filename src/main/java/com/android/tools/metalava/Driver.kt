@@ -34,12 +34,10 @@ import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.psi.gatherSources
@@ -715,19 +713,10 @@ fun loadFromJarFile(
     psiSourceParser: PsiSourceParser,
     apiJar: File,
     preFiltered: Boolean = false,
-    annotationManager: AnnotationManager = options.annotationManager,
 ): Codebase {
     progress("Processing jar file: ")
 
-    val environment = psiSourceParser.loadUastFromJars(listOf(apiJar))
-    val codebase =
-        PsiBasedCodebase(
-            apiJar,
-            "Codebase loaded from $apiJar",
-            annotationManager,
-            options.reporter
-        )
-    codebase.initialize(environment, apiJar, preFiltered)
+    val codebase = psiSourceParser.loadFromJar(apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
     val analyzer = ApiAnalyzer(psiSourceParser, codebase, options.reporter)

@@ -71,15 +71,10 @@ class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
             progress("Writing signature files $signatureFile for $apiJar")
 
             // Treat android.jar file as not filtered since they contain misc stuff that shouldn't
-            // be
-            // there: package private super classes etc.
-            val jarCodebase =
-                loadFromJarFile(
-                    PsiSourceParser(psiEnvironmentManager, options.reporter),
-                    apiJar,
-                    preFiltered = false,
-                    DefaultAnnotationManager()
-                )
+            // be there: package private super classes etc.
+            val sourceParser =
+                PsiSourceParser(psiEnvironmentManager, options.reporter, DefaultAnnotationManager())
+            val jarCodebase = loadFromJarFile(sourceParser, apiJar, preFiltered = false)
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
 
