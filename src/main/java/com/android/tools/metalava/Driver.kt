@@ -38,9 +38,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
@@ -922,7 +922,8 @@ private class DriverCommand(commonOptions: CommonOptions) :
         @Suppress("DEPRECATION")
         options = optionGroup
 
-        PsiEnvironmentManager(disableStderrDumping()).use(::processFlags)
+        val sourceModelProvider = SourceModelProvider.getImplementation("psi")
+        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use(::processFlags)
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
