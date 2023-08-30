@@ -26,8 +26,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
-import com.android.tools.metalava.model.psi.PsiSourceParser
+import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.io.ByteStreams
@@ -48,7 +47,7 @@ import org.objectweb.asm.tree.MethodNode
  */
 @Suppress("DEPRECATION")
 class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
-    fun convertJars(psiEnvironmentManager: PsiEnvironmentManager, root: File) {
+    fun convertJars(environmentManager: EnvironmentManager, root: File) {
         var api = 1
         while (true) {
             val apiJar =
@@ -73,7 +72,10 @@ class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
             // Treat android.jar file as not filtered since they contain misc stuff that shouldn't
             // be there: package private super classes etc.
             val sourceParser =
-                PsiSourceParser(psiEnvironmentManager, options.reporter, DefaultAnnotationManager())
+                environmentManager.createSourceParser(
+                    options.reporter,
+                    DefaultAnnotationManager(),
+                )
             val jarCodebase = loadFromJarFile(sourceParser, apiJar, preFiltered = false)
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()

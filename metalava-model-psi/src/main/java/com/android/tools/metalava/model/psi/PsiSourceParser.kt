@@ -25,6 +25,8 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Issues
@@ -39,11 +41,11 @@ import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
-val defaultJavaLanguageLevel = LanguageLevel.JDK_1_8
+val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
 
 // TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
 // LanguageVersionSettingsImpl.DEFAULT
-val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings("1.8")
+val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings(DEFAULT_KOTLIN_LANGUAGE_LEVEL)
 
 fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     val languageLevel =

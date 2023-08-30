@@ -39,8 +39,8 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
-import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
@@ -144,18 +144,17 @@ private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, 
     }
 }
 
-internal fun processFlags(psiEnvironmentManager: PsiEnvironmentManager) {
+internal fun processFlags(environmentManager: EnvironmentManager) {
     val stopwatch = Stopwatch.createStarted()
 
     processNonCodebaseFlags()
 
     val sourceParser =
-        PsiSourceParser(
-            psiEnvironmentManager,
+        environmentManager.createSourceParser(
             reporter = options.reporter,
             annotationManager = options.annotationManager,
-            javaLanguageLevel = options.javaLanguageLevel,
-            kotlinLanguageLevel = options.kotlinLanguageLevel,
+            javaLanguageLevel = options.javaLanguageLevelAsString,
+            kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             useK2Uast = options.useK2Uast,
             jdkHome = options.jdkHome,
         )
@@ -923,9 +922,7 @@ private class DriverCommand(commonOptions: CommonOptions) :
         @Suppress("DEPRECATION")
         options = optionGroup
 
-        PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
-            processFlags(psiEnvironmentManager)
-        }
+        PsiEnvironmentManager(disableStderrDumping()).use(::processFlags)
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
