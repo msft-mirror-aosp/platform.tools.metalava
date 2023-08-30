@@ -47,7 +47,7 @@ class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
      *
      * @throws IllegalStateException if this manager has been closed.
      */
-    fun createEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
+    internal fun createEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
         if (closed) {
             throw IllegalStateException("PsiEnvironmentManager is closed")
         }

@@ -63,7 +63,7 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
  * The codebases will use a project environment initialized according to the properties passed to
  * the constructor and the paths passed to [parseSources].
  */
-class PsiSourceParser(
+internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val reporter: Reporter,
     private val annotationManager: AnnotationManager = noOpAnnotationManager,

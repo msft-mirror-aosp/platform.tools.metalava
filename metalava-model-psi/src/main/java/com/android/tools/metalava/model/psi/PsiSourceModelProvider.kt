@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 
 // @AutoService(SourceModelProvider::class)
-class PsiSourceModelProvider : SourceModelProvider {
+internal class PsiSourceModelProvider : SourceModelProvider {
 
     override val providerName: String = "psi"
 
