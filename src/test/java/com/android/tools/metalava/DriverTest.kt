@@ -101,8 +101,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Suppress("SameParameterValue") vararg args: String,
         expectedFail: String = "",
     ): String {
-        resetTicker()
-
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
         // print calls littered in the code!

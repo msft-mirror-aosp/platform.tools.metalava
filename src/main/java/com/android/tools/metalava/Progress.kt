@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:Suppress("DEPRECATION")
 
 package com.android.tools.metalava
 
@@ -25,6 +24,7 @@ private var beginningOfLine = true
 private var firstProgress = true
 
 /** Print a progress message with a timestamp when --verbose is enabled. */
+@Suppress("DEPRECATION")
 fun progress(message: String) {
     if (!options.verbose) {
         return
@@ -98,25 +98,4 @@ private fun getMemoryStats(): String {
         mu.committed / 1024 / 1024,
         mu.max / 1024 / 1024
     )
-}
-
-/** Used for verbose output to show progress bar */
-private var tick = 0
-
-/** Needed for tests to ensure we don't get unpredictable behavior of "." in output */
-fun resetTicker() {
-    tick = 0
-}
-
-/** Print progress */
-fun tick() {
-    tick++
-    if (tick % 100 == 0) {
-        if (!options.verbose) {
-            return
-        }
-        beginningOfLine = false
-        options.stdout.print(".")
-        options.stdout.flush()
-    }
 }

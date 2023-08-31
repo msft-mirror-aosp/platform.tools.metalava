@@ -194,8 +194,6 @@ open class PsiBasedCodebase(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
-            reporter.showProgressTick() // show progress
-
             // Visiting psiFile directly would eagerly load the entire file even though we only need
             // the importList here.
             (psiFile as? PsiJavaFile)
@@ -293,7 +291,6 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses) {
-            reporter.showProgressTick() // show progress
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
