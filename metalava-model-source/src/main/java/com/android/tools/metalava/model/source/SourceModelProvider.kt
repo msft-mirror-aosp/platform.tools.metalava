@@ -30,8 +30,13 @@ interface SourceModelProvider {
      *
      * @param disableStderrDumping if false then the manager will output useful information to
      *   stderr, otherwise it will suppress the errors.
+     * @param forTesting if true then the manager is being used in tests and should behave
+     *   appropriately.
      */
-    fun createEnvironmentManager(disableStderrDumping: Boolean = false): EnvironmentManager
+    fun createEnvironmentManager(
+        disableStderrDumping: Boolean = false,
+        forTesting: Boolean = false,
+    ): EnvironmentManager
 
     companion object {
         /**

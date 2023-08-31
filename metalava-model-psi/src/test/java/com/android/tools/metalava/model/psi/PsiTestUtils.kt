@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.reporter.BasicReporter
-import com.intellij.openapi.util.Disposer
 import java.io.File
 import java.io.PrintWriter
 import kotlin.test.assertNotNull
@@ -43,7 +42,6 @@ internal fun testCodebaseInTempDirectory(
             )
         action(codebase)
     }
-    Disposer.assertIsEmpty(true)
 }
 
 private fun createTestCodebase(
@@ -52,8 +50,6 @@ private fun createTestCodebase(
     sources: List<TestFile>,
     classPath: List<File>,
 ): Codebase {
-    Disposer.setDebugMode(true)
-
     val reporter = BasicReporter(PrintWriter(System.err))
     return environmentManager
         .createSourceParser(reporter, noOpAnnotationManager)
