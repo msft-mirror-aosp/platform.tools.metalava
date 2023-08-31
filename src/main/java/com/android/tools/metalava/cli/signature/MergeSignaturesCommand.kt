@@ -84,6 +84,8 @@ class MergeSignaturesCommand :
                     filterReference = { true },
                     preFiltered = true,
                     fileFormat = signatureFormat.fileFormat,
+                    showUnannotated = false,
+                    packageFilter = null,
                 )
             }
         } catch (e: ApiParseException) {
