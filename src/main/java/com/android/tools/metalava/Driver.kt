@@ -753,12 +753,14 @@ fun loadFromJarFile(
     sourceParser: SourceParser,
     apiJar: File,
     preFiltered: Boolean = false,
+    allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
-    val apiEmit = ApiPredicate(ignoreShown = true)
-    val apiReference = ApiPredicate(ignoreShown = true)
+    val apiEmit =
+        ApiPredicate(ignoreShown = true, allowClassesFromClasspath = allowClassesFromClasspath)
+    val apiReference = apiEmit
     val analyzer = ApiAnalyzer(sourceParser, codebase, reporter)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
