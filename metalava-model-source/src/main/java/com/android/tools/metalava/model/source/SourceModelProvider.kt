@@ -40,20 +40,34 @@ interface SourceModelProvider {
 
     companion object {
         /**
+         * Get an implementation of this interface that matches the [filter].
+         *
+         * @param filter the filter that selects the required provider.
+         * @throws IllegalStateException if there is not exactly one provider that matches.
+         */
+        fun getImplementation(
+            filter: (SourceModelProvider) -> Boolean,
+            filterDescription: String
+        ): SourceModelProvider {
+            val unfiltered = ServiceLoader.load(SourceModelProvider::class.java).toList()
+            val sourceModelProviders = unfiltered.filter(filter).toList()
+            return sourceModelProviders.singleOrNull()
+                ?: throw IllegalStateException(
+                    "Expected exactly one SourceModelProvider $filterDescription but found $unfiltered of which $sourceModelProviders matched"
+                )
+        }
+
+        /**
          * Get an implementation of this interface that matches the [requiredProvider].
          *
          * @param requiredProvider the [SourceModelProvider.providerName] of the required provider.
          * @throws IllegalStateException if there is not exactly one provider that matches.
          */
         fun getImplementation(requiredProvider: String): SourceModelProvider {
-            val sourceModelProviders =
-                ServiceLoader.load(SourceModelProvider::class.java)
-                    .filter { it.providerName == requiredProvider }
-                    .toList()
-            return sourceModelProviders.singleOrNull()
-                ?: throw IllegalStateException(
-                    "Expected exactly one SourceModelProvider called $requiredProvider but found $sourceModelProviders"
-                )
+            return getImplementation(
+                { it.providerName == requiredProvider },
+                "called $requiredProvider"
+            )
         }
     }
 }
