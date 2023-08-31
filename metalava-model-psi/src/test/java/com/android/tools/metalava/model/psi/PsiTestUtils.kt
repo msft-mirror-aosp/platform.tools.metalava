@@ -30,18 +30,27 @@ fun testCodebase(
     action: (PsiBasedCodebase) -> Unit,
 ) {
     tempDirectory { tempDirectory ->
-        PsiEnvironmentManager().use { psiEnvironmentManager ->
-            val codebase =
-                createTestCodebase(
-                    psiEnvironmentManager,
-                    tempDirectory,
-                    sources.toList(),
-                    classPath,
-                )
-            action(codebase)
-        }
-        Disposer.assertIsEmpty(true)
+        testCodebaseInTempDirectory(tempDirectory, sources.toList(), classPath, action)
     }
+}
+
+internal fun testCodebaseInTempDirectory(
+    tempDirectory: File,
+    sources: List<TestFile>,
+    classPath: List<File>,
+    action: (PsiBasedCodebase) -> Unit
+) {
+    PsiEnvironmentManager().use { psiEnvironmentManager ->
+        val codebase =
+            createTestCodebase(
+                psiEnvironmentManager,
+                tempDirectory,
+                sources,
+                classPath,
+            )
+        action(codebase)
+    }
+    Disposer.assertIsEmpty(true)
 }
 
 private fun createTestCodebase(

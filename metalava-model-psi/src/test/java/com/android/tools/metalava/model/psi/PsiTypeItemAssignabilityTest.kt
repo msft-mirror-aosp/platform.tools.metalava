@@ -24,7 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class PsiTypeItemAssignabilityTest {
+class PsiTypeItemAssignabilityTest : BasePsiTest() {
     @get:Rule val tmpFolder = TemporaryFolder()
 
     @Test

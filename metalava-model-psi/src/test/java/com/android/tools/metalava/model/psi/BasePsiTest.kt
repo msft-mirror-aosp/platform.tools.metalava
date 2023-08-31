@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,21 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.testing.kotlin
-import kotlin.test.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertSame
+import com.android.tools.lint.checks.infrastructure.TestFile
+import java.io.File
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 
-class PsiFieldItemTest : BasePsiTest() {
-    @Test
-    fun `backing fields have properties`() {
-        testCodebase(kotlin("class Foo(val bar: Int)")) { codebase ->
-            val field = codebase.assertClass("Foo").fields().single()
+open class BasePsiTest {
 
-            assertNotNull(field.property)
-            assertSame(field, field.property?.backingField)
-        }
+    @get:Rule val temporaryFolder = TemporaryFolder()
+
+    fun testCodebase(
+        vararg sources: TestFile,
+        classPath: List<File> = emptyList(),
+        action: (PsiBasedCodebase) -> Unit,
+    ) {
+        val tempDirectory = temporaryFolder.newFolder()
+        testCodebaseInTempDirectory(tempDirectory, sources.toList(), classPath, action)
     }
 }
