@@ -16,41 +16,44 @@
 
 package com.android.tools.metalava
 
+import java.io.PrintWriter
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
-class ProgressTracker {
+class ProgressTracker(
+    private val verbose: Boolean = false,
+    private val stdout: PrintWriter = PrintWriter(System.out),
+) {
     private val progressTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
     private var beginningOfLine = true
     private var firstProgress = true
 
     /** Print a progress message with a timestamp when --verbose is enabled. */
-    @Suppress("DEPRECATION")
     fun progress(message: String) {
-        if (!options.verbose) {
+        if (!verbose) {
             return
         }
         if (!beginningOfLine) {
-            options.stdout.println()
+            stdout.println()
         }
         val now = LocalDateTime.now().format(progressTimeFormatter)
 
         if (!firstProgress) {
-            options.stdout.print(now)
-            options.stdout.print("   CPU: ")
-            options.stdout.println(getCpuStats())
+            stdout.print(now)
+            stdout.print("   CPU: ")
+            stdout.println(getCpuStats())
 
-            options.stdout.print(now)
-            options.stdout.print("   MEM: ")
-            options.stdout.println(getMemoryStats())
+            stdout.print(now)
+            stdout.print("   MEM: ")
+            stdout.println(getMemoryStats())
         }
         firstProgress = false
 
-        options.stdout.print(now)
-        options.stdout.print(" ")
-        options.stdout.print(message)
-        options.stdout.flush()
+        stdout.print(now)
+        stdout.print(" ")
+        stdout.print(message)
+        stdout.flush()
         beginningOfLine = message.endsWith('\n')
     }
 

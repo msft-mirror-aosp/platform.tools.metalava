@@ -210,7 +210,7 @@ class CommandTestConfig(private val test: BaseCommandTest) {
     }
 
     private fun runCommand(printOut: PrintWriter, printErr: PrintWriter) {
-        val progressTracker = ProgressTracker()
+        val progressTracker = ProgressTracker(stdout = printOut)
 
         val metalavaCommand =
             MetalavaCommand(

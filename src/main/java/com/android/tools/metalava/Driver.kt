@@ -91,7 +91,7 @@ fun run(
 ): Int {
     val modifiedArgs = preprocessArgv(originalArgs)
 
-    val progressTracker = ProgressTracker()
+    val progressTracker = ProgressTracker(options.verbose, options.stdout)
 
     progressTracker.progress("$PROGRAM_NAME started\n")
 
