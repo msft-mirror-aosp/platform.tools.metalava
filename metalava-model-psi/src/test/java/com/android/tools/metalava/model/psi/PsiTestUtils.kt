@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
@@ -31,12 +30,9 @@ inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> 
     tempDirectory { tempDirectory ->
         PsiEnvironmentManager().use { psiEnvironmentManager ->
             val codebase = createTestCodebase(psiEnvironmentManager, tempDirectory, *sources)
-            try {
-                action(codebase)
-            } finally {
-                destroyTestCodebase(codebase)
-            }
+            action(codebase)
         }
+        Disposer.assertIsEmpty(true)
     }
 }
 
@@ -58,13 +54,6 @@ fun createTestCodebase(
             sourcePath = listOf(directory),
             classPath = kotlinStdlibPaths + listOf(getAndroidJar()),
         )
-}
-
-fun destroyTestCodebase(codebase: PsiBasedCodebase) {
-    codebase.dispose()
-
-    UastEnvironment.disposeApplicationEnvironment()
-    Disposer.assertIsEmpty(true)
 }
 
 fun PsiBasedCodebase.assertClass(qualifiedName: String): PsiClassItem {
