@@ -63,8 +63,54 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
 import java.util.Optional
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
+
+/**
+ * A [ReadWriteProperty] that is used as the delegate for [options].
+ *
+ * It provides read/write methods and also a [disallowAccess] method which when called will cause
+ * any attempt to read the [options] property to fail. This allows code to ensure that any code
+ * which it calls does not access the deprecated [options] property.
+ */
+object OptionsDelegate : ReadWriteProperty<Nothing?, Options> {
+
+    /**
+     * The value of this delegate.
+     *
+     * Is `null` if [setValue] has not been called since the last call to [disallowAccess]. In that
+     * case any attempt to read the value of this delegate will fail.
+     */
+    private var possiblyNullOptions: Options? = Options()
+
+    /**
+     * The stack trace of the last caller to [disallowAccess] (if any) to make it easy to determine
+     * why a read of [options] failed.
+     */
+    private var disallowerStackTrace: Throwable? = null
+
+    /** Prevent all future reads of [options] until the [setValue] method is next called. */
+    fun disallowAccess() {
+        disallowerStackTrace = UnexpectedOptionsAccess("Global options property cleared")
+        possiblyNullOptions = null
+    }
+
+    override fun setValue(thisRef: Nothing?, property: KProperty<*>, value: Options) {
+        disallowerStackTrace = null
+        possiblyNullOptions = value
+    }
+
+    override fun getValue(thisRef: Nothing?, property: KProperty<*>): Options {
+        return possiblyNullOptions
+            ?: throw UnexpectedOptionsAccess("options is not set", disallowerStackTrace!!)
+    }
+}
+
+/** A private class to try and avoid it being caught and ignored. */
+private class UnexpectedOptionsAccess(message: String, cause: Throwable? = null) :
+    RuntimeException(message, cause)
 
 /**
  * Global options for the metadata extraction tool
@@ -81,7 +127,7 @@ import org.jetbrains.jps.model.java.impl.JavaSdkUtil
     eventually the global variable itself.
     """
 )
-var options = Options()
+var options by OptionsDelegate
 
 private const val INDENT_WIDTH = 45
 
