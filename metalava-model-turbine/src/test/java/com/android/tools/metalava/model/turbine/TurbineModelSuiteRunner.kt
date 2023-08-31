@@ -28,7 +28,9 @@ class TurbineModelSuiteRunner : ModelSuiteRunner {
         signature: String,
         source: TestFile,
         test: (Codebase) -> Unit
-    ) {}
+    ) {
+        TODO("Turbine does not support running tests yet")
+    }
 
     override fun toString(): String = "turbine"
 }
