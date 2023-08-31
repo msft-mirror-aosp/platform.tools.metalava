@@ -19,15 +19,23 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import java.io.File
 
 // @AutoService(ModelSuiteRunner.class)
 class PsiModelSuiteRunner : ModelSuiteRunner {
     override fun createCodebaseAndRun(
+        tempDir: File,
         signature: String,
         source: TestFile,
         test: (Codebase) -> Unit
     ) {
-        testCodebase(source) { codebase -> test(codebase) }
+        testCodebaseInTempDirectory(
+            tempDirectory = tempDir,
+            sources = listOf(source),
+            classPath = emptyList(),
+        ) { codebase ->
+            test(codebase)
+        }
     }
 
     override fun toString(): String = "psi"

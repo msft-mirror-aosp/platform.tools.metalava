@@ -18,21 +18,10 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.reporter.BasicReporter
-import com.android.tools.metalava.testing.tempDirectory
 import com.intellij.openapi.util.Disposer
 import java.io.File
 import java.io.PrintWriter
 import kotlin.test.assertNotNull
-
-fun testCodebase(
-    vararg sources: TestFile,
-    classPath: List<File> = emptyList(),
-    action: (PsiBasedCodebase) -> Unit,
-) {
-    tempDirectory { tempDirectory ->
-        testCodebaseInTempDirectory(tempDirectory, sources.toList(), classPath, action)
-    }
-}
 
 internal fun testCodebaseInTempDirectory(
     tempDirectory: File,

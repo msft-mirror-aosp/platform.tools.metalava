@@ -20,6 +20,8 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import java.util.ServiceLoader
 import kotlin.test.fail
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import org.junit.runners.Parameterized
 
 /**
@@ -35,6 +37,8 @@ import org.junit.runners.Parameterized
  * into the same project and run tests against them all at the same time.
  */
 abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
+
+    @get:Rule val temporaryFolder = TemporaryFolder()
 
     companion object {
         @JvmStatic
@@ -63,6 +67,7 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
         source: TestFile,
         test: (Codebase) -> Unit,
     ) {
-        runner.createCodebaseAndRun(signature, source, test)
+        val tempDir = temporaryFolder.newFolder()
+        runner.createCodebaseAndRun(tempDir, signature, source, test)
     }
 }
