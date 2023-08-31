@@ -278,8 +278,14 @@ class AddAdditionalOverridesTest : DriverTest() {
 
     @Test
     fun `Add nonessential overrides classes -- Does not emit override with identical signature`() {
-        check(
-            format = FileFormat.V2,
+
+        // This test demonstrates how `--add-nonessential-overrides-classes` flag can be used to
+        // inject additional overriding methods that would not be added with
+        // `--add-additional-overrides` flag. Class passed with the flag emits all visible
+        // overriding methods to the signature file, regardless of they are abstract or not. Note
+        // that `Activity.startActivityAsUser()` is not shown in the signature file even when class
+        // Activity is passed with the flag, as it is marked hide and thus not visible.
+        checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
                     java(
@@ -332,7 +338,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                     ),
                     systemApiSource
                 ),
-            api =
+            apiOriginal =
                 """
             // Signature format: 2.0
             package test.pkg {
@@ -352,10 +358,33 @@ class AddAdditionalOverridesTest : DriverTest() {
               }
             }
         """,
+            apiWithAdditionalOverrides =
+                """
+            // Signature format: 2.0
+            package test.pkg {
+              public class Activity extends test.pkg.ContextThemeWrapper {
+                ctor public Activity();
+                method public void startActivity(Intent);
+              }
+              public abstract class Context {
+                ctor public Context();
+                method public abstract void startActivity(Intent);
+              }
+              public class ContextThemeWrapper extends test.pkg.ContextWrapper {
+                ctor public ContextThemeWrapper();
+              }
+              public class ContextWrapper extends test.pkg.Context {
+                ctor public ContextWrapper();
+                method public void startActivity(Intent);
+              }
+            }
+        """,
             extraArguments =
                 arrayOf(
                     ARG_HIDE_PACKAGE,
                     "android.annotation",
+                    ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES,
+                    "test.pkg.Activity",
                 )
         )
     }

@@ -35,6 +35,14 @@ class ElidingPredicate(
         } catch (e: IllegalStateException) {
             false
         },
+
+    /** List of qualified names of classes where all visible overriding methods are not elided. */
+    private val additionalNonessentialOverridesClasses: Set<String> =
+        try {
+            @Suppress("DEPRECATION") options.additionalNonessentialOverridesClasses.toSet()
+        } catch (e: IllegalStateException) {
+            emptySet()
+        },
 ) : Predicate<Item> {
 
     // Returning true means we are keeping this item
@@ -56,7 +64,11 @@ class ElidingPredicate(
                 )
 
             val doNotElideForAdditionalOverridePurpose =
-                addAdditionalOverrides && method.isRequiredOverridingMethodForTextStub()
+                addAdditionalOverrides &&
+                    (method.isRequiredOverridingMethodForTextStub() ||
+                        (method.containingClass().qualifiedName() in
+                            additionalNonessentialOverridesClasses &&
+                            method.superMethods().all { !it.hidden || it.hasShowAnnotation() }))
 
             differentSuper == null || doNotElideForAdditionalOverridePurpose
         } else {

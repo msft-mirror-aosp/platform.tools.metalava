@@ -77,6 +77,17 @@ class ApiPredicate(
         } catch (e: IllegalStateException) {
             false
         },
+
+    /**
+     * List of qualified names of classes where all visible overriding methods are considered as
+     * APIs.
+     */
+    private val additionalNonessentialOverridesClasses: Set<String> =
+        try {
+            @Suppress("DEPRECATION") options.additionalNonessentialOverridesClasses.toSet()
+        } catch (e: IllegalStateException) {
+            emptySet()
+        },
 ) : Predicate<Item> {
 
     override fun test(member: Item): Boolean {
@@ -89,11 +100,16 @@ class ApiPredicate(
             return false
         }
 
+        val isVisible = { method: MethodItem -> !method.hidden || method.hasShowAnnotation() }
         val visibleForAdditionalOverridePurpose =
             if (addAdditionalOverrides) {
                 member is MethodItem &&
                     !member.isConstructor() &&
-                    member.isRequiredOverridingMethodForTextStub()
+                    (member.isRequiredOverridingMethodForTextStub() ||
+                        (member.containingClass().qualifiedName() in
+                            additionalNonessentialOverridesClasses &&
+                            isVisible(member) &&
+                            member.superMethods().all { isVisible(it) }))
             } else {
                 false
             }
