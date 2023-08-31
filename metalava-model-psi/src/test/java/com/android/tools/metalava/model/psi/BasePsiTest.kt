@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Codebase
 import java.io.File
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -28,7 +29,7 @@ open class BasePsiTest {
     fun testCodebase(
         vararg sources: TestFile,
         classPath: List<File> = emptyList(),
-        action: (PsiBasedCodebase) -> Unit,
+        action: (Codebase) -> Unit,
     ) {
         val tempDirectory = temporaryFolder.newFolder()
         testCodebaseInTempDirectory(tempDirectory, sources.toList(), classPath, action)

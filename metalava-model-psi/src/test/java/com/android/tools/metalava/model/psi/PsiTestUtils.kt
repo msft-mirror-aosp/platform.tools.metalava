@@ -17,6 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.reporter.BasicReporter
 import com.intellij.openapi.util.Disposer
 import java.io.File
@@ -27,12 +31,12 @@ internal fun testCodebaseInTempDirectory(
     tempDirectory: File,
     sources: List<TestFile>,
     classPath: List<File>,
-    action: (PsiBasedCodebase) -> Unit
+    action: (Codebase) -> Unit
 ) {
-    PsiEnvironmentManager().use { psiEnvironmentManager ->
+    PsiEnvironmentManager().use { environmentManager ->
         val codebase =
             createTestCodebase(
-                psiEnvironmentManager,
+                environmentManager,
                 tempDirectory,
                 sources,
                 classPath,
@@ -43,15 +47,16 @@ internal fun testCodebaseInTempDirectory(
 }
 
 private fun createTestCodebase(
-    psiEnvironmentManager: PsiEnvironmentManager,
+    environmentManager: EnvironmentManager,
     directory: File,
     sources: List<TestFile>,
     classPath: List<File>,
-): PsiBasedCodebase {
+): Codebase {
     Disposer.setDebugMode(true)
 
     val reporter = BasicReporter(PrintWriter(System.err))
-    return PsiSourceParser(psiEnvironmentManager, reporter)
+    return environmentManager
+        .createSourceParser(reporter, noOpAnnotationManager)
         .parseSources(
             sources = sources.map { it.createFile(directory) },
             description = "Test Codebase",
@@ -60,7 +65,7 @@ private fun createTestCodebase(
         )
 }
 
-fun PsiBasedCodebase.assertClass(qualifiedName: String): PsiClassItem {
+fun Codebase.assertClass(qualifiedName: String): ClassItem {
     val classItem = this.findClass(qualifiedName)
     assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
     return classItem
