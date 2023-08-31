@@ -29,9 +29,11 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Reporter
 import com.google.common.io.ByteStreams
 import java.io.File
 import java.io.IOException
+import java.io.PrintWriter
 import java.util.function.Predicate
 import java.util.zip.ZipFile
 import org.objectweb.asm.ClassReader
@@ -45,9 +47,11 @@ import org.objectweb.asm.tree.MethodNode
  * In an Android source tree, rewrite the signature files in prebuilts/sdk by reading what's
  * actually there in the android.jar files.
  */
-@Suppress("DEPRECATION")
 class ConvertJarsToSignatureFiles(
+    private val stderr: PrintWriter,
+    private val stdout: PrintWriter,
     private val progressTracker: ProgressTracker,
+    private val reporter: Reporter,
     private val fileFormat: FileFormat,
 ) {
     fun convertJars(environmentManager: EnvironmentManager, root: File) {
@@ -66,8 +70,6 @@ class ConvertJarsToSignatureFiles(
             val oldApiFile = File(root, "prebuilts/sdk/$api/public/api/android.txt")
             val newApiFile =
                 // Place new-style signature files in separate files?
-                // File(root, "prebuilts/sdk/$api/public/api/android.${if (options.compatOutput)
-                // "txt" else "v2.txt"}")
                 File(root, "prebuilts/sdk/$api/public/api/android.txt")
 
             progressTracker.progress("Writing signature files $signatureFile for $apiJar")
@@ -77,7 +79,7 @@ class ConvertJarsToSignatureFiles(
             val annotationManager = DefaultAnnotationManager()
             val sourceParser =
                 environmentManager.createSourceParser(
-                    options.reporter,
+                    reporter,
                     annotationManager,
                 )
             val jarCodebase =
@@ -207,7 +209,7 @@ class ConvertJarsToSignatureFiles(
                                         markDeprecated(codebase, bytes, path + ":" + entry.name)
                                     }
                                 } catch (e: Exception) {
-                                    options.stdout.println(
+                                    stdout.println(
                                         "Could not read jar file entry ${entry.name} from $file: $e"
                                     )
                                 }
@@ -215,7 +217,7 @@ class ConvertJarsToSignatureFiles(
                         }
                     }
                 } catch (e: IOException) {
-                    options.stdout.println("Could not read jar file contents from $file: $e")
+                    stdout.println("Could not read jar file contents from $file: $e")
                 }
             file.isDirectory -> {
                 val listFiles = file.listFiles()
@@ -225,7 +227,7 @@ class ConvertJarsToSignatureFiles(
                 val bytes = file.readBytes()
                 markDeprecated(codebase, bytes, file.path)
             }
-            else -> options.stdout.println("Ignoring entry $file")
+            else -> stdout.println("Ignoring entry $file")
         }
     }
 
@@ -238,7 +240,7 @@ class ConvertJarsToSignatureFiles(
             classNode = ClassNode()
             reader.accept(classNode, 0)
         } catch (t: Throwable) {
-            options.stderr.println("Error processing $path: broken class file?")
+            stderr.println("Error processing $path: broken class file?")
             return
         }
 
