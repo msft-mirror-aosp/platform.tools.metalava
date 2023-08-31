@@ -65,15 +65,13 @@ class AndroidJarsToSignaturesCommand :
     private val signatureFormat by SignatureFormatOptions()
 
     override fun run() {
+        // Make sure that none of the code called by this command accesses the global `options`
+        // property.
+        OptionsDelegate.disallowAccess()
+
         val sourceModelProvider = SourceModelProvider.getImplementation("psi")
         sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
             environmentManager ->
-
-            // Some code that this calls still accesses options, but it only needs the default
-            // values apart from `showUnannotated` which it requires to be `true`.
-            @Suppress("DEPRECATION")
-            options = Options().apply { showUnannotated = true }
-
             ConvertJarsToSignatureFiles(
                     stderr,
                     stdout,
