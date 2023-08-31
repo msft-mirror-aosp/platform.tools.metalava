@@ -17,8 +17,10 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import java.util.ServiceLoader
+import kotlin.test.assertNotNull
 import kotlin.test.fail
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
@@ -75,6 +77,13 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
     ) {
         val tempDir = temporaryFolder.newFolder()
         runner.createCodebaseAndRun(tempDir, signature, source, test)
+    }
+
+    /** Get the class from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertClass(qualifiedName: String): ClassItem {
+        val classItem = findClass(qualifiedName)
+        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
+        return classItem
     }
 }
 
