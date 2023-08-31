@@ -20,83 +20,91 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
-private val progressTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
-private var beginningOfLine = true
-private var firstProgress = true
+private val tracker = ProgressTracker()
 
-/** Print a progress message with a timestamp when --verbose is enabled. */
-@Suppress("DEPRECATION")
 fun progress(message: String) {
-    if (!options.verbose) {
-        return
-    }
-    if (!beginningOfLine) {
-        options.stdout.println()
-    }
-    val now = LocalDateTime.now().format(progressTimeFormatter)
-
-    if (!firstProgress) {
-        options.stdout.print(now)
-        options.stdout.print("   CPU: ")
-        options.stdout.println(getCpuStats())
-
-        options.stdout.print(now)
-        options.stdout.print("   MEM: ")
-        options.stdout.println(getMemoryStats())
-    }
-    firstProgress = false
-
-    options.stdout.print(now)
-    options.stdout.print(" ")
-    options.stdout.print(message)
-    options.stdout.flush()
-    beginningOfLine = message.endsWith('\n')
+    tracker.progress(message)
 }
 
-private var lastMillis: Long = -1L
-private var lastUserMillis: Long = -1L
-private var lastCpuMillis: Long = -1L
+class ProgressTracker {
+    private val progressTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+    private var beginningOfLine = true
+    private var firstProgress = true
 
-private fun getCpuStats(): String {
-    val nowMillis = System.currentTimeMillis()
-    val userMillis = threadMXBean.currentThreadUserTime / 1000_000
-    val cpuMillis = threadMXBean.currentThreadCpuTime / 1000_000
+    /** Print a progress message with a timestamp when --verbose is enabled. */
+    @Suppress("DEPRECATION")
+    fun progress(message: String) {
+        if (!options.verbose) {
+            return
+        }
+        if (!beginningOfLine) {
+            options.stdout.println()
+        }
+        val now = LocalDateTime.now().format(progressTimeFormatter)
 
-    if (lastMillis == -1L) {
+        if (!firstProgress) {
+            options.stdout.print(now)
+            options.stdout.print("   CPU: ")
+            options.stdout.println(getCpuStats())
+
+            options.stdout.print(now)
+            options.stdout.print("   MEM: ")
+            options.stdout.println(getMemoryStats())
+        }
+        firstProgress = false
+
+        options.stdout.print(now)
+        options.stdout.print(" ")
+        options.stdout.print(message)
+        options.stdout.flush()
+        beginningOfLine = message.endsWith('\n')
+    }
+
+    private var lastMillis: Long = -1L
+    private var lastUserMillis: Long = -1L
+    private var lastCpuMillis: Long = -1L
+
+    private fun getCpuStats(): String {
+        val nowMillis = System.currentTimeMillis()
+        val userMillis = threadMXBean.currentThreadUserTime / 1000_000
+        val cpuMillis = threadMXBean.currentThreadCpuTime / 1000_000
+
+        if (lastMillis == -1L) {
+            lastMillis = nowMillis
+        }
+        if (lastUserMillis == -1L) {
+            lastUserMillis = userMillis
+        }
+        if (lastCpuMillis == -1L) {
+            lastCpuMillis = cpuMillis
+        }
+
+        val realDeltaMs = nowMillis - lastMillis
+        val userDeltaMillis = userMillis - lastUserMillis
+        // Sometimes we'd get "-0.0" without the max.
+        val sysDeltaMillis = max(0, cpuMillis - lastCpuMillis - userDeltaMillis)
+
         lastMillis = nowMillis
-    }
-    if (lastUserMillis == -1L) {
         lastUserMillis = userMillis
-    }
-    if (lastCpuMillis == -1L) {
         lastCpuMillis = cpuMillis
+
+        return String.format(
+            "+%.1freal +%.1fusr +%.1fsys",
+            realDeltaMs / 1_000.0,
+            userDeltaMillis / 1_000.0,
+            sysDeltaMillis / 1_000.0
+        )
     }
 
-    val realDeltaMs = nowMillis - lastMillis
-    val userDeltaMillis = userMillis - lastUserMillis
-    // Sometimes we'd get "-0.0" without the max.
-    val sysDeltaMillis = max(0, cpuMillis - lastCpuMillis - userDeltaMillis)
+    private fun getMemoryStats(): String {
+        val mu = memoryMXBean.heapMemoryUsage
 
-    lastMillis = nowMillis
-    lastUserMillis = userMillis
-    lastCpuMillis = cpuMillis
-
-    return String.format(
-        "+%.1freal +%.1fusr +%.1fsys",
-        realDeltaMs / 1_000.0,
-        userDeltaMillis / 1_000.0,
-        sysDeltaMillis / 1_000.0
-    )
-}
-
-private fun getMemoryStats(): String {
-    val mu = memoryMXBean.heapMemoryUsage
-
-    return String.format(
-        "%dmi %dmu %dmc %dmx",
-        mu.init / 1024 / 1024,
-        mu.used / 1024 / 1024,
-        mu.committed / 1024 / 1024,
-        mu.max / 1024 / 1024
-    )
+        return String.format(
+            "%dmi %dmu %dmc %dmx",
+            mu.init / 1024 / 1024,
+            mu.used / 1024 / 1024,
+            mu.committed / 1024 / 1024,
+            mu.max / 1024 / 1024
+        )
+    }
 }
