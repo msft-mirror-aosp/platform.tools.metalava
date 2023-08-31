@@ -20,12 +20,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
-private val tracker = ProgressTracker()
-
-fun progress(message: String) {
-    tracker.progress(message)
-}
-
 class ProgressTracker {
     private val progressTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
     private var beginningOfLine = true

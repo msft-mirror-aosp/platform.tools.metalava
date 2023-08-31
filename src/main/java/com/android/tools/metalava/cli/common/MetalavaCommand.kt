@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.cli.clikt.allHelpParams
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -58,6 +59,7 @@ internal open class MetalavaCommand(
      * [excludeArgumentsWithNoHelp]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
+    private val progressTracker: ProgressTracker,
 
     /** Provider for additional non-Clikt usage information. */
     private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
@@ -264,7 +266,7 @@ internal open class MetalavaCommand(
      */
     override fun run() {
         // Make the CommonOptions available to all sub-commands.
-        currentContext.obj = SubCommandContext(common)
+        currentContext.obj = SubCommandContext(common, progressTracker)
 
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null) {
@@ -293,7 +295,10 @@ internal open class MetalavaCommand(
 }
 
 /** Encapsulates information that this command makes available to all the subcommands. */
-private data class SubCommandContext(val commonOptions: CommonOptions)
+private data class SubCommandContext(
+    val commonOptions: CommonOptions,
+    val progressTracker: ProgressTracker,
+)
 
 /** The [PrintWriter] to use for error output from the command. */
 val CliktCommand.stderr: PrintWriter
@@ -324,3 +329,7 @@ val CliktCommand.commonOptions
 val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
     get() = commonOptions.terminal
+
+val CliktCommand.progressTracker
+    // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
+    get() = subCommandContext.progressTracker
