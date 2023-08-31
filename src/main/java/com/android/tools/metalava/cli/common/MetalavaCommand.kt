@@ -264,7 +264,7 @@ internal open class MetalavaCommand(
      */
     override fun run() {
         // Make the CommonOptions available to all sub-commands.
-        currentContext.obj = common
+        currentContext.obj = SubCommandContext(common)
 
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null) {
@@ -292,6 +292,9 @@ internal open class MetalavaCommand(
     }
 }
 
+/** Encapsulates information that this command makes available to all the subcommands. */
+private data class SubCommandContext(val commonOptions: CommonOptions)
+
 /** The [PrintWriter] to use for error output from the command. */
 val CliktCommand.stderr: PrintWriter
     get() {
@@ -306,10 +309,18 @@ val CliktCommand.stdout: PrintWriter
         return metalavaConsole.stdout
     }
 
+/**
+ * Get the [SubCommandContext] made available by the containing MetalavaCommand.
+ *
+ * It will always be set.
+ */
+private val CliktCommand.subCommandContext
+    get() = currentContext.findObject<SubCommandContext>()!!
+
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
-    get() = currentContext.findObject<CommonOptions>()
+    get() = subCommandContext.commonOptions
 
 val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
-    get() = commonOptions?.terminal ?: plainTerminal
+    get() = commonOptions.terminal
