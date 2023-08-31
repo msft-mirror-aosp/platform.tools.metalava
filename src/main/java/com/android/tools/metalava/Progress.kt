@@ -18,8 +18,9 @@ package com.android.tools.metalava
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.max
 
-private val PROGRESS_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+private val progressTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 private var beginningOfLine = true
 private var firstProgress = true
 
@@ -32,7 +33,7 @@ fun progress(message: String) {
     if (!beginningOfLine) {
         options.stdout.println()
     }
-    val now = LocalDateTime.now().format(PROGRESS_TIME_FORMATTER)
+    val now = LocalDateTime.now().format(progressTimeFormatter)
 
     if (!firstProgress) {
         options.stdout.print(now)
@@ -58,8 +59,8 @@ private var lastCpuMillis: Long = -1L
 
 private fun getCpuStats(): String {
     val nowMillis = System.currentTimeMillis()
-    val userMillis = threadMXBean.getCurrentThreadUserTime() / 1000_000
-    val cpuMillis = threadMXBean.getCurrentThreadCpuTime() / 1000_000
+    val userMillis = threadMXBean.currentThreadUserTime / 1000_000
+    val cpuMillis = threadMXBean.currentThreadCpuTime / 1000_000
 
     if (lastMillis == -1L) {
         lastMillis = nowMillis
@@ -74,7 +75,7 @@ private fun getCpuStats(): String {
     val realDeltaMs = nowMillis - lastMillis
     val userDeltaMillis = userMillis - lastUserMillis
     // Sometimes we'd get "-0.0" without the max.
-    val sysDeltaMillis = Math.max(0, cpuMillis - lastCpuMillis - userDeltaMillis)
+    val sysDeltaMillis = max(0, cpuMillis - lastCpuMillis - userDeltaMillis)
 
     lastMillis = nowMillis
     lastUserMillis = userMillis
@@ -89,7 +90,7 @@ private fun getCpuStats(): String {
 }
 
 private fun getMemoryStats(): String {
-    val mu = memoryMXBean.getHeapMemoryUsage()
+    val mu = memoryMXBean.heapMemoryUsage
 
     return String.format(
         "%dmi %dmu %dmc %dmx",
