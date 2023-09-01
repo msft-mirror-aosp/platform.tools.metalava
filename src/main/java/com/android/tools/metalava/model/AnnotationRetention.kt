@@ -20,5 +20,17 @@ package com.android.tools.metalava.model
 enum class AnnotationRetention {
     SOURCE,
     CLASS,
-    RUNTIME
+    RUNTIME,
+    BINARY;
+
+    companion object {
+        fun getDefault(classItem: ClassItem): AnnotationRetention {
+            return getDefault(classItem.isKotlin())
+        }
+
+        fun getDefault(isKotlin: Boolean = false): AnnotationRetention {
+            // Each language's default retention policy is different
+            return if (isKotlin) RUNTIME else CLASS
+        }
+    }
 }
