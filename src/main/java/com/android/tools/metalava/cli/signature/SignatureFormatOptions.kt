@@ -105,7 +105,10 @@ private val versionToFileFormat =
         "recommended" to FileFormat.V2,
     )
 
-class SignatureFormatOptions :
+class SignatureFormatOptions(
+    /** If true then the `migrating` property is allowed, otherwise it is not allowed at all. */
+    private val migratingAllowed: Boolean = false,
+) :
     OptionGroup(
         name = SIGNATURE_FORMAT_OUTPUT_GROUP,
         help =
@@ -182,6 +185,7 @@ class SignatureFormatOptions :
                 versionToFileFormat[specifier]
                     ?: FileFormat.parseSpecifier(
                         specifier = specifier,
+                        migratingAllowed = migratingAllowed,
                         extraVersions = versionToFileFormat.keys,
                     )
             }

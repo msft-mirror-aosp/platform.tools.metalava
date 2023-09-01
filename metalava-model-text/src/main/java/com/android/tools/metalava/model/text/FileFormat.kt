@@ -31,8 +31,33 @@ data class FileFormat(
     val defaultsVersion: DefaultsVersion,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
+    /**
+     * If non-null then it indicates that the file format is being used to migrate a signature file
+     * to fix a bug that causes a change in the signature file contents but not a change in version.
+     * e.g. This would be used when migrating a 2.0 file format that currently uses source order for
+     * overloaded methods (using a command line parameter to override the default order of
+     * signature) to a 2.0 file that uses signature order.
+     *
+     * This should be used to provide an explanation as to what is being migrated and why. It should
+     * be relatively concise, e.g. something like:
+     * ```
+     * "See <short-url> for details"
+     * ```
+     *
+     * This value cannot use `,` (because it is a separator between properties in [specifier]) or
+     * `\n` (because it is the terminator of the signature format line).
+     */
+    val migrating: String? = null,
     val conciseDefaultValues: Boolean,
 ) {
+    init {
+        if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
+            throw IllegalStateException(
+                """invalid value for property 'migrating': '$migrating' contains at least one invalid character from the set {',', '\n'}"""
+            )
+        }
+    }
+
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
         get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
@@ -111,7 +136,10 @@ data class FileFormat(
     }
 
     fun header(): String {
-        return "$SIGNATURE_FORMAT_PREFIX${specifier()}\n"
+        // Only include the full specifier in the header when explicitly migrating. Otherwise, just
+        // include the version.
+        val specifier = if (migrating != null) specifier() else defaultsVersion.version
+        return "$SIGNATURE_FORMAT_PREFIX$specifier\n"
     }
 
     fun specifier(): String {
@@ -237,7 +265,7 @@ data class FileFormat(
             }
 
             val specifier = reader.readLine()
-            return parseSpecifier(specifier)
+            return parseSpecifier(specifier = specifier, migratingAllowed = true)
         }
 
         private const val VERSION_PROPERTIES_SEPARATOR = ":"
@@ -249,12 +277,15 @@ data class FileFormat(
          * properties and values and then returns a new copy of this with its values overridden by
          * the values from the properties string.
          *
+         * @param migratingAllowed indicates whether the `migrating` property is allowed in the
+         *   specifier.
          * @param extraVersions extra versions to add to the error message if a version is not
          *   recommended but otherwise ignored. This allows the caller to handle some additional
          *   versions first but still report a helpful message.
          */
         fun parseSpecifier(
             specifier: String,
+            migratingAllowed: Boolean,
             extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
@@ -285,7 +316,30 @@ data class FileFormat(
                 val overrideable = OverrideableProperty.getByName(name)
                 overrideable.setFromString(builder, value)
             }
-            return builder.build()
+            val format = builder.build()
+
+            // If after applying all the properties the format matches its version defaults then
+            // there is nothing else to do.
+            if (format == versionDefaults) {
+                return format
+            }
+
+            if (migratingAllowed) {
+                // At the moment if migrating is allowed and the version defaults have been
+                // overridden then `migrating` is mandatory as no existing version supports
+                // overriding properties except for migrating.
+                if (format.migrating == null) {
+                    throw ApiParseException(
+                        "invalid format specifier: '$specifier' - must provide a 'migrating' property when customizing version $version"
+                    )
+                }
+            } else if (format.migrating != null) {
+                throw ApiParseException(
+                    "invalid format specifier: '$specifier' - must not contain a 'migrating' property"
+                )
+            }
+
+            return format
         }
     }
 
@@ -293,12 +347,14 @@ data class FileFormat(
     private class Builder(private val base: FileFormat) {
         var conciseDefaultValues: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
+        var migrating: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
 
         fun build(): FileFormat =
             base.copy(
                 conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
+                migrating = migrating ?: base.migrating,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
             )
@@ -323,6 +379,13 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String =
                 yesNo(format.kotlinStyleNulls)
+        },
+        MIGRATING {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.migrating = value
+            }
+
+            override fun stringFromFormat(format: FileFormat): String = format.migrating ?: ""
         },
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER {

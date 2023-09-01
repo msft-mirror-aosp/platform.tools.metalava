@@ -54,7 +54,7 @@ class UpdateSignatureHeaderCommandTest : BaseCommandTest(::UpdateSignatureHeader
                 }
             }
 
-            this.expectedStderr = expectedStderr
+            this.expectedStderr = expectedStderr.trimIndent()
         }
     }
 
@@ -158,7 +158,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v2 + kotlin-style-nulls=true)`() {
+    fun `Update signature (v2 to v2 + kotlin-style-nulls=true but no migrating)`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -167,17 +167,17 @@ Arguments:
                     }
                 """,
             format = FileFormat.V2.copy(kotlinStyleNulls = true),
-            expectedOutput =
+            expectedStderr =
                 """
-                    // Signature format: 2.0:kotlin-style-nulls=yes
-                    package pkg {
-                    }
-                """
+                Aborting: Usage: metalava update-signature-header [options] <files>...
+
+                Error: Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes' - must provide a 'migrating' property when customizing version 2.0
+            """,
         )
     }
 
     @Test
-    fun `Update signature (v2 to v3 + kotlin-style-nulls=false)`() {
+    fun `Update signature (v2 to v2 + kotlin-style-nulls=true,migrating=test)`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -185,10 +185,29 @@ Arguments:
                     package pkg {
                     }
                 """,
-            format = FileFormat.V3.copy(kotlinStyleNulls = false),
+            format = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test"),
             expectedOutput =
                 """
-                    // Signature format: 3.0:kotlin-style-nulls=no
+                    // Signature format: 2.0:kotlin-style-nulls=yes,migrating=test
+                    package pkg {
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Update signature (v2 to v3 + kotlin-style-nulls=false,migrating=test)`() {
+        checkUpdateSignatures(
+            contents =
+                """
+                    // Signature format: 2.0
+                    package pkg {
+                    }
+                """,
+            format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
+            expectedOutput =
+                """
+                    // Signature format: 3.0:kotlin-style-nulls=no,migrating=test
                     package pkg {
                     }
                 """

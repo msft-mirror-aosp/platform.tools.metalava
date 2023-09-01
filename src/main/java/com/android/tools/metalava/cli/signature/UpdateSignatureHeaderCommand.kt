@@ -66,7 +66,7 @@ class UpdateSignatureHeaderCommand :
                 .trimIndent()
     ) {
 
-    private val formatOptions by SignatureFormatOptions()
+    private val formatOptions by SignatureFormatOptions(migratingAllowed = true)
 
     private val files by
         argument(
@@ -83,6 +83,7 @@ class UpdateSignatureHeaderCommand :
 
     override fun run() {
         val outputFormat = formatOptions.fileFormat
+
         files.forEach { updateHeader(outputFormat, it) }
     }
 

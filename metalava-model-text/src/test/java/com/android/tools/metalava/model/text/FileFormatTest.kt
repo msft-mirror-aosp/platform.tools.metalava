@@ -194,24 +194,36 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v3 + kotlin-style-nulls=no)`() {
+    fun `Check format parsing (v3 + kotlin-style-nulls=no but no migrating)`() {
         checkParseHeader(
             """
                 // Signature format: 3.0:kotlin-style-nulls=no
                 
             """,
-            expectedFormat = FileFormat.V3.copy(kotlinStyleNulls = false)
+            expectedError =
+                "api.txt:1: Signature format error - invalid format specifier: '3.0:kotlin-style-nulls=no' - must provide a 'migrating' property when customizing version 3.0",
         )
     }
 
     @Test
-    fun `Check format parsing (v2 + kotlin-style-nulls=yes)`() {
+    fun `Check format parsing (v3 + kotlin-style-nulls=no,migrating=test)`() {
         checkParseHeader(
             """
-                // Signature format: 2.0:kotlin-style-nulls=yes
+                // Signature format: 3.0:kotlin-style-nulls=no,migrating=test
                 
             """,
-            expectedFormat = FileFormat.V2.copy(kotlinStyleNulls = true)
+            expectedFormat = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test")
+        )
+    }
+
+    @Test
+    fun `Check format parsing (v2 + kotlin-style-nulls=yes,migrating=test)`() {
+        checkParseHeader(
+            """
+                // Signature format: 2.0:kotlin-style-nulls=yes,migrating=test
+
+            """,
+            expectedFormat = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test")
         )
     }
 
@@ -221,18 +233,43 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header (v2 + kotlin-style-nulls=yes)`() {
+    fun `Check header (v2 + kotlin-style-nulls=yes + migrating=test)`() {
         assertEquals(
-            "// Signature format: 2.0:kotlin-style-nulls=yes\n",
-            FileFormat.V2.copy(kotlinStyleNulls = true).header()
+            "// Signature format: 2.0:kotlin-style-nulls=yes,migrating=test\n",
+            FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test").header()
         )
     }
 
     @Test
     fun `Check header (v3 + kotlin-style-nulls=no)`() {
         assertEquals(
-            "// Signature format: 3.0:kotlin-style-nulls=no\n",
-            FileFormat.V3.copy(kotlinStyleNulls = false).header()
+            "// Signature format: 3.0:kotlin-style-nulls=no,migrating=test\n",
+            FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test").header()
+        )
+    }
+
+    @Test
+    fun `Check header (v2 + overloaded-method-order=source but no migrating)`() {
+
+        assertEquals(
+            // The full specifier is only output when migrating is specified.
+            "// Signature format: 2.0\n",
+            FileFormat.V2.copy(
+                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
+                )
+                .header()
+        )
+    }
+
+    @Test
+    fun `Check no ',' in migrating`() {
+        val e =
+            assertThrows(IllegalStateException::class.java) {
+                @Suppress("UnusedDataClassCopyResult") FileFormat.V2.copy(migrating = "a,b")
+            }
+        assertEquals(
+            """invalid value for property 'migrating': 'a,b' contains at least one invalid character from the set {',', '\n'}""",
+            e.message
         )
     }
 }
