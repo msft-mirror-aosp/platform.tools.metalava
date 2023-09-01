@@ -153,7 +153,7 @@ Arguments:
                 """,
             format = FileFormat.V3,
             expectedStderr =
-                "Could not update header for TESTROOT/api.txt: Unknown file format of TESTROOT/api.txt: invalid prefix, found 'Wrong file', expected '// Signature format: '",
+                "Could not update header for TESTROOT/api.txt: TESTROOT/api.txt:1: Signature format error - invalid prefix, found 'Wrong file', expected '// Signature format: '",
         )
     }
 

@@ -57,7 +57,7 @@ class FileFormatTest {
                 }
             """,
             expectedError =
-                "Unknown file format of api.txt: invalid prefix, found 'package test.pkg {', expected '// Signature format: '",
+                "api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '",
         )
     }
 
@@ -73,7 +73,7 @@ class FileFormatTest {
                 }
                 """,
             expectedError =
-                "Unknown file format of api.txt: invalid version, found '3.14', expected one of '2.0', '3.0', '4.0'",
+                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '3.0', '4.0'",
         )
     }
 
@@ -138,7 +138,7 @@ class FileFormatTest {
                 "  }\r\n" +
                 "}\r\n",
             expectedError =
-                "Unknown file format of api.txt: invalid prefix, found '// Signature for', expected '// Signature format: '",
+                "api.txt:1: Signature format error - invalid prefix, found '// Signature for', expected '// Signature format: '",
         )
     }
 
@@ -149,7 +149,7 @@ class FileFormatTest {
                 blah blah
             """,
             expectedError =
-                "Unknown file format of api.txt: invalid prefix, found 'blah blah', expected '// Signature format: '",
+                "api.txt:1: Signature format error - invalid prefix, found 'blah blah', expected '// Signature format: '",
         )
     }
 
@@ -178,7 +178,7 @@ class FileFormatTest {
                 blah blah
             """,
             expectedError =
-                "Unknown file format of api.txt: invalid prefix, found '', expected '// Signature format: '",
+                "api.txt:1: Signature format error - invalid prefix, found '', expected '// Signature format: '",
         )
     }
 
@@ -189,7 +189,7 @@ class FileFormatTest {
                 // Signature format: 3.0:blah blah
             """,
             expectedError =
-                "Unknown file format of api.txt: expected <property>=<value> but found 'blah blah'",
+                "api.txt:1: Signature format error - expected <property>=<value> but found 'blah blah'",
         )
     }
 

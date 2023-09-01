@@ -178,8 +178,12 @@ class SignatureFormatOptions :
                     """
                         .trimIndent(),
             )
-            .convert {
-                versionToFileFormat[it] ?: FileFormat.parseSpecifier(it, versionToFileFormat.keys)
+            .convert { specifier ->
+                versionToFileFormat[specifier]
+                    ?: FileFormat.parseSpecifier(
+                        specifier = specifier,
+                        extraVersions = versionToFileFormat.keys,
+                    )
             }
             .default(FileFormat.V2, defaultForHelp = "recommended")
 

@@ -170,7 +170,20 @@ data class FileFormat(
         fun parseHeader(filename: String, reader: Reader): FileFormat? {
             val lineNumberReader =
                 if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
-            return parseHeader(filename, lineNumberReader)
+
+            try {
+                return parseHeader(lineNumberReader)
+            } catch (cause: ApiParseException) {
+                // Wrap the exception and add contextual information to help user identify and fix
+                // the problem. This is done here instead of when throwing the exception as the
+                // original thrower does not have that context.
+                throw ApiParseException(
+                    "Signature format error - ${cause.message}",
+                    filename,
+                    lineNumberReader.lineNumber,
+                    cause,
+                )
+            }
         }
 
         /**
@@ -181,7 +194,7 @@ data class FileFormat(
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
-        private fun parseHeader(filename: String, reader: LineNumberReader): FileFormat? {
+        private fun parseHeader(reader: LineNumberReader): FileFormat? {
             // This reads the minimal amount to determine whether this is likely to be a
             // signature file.
             val prefixLength = SIGNATURE_FORMAT_PREFIX.length
@@ -215,17 +228,16 @@ data class FileFormat(
                 // a single line for error reporting. The LineNumberReader has translated non-unix
                 // newline characters into `\n` so this is safe.
                 val firstLine = prefix.substringBefore("\n")
+                // As the error is going to be reported for the first line, even though possibly
+                // multiple lines have been read set the line number to 1.
+                reader.lineNumber = 1
                 throw ApiParseException(
-                    "Unknown file format of $filename: invalid prefix, found '$firstLine', expected '$SIGNATURE_FORMAT_PREFIX'"
+                    "invalid prefix, found '$firstLine', expected '$SIGNATURE_FORMAT_PREFIX'"
                 )
             }
 
             val specifier = reader.readLine()
-            try {
-                return parseSpecifier(specifier)
-            } catch (e: ApiParseException) {
-                throw ApiParseException("Unknown file format of $filename: ${e.message}")
-            }
+            return parseSpecifier(specifier)
         }
 
         private const val VERSION_PROPERTIES_SEPARATOR = ":"
@@ -241,7 +253,10 @@ data class FileFormat(
          *   recommended but otherwise ignored. This allows the caller to handle some additional
          *   versions first but still report a helpful message.
          */
-        fun parseSpecifier(specifier: String, extraVersions: Set<String> = emptySet()): FileFormat {
+        fun parseSpecifier(
+            specifier: String,
+            extraVersions: Set<String> = emptySet(),
+        ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val version = specifierParts[0]
             val versionDefaults =
