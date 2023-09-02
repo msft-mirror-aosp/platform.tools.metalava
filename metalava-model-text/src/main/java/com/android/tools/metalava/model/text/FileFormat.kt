@@ -28,7 +28,7 @@ import java.util.Locale
  * on the command line.
  */
 data class FileFormat(
-    val defaultsVersion: DefaultsVersion,
+    val version: Version,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
     /**
@@ -63,8 +63,10 @@ data class FileFormat(
         get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
 
     /** The base version of the file format. */
-    enum class DefaultsVersion(
-        internal val version: String,
+    enum class Version(
+        /** The version number of this as a string, e.g. "3.0". */
+        internal val versionNumber: String,
+
         /**
          * Indicates whether the version supports properties.
          *
@@ -74,44 +76,49 @@ data class FileFormat(
          * line.
          */
         internal val supportsProperties: Boolean = false,
-        factory: (DefaultsVersion) -> FileFormat,
+
+        /**
+         * Factory used to create a [FileFormat] instance encapsulating the defaults of this
+         * version.
+         */
+        factory: (Version) -> FileFormat,
     ) {
         V2(
-            version = "2.0",
-            factory = { defaultsVersion ->
+            versionNumber = "2.0",
+            factory = { version ->
                 FileFormat(
-                    defaultsVersion = defaultsVersion,
+                    version = version,
                     kotlinStyleNulls = false,
                     conciseDefaultValues = false,
                 )
             }
         ),
         V3(
-            version = "3.0",
-            factory = { defaultsVersion ->
+            versionNumber = "3.0",
+            factory = { version ->
                 FileFormat(
-                    defaultsVersion = defaultsVersion,
+                    version = version,
                     kotlinStyleNulls = true,
                     conciseDefaultValues = false,
                 )
             }
         ),
         V4(
-            version = "4.0",
-            factory = { defaultsVersion ->
+            versionNumber = "4.0",
+            factory = { version ->
                 FileFormat(
-                    defaultsVersion = defaultsVersion,
+                    version = version,
                     kotlinStyleNulls = true,
                     conciseDefaultValues = true,
                 )
             }
         ),
         V5(
-            version = "5.0",
+            versionNumber = "5.0",
             supportsProperties = true,
-            factory = { defaultsVersion ->
+            factory = { version ->
                 FileFormat(
-                    defaultsVersion = defaultsVersion,
+                    version = version,
                     kotlinStyleNulls = true,
                     conciseDefaultValues = true,
                 )
@@ -121,8 +128,8 @@ data class FileFormat(
         /**
          * The defaults associated with this version.
          *
-         * It is initialized via a factory to break the cycles where the [DefaultsVersion]
-         * constructor depends on the [FileFormat] constructor and vice versa.
+         * It is initialized via a factory to break the cycle where the [Version] constructor
+         * depends on the [FileFormat] constructor and vice versa.
          */
         val defaults = factory(this)
     }
@@ -167,11 +174,11 @@ data class FileFormat(
      * line with one property per line, prefixed with [PROPERTY_LINE_PREFIX].
      */
     fun header(): String {
-        val supportsProperties = defaultsVersion.supportsProperties
+        val supportsProperties = version.supportsProperties
         // Only include the full specifier in the header when explicitly migrating and when the
         // format version does not support properties. Otherwise, just include the version.
         val specifier =
-            if (migrating != null && !supportsProperties) specifier() else defaultsVersion.version
+            if (migrating != null && !supportsProperties) specifier() else version.versionNumber
 
         // Only add properties when the version supports them.
         val properties = if (supportsProperties) properties() else ""
@@ -189,7 +196,7 @@ data class FileFormat(
      */
     fun specifier(): String {
         return buildString {
-            append(defaultsVersion.version)
+            append(version.versionNumber)
 
             var separator = VERSION_PROPERTIES_SEPARATOR
             iterateOverOverridingProperties { property, value ->
@@ -205,7 +212,7 @@ data class FileFormat(
     /**
      * Get the properties for this version.
      *
-     * This is only called when [DefaultsVersion.supportsProperties] is true.
+     * This is only called when [Version.supportsProperties] is true.
      *
      * This produces a possibly empty, multi-line string containing one `property=value` pair per
      * line, prefixed by [PROPERTY_LINE_PREFIX].
@@ -222,11 +229,10 @@ data class FileFormat(
 
     /**
      * Iterate over all the properties of this format which have different values to the values in
-     * this format's [DefaultsVersion.defaults], invoking the [consumer] with each property, value
-     * pair.
+     * this format's [Version.defaults], invoking the [consumer] with each property, value pair.
      */
     private fun iterateOverOverridingProperties(consumer: (String, String) -> Unit) {
-        val defaults = defaultsVersion.defaults
+        val defaults = version.defaults
         if (this@FileFormat != defaults) {
             OverrideableProperty.values().forEach { prop ->
                 val thisValue = prop.stringFromFormat(this@FileFormat)
@@ -239,21 +245,21 @@ data class FileFormat(
     }
 
     companion object {
-        private val allDefaults = DefaultsVersion.values().map { it.defaults }.toList()
+        private val allDefaults = Version.values().map { it.defaults }.toList()
 
-        private val versionToDefaults = allDefaults.associateBy { it.defaultsVersion.version }
+        private val versionByNumber = Version.values().associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
-        val V2 = DefaultsVersion.V2.defaults
+        val V2 = Version.V2.defaults
 
         // The defaults associated with version 3.0.
-        val V3 = DefaultsVersion.V3.defaults
+        val V3 = Version.V3.defaults
 
         // The defaults associated with version 4.0.
-        val V4 = DefaultsVersion.V4.defaults
+        val V4 = Version.V4.defaults
 
         // The defaults associated with version 5.0.
-        val V5 = DefaultsVersion.V5.defaults
+        val V5 = Version.V5.defaults
 
         // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
@@ -344,7 +350,7 @@ data class FileFormat(
             val specifier = reader.readLine()
             val format = parseSpecifier(specifier = specifier, migratingAllowed = true)
 
-            if (format.defaultsVersion.supportsProperties) {
+            if (format.version.supportsProperties) {
                 return parseProperties(reader, format)
             }
 
@@ -372,23 +378,24 @@ data class FileFormat(
             extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
-            val version = specifierParts[0]
-            val versionDefaults =
-                versionToDefaults[version]
+            val versionNumber = specifierParts[0]
+            val version =
+                versionByNumber[versionNumber]
                     ?: throw ApiParseException(
-                        "invalid version, found '$version', expected one of '${
-                            (versionToDefaults.keys + extraVersions).joinToString(
+                        "invalid version, found '$versionNumber', expected one of '${
+                            (versionByNumber.keys + extraVersions).joinToString(
                                 "', '"
                             )
                         }'"
                     )
+            val versionDefaults = version.defaults
             if (specifierParts.size == 1) {
                 return versionDefaults
             }
 
-            if (versionDefaults.defaultsVersion.supportsProperties) {
+            if (version.supportsProperties) {
                 throw ApiParseException(
-                    "invalid specifier, '$specifier' version $version does not support properties on the version line"
+                    "invalid specifier, '$specifier' version $versionNumber does not support properties on the version line"
                 )
             }
 
@@ -410,7 +417,7 @@ data class FileFormat(
                 // overriding properties except for migrating.
                 if (format.migrating == null) {
                     throw ApiParseException(
-                        "invalid format specifier: '$specifier' - must provide a 'migrating' property when customizing version $version"
+                        "invalid format specifier: '$specifier' - must provide a 'migrating' property when customizing version $versionNumber"
                     )
                 }
             } else if (format.migrating != null) {
