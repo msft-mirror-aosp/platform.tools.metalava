@@ -67,15 +67,8 @@ data class FileFormat(
         /** The version number of this as a string, e.g. "3.0". */
         internal val versionNumber: String,
 
-        /**
-         * Indicates whether the version supports properties.
-         *
-         * If this is `false` then the version only supports properties being temporarily specified
-         * in the version line to aid migration. If this is `true` then the version only supports
-         * properties being specified in the signature format header, with each property on its own
-         * line.
-         */
-        internal val supportsProperties: Boolean = false,
+        /** Indicates whether the version supports properties fully or just for migrating. */
+        internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
 
         /**
          * Factory used to create a [FileFormat] instance encapsulating the defaults of this
@@ -115,7 +108,7 @@ data class FileFormat(
         ),
         V5(
             versionNumber = "5.0",
-            supportsProperties = true,
+            propertySupport = PropertySupport.FULL,
             factory = { version ->
                 FileFormat(
                     version = version,
@@ -132,6 +125,20 @@ data class FileFormat(
          * depends on the [FileFormat] constructor and vice versa.
          */
         val defaults = factory(this)
+    }
+
+    internal enum class PropertySupport {
+        /**
+         * The version only supports properties being temporarily specified in the signature file to
+         * aid migration.
+         */
+        FOR_MIGRATING_ONLY,
+
+        /**
+         * The version supports properties fully, both for migration and permanent customization in
+         * the signature file.
+         */
+        FULL
     }
 
     enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
@@ -174,14 +181,15 @@ data class FileFormat(
      * line with one property per line, prefixed with [PROPERTY_LINE_PREFIX].
      */
     fun header(): String {
-        val supportsProperties = version.supportsProperties
+        val supportsPropertiesFully = version.propertySupport == PropertySupport.FULL
         // Only include the full specifier in the header when explicitly migrating and when the
         // format version does not support properties. Otherwise, just include the version.
         val specifier =
-            if (migrating != null && !supportsProperties) specifier() else version.versionNumber
+            if (migrating != null && !supportsPropertiesFully) specifier()
+            else version.versionNumber
 
-        // Only add properties when the version supports them.
-        val properties = if (supportsProperties) properties() else ""
+        // Only add properties when the version supports them fully.
+        val properties = if (supportsPropertiesFully) properties() else ""
 
         return "$SIGNATURE_FORMAT_PREFIX$specifier\n$properties"
     }
@@ -212,7 +220,7 @@ data class FileFormat(
     /**
      * Get the properties for this version.
      *
-     * This is only called when [Version.supportsProperties] is true.
+     * This is only called when [Version.propertySupport] is true.
      *
      * This produces a possibly empty, multi-line string containing one `property=value` pair per
      * line, prefixed by [PROPERTY_LINE_PREFIX].
@@ -350,7 +358,7 @@ data class FileFormat(
             val specifier = reader.readLine()
             val format = parseSpecifier(specifier = specifier, migratingAllowed = true)
 
-            if (format.version.supportsProperties) {
+            if (format.version.propertySupport == PropertySupport.FULL) {
                 return parseProperties(reader, format)
             }
 
@@ -393,7 +401,7 @@ data class FileFormat(
                 return versionDefaults
             }
 
-            if (version.supportsProperties) {
+            if (version.propertySupport == PropertySupport.FULL) {
                 throw ApiParseException(
                     "invalid specifier, '$specifier' version $versionNumber does not support properties on the version line"
                 )
