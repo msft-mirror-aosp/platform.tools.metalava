@@ -524,19 +524,11 @@ data class FileFormat(
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER {
             override fun setFromString(builder: Builder, value: String) {
-                builder.overloadedMethodOrder =
-                    when (value) {
-                        "source" -> OverloadedMethodOrder.SOURCE
-                        "signature" -> OverloadedMethodOrder.SIGNATURE
-                        else ->
-                            throw ApiParseException(
-                                "unexpected value for $propertyName, found '$value', expected one of 'source' or 'signature'"
-                            )
-                    }
+                builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
             }
 
             override fun stringFromFormat(format: FileFormat): String =
-                format.overloadedMethodOrder.name.lowercase(Locale.US)
+                format.overloadedMethodOrder.stringFromEnum()
         };
 
         /** The property name in the [parseSpecifier] input. */
@@ -554,16 +546,48 @@ data class FileFormat(
          */
         abstract fun stringFromFormat(format: FileFormat): String
 
+        /** Inline function to map from a string value to an enum value of the required type. */
+        inline fun <reified T : Enum<T>> enumFromString(value: String): T {
+            val enumValues = enumValues<T>()
+            return nonInlineEnumFromString(enumValues, value)
+        }
+
+        /**
+         * Non-inline portion of the function to map from a string value to an enum value of the
+         * required type.
+         */
+        fun <T : Enum<T>> nonInlineEnumFromString(enumValues: Array<T>, value: String): T {
+            return enumValues.firstOrNull { it.stringFromEnum() == value }
+                ?: let {
+                    val possibilities = enumValues.possibilitiesList { "'${it.stringFromEnum()}'" }
+                    throw ApiParseException(
+                        "unexpected value for $propertyName, found '$value', expected one of $possibilities"
+                    )
+                }
+        }
+
+        /**
+         * Extension function to convert an enum value to an external string.
+         *
+         * It simply returns the lowercase version of the enum name with `_` replaced with `-`.
+         */
+        fun <T : Enum<T>> T.stringFromEnum(): String {
+            return name.lowercase(Locale.US).replace("_", "-")
+        }
+
+        /**
+         * Intermediate enum used to map from string to [Boolean]
+         *
+         * The instances are not used directly but are used via [YesNo.values].
+         */
+        enum class YesNo(val b: Boolean) {
+            @Suppress("UNUSED") YES(true),
+            @Suppress("UNUSED") NO(false)
+        }
+
         /** Convert a "yes|no" string into a boolean. */
         fun yesNo(value: String): Boolean {
-            return when (value) {
-                "yes" -> true
-                "no" -> false
-                else ->
-                    throw ApiParseException(
-                        "unexpected value for $propertyName, found '$value', expected one of 'yes' or 'no'"
-                    )
-            }
+            return enumFromString<YesNo>(value).b
         }
 
         /** Convert a boolean into a `yes|no` string. */
@@ -579,4 +603,20 @@ data class FileFormat(
                     )
         }
     }
+}
+
+/**
+ * Given an array of items return a list of possibilities.
+ *
+ * The last pair of items are separated by " or ", the other pairs are separated by ", ".
+ */
+fun <T> Array<T>.possibilitiesList(transform: (T) -> String): String {
+    val allButLast = dropLast(1)
+    val last = last()
+    val options = buildString {
+        allButLast.joinTo(this, transform = transform)
+        append(" or ")
+        append(transform(last))
+    }
+    return options
 }
