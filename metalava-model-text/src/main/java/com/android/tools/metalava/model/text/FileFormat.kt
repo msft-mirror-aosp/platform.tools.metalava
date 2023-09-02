@@ -252,6 +252,36 @@ data class FileFormat(
         }
     }
 
+    /**
+     * Validate the format
+     *
+     * @param exceptionContext information to add to the start of the exception message that
+     *   provides context for the user.
+     * @param migratingAllowed true if the [migrating] option is allowed, false otherwise. If it is
+     *   allowed then it will also be required if [Version.propertySupport] is
+     *   [PropertySupport.FOR_MIGRATING_ONLY].
+     */
+    private fun validate(exceptionContext: String = "", migratingAllowed: Boolean) {
+        // If after applying all the properties the format matches its version defaults then
+        // there is nothing else to check.
+        if (this == version.defaults) {
+            return
+        }
+
+        if (migratingAllowed) {
+            // At the moment if migrating is allowed and the version defaults have been
+            // overridden then `migrating` is mandatory as no existing version supports
+            // overriding properties except for migrating.
+            if (migrating == null) {
+                throw ApiParseException(
+                    "${exceptionContext}must provide a 'migrating' property when customizing version ${version.versionNumber}"
+                )
+            }
+        } else if (migrating != null) {
+            throw ApiParseException("${exceptionContext}must not contain a 'migrating' property")
+        }
+    }
+
     companion object {
         private val allDefaults = Version.values().map { it.defaults }.toList()
 
@@ -405,26 +435,10 @@ data class FileFormat(
             properties.trim().split(",").forEach { parsePropertyAssignment(builder, it) }
             val format = builder.build()
 
-            // If after applying all the properties the format matches its version defaults then
-            // there is nothing else to do.
-            if (format == versionDefaults) {
-                return format
-            }
-
-            if (migratingAllowed) {
-                // At the moment if migrating is allowed and the version defaults have been
-                // overridden then `migrating` is mandatory as no existing version supports
-                // overriding properties except for migrating.
-                if (format.migrating == null) {
-                    throw ApiParseException(
-                        "invalid format specifier: '$specifier' - must provide a 'migrating' property when customizing version $versionNumber"
-                    )
-                }
-            } else if (format.migrating != null) {
-                throw ApiParseException(
-                    "invalid format specifier: '$specifier' - must not contain a 'migrating' property"
-                )
-            }
+            format.validate(
+                exceptionContext = "invalid format specifier: '$specifier' - ",
+                migratingAllowed = migratingAllowed,
+            )
 
             return format
         }
