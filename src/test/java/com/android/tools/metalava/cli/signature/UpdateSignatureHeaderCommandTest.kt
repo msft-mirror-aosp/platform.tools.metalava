@@ -189,7 +189,9 @@ Arguments:
             format = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test"),
             expectedOutput =
                 """
-                    // Signature format: 2.0:kotlin-style-nulls=yes,migrating=test
+                    // Signature format: 2.0
+                    // - kotlin-style-nulls=yes
+                    // - migrating=test
                     package pkg {
                     }
                 """
@@ -208,7 +210,9 @@ Arguments:
             format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
             expectedOutput =
                 """
-                    // Signature format: 3.0:kotlin-style-nulls=no,migrating=test
+                    // Signature format: 3.0
+                    // - kotlin-style-nulls=no
+                    // - migrating=test
                     package pkg {
                     }
                 """

@@ -183,25 +183,14 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v3 + corrupt properties)`() {
-        checkParseHeader(
-            """
-                // Signature format: 3.0:blah blah
-            """,
-            expectedError =
-                "api.txt:1: Signature format error - expected <property>=<value> but found 'blah blah'",
-        )
-    }
-
-    @Test
     fun `Check format parsing (v3 + kotlin-style-nulls=no but no migrating)`() {
         checkParseHeader(
             """
-                // Signature format: 3.0:kotlin-style-nulls=no
-                
+                // Signature format: 3.0
+                // - kotlin-style-nulls=no
             """,
             expectedError =
-                "api.txt:1: Signature format error - invalid format specifier: '3.0:kotlin-style-nulls=no' - must provide a 'migrating' property when customizing version 3.0",
+                "api.txt:2: Signature format error - must provide a 'migrating' property when customizing version 3.0",
         )
     }
 
@@ -209,7 +198,9 @@ class FileFormatTest {
     fun `Check format parsing (v3 + kotlin-style-nulls=no,migrating=test)`() {
         checkParseHeader(
             """
-                // Signature format: 3.0:kotlin-style-nulls=no,migrating=test
+                // Signature format: 3.0
+                // - kotlin-style-nulls=no
+                // - migrating=test
                 
             """,
             expectedFormat = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test")
@@ -220,8 +211,9 @@ class FileFormatTest {
     fun `Check format parsing (v2 + kotlin-style-nulls=yes,migrating=test)`() {
         checkParseHeader(
             """
-                // Signature format: 2.0:kotlin-style-nulls=yes,migrating=test
-
+                // Signature format: 2.0
+                // - kotlin-style-nulls=yes
+                // - migrating=test
             """,
             expectedFormat = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test")
         )
@@ -288,19 +280,6 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - mix of properties and specifier`() {
-        checkParseHeader(
-            """
-                // Signature format: 5.0:overloaded-method-order=source
-                // - kotlin-style-nulls=no
-                package fred {
-            """,
-            expectedError =
-                "api.txt:1: Signature format error - invalid specifier, '5.0:overloaded-method-order=source' version 5.0 does not support properties on the version line",
-        )
-    }
-
-    @Test
     fun `Check header (v2)`() {
         assertEquals("// Signature format: 2.0\n", FileFormat.V2.header())
     }
@@ -308,7 +287,13 @@ class FileFormatTest {
     @Test
     fun `Check header (v2 + kotlin-style-nulls=yes + migrating=test)`() {
         assertEquals(
-            "// Signature format: 2.0:kotlin-style-nulls=yes,migrating=test\n",
+            """
+                // Signature format: 2.0
+                // - kotlin-style-nulls=yes
+                // - migrating=test
+
+            """
+                .trimIndent(),
             FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test").header()
         )
     }
@@ -316,7 +301,13 @@ class FileFormatTest {
     @Test
     fun `Check header (v3 + kotlin-style-nulls=no)`() {
         assertEquals(
-            "// Signature format: 3.0:kotlin-style-nulls=no,migrating=test\n",
+            """
+                // Signature format: 3.0
+                // - kotlin-style-nulls=no
+                // - migrating=test
+
+            """
+                .trimIndent(),
             FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test").header()
         )
     }

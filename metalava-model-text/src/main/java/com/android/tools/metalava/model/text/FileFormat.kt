@@ -172,35 +172,33 @@ data class FileFormat(
     /**
      * Get the header for the signature file that corresponds to this format.
      *
-     * This always starts with the signature format prefix, and the version number.
-     *
-     * For versions < 5.0 this also includes some optional properties added on the same line as, and
-     * just after, the version number to aid with migrating signature files to fix bugs.
-     *
-     * For version >= 5.0 this also includes some optional properties specified after the version
-     * line with one property per line, prefixed with [PROPERTY_LINE_PREFIX].
+     * This always starts with the signature format prefix, and the version number, following by a
+     * newline and some option property assignments (e.g. `property=value`), one per line prefixed
+     * with [PROPERTY_LINE_PREFIX].
      */
     fun header(): String {
-        val supportsPropertiesFully = version.propertySupport == PropertySupport.FULL
-        // Only include the full specifier in the header when explicitly migrating and when the
-        // format version does not support properties. Otherwise, just include the version.
-        val specifier =
-            if (migrating != null && !supportsPropertiesFully) specifier()
-            else version.versionNumber
-
-        // Only add properties when the version supports them fully.
-        val properties = if (supportsPropertiesFully) properties() else ""
-
-        return "$SIGNATURE_FORMAT_PREFIX$specifier\n$properties"
+        return buildString {
+            append(SIGNATURE_FORMAT_PREFIX)
+            append(version.versionNumber)
+            append("\n")
+            // Only output properties if the version supports them fully or it is migrating.
+            if (version.propertySupport == PropertySupport.FULL || migrating != null) {
+                iterateOverOverridingProperties { property, value ->
+                    append(PROPERTY_LINE_PREFIX)
+                    append(property)
+                    append("=")
+                    append(value)
+                    append("\n")
+                }
+            }
+        }
     }
 
     /**
      * Get the specifier for this format.
      *
      * It starts with the version number followed by an optional `:` followed by at least one comma
-     * separate `property=value` pair. This can be used either on the command line for the
-     * `--format` option or, if version < 5.0 after the signature format prefix in the header of a
-     * signature file.
+     * separate `property=value` pair. This is used on the command line for the `--format` option.
      */
     fun specifier(): String {
         return buildString {
@@ -214,24 +212,6 @@ data class FileFormat(
                 append("=")
                 append(value)
             }
-        }
-    }
-
-    /**
-     * Get the properties for this version.
-     *
-     * This is only called when [Version.propertySupport] is true.
-     *
-     * This produces a possibly empty, multi-line string containing one `property=value` pair per
-     * line, prefixed by [PROPERTY_LINE_PREFIX].
-     */
-    private fun properties() = buildString {
-        iterateOverOverridingProperties { property, value ->
-            append(PROPERTY_LINE_PREFIX)
-            append(property)
-            append("=")
-            append(value)
-            append("\n")
         }
     }
 
@@ -385,41 +365,42 @@ data class FileFormat(
                 )
             }
 
-            val specifier = reader.readLine()
-            val format =
-                parseSpecifier(
-                    specifier = specifier,
-                    migratingAllowed = true,
-                    fromSignatureFile = true,
-                )
+            // Read the rest of the line after the SIGNATURE_FORMAT_PREFIX which should just be the
+            // version.
+            val versionNumber = reader.readLine()
+            val version = getVersionFromNumber(versionNumber)
 
-            if (format.version.propertySupport == PropertySupport.FULL) {
-                return parseProperties(reader, format)
-            }
-
+            val format = parseProperties(reader, version)
+            format.validate(migratingAllowed = true)
             return format
         }
 
         private const val VERSION_PROPERTIES_SEPARATOR = ":"
 
         /**
-         * Apply some optional additional properties from a string.
+         * Parse a format specifier string and create a corresponding [FileFormat].
          *
-         * This parses the string into property/value pairs, makes sure that they are valid
-         * properties and values and then returns a new copy of this with its values overridden by
-         * the values from the properties string.
+         * The [specifier] consists of a version, e.g. `4.0`, followed by an optional list of comma
+         * separate properties. If the properties are provided then they are separated from the
+         * version with a `:`. A property is expressed as a property assignment, e.g.
+         * `property=value`.
          *
+         * This extracts the version and then if no properties are provided returns its defaults. If
+         * properties are provided then each property is checked to make sure that it is a valid
+         * property with a valid value and then it is applied on top of the version defaults. The
+         * result of that is returned.
+         *
+         * @param specifier the specifier string that defines a [FileFormat].
          * @param migratingAllowed indicates whether the `migrating` property is allowed in the
          *   specifier.
          * @param extraVersions extra versions to add to the error message if a version is not
-         *   recommended but otherwise ignored. This allows the caller to handle some additional
+         *   supported but otherwise ignored. This allows the caller to handle some additional
          *   versions first but still report a helpful message.
          */
         fun parseSpecifier(
             specifier: String,
             migratingAllowed: Boolean,
-            fromSignatureFile: Boolean = false,
-            extraVersions: Set<String> = emptySet(),
+            extraVersions: Set<String>,
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
@@ -427,15 +408,6 @@ data class FileFormat(
             val versionDefaults = version.defaults
             if (specifierParts.size == 1) {
                 return versionDefaults
-            }
-
-            // If the version supports properties then the specifier on the version line of the
-            // signature file must not include properties, it must only contain a version on its
-            // own. However, that does not apply to a specifier provided on the command line.
-            if (fromSignatureFile && version.propertySupport == PropertySupport.FULL) {
-                throw ApiParseException(
-                    "invalid specifier, '$specifier' version $versionNumber does not support properties on the version line"
-                )
             }
 
             val properties = specifierParts[1]
@@ -495,10 +467,11 @@ data class FileFormat(
 
         /**
          * Parse property pairs, one per line, each of which must be prefixed with
-         * [PROPERTY_LINE_PREFIX], apply them to the supplied [format] and returning the result.
+         * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s [Version.defaults] and
+         * returning the result.
          */
-        private fun parseProperties(reader: LineNumberReader, format: FileFormat): FileFormat {
-            val builder = Builder(format)
+        private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
+            val builder = Builder(version.defaults)
             do {
                 reader.mark(1024)
                 val line = reader.readLine() ?: break
