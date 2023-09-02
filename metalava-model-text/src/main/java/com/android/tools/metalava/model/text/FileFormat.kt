@@ -387,15 +387,7 @@ data class FileFormat(
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
-            val version =
-                versionByNumber[versionNumber]
-                    ?: throw ApiParseException(
-                        "invalid version, found '$versionNumber', expected one of '${
-                            (versionByNumber.keys + extraVersions).joinToString(
-                                "', '"
-                            )
-                        }'"
-                    )
+            val version = getVersionFromNumber(versionNumber, extraVersions)
             val versionDefaults = version.defaults
             if (specifierParts.size == 1) {
                 return versionDefaults
@@ -436,6 +428,27 @@ data class FileFormat(
 
             return format
         }
+
+        /**
+         * Get the [Version] from the number.
+         *
+         * @param versionNumber the version number as a string.
+         * @param extraVersions extra versions to add to the error message if a version is not
+         *   supported but otherwise ignored. This allows the caller to handle some additional
+         *   versions first but still report a helpful message.
+         */
+        private fun getVersionFromNumber(
+            versionNumber: String,
+            extraVersions: Set<String> = emptySet(),
+        ): Version =
+            versionByNumber[versionNumber]
+                ?: let {
+                    val allVersions = versionByNumber.keys + extraVersions
+                    val possibilities = allVersions.joinToString { "'$it'" }
+                    throw ApiParseException(
+                        "invalid version, found '$versionNumber', expected one of $possibilities"
+                    )
+                }
 
         /**
          * Parse a property assignment of the form `property=value`, updating the appropriate
