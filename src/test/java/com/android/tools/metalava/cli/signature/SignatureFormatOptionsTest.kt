@@ -349,25 +349,27 @@ class SignatureFormatOptionsTest :
                 ) {}
             }
         assertEquals(
-            """Invalid value for "--format": invalid specifier, '5.0:kotlin-style-nulls=no,concise-default-values=no' version 5.0 does not support properties on the version line""",
+            """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no' - must provide a 'migrating' property when customizing version 5.0""",
             e.message
         )
     }
 
     @Test
     fun `--format specifier with v5, some properties, including 'migrating' when migratingAllowed=true`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest(
-                    "--format",
-                    "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
-                    optionGroup = SignatureFormatOptions(migratingAllowed = true),
-                ) {}
-            }
-        assertEquals(
-            """Invalid value for "--format": invalid specifier, '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' version 5.0 does not support properties on the version line""",
-            e.message
-        )
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
+            optionGroup = SignatureFormatOptions(migratingAllowed = true),
+        ) {
+            assertEquals(
+                FileFormat.V5.copy(
+                    kotlinStyleNulls = false,
+                    conciseDefaultValues = false,
+                    migrating = "See b/295577788",
+                ),
+                it.fileFormat
+            )
+        }
     }
 
     @Test
@@ -381,7 +383,7 @@ class SignatureFormatOptionsTest :
                 ) {}
             }
         assertEquals(
-            """Invalid value for "--format": invalid specifier, '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' version 5.0 does not support properties on the version line""",
+            """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
             e.message
         )
     }

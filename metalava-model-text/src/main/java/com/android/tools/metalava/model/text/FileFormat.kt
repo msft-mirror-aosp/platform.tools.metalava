@@ -386,7 +386,12 @@ data class FileFormat(
             }
 
             val specifier = reader.readLine()
-            val format = parseSpecifier(specifier = specifier, migratingAllowed = true)
+            val format =
+                parseSpecifier(
+                    specifier = specifier,
+                    migratingAllowed = true,
+                    fromSignatureFile = true,
+                )
 
             if (format.version.propertySupport == PropertySupport.FULL) {
                 return parseProperties(reader, format)
@@ -413,6 +418,7 @@ data class FileFormat(
         fun parseSpecifier(
             specifier: String,
             migratingAllowed: Boolean,
+            fromSignatureFile: Boolean = false,
             extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
@@ -423,7 +429,10 @@ data class FileFormat(
                 return versionDefaults
             }
 
-            if (version.propertySupport == PropertySupport.FULL) {
+            // If the version supports properties then the specifier on the version line of the
+            // signature file must not include properties, it must only contain a version on its
+            // own. However, that does not apply to a specifier provided on the command line.
+            if (fromSignatureFile && version.propertySupport == PropertySupport.FULL) {
                 throw ApiParseException(
                     "invalid specifier, '$specifier' version $versionNumber does not support properties on the version line"
                 )
