@@ -340,18 +340,19 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--format specifier with v5, some properties, excluding 'migrating' when migratingAllowed=true`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest(
-                    "--format",
-                    "5.0:kotlin-style-nulls=no,concise-default-values=no",
-                    optionGroup = SignatureFormatOptions(migratingAllowed = true),
-                ) {}
-            }
-        assertEquals(
-            """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no' - must provide a 'migrating' property when customizing version 5.0""",
-            e.message
-        )
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,concise-default-values=no",
+            optionGroup = SignatureFormatOptions(migratingAllowed = true),
+        ) {
+            assertEquals(
+                FileFormat.V5.copy(
+                    kotlinStyleNulls = false,
+                    conciseDefaultValues = false,
+                ),
+                it.fileFormat
+            )
+        }
     }
 
     @Test

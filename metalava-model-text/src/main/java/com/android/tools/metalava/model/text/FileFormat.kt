@@ -269,10 +269,10 @@ data class FileFormat(
         }
 
         if (migratingAllowed) {
-            // At the moment if migrating is allowed and the version defaults have been
-            // overridden then `migrating` is mandatory as no existing version supports
-            // overriding properties except for migrating.
-            if (migrating == null) {
+            // If the version does not support properties (except when migrating) and the
+            // version defaults have been overridden then the `migrating` property is mandatory
+            // when migrating is allowed.
+            if (version.propertySupport != PropertySupport.FULL && migrating == null) {
                 throw ApiParseException(
                     "${exceptionContext}must provide a 'migrating' property when customizing version ${version.versionNumber}"
                 )
