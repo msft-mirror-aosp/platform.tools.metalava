@@ -38,6 +38,14 @@ data class FileFormat(
      * that have a property getter to provide the default.
      */
     val formatDefaults: FileFormat? = null,
+
+    /**
+     * If non-null then it indicates the target language for signature files.
+     *
+     * Although kotlin and java can interoperate reasonably well an API created from Java files is
+     * generally targeted for use by Java code and vice versa.
+     */
+    val language: Language? = null,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
     /**
@@ -153,7 +161,21 @@ data class FileFormat(
          * It is initialized via a factory to break the cycle where the [Version] constructor
          * depends on the [FileFormat] constructor and vice versa.
          */
-        val defaults = factory(this)
+        internal val defaults = factory(this)
+
+        /**
+         * Get the version defaults plus any language defaults, if available.
+         *
+         * @param language the optional language whose defaults should be applied to the version
+         *   defaults.
+         */
+        internal fun defaultsIncludingLanguage(language: Language?): FileFormat {
+            language ?: return defaults
+            return Builder(defaults).let {
+                language.applyLanguageDefaults(it)
+                it.build()
+            }
+        }
     }
 
     internal enum class PropertySupport {
@@ -168,6 +190,29 @@ data class FileFormat(
          * the signature file.
          */
         FULL
+    }
+
+    /**
+     * The language which the signature targets. While a Java API can be used by Kotlin, and vice
+     * versa, each API typically targets a specific language and this specifies that.
+     *
+     * This is independent of the [Version].
+     */
+    enum class Language(
+        private val conciseDefaultValues: Boolean,
+        private val kotlinStyleNulls: Boolean,
+    ) {
+        JAVA(conciseDefaultValues = false, kotlinStyleNulls = false),
+        KOTLIN(conciseDefaultValues = true, kotlinStyleNulls = true);
+
+        internal fun applyLanguageDefaults(builder: Builder) {
+            if (builder.conciseDefaultValues == null) {
+                builder.conciseDefaultValues = conciseDefaultValues
+            }
+            if (builder.kotlinStyleNulls == null) {
+                builder.kotlinStyleNulls = kotlinStyleNulls
+            }
+        }
     }
 
     enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
@@ -226,10 +271,11 @@ data class FileFormat(
 
     /**
      * Iterate over all the properties of this format which have different values to the values in
-     * this format's [Version.defaults], invoking the [consumer] with each property, value pair.
+     * this format's [Version.defaultsIncludingLanguage], invoking the [consumer] with each
+     * property, value pair.
      */
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
-        val defaults = version.defaults
+        val defaults = version.defaultsIncludingLanguage(language)
         if (this@FileFormat != defaults) {
             CustomizableProperty.values().forEach { prop ->
                 // Get the string value of this property, if null then it was not specified so skip
@@ -484,8 +530,8 @@ data class FileFormat(
 
         /**
          * Parse property pairs, one per line, each of which must be prefixed with
-         * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s [Version.defaults] and
-         * returning the result.
+         * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s
+         * [Version.defaultsIncludingLanguage] and returning the result.
          */
         private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
             val builder = Builder(version.defaults)
@@ -541,27 +587,48 @@ data class FileFormat(
     }
 
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
-    private class Builder(private val base: FileFormat) {
+    internal class Builder(private val base: FileFormat) {
         var addAdditionalOverrides: Boolean? = null
         var conciseDefaultValues: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
+        var language: Language? = null
         var migrating: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
 
-        fun build(): FileFormat =
-            base.copy(
+        fun build(): FileFormat {
+            // Apply any language defaults first as they take priority over version defaults.
+            language?.applyLanguageDefaults(this)
+            return base.copy(
                 conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
+                language = language ?: base.language,
                 migrating = migrating ?: base.migrating,
                 specifiedAddAdditionalOverrides = addAdditionalOverrides
                         ?: base.specifiedAddAdditionalOverrides,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
             )
+        }
     }
 
     /** Information about the different customizable properties in [FileFormat]. */
     private enum class CustomizableProperty(val defaultable: Boolean = false) {
+        // The order of values in this is significant as it determines the order of the properties
+        // in signature headers. The values in this block are not in alphabetical order because it
+        // is important that they are at the start of the signature header.
+
+        /** language=[java|kotlin] */
+        LANGUAGE {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.language = enumFromString<Language>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.language?.stringFromEnum()
+        },
+
+        // The following values must be in alphabetical order.
+
         /** add-additional-overrides=[yes|no] */
         ADD_ADDITIONAL_OVERRIDES(defaultable = true) {
             override fun setFromString(builder: Builder, value: String) {
@@ -689,6 +756,7 @@ data class FileFormat(
                             byPropertyName
                                 .filter { (_, property) -> propertyFilter(property) }
                                 .keys
+                                .sorted()
                                 .joinToString("', '")
                         throw ApiParseException(
                             "unknown format property name `$name`, expected one of '$possibilities'"

@@ -433,6 +433,81 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check header and specifier (v5 + language=java)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=java
+
+            """,
+            specifier = "5.0:language=java",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.JAVA,
+                    conciseDefaultValues = false,
+                    kotlinStyleNulls = false,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlin-style-nulls=yes,language=java)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=java
+                // - kotlin-style-nulls=yes
+
+            """,
+            specifier = "5.0:language=java,kotlin-style-nulls=yes",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.JAVA,
+                    conciseDefaultValues = false,
+                    kotlinStyleNulls = true,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + language=kotlin)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=kotlin
+
+            """,
+            specifier = "5.0:language=kotlin",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.KOTLIN,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + concise-default-values=no,language=kotlin)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=kotlin
+                // - concise-default-values=no
+
+            """,
+            specifier = "5.0:language=kotlin,concise-default-values=no",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.KOTLIN,
+                    conciseDefaultValues = false,
+                ),
+        )
+    }
+
+    @Test
     fun `Check defaultable properties`() {
         assertEquals(
             listOf("add-additional-overrides", "overloaded-method-order"),
