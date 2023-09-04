@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.internal
 
+import com.android.tools.metalava.ARG_CLASS_PATH
+import com.android.tools.metalava.ARG_COPY_ANNOTATIONS
+import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File

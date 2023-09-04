@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.internal
 
 import com.android.SdkConstants
+import com.android.tools.metalava.ANDROID_NONNULL
+import com.android.tools.metalava.ANDROID_NULLABLE
+import com.android.tools.metalava.ANDROID_SDK_CONSTANT
+import com.android.tools.metalava.RECENTLY_NONNULL
+import com.android.tools.metalava.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.Codebase
 import java.io.File

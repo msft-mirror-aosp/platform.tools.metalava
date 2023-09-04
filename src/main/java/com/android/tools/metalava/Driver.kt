@@ -32,6 +32,7 @@ import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.help.HelpCommand
+import com.android.tools.metalava.cli.internal.RewriteAnnotations
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
