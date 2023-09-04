@@ -219,10 +219,28 @@ internal open class MetalavaCommand(
      * visible to callers of this command.
      */
     private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
-        return if (currentContext.command === this)
-            parameters +
-                defaultCommand.allHelpParams(currentContext).filter(::excludeArgumentsWithNoHelp)
-        else {
+        return if (currentContext.command === this) {
+            // If this is called because help was requested from the main command, i.e. using
+            // `metalava -h` then the default command will not have been parsed and so its context
+            // will not have been initialized properly and so the allHelpParams() method will fail.
+            // To prevent that this ensures that the default command is parsed first. It passes an
+            // invalid option so that the command is not actually run.
+            try {
+                defaultCommand.parse(arrayOf("--invalid-option"), currentContext)
+            } catch (e: UsageError) {
+                // The caught error is of type UsageError as the exact error that is thrown depends
+                // on how the command is configured. If the message contains mention of the invalid
+                // option then ignore the error as it is expected. Otherwise, rethrow as something
+                // else has happened.
+                if (e.message?.contains("--invalid-option") != true) {
+                    throw e
+                }
+            }
+
+            // Get the combined parameters from this command and the default command, excluding any
+            // that are not needed.
+            parameters + defaultCommand.allHelpParams().filter(::excludeArgumentsWithNoHelp)
+        } else {
             parameters
         }
     }
@@ -251,7 +269,7 @@ internal open class MetalavaCommand(
             e.message?.let { append(errorContext.localization.usageError(it)).append("\n\n") }
             e.context?.let {
                 val programName = it.commandNameWithParents().joinToString(" ")
-                val helpParams = it.command.allHelpParams(currentContext)
+                val helpParams = it.command.allHelpParams()
                 val commandHelp = it.helpFormatter.formatHelp("", "", helpParams, programName)
                 append(commandHelp)
             }

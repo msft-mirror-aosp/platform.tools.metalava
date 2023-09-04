@@ -26,6 +26,7 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.stderr
@@ -50,6 +51,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -940,6 +942,12 @@ private class DriverCommand(
     commonOptions: CommonOptions,
     private val progressTracker: ProgressTracker,
 ) : CliktCommand(treatUnknownOptionsAsArgs = true) {
+
+    init {
+        // Although, the `helpFormatter` is inherited from the parent context unless overridden the
+        // same is not true for the `localization` so make sure to initialize it for this command.
+        context { localization = MetalavaLocalization() }
+    }
 
     /**
      * Property into which all the arguments (and unknown options) are gathered.

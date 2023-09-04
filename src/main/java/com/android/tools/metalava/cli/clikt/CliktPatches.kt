@@ -17,19 +17,18 @@
 package com.android.tools.metalava.cli.clikt
 
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
 import com.github.ajalt.clikt.parameters.arguments.Argument
 
 /**
  * Get a list of all the parameter related help information for another command.
  *
- * @param context the [Context] to use to provide default metavar names when needed.
+ * Copies the private CliktCommand.allHelpParams method but does not support hidden commands.
  */
-fun CliktCommand.allHelpParams(context: Context): List<ParameterHelp> {
-    return registeredOptions().mapNotNull { it.parameterHelp(context) } +
-        registeredArguments().mapNotNull { it.parameterHelp(context) } +
-        registeredParameterGroups().mapNotNull { it.parameterHelp(context) } +
+fun CliktCommand.allHelpParams(): List<ParameterHelp> {
+    return registeredOptions().mapNotNull { it.parameterHelp(currentContext) } +
+        registeredArguments().mapNotNull { it.parameterHelp(currentContext) } +
+        registeredParameterGroups().mapNotNull { it.parameterHelp(currentContext) } +
         registeredSubcommands().map { it.parameterHelp() }
 }
 
