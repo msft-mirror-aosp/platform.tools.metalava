@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
@@ -24,7 +25,7 @@ class TextFieldItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
-    modifiers: TextModifiers,
+    modifiers: DefaultModifierList,
     private val type: TextTypeItem,
     private val constantValue: Any?,
     position: SourcePositionInfo
@@ -54,10 +55,16 @@ class TextFieldItem(
     override fun toString(): String = "field ${containingClass().fullName()}.${name()}"
 
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
-        val duplicated = TextFieldItem(
-            codebase, name(), targetContainingClass as TextClassItem,
-            modifiers.duplicate(), type, constantValue, position
-        )
+        val duplicated =
+            TextFieldItem(
+                codebase,
+                name(),
+                targetContainingClass as TextClassItem,
+                modifiers.duplicate(),
+                type,
+                constantValue,
+                position
+            )
         duplicated.inheritedFrom = containingClass()
         duplicated.inheritedField = inheritedField
 
@@ -79,7 +86,9 @@ class TextFieldItem(
     override var inheritedField: Boolean = false
 
     private var isEnumConstant = false
+
     override fun isEnumConstant(): Boolean = isEnumConstant
+
     fun setEnumConstant(isEnumConstant: Boolean) {
         this.isEnumConstant = isEnumConstant
     }
