@@ -23,6 +23,7 @@ plugins {
 
 dependencies {
     implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-source"))
     implementation(project(":metalava-testing"))
 
     // Needed for the update baseline command.
