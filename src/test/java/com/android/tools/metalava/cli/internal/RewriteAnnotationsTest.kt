@@ -16,33 +16,71 @@
 
 package com.android.tools.metalava.cli.internal
 
-import com.android.tools.metalava.ARG_CLASS_PATH
-import com.android.tools.metalava.ARG_COPY_ANNOTATIONS
-import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.cli.common.BaseCommandTest
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
-class RewriteAnnotationsTest : DriverTest() {
+class RewriteAnnotationsTest :
+    BaseCommandTest<MakeAnnotationsPackagePrivateCommand>(::MakeAnnotationsPackagePrivateCommand) {
+
+    @Test
+    fun `Test help`() {
+        commandTest {
+            args += "make-annotations-package-private"
+
+            expectedStdout =
+                """
+Aborting: Usage: metalava make-annotations-package-private <source-dir> <target-dir>
+
+  For a source directory full of annotation sources, generates corresponding package private versions of the same
+  annotations in the target directory.
+
+Arguments:
+  <source-dir>                               Source directory containing annotation sources.
+  <target-dir>                               Target directory into which the rewritten sources will be written
+            """
+                    .trimIndent()
+        }
+    }
+
+    private val stubAnnotationsDir = File("stub-annotations/src/main/java")
+
+    @Before
+    fun `Check assumptions`() {
+        // Make sure that this is being run in the main metalava directory as this directly
+        // accesses files within it.
+        assertTrue(stubAnnotationsDir.path, stubAnnotationsDir.isDirectory)
+    }
+
     @Test
     fun `Test copying private annotations from one of the stubs`() {
-        val source = File("stub-annotations")
-        assertTrue(source.path, source.isDirectory)
-        val target = temporaryFolder.newFolder()
-        runDriver(
-            ARG_NO_COLOR,
-            ARG_COPY_ANNOTATIONS,
-            source.path,
-            target.path,
-            ARG_CLASS_PATH,
-            getAndroidJar().path
-        )
+        commandTest {
+            val source = stubAnnotationsDir
+
+            args +=
+                listOf(
+                    "make-annotations-package-private",
+                    source.path,
+                )
+
+            val target = newFolder("private-annotations")
+            args += target.path
+
+            verify { verifyCommandWorked(target) }
+        }
+    }
+
+    /**
+     * This is a separate method to avoid having to reformat this as part of the same change as
+     * adding the new command.
+     */
+    private fun verifyCommandWorked(target: File) {
+
         // Source retention explicitly listed: Shouldn't exist
         val nullable = File(target, "android/annotation/SdkConstant.java")
         assertFalse("${nullable.path} exists", nullable.isFile)
@@ -96,11 +134,6 @@ class RewriteAnnotationsTest : DriverTest() {
 
     @Test
     fun `Test stub-annotations containing unknown annotation`() {
-        val source = temporaryFolder.newFolder()
-        File("stub-annotations").copyRecursively(source)
-        assertTrue(source.path, source.isDirectory)
-        val target = temporaryFolder.newFolder()
-
         val fooSource =
             """
             package android.annotation;
@@ -119,16 +152,24 @@ class RewriteAnnotationsTest : DriverTest() {
             public @interface Foo {}
             """
 
-        File(source, "src/main/java/android/annotation/Unknown.java").writeText(fooSource)
-        assertThrows(IllegalStateException::class.java) {
-            runDriver(
-                ARG_NO_COLOR,
-                ARG_COPY_ANNOTATIONS,
-                source.path,
-                target.path,
-                ARG_CLASS_PATH,
-                getAndroidJar().path
-            )
+        commandTest {
+            // Copy the stub-annotations sources and add a new file.
+            val source = newFolder("annotations-copy")
+            stubAnnotationsDir.copyRecursively(source)
+            assertTrue(source.path, source.isDirectory)
+            inputFile("android/annotation/Unknown.java", fooSource, source)
+
+            args +=
+                listOf(
+                    "make-annotations-package-private",
+                    source.path,
+                )
+
+            val target = newFolder("private-annotations")
+            args += target.path
+
+            expectedStderr =
+                "Aborting: TESTROOT/annotations-copy/android/annotation/Unknown.java: Found annotation with unknown desired retention: android.annotation.Unknown"
         }
     }
 }

@@ -225,9 +225,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---copy-annotations <source> <dest>
-                                             For a source folder full of annotation sources, generates corresponding
-                                             package private versions of the same annotations.
 --include-source-retention
                                              If true, include source-retention annotations in the stub files. Does not
                                              apply to signature files. Source retention annotations are extracted into

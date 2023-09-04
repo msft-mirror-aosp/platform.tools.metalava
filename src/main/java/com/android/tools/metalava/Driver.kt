@@ -32,7 +32,7 @@ import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.help.HelpCommand
-import com.android.tools.metalava.cli.internal.RewriteAnnotations
+import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -157,8 +157,6 @@ internal fun processFlags(
     progressTracker: ProgressTracker
 ) {
     val stopwatch = Stopwatch.createStarted()
-
-    processNonCodebaseFlags()
 
     val sourceParser =
         environmentManager.createSourceParser(
@@ -580,21 +578,6 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
     )
 }
 
-fun processNonCodebaseFlags() {
-    // --copy-annotations?
-    val privateAnnotationsSource = options.privateAnnotationsSource
-    val privateAnnotationsTarget = options.privateAnnotationsTarget
-    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
-        val rewrite = RewriteAnnotations()
-        // Support pointing to both stub-annotations and stub-annotations/src/main/java
-        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
-        val source = if (src.isDirectory) src else privateAnnotationsSource
-        source.listFiles()?.forEach { file ->
-            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
-        }
-    }
-}
-
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 fun checkCompatibility(
     progressTracker: ProgressTracker,
@@ -927,6 +910,7 @@ private fun createMetalavaCommand(
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
+        MakeAnnotationsPackagePrivateCommand(),
         MergeSignaturesCommand(),
         SignatureToJDiffCommand(),
         UpdateSignatureHeaderCommand(),

@@ -187,7 +187,6 @@ const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
-const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
@@ -511,12 +510,6 @@ class Options(
      * flag.
      */
     var externalAnnotations: File? = null
-
-    /** For [ARG_COPY_ANNOTATIONS], the source directory to read stub annotations from */
-    var privateAnnotationsSource: File? = null
-
-    /** For [ARG_COPY_ANNOTATIONS], the target directory to write converted stub annotations from */
-    var privateAnnotationsTarget: File? = null
 
     /** A [Manifest] object to look up available permissions and min_sdk_version. */
     val manifest by
@@ -941,10 +934,6 @@ class Options(
                 ARG_INPUT_API_JAR -> apiJar = stringToExistingFile(getValue(args, ++index))
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
-                ARG_COPY_ANNOTATIONS -> {
-                    privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
-                    privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
-                }
                 ARG_MIGRATE_NULLNESS -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
                 }
@@ -1656,9 +1645,6 @@ class Options(
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
-                "$ARG_COPY_ANNOTATIONS <source> <dest>",
-                "For a source folder full of annotation " +
-                    "sources, generates corresponding package private versions of the same annotations.",
                 ARG_INCLUDE_SOURCE_RETENTION,
                 "If true, include source-retention annotations in the stub files. Does " +
                     "not apply to signature files. Source retention annotations are extracted into the external " +
