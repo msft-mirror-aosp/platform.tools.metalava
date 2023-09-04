@@ -22,7 +22,8 @@ import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class UpdateSignatureHeaderCommandTest : BaseCommandTest(::UpdateSignatureHeaderCommand) {
+class UpdateSignatureHeaderCommandTest :
+    BaseCommandTest<UpdateSignatureHeaderCommand>(::UpdateSignatureHeaderCommand) {
 
     private fun checkUpdateSignatures(
         contents: String,
