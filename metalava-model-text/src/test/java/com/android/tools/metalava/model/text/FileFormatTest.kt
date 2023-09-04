@@ -508,6 +508,48 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check surface with valid and invalid values`() {
+        fun checkValidSurface(surface: String) {
+            headerAndSpecifierTest(
+                header =
+                    """
+                // Signature format: 5.0
+                // - surface=$surface
+
+            """,
+                specifier = "5.0:surface=$surface",
+                format =
+                    FileFormat.V5.copy(
+                        surface = surface,
+                    ),
+            )
+        }
+
+        fun checkInvalidSurface(surface: String) {
+            val e =
+                assertThrows(IllegalStateException::class.java) {
+                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(surface = surface)
+                }
+
+            assertEquals(
+                """invalid value for property 'surface': '$surface' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number""",
+                e.message
+            )
+        }
+
+        checkValidSurface("a")
+        checkValidSurface("a1")
+        checkValidSurface("a--1")
+        checkValidSurface("large-surface")
+
+        checkInvalidSurface("")
+        checkInvalidSurface("1")
+        checkInvalidSurface("-")
+        checkInvalidSurface("a-")
+        checkInvalidSurface("aBa")
+    }
+
+    @Test
     fun `Check defaultable properties`() {
         assertEquals(
             listOf("add-additional-overrides", "overloaded-method-order"),

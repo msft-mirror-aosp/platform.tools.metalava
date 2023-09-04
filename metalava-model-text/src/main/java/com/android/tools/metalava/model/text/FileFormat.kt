@@ -40,6 +40,18 @@ data class FileFormat(
     val formatDefaults: FileFormat? = null,
 
     /**
+     * If non-null then it specifies the name of the API surface.
+     *
+     * It must start with a lower case letter, contain any number of lower case letters, numbers and
+     * hyphens, and end with either a lowercase letter or number.
+     *
+     * Its purpose is to provide information to metalava and to a lesser extent the owner of the
+     * file about which API surface the file contains. The exact meaning of the API surface name is
+     * determined by the owner, metalava simply uses this as an identifier for comparison.
+     */
+    val surface: String? = null,
+
+    /**
      * If non-null then it indicates the target language for signature files.
      *
      * Although kotlin and java can interoperate reasonably well an API created from Java files is
@@ -72,6 +84,14 @@ data class FileFormat(
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
             throw IllegalStateException(
                 """invalid value for property 'migrating': '$migrating' contains at least one invalid character from the set {',', '\n'}"""
+            )
+        }
+
+        if (
+            surface != null && "[a-z]([a-z0-9-]*[a-z0-9])?".toRegex().matchEntire(surface) == null
+        ) {
+            throw IllegalStateException(
+                """invalid value for property 'surface': '$surface' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number"""
             )
         }
     }
@@ -594,6 +614,7 @@ data class FileFormat(
         var language: Language? = null
         var migrating: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
+        var surface: String? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
@@ -607,6 +628,7 @@ data class FileFormat(
                         ?: base.specifiedAddAdditionalOverrides,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
+                surface = surface ?: base.surface,
             )
         }
     }
@@ -616,6 +638,14 @@ data class FileFormat(
         // The order of values in this is significant as it determines the order of the properties
         // in signature headers. The values in this block are not in alphabetical order because it
         // is important that they are at the start of the signature header.
+
+        SURFACE {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.surface = value
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? = format.surface
+        },
 
         /** language=[java|kotlin] */
         LANGUAGE {
