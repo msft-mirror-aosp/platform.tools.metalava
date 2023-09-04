@@ -15,16 +15,13 @@
  */
 
 plugins {
-    `application`
     `java-library`
-    `java-test-fixtures`
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
-    implementation(project(":metalava-testing"))
+    implementation(project(":metalava-model-testsuite"))
 
     // Needed for the update baseline command.
     implementation(libs.clikt)
@@ -34,5 +31,3 @@ dependencies {
     implementation(libs.truth)
     implementation(libs.kotlinTest)
 }
-
-application { mainClass = "com.android.tools.metalava.Gibber" }
