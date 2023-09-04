@@ -18,30 +18,24 @@ package com.android.tools.metalava.cli.clikt
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
-import com.github.ajalt.clikt.parameters.arguments.Argument
+import kotlin.reflect.full.declaredMemberFunctions
+import kotlin.reflect.jvm.isAccessible
 
 /**
  * Get a list of all the parameter related help information for another command.
  *
- * Copies the private CliktCommand.allHelpParams method but does not support hidden commands.
+ * Uses reflection to access the private CliktCommand.allHelpParams method.
  */
 fun CliktCommand.allHelpParams(): List<ParameterHelp> {
-    return registeredOptions().mapNotNull { it.parameterHelp(currentContext) } +
-        registeredArguments().mapNotNull { it.parameterHelp(currentContext) } +
-        registeredParameterGroups().mapNotNull { it.parameterHelp(currentContext) } +
-        registeredSubcommands().map { it.parameterHelp() }
-}
+    // Call the private CliktCommand.allHelpParams method.
+    val allHelp =
+        CliktCommand::class
+            .declaredMemberFunctions
+            .first { it.name == "allHelpParams" }
+            .apply { isAccessible = true }
+            .call(this)
 
-/**
- * Add a method to get a [ParameterHelp] instance from a [CliktCommand].
- *
- * Other classes that contribute to the help provide `parameterHelp` methods that return an instance
- * of the appropriate sub-class of [ParameterHelp], e.g. [Argument.parameterHelp].
- */
-fun CliktCommand.parameterHelp(): ParameterHelp {
-    return ParameterHelp.Subcommand(commandName, shortHelp(), helpTags)
+    // The cast is `safe` as the method being called does return that type. If that changes, e.g.
+    // after upgrading to a later version then this will be updated.
+    @Suppress("UNCHECKED_CAST") return allHelp as List<ParameterHelp>
 }
-
-/** The help displayed in the commands list when this command is used as a subcommand. */
-fun CliktCommand.shortHelp(): String =
-    Regex("""\s*(?:```)?\s*(.+)""").find(commandHelp)?.groups?.get(1)?.value ?: ""
