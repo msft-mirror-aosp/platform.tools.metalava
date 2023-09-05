@@ -28,13 +28,14 @@ class DexApiWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>
-) : ApiVisitor(
-    visitConstructorsAsMethods = true,
-    nestInnerClasses = false,
-    inlineInheritedFields = true,
-    filterEmit = filterEmit,
-    filterReference = filterReference
-) {
+) :
+    ApiVisitor(
+        visitConstructorsAsMethods = true,
+        nestInnerClasses = false,
+        inlineInheritedFields = true,
+        filterEmit = filterEmit,
+        filterReference = filterReference
+    ) {
     override fun visitClass(cls: ClassItem) {
         if (filterEmit.test(cls)) {
             writer.print(cls.toType().internalName())
@@ -59,7 +60,7 @@ class DexApiWriter(
             writer.print("V")
         } else {
             val returnType = method.returnType()
-            writer.print(returnType?.internalName(method) ?: "V")
+            writer.print(returnType.internalName(method))
         }
         writer.print("\n")
     }

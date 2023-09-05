@@ -17,24 +17,23 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 
 /**
- * Performs null migration analysis, looking at previous API signature
- * files and new signature files, and replacing new @Nullable and @NonNull
- * annotations with @RecentlyNullable and @RecentlyNonNull.
+ * Performs null migration analysis, looking at previous API signature files and new signature
+ * files, and replacing new @Nullable and @NonNull annotations with @RecentlyNullable
+ * and @RecentlyNonNull.
  *
- * TODO: Enforce compatibility across type use annotations, e.g.
- * changing parameter value from
- *    {@code @NonNull List<@Nullable String>}
- * to
- *    {@code @NonNull List<@NonNull String>}
- * is forbidden.
+ * TODO: Enforce compatibility across type use annotations, e.g. changing parameter value from
+ *   {@code @NonNull List<@Nullable String>} to {@code @NonNull List<@NonNull String>} is forbidden.
  */
 class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     override fun compare(old: Item, new: Item) {
@@ -50,8 +49,8 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     override fun compare(old: MethodItem, new: MethodItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-            val newType = new.returnType() ?: return
-            val oldType = old.returnType() ?: return
+            val newType = new.returnType()
+            val oldType = old.returnType()
             checkType(oldType, newType)
         }
     }
@@ -87,8 +86,9 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     private fun checkType(old: TypeItem, new: TypeItem) {
         if (hasNullnessInformation(new)) {
             assert(SUPPORT_TYPE_USE_ANNOTATIONS)
-            if (old.toTypeString(outerAnnotations = false, innerAnnotations = true) !=
-                new.toTypeString(outerAnnotations = false, innerAnnotations = true)
+            if (
+                old.toTypeString(outerAnnotations = false, innerAnnotations = true) !=
+                    new.toTypeString(outerAnnotations = false, innerAnnotations = true)
             ) {
                 new.markRecent()
             }
@@ -96,20 +96,39 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
     }
 
     companion object {
+        fun migrateNulls(codebase: Codebase, previous: Codebase) {
+            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+        }
+
         fun hasNullnessInformation(item: Item): Boolean {
             return isNullable(item) || isNonNull(item)
         }
 
         fun findNullnessAnnotation(item: Item): AnnotationItem? {
-            return item.modifiers.annotations().firstOrNull { it.isNullnessAnnotation() }
+            return item.modifiers.findAnnotation(AnnotationItem::isNullnessAnnotation)
         }
 
         fun isNullable(item: Item): Boolean {
-            return item.modifiers.annotations().any { it.isNullable() }
+            return item.modifiers.hasAnnotation(AnnotationItem::isNullable)
         }
 
         private fun isNonNull(item: Item): Boolean {
-            return item.modifiers.annotations().any { it.isNonNull() }
+            return item.modifiers.hasAnnotation(AnnotationItem::isNonNull)
         }
     }
+}
+
+/**
+ * Marks the nullability of this Item as Recent. That is, replaces @Nullable/@NonNull
+ * with @RecentlyNullable/@RecentlyNonNull
+ */
+fun Item.markRecent() {
+    val annotation = NullnessMigration.findNullnessAnnotation(this) ?: return
+    // Nullness information change: Add migration annotation
+    val annotationClass = if (annotation.isNullable()) RECENTLY_NULLABLE else RECENTLY_NONNULL
+
+    val modifiers = mutableModifiers()
+    modifiers.removeAnnotation(annotation)
+
+    modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this))
 }
