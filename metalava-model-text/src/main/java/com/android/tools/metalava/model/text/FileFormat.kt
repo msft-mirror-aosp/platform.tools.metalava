@@ -89,31 +89,31 @@ data class FileFormat(
         V3(
             versionNumber = "3.0",
             factory = { version ->
-                FileFormat(
+                V2.defaults.copy(
                     version = version,
+                    // This adds kotlinStyleNulls = true
                     kotlinStyleNulls = true,
-                    conciseDefaultValues = false,
                 )
             }
         ),
         V4(
             versionNumber = "4.0",
             factory = { version ->
-                FileFormat(
+                V3.defaults.copy(
                     version = version,
-                    kotlinStyleNulls = true,
+                    // This adds conciseDefaultValues = true
                     conciseDefaultValues = true,
                 )
             }
         ),
         V5(
             versionNumber = "5.0",
+            // This adds full property support.
             propertySupport = PropertySupport.FULL,
             factory = { version ->
-                FileFormat(
+                V4.defaults.copy(
                     version = version,
-                    kotlinStyleNulls = true,
-                    conciseDefaultValues = true,
+                    // This does not add any property defaults, just full property support.
                 )
             }
         );
