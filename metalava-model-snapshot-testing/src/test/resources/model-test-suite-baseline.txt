@@ -1,0 +1,419 @@
+com.android.tools.metalava.model.testsuite.CommonModelTest
+  Test iterate and resolve unknown interface classes
+  Test iterate and resolve unknown super classes
+  empty file
+  test findCorrespondingItemIn check all, no super methods
+  test findCorrespondingItemIn does duplicate super methods
+  test findCorrespondingItemIn does find super methods
+  test findCorrespondingItemIn does not find super methods
+
+com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
+  modifiers public
+  modifiers public explicitly final method in final class
+  modifiers public explicitly final method in final class - normalized
+  modifiers public final method in open class
+  modifiers public implicitly final method in final class
+
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation array values with single array element
+  annotation array values with single element
+  annotation toSource() for array values with single array element
+  annotation toSource() for array values with single element
+  annotation toSource() with annotation values
+  annotation toSource() with boolean values
+  annotation toSource() with char values
+  annotation toSource() with class values
+  annotation toSource() with compound expression values
+  annotation toSource() with constant literal values
+  annotation toSource() with enum values
+  annotation toSource() with number values
+  annotation toSource() with string values
+  annotation with annotation values
+  annotation with boolean values
+  annotation with char values
+  annotation with class values
+  annotation with constant literal values
+  annotation with enum values
+  annotation with infinity values
+  annotation with negative number values
+  annotation with number values
+  annotation with string values
+  annotation with type cast values
+
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Check TypeParameterItem is not a ClassItem
+  Check pathological type parameter conflicting with primitive type
+  Find method with type parameterized by two types
+  Test access type parameter of outer class in extends type
+  Test access type parameter of outer class in interface type
+  Test access type parameter of outer class in type parameters
+  Test basic mapTypeVariables
+  Test class Object has no super class type
+  Test class no super class but implements lists
+  Test class no super class or implements lists
+  Test class super class and implements lists
+  Test class super class generic type
+  Test class super class no implements lists
+  Test class super interface generic type
+  Test deprecated class by annotation
+  Test implicit nullability and annotations of ClassItem type()
+  Test interface extends list
+  Test interface no extends list
+  Test mapTypeVariables with concrete classes
+  Test mapTypeVariables with diamond interface
+  Test mapTypeVariables with interfaces
+  Test mapTypeVariables with multiple layers of super classes
+  Test not deprecated class
+  Test toType for outer class with type parameter
+  empty class
+
+com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
+  Test enum synthetic methods are not included in the enum class
+
+com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
+  test findClass()[java.io.File]
+  test findClass()[java.lang.Comparable]
+  test findClass()[java.lang.Enum]
+  test findClass()[java.lang.Object]
+  test findClass()[java.lang.Throwable]
+  test findClass()[java.lang.annotation.Annotation]
+  test findClass()[test.pkg.Foo]
+  test findClass()[test.pkg.SecondInFile]
+  test findClass()[test.pkg.Unknown]
+
+com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
+  Test access type parameter of outer class
+
+com.android.tools.metalava.model.testsuite.fielditem.CommonCopyFieldItemTest
+  test copy deprecated field from one class to another keeps field as deprecated
+  test copy field from interface to class does copy static modifier
+  test copy field from interface to class uses public visibility
+  test copy non deprecated field from deprecated class to non deprecated class treats field as not deprecated
+  test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated
+
+com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
+  Test access type parameter of outer class
+  Test handling of Float MIN_NORMAL
+  Test implicit nullability of enum constant
+  Test implicit nullability of static final String
+  Test nullability of field annotated with @NonNull or kotlin equivalent
+  Test nullability of field annotated with @not-type-use-NonNull
+  Test nullability of field annotated with @not-type-use-Nullable
+  Test nullability of non-null field annotated with @Nullable or kotlin equivalent
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonCopyMethodItemTest
+  test copy deprecated method from one class to another keeps method as deprecated[DUPLICATE]
+  test copy method from interface to class does copy static modifier[DUPLICATE]
+  test copy method from interface to class does not copy default modifier[DUPLICATE]
+  test copy method from interface to class uses public visibility[DUPLICATE]
+  test copy non deprecated method from deprecated class to non deprecated class treats method as deprecated[DUPLICATE]
+  test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated[DUPLICATE]
+  test copy non-final method from non-final class to final class does not change final[DUPLICATE]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
+  MethodItem superMethods() on simple method
+  MethodItem type
+  Test access type parameter of outer class
+  Test equality of methods with type parameters
+  Test throws method type parameter does not extend Throwable
+  Test throws method type parameter extends Throwable
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test deprecated parameter by annotation
+  Test not deprecated parameter
+  Test nullability of Kotlin varargs last
+  Test nullability of non-Kotlin varargs
+  Test nullability of parameter annotated with @not-type-use-NonNull
+  Test nullability of parameter annotated with @not-type-use-Nullable
+  Test publicName reports correct name when not specified
+  Test publicName reports correct name when specified
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonSuperMethodsTest
+  Test multiple super methods from parent and grand parent interfaces
+  Test multiple super methods from parent interfaces
+  Test multiple super methods from parent interfaces (reverse)
+  Test no super method
+  Test no super method from parent class as static
+  Test single super method from grand parent class
+  Test single super method from grand parent interface
+  Test single super method from parent and grand parent class
+  Test single super method from parent and grand parent interface
+  Test single super method from parent class
+  Test single super method from parent interface
+  Test super method with generic array parameter from generic class
+  Test super method with generic collection parameter from generic class
+  Test super method with generic parameter from generic class
+
+com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
+  Test access type parameter of outer class
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonErasedTypeStringTest
+  Erased type string[String]
+  Erased type string[T extends Number array]
+  Erased type string[T extends Number varargs]
+  Erased type string[T extends Number]
+  Erased type string[T]
+  Erased type string[boolean]
+  Erased type string[byte]
+  Erased type string[char array]
+  Erased type string[char]
+  Erased type string[double]
+  Erased type string[extends Comparable]
+  Erased type string[extends Object and Comparable]
+  Erased type string[float]
+  Erased type string[generic array]
+  Erased type string[generic varargs]
+  Erased type string[int array]
+  Erased type string[int varargs]
+  Erased type string[int]
+  Erased type string[java.util.List<? extends Number>]
+  Erased type string[long]
+  Erased type string[primitives]
+  Erased type string[short]
+  Erased type string[string array]
+  Erased type string[string varargs]
+  Find method[String]
+  Find method[T extends Number array]
+  Find method[T extends Number varargs]
+  Find method[T extends Number]
+  Find method[T]
+  Find method[boolean]
+  Find method[byte]
+  Find method[char array]
+  Find method[char]
+  Find method[double]
+  Find method[extends Comparable]
+  Find method[extends Object and Comparable]
+  Find method[float]
+  Find method[generic array]
+  Find method[generic varargs]
+  Find method[int array]
+  Find method[int varargs]
+  Find method[int]
+  Find method[java.util.List<? extends Number>]
+  Find method[long]
+  Find method[primitives]
+  Find method[short]
+  Find method[string array]
+  Find method[string varargs]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
+  test[boolean]
+  test[byte]
+  test[char]
+  test[double]
+  test[float]
+  test[int...]
+  test[int[][]]
+  test[int[]]
+  test[int]
+  test[java.lang.Number...]
+  test[java.lang.Number[]]
+  test[java.lang.Number]
+  test[java.util.List<java.lang.Number>[]]
+  test[java.util.List<java.lang.Number>]
+  test[java.util.Map.Entry<java.lang.String,java.lang.Number>]
+  test[long]
+  test[pkg.UnknownClass.Inner]
+  test[pkg.UnknownClass]
+  test[short]
+  test[void]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
+  Test assignability without unboxing[boxedInt to number]
+  Test assignability without unboxing[boxedInt to primitiveInt]
+  Test assignability without unboxing[listOfInt to listOfInt]
+  Test assignability without unboxing[listOfInt to listOfNumber]
+  Test assignability without unboxing[listOfNumber to listOfInt]
+  Test assignability without unboxing[mapOfIntToString to mapOfNumberToString]
+  Test assignability without unboxing[mapOfNumberToString to mapOfIntToString]
+  Test assignability without unboxing[mapOfNumberToString to mapOfNumberToString]
+  Test assignability without unboxing[number to boxedInt]
+  Test assignability without unboxing[number to primitiveInt]
+  Test assignability without unboxing[obj to string]
+  Test assignability without unboxing[primitiveInt to boxedInt]
+  Test assignability without unboxing[primitiveInt to number]
+  Test assignability without unboxing[string to obj]
+  Test assignability without unboxing[string to string]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemTest
+  Test asClass[Comparable<Integer>[]]
+  Test asClass[Comparable<String>]
+  Test asClass[String[]...]
+  Test asClass[T extends Comparable]
+  Test asClass[T[]]
+  Test asClass[T]
+  Test asClass[int[]]
+  Test asClass[int]
+  Test asClass[java.util.Map.Entry<String, T>]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test array of type with parameter used as type parameter
+  Test class array types
+  Test class types
+  Test convertType
+  Test convertType with maps
+  Test convertType's creation of duplicate objects
+  Test field type variable types
+  Test hasTypeArguments
+  Test inner parameterized types
+  Test inner parameterized types without explicit outer type
+  Test inner types
+  Test inner types from classpath
+  Test method parameter type variable types
+  Test method return type variable types
+  Test multidimensional primitive array types
+  Test primitive array types
+  Test primitive types
+  Test primitive vararg types
+  Test property type variable types
+  Test superclass and interface types using type variables
+  Test transform's creation of duplicate objects
+  Test variable types
+  Test wildcard types
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
+  Test annotated array types in multiple contexts
+  Test annotation on basic types
+  Test annotations on array type and component type
+  Test annotations on class type parameters
+  Test annotations on multidimensional array
+  Test annotations on multidimensional vararg array
+  Test annotations on qualified class type
+  Test annotations with spaces in the annotation string
+  Test implicit nullability of annotation members
+  Test implicit nullability of constants
+  Test implicit nullability of constructor returns
+  Test implicit nullability of equals parameter
+  Test implicit nullability of toString
+  Test inner parameterized types with annotations
+  Test interface types
+  Test leading annotation on array type
+  Test nullability of arrays
+  Test nullability of class type parameter from constructor
+  Test nullability of classes with parameters
+  Test nullability of generic super class and interface type
+  Test nullability of multi-dimensional arrays
+  Test nullability of outer classes
+  Test nullability of primitives
+  Test nullability of simple classes
+  Test nullability of super class type
+  Test nullability of super interface type
+  Test nullability of varargs
+  Test nullability of wildcards
+  Test nullability set through item annotations
+  Test super class and interface types of interface
+  Test super class type
+  Test type-use annotations with multiple allowed targets
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test explicit Object bound
+  Test method type parameter that references class type parameter
+  Test reified type parameter
+  Test self-referential type parameter
+  Test toType
+  Test type parameter bounds with multiple class parameters
+  Test type parameter with annotations
+  Test type parameters that reference each other
+  Test typeBounds extends Comparable
+  Test typeBounds multiple
+  Test typeBounds no extends
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
+  Type string[2d boolean array list - default]
+  Type string[2d boolean array list - kotlin nulls]
+  Type string[2d string array - default]
+  Type string[2d string array - kotlin nulls]
+  Type string[T - default]
+  Type string[T - kotlin nulls]
+  Type string[annotated integer list - annotated and kotlin nulls]
+  Type string[annotated integer list - annotated with negative filter and kotlin nulls]
+  Type string[annotated integer list - annotated with negative filter]
+  Type string[annotated integer list - annotated with positive filter]
+  Type string[annotated integer list - annotated]
+  Type string[annotated integer list - default]
+  Type string[annotated integer list - kotlin nulls]
+  Type string[annotated multi-dimensional array - annotated]
+  Type string[annotated multi-dimensional array - default]
+  Type string[annotated primitive - annotated]
+  Type string[annotated primitive - default]
+  Type string[annotated primitive - kotlin nulls]
+  Type string[boolean]
+  Type string[byte]
+  Type string[char]
+  Type string[double]
+  Type string[extends number to super number map - default]
+  Type string[extends number to super number map - kotlin nulls]
+  Type string[extends string list - default]
+  Type string[extends string list - kotlin nulls]
+  Type string[float]
+  Type string[inner class type - default]
+  Type string[inner class type - kotlin nulls]
+  Type string[int array - default]
+  Type string[int array - kotlin nulls]
+  Type string[int array list - default]
+  Type string[int array list - kotlin nulls]
+  Type string[int varargs - default]
+  Type string[int varargs - kotlin nulls]
+  Type string[int]
+  Type string[long]
+  Type string[multiple annotations integer list - annotated and kotlin nulls with filter]
+  Type string[multiple annotations integer list - annotated and kotlin nulls]
+  Type string[multiple annotations integer list - annotated with filter]
+  Type string[multiple annotations integer list - annotated]
+  Type string[multiple annotations integer list - default]
+  Type string[multiple annotations integer list - kotlin nulls]
+  Type string[non-null object wildcard bound - annotations, no kotlin nulls]
+  Type string[non-null object wildcard bound - default]
+  Type string[non-null object wildcard bound - kotlin nulls]
+  Type string[null annotated T - annotated and kotlin nulls]
+  Type string[null annotated T - annotated]
+  Type string[null annotated T - default]
+  Type string[null annotated T - kotlin nulls]
+  Type string[null annotated extends T collection - annotated and kotlin nulls]
+  Type string[null annotated extends T collection - annotated]
+  Type string[null annotated extends T collection - default]
+  Type string[null annotated extends T collection - kotlin nulls]
+  Type string[null annotated parameterized inner type - annotated]
+  Type string[null annotated parameterized inner type - default]
+  Type string[null annotated parameterized inner type - kotlin nulls]
+  Type string[null annotated string - annotated and kotlin nulls]
+  Type string[null annotated string - annotated]
+  Type string[null annotated string - default]
+  Type string[null annotated string - kotlin nulls]
+  Type string[null annotated string array - annotated and kotlin nulls]
+  Type string[null annotated string array - annotated]
+  Type string[null annotated string array - default]
+  Type string[null annotated string array - kotlin nulls]
+  Type string[null annotated string list - annotated and kotlin nulls]
+  Type string[null annotated string list - annotated]
+  Type string[null annotated string list - default]
+  Type string[null annotated string list - kotlin nulls]
+  Type string[null annotated string list - spaced params]
+  Type string[null annotated string varargs - annotated and kotlin nulls]
+  Type string[null annotated string varargs - annotated]
+  Type string[null annotated string varargs - default]
+  Type string[null annotated string varargs - kotlin nulls]
+  Type string[nullable object wildcard bound - annotations, no kotlin nulls]
+  Type string[nullable object wildcard bound - default]
+  Type string[nullable object wildcard bound - kotlin nulls]
+  Type string[number - default]
+  Type string[number - kotlin nulls]
+  Type string[parameterized inner type - default]
+  Type string[parameterized inner type - kotlin nulls]
+  Type string[platform object wildcard bound - annotations, no kotlin nulls]
+  Type string[platform object wildcard bound - default]
+  Type string[platform object wildcard bound - kotlin nulls]
+  Type string[short]
+  Type string[string - default]
+  Type string[string - kotlin nulls]
+  Type string[string array - default]
+  Type string[string array - kotlin nulls]
+  Type string[string list - default]
+  Type string[string list - kotlin nulls]
+  Type string[string to number map - default]
+  Type string[string to number map - kotlin nulls]
+  Type string[string to number map - spaced params]
+  Type string[string varargs - default]
+  Type string[string varargs - kotlin nulls]
+  Type string[super T comparable]
