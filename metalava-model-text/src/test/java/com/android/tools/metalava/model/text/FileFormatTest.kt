@@ -275,7 +275,7 @@ class FileFormatTest {
                 package fred {
             """,
             expectedError =
-                "api.txt:2: Signature format error - unknown format property name `foo`, expected one of 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'"
+                "api.txt:2: Signature format error - unknown format property name `foo`, expected one of 'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'"
         )
     }
 
