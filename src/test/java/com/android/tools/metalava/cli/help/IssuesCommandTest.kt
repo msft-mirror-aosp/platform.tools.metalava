@@ -207,6 +207,7 @@ Available Issues                             |  Category                |   Defa
   Todo                                       |  documentation           |   lint
   TopLevelBuilder                            |  api_lint                |   warning
   UnavailableSymbol                          |  documentation           |   warning
+  UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  unknown                 |   warning
