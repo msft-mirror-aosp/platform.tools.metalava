@@ -454,6 +454,13 @@ class Options(
      */
     var allowClassesFromClasspath = true
 
+    /** The configuration options for the [ApiAnalyzer] class. */
+    val apiAnalyzerConfig by lazy {
+        ApiAnalyzer.Config(
+            manifest = manifest,
+        )
+    }
+
     /** This is set directly by [preprocessArgv]. */
     internal var verbosity: Verbosity = Verbosity.NORMAL
 

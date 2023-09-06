@@ -59,8 +59,13 @@ class ApiAnalyzer(
     /** The code to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
-    private val manifest: Manifest = emptyManifest,
+    private val config: Config = Config(),
 ) {
+
+    data class Config(
+        val manifest: Manifest = emptyManifest,
+    )
+
     /** All packages in the API */
     private val packages: PackageList = codebase.getPackages()
 
@@ -762,7 +767,7 @@ class ApiAnalyzer(
                 val missing = ArrayList<String>()
                 for (value in values) {
                     val perm = (value.value() ?: value.toSource()).toString()
-                    val level = manifest.getPermissionLevel(perm)
+                    val level = config.manifest.getPermissionLevel(perm)
                     if (level == null) {
                         if (any) {
                             missing.add(perm)
@@ -772,7 +777,7 @@ class ApiAnalyzer(
                         reporter.report(
                             Issues.REQUIRES_PERMISSION,
                             method,
-                            "Permission '$perm' is not defined by manifest ${manifest}."
+                            "Permission '$perm' is not defined by manifest ${config.manifest}."
                         )
                         continue
                     }
@@ -791,7 +796,7 @@ class ApiAnalyzer(
                         Issues.REQUIRES_PERMISSION,
                         method,
                         "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${manifest}."
+                            "${config.manifest}."
                     )
                 }
 
@@ -829,7 +834,7 @@ class ApiAnalyzer(
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
                 options.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
-                !options.manifest.isEmpty()
+                !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
                 options.allShowAnnotations.isNotEmpty()

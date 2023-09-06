@@ -448,7 +448,8 @@ private fun addMissingItemsRequiredForGeneratingStubs(
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.manifest)
+        val analyzer =
+            ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.apiAnalyzerConfig)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -679,7 +680,7 @@ private fun loadFromSources(
 
     progressTracker.progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter, options.manifest)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -754,6 +755,7 @@ fun loadFromJarFile(
     apiJar: File,
     preFiltered: Boolean = false,
     allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
+    apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
@@ -761,7 +763,7 @@ fun loadFromJarFile(
     val apiEmit =
         ApiPredicate(ignoreShown = true, allowClassesFromClasspath = allowClassesFromClasspath)
     val apiReference = apiEmit
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
