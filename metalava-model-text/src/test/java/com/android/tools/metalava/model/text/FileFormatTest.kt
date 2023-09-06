@@ -47,6 +47,31 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check format parsing, blank line between header and package`() {
+        checkParseHeader(
+            """
+                // Signature format: 2.0
+
+                package test.pkg {
+            """,
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "",
+        )
+    }
+
+    @Test
+    fun `Check format parsing, comment after header and package`() {
+        checkParseHeader(
+            """
+                // Signature format: 2.0
+                // Some manually added comment
+            """,
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "// Some manually added comment",
+        )
+    }
+
+    @Test
     fun `Check format parsing (v1)`() {
         checkParseHeader(
             """
@@ -238,18 +263,6 @@ class FileFormatTest {
             """,
             expectedFormat = FileFormat.V5,
             expectedNextLine = "package fred {",
-        )
-    }
-
-    @Test
-    fun `Check format parsing (v5) - no begin`() {
-        checkParseHeader(
-            """
-                // Signature format: 5.0
-                Nonsense
-            """,
-            expectedError =
-                "api.txt:2: Signature format error - invalid property prefix, expected '// - ', found 'Nonsense'"
         )
     }
 

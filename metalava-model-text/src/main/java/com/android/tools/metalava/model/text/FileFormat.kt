@@ -480,11 +480,12 @@ data class FileFormat(
                     break
                 }
 
+                // If the line does not start with "// - " then it is not a property so assume the
+                // header is ended.
                 val remainder = line.removePrefix(PROPERTY_LINE_PREFIX)
                 if (remainder == line) {
-                    throw ApiParseException(
-                        "invalid property prefix, expected '$PROPERTY_LINE_PREFIX', found '$line'"
-                    )
+                    reader.reset()
+                    break
                 }
 
                 parsePropertyAssignment(builder, remainder)
