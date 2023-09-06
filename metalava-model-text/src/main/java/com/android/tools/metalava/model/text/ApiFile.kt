@@ -34,8 +34,8 @@ import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
