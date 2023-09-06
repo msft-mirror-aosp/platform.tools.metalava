@@ -458,6 +458,12 @@ class Options(
     val apiAnalyzerConfig by lazy {
         ApiAnalyzer.Config(
             manifest = manifest,
+            hidePackages = hidePackages,
+            skipEmitPackages = skipEmitPackages,
+            mergeQualifierAnnotations = mergeQualifierAnnotations,
+            mergeInclusionAnnotations = mergeInclusionAnnotations,
+            stubImportPackages = stubImportPackages,
+            allShowAnnotations = allShowAnnotations,
         )
     }
 
