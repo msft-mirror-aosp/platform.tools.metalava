@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -165,9 +166,10 @@ internal fun processFlags(
 ) {
     val stopwatch = Stopwatch.createStarted()
 
+    val reporter = options.reporter
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = options.reporter,
+            reporter = reporter,
             annotationManager = options.annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
@@ -196,11 +198,11 @@ internal fun processFlags(
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(progressTracker, sourceParser, options.apiJar!!)
+            loadFromJarFile(progressTracker, reporter, sourceParser, options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, sourceParser, sources[0])
+            loadFromJarFile(progressTracker, reporter, sourceParser, sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources(progressTracker, sourceParser)
+            loadFromSources(progressTracker, reporter, sourceParser)
         } else {
             return
         }
@@ -211,7 +213,7 @@ internal fun processFlags(
 
     options.subtractApi?.let {
         progressTracker.progress("Subtracting API: ")
-        subtractApi(progressTracker, sourceParser, codebase, it)
+        subtractApi(progressTracker, reporter, sourceParser, codebase, it)
     }
 
     if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
@@ -244,7 +246,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, options.reporter)
+        val docAnalyzer = DocAnalyzer(codebase, reporter)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -361,14 +363,14 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(progressTracker, sourceParser, codebase, check)
+        checkCompatibility(progressTracker, reporter, sourceParser, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(progressTracker, sourceParser, previousApiFile)
+                loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
             } else {
                 SignatureFileLoader.load(file = previousApiFile)
             }
@@ -539,6 +541,7 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
 
 fun subtractApi(
     progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
     codebase: Codebase,
     subtractApiFile: File,
@@ -548,7 +551,7 @@ fun subtractApi(
         when {
             path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
             path.endsWith(DOT_JAR) ->
-                loadFromJarFile(progressTracker, sourceParser, subtractApiFile)
+                loadFromJarFile(progressTracker, reporter, sourceParser, subtractApiFile)
             else ->
                 throw MetalavaCliException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -588,6 +591,7 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 fun checkCompatibility(
     progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
     newCodebase: Codebase,
     check: CheckRequest,
@@ -597,7 +601,7 @@ fun checkCompatibility(
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, sourceParser, signatureFile)
+            loadFromJarFile(progressTracker, reporter, sourceParser, signatureFile)
         } else {
             val classResolver = getClassResolver(sourceParser)
             SignatureFileLoader.load(signatureFile, classResolver)
@@ -649,6 +653,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 
 private fun loadFromSources(
     progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
 ): Codebase {
     progressTracker.progress("Processing sources: ")
@@ -708,7 +713,7 @@ private fun loadFromSources(
             when {
                 previousApiFile == null -> null
                 previousApiFile.path.endsWith(DOT_JAR) ->
-                    loadFromJarFile(progressTracker, sourceParser, previousApiFile)
+                    loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
@@ -744,6 +749,7 @@ private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
 
 fun loadFromJarFile(
     progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
     apiJar: File,
     preFiltered: Boolean = false,
@@ -753,7 +759,7 @@ fun loadFromJarFile(
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)
-    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()

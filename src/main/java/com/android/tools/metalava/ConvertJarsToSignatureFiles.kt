@@ -83,7 +83,13 @@ class ConvertJarsToSignatureFiles(
                     annotationManager,
                 )
             val jarCodebase =
-                loadFromJarFile(progressTracker, sourceParser, apiJar, preFiltered = false)
+                loadFromJarFile(
+                    progressTracker,
+                    reporter,
+                    sourceParser,
+                    apiJar,
+                    preFiltered = false,
+                )
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
 
