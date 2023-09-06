@@ -905,7 +905,7 @@ private fun createMetalavaCommand(
                 )
             },
             progressTracker,
-            options::getUsage
+            OptionsHelp::getUsage,
         )
     command.subcommands(
         AndroidJarsToSignaturesCommand(),

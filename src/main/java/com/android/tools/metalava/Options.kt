@@ -1462,7 +1462,9 @@ class Options(
         }
         return file
     }
+}
 
+object OptionsHelp {
     fun getUsage(terminal: Terminal, width: Int): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
