@@ -91,6 +91,7 @@ class ConvertJarsToSignatureFiles(
                     preFiltered = false,
                     allowClassesFromClasspath = true,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
+                    codebaseValidator = {},
                 )
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()

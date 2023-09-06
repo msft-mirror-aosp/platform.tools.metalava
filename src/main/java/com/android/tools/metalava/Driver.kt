@@ -745,6 +745,13 @@ fun loadFromJarFile(
     preFiltered: Boolean = false,
     allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
+    codebaseValidator: (Codebase) -> Unit = { codebase ->
+        options.nullabilityAnnotationsValidator?.validateAllFrom(
+            codebase,
+            options.validateNullabilityFromList
+        )
+        options.nullabilityAnnotationsValidator?.report()
+    },
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
@@ -756,11 +763,7 @@ fun loadFromJarFile(
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
-    options.nullabilityAnnotationsValidator?.validateAllFrom(
-        codebase,
-        options.validateNullabilityFromList
-    )
-    options.nullabilityAnnotationsValidator?.report()
+    codebaseValidator(codebase)
     analyzer.generateInheritedStubs(apiEmit, apiReference)
     return codebase
 }
