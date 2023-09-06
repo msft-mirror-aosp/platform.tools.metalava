@@ -24,6 +24,7 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
@@ -92,9 +93,15 @@ fun run(
     stdout: PrintWriter,
     stderr: PrintWriter,
 ): Int {
+    // Preprocess the arguments by adding any additional arguments specified in environment
+    // variables.
     val modifiedArgs = preprocessArgv(originalArgs)
 
-    val progressTracker = ProgressTracker(options.verbose, options.stdout)
+    // Process the early options. This does not consume any arguments, they will be parsed again
+    // later. A little inefficient but produces cleaner code.
+    val earlyOptions = EarlyOptions.parse(modifiedArgs)
+
+    val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
 
     progressTracker.progress("$PROGRAM_NAME started\n")
 

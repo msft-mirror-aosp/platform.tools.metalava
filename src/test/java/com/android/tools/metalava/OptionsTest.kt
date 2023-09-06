@@ -326,14 +326,14 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
 Options:
   --version                                  Show the version and exit
-  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
-                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
-                                             is set)
-  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   --quiet, --verbose                         Set the verbosity of the output.
                                              --quiet - Only include vital output.
                                              --verbose - Include extra diagnostic output.
                                              (default: Neither --quiet or --verbose)
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   -h, --help                                 Show this message and exit
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
