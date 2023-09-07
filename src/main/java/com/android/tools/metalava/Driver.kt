@@ -972,12 +972,12 @@ private class DriverCommand(
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
             // Update and close all baseline files.
-            options.allBaselines.forEach { baseline ->
-                if (options.verbose) {
-                    baseline.dumpStats(options.stdout)
+            optionGroup.allBaselines.forEach { baseline ->
+                if (optionGroup.verbose) {
+                    baseline.dumpStats(optionGroup.stdout)
                 }
                 if (baseline.close()) {
-                    if (!options.quiet) {
+                    if (!optionGroup.quiet) {
                         stdout.println(
                             "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
                         )
@@ -985,10 +985,10 @@ private class DriverCommand(
                 }
             }
 
-            options.reportEvenIfSuppressedWriter?.close()
+            optionGroup.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
-            options.allReporters.forEach { it.writeErrorMessage(stderr) }
+            optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
         }
 
         // Get any remaining arguments/options that were not handled by Clikt.
@@ -1001,15 +1001,16 @@ private class DriverCommand(
         @Suppress("DEPRECATION")
         options = optionGroup
 
-        val sourceModelProvider = SourceModelProvider.getImplementation(options.sourceModelProvider)
+        val sourceModelProvider =
+            SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
         sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
             processFlags(it, progressTracker)
         }
 
-        if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
+        if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (reporterOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, options.allReporters, reporterOptions.repeatErrorsMax)
+                repeatErrors(stderr, optionGroup.allReporters, reporterOptions.repeatErrorsMax)
             }
 
             // Make sure that the process exits with an error code.
