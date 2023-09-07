@@ -91,7 +91,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 val array = s.indexOf('[')
                 val generics = s.indexOf('<')
                 if (array == -1 && generics == -1) {
-                    return dotIndex == -1 && !TextTypeItem.isPrimitive(s)
+                    return dotIndex == -1 && !isPrimitive(s)
                 }
                 val typeEnd =
                     if (array != -1) {
@@ -107,7 +107,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return
                 // true
                 return (dotIndex == -1 || dotIndex > typeEnd) &&
-                    !TextTypeItem.isPrimitive(s.substring(0, typeEnd).trim())
+                    !isPrimitive(s.substring(0, typeEnd).trim())
             }
         }
 
@@ -128,5 +128,102 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         }
 
         protected abstract fun make(o: Any): Any
+    }
+
+    companion object {
+        /** Whether the string represents a primitive type. */
+        fun isPrimitive(type: String): Boolean {
+            return when (type) {
+                "byte",
+                "char",
+                "double",
+                "float",
+                "int",
+                "long",
+                "short",
+                "boolean",
+                "void",
+                "null" -> true
+                else -> false
+            }
+        }
+
+        /**
+         * Given a string and the index in that string which is the start of an annotation (the
+         * character _after_ the `@`), returns the index of the end of the annotation.
+         */
+        fun findAnnotationEnd(type: String, start: Int): Int {
+            var index = start
+            val length = type.length
+            var balance = 0
+            while (index < length) {
+                val c = type[index]
+                if (c == '(') {
+                    balance++
+                } else if (c == ')') {
+                    balance--
+                    if (balance == 0) {
+                        return index + 1
+                    }
+                } else if (c != '.' && !Character.isJavaIdentifierPart(c) && balance == 0) {
+                    break
+                }
+                index++
+            }
+            return index
+        }
+
+        /**
+         * Breaks a string representing type parameters into a list of the type parameter strings.
+         * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
+         */
+        fun typeParameterStrings(typeString: String?): List<String> {
+            val s = typeString ?: return emptyList()
+            val list = mutableListOf<String>()
+            var balance = 0
+            var expect = false
+            var start = 0
+            for (i in s.indices) {
+                val c = s[i]
+                if (c == '<') {
+                    balance++
+                    expect = balance == 1
+                } else if (c == '>') {
+                    balance--
+                    if (balance == 1) {
+                        add(list, s, start, i + 1)
+                        start = i + 1
+                    } else if (balance == 0) {
+                        add(list, s, start, i)
+                        return list
+                    }
+                } else if (c == ',') {
+                    expect =
+                        if (balance == 1) {
+                            add(list, s, start, i)
+                            true
+                        } else {
+                            false
+                        }
+                } else if (expect && balance == 1) {
+                    start = i
+                    expect = false
+                }
+            }
+            return list
+        }
+
+        /**
+         * Adds the substring of [s] from [from] to [to] to the [list], trimming whitespace from the
+         * front.
+         */
+        private fun add(list: MutableList<String>, s: String, from: Int, to: Int) {
+            for (i in from until to) {
+                if (!Character.isWhitespace(s[i])) {
+                    list.add(s.substring(i, to))
+                    return
+                }
+            }
+        }
     }
 }
