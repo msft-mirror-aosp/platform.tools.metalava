@@ -1,5 +1,6 @@
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
 import com.android.tools.metalava.buildinfo.CREATE_BUILD_INFO_TASK
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
 
 defaultTasks =
     mutableListOf(
@@ -7,8 +8,9 @@ defaultTasks =
         "test",
         CREATE_ARCHIVE_TASK,
         CREATE_BUILD_INFO_TASK,
+        CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
         "lint",
-        "ktfmtCheck",
+        "ktCheck",
     )
 
 plugins {
@@ -24,6 +26,12 @@ application {
 }
 
 dependencies {
+    implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-psi"))
+    implementation(project(":metalava-model-source"))
+    implementation(project(":metalava-model-text"))
+    implementation(project(":metalava-model-turbine"))
+    implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)
@@ -40,6 +48,8 @@ dependencies {
     implementation(libs.asm)
     implementation(libs.asmTree)
     implementation(libs.gson)
+    testImplementation(project(":metalava-testing"))
+    testImplementation(testFixtures(project(":metalava-model-text")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
