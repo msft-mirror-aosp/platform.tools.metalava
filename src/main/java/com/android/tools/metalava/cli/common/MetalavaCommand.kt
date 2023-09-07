@@ -59,7 +59,7 @@ internal open class MetalavaCommand(
      * [excludeArgumentsWithNoHelp]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
-    private val progressTracker: ProgressTracker,
+    internal val progressTracker: ProgressTracker,
 
     /** Provider for additional non-Clikt usage information. */
     private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
@@ -283,8 +283,8 @@ internal open class MetalavaCommand(
      * invoked then this is called before the sub-commands parameters are parsed.
      */
     override fun run() {
-        // Make the CommonOptions available to all sub-commands.
-        currentContext.obj = SubCommandContext(common, progressTracker)
+        // Make this available to all sub-commands.
+        currentContext.obj = this
 
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null) {
@@ -312,12 +312,6 @@ internal open class MetalavaCommand(
     }
 }
 
-/** Encapsulates information that this command makes available to all the subcommands. */
-private data class SubCommandContext(
-    val commonOptions: CommonOptions,
-    val progressTracker: ProgressTracker,
-)
-
 /** The [PrintWriter] to use for error output from the command. */
 val CliktCommand.stderr: PrintWriter
     get() {
@@ -333,16 +327,16 @@ val CliktCommand.stdout: PrintWriter
     }
 
 /**
- * Get the [SubCommandContext] made available by the containing MetalavaCommand.
+ * Get the containing [MetalavaCommand].
  *
  * It will always be set.
  */
-private val CliktCommand.subCommandContext
-    get() = currentContext.findObject<SubCommandContext>()!!
+private val CliktCommand.metalavaCommand
+    get() = currentContext.findObject<MetalavaCommand>()!!
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
-    get() = subCommandContext.commonOptions
+    get() = metalavaCommand.common
 
 val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
@@ -350,4 +344,4 @@ val CliktCommand.terminal
 
 val CliktCommand.progressTracker
     // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
-    get() = subCommandContext.progressTracker
+    get() = metalavaCommand.progressTracker
