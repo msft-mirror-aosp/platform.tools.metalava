@@ -22,6 +22,7 @@ import kotlin.math.min
 
 /** Parses and caches types for a [codebase]. */
 internal class TextTypeParser(val codebase: TextCodebase) {
+    private val typeCache = Cache<String, TextTypeItem>()
 
     fun obtainTypeFromString(
         type: String,
@@ -63,71 +64,59 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     // Copied from Converter:
 
     fun obtainTypeFromString(type: String): TextTypeItem {
-        return mTypesFromString.obtain(type) as TextTypeItem
+        return typeCache.obtain(type) {
+            // Reverse effect of TypeItem.shortenTypes(...)
+            if (implicitJavaLangType(it)) {
+                TextTypeItem(codebase, "java.lang.$it")
+            } else {
+                TextTypeItem(codebase, it)
+            }
+        }
     }
 
-    private val mTypesFromString =
-        object : Cache(codebase) {
-            override fun make(o: Any): Any {
-                val name = o as String
-
-                // Reverse effect of TypeItem.shortenTypes(...)
-                if (implicitJavaLangType(name)) {
-                    return TextTypeItem(codebase, "java.lang.$name")
-                }
-
-                return TextTypeItem(codebase, name)
-            }
-
-            private fun implicitJavaLangType(s: String): Boolean {
-                if (s.length <= 1) {
-                    return false // Usually a type variable
-                }
-                if (s[1] == '[') {
-                    return false // Type variable plus array
-                }
-
-                val dotIndex = s.indexOf('.')
-                val array = s.indexOf('[')
-                val generics = s.indexOf('<')
-                if (array == -1 && generics == -1) {
-                    return dotIndex == -1 && !isPrimitive(s)
-                }
-                val typeEnd =
-                    if (array != -1) {
-                        if (generics != -1) {
-                            min(array, generics)
-                        } else {
-                            array
-                        }
-                    } else {
-                        generics
-                    }
-
-                // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return
-                // true
-                return (dotIndex == -1 || dotIndex > typeEnd) &&
-                    !isPrimitive(s.substring(0, typeEnd).trim())
-            }
+    private fun implicitJavaLangType(s: String): Boolean {
+        if (s.length <= 1) {
+            return false // Usually a type variable
+        }
+        if (s[1] == '[') {
+            return false // Type variable plus array
         }
 
-    private abstract class Cache(val codebase: TextCodebase) {
-
-        protected var mCache = HashMap<Any, Any>()
-
-        internal fun obtain(o: Any?): Any? {
-            if (o == null) {
-                return null
+        val dotIndex = s.indexOf('.')
+        val array = s.indexOf('[')
+        val generics = s.indexOf('<')
+        if (array == -1 && generics == -1) {
+            return dotIndex == -1 && !isPrimitive(s)
+        }
+        val typeEnd =
+            if (array != -1) {
+                if (generics != -1) {
+                    min(array, generics)
+                } else {
+                    array
+                }
+            } else {
+                generics
             }
-            var r: Any? = mCache[o]
+
+        // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return
+        // true
+        return (dotIndex == -1 || dotIndex > typeEnd) &&
+            !isPrimitive(s.substring(0, typeEnd).trim())
+    }
+
+    private class Cache<Key, Value> {
+        private val cache = HashMap<Key, Value>()
+
+        fun obtain(o: Key, make: (Key) -> Value): Value {
+            var r = cache[o]
             if (r == null) {
                 r = make(o)
-                mCache[o] = r
+                cache[o] = r
             }
-            return r
+            // r must be non-null: either it was cached or created with make
+            return r!!
         }
-
-        protected abstract fun make(o: Any): Any
     }
 
     companion object {
