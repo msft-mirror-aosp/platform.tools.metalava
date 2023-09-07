@@ -978,7 +978,7 @@ private class DriverCommand(
         @Suppress("DEPRECATION")
         options = optionGroup
 
-        val sourceModelProvider = SourceModelProvider.getImplementation("psi")
+        val sourceModelProvider = SourceModelProvider.getImplementation(options.sourceModelProvider)
         sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
             processFlags(it, progressTracker)
         }
