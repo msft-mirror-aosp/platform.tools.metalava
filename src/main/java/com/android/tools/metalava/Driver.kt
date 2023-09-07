@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @file:JvmName("Driver")
-@file:Suppress("DEPRECATION")
 
 package com.android.tools.metalava
 
@@ -144,6 +143,7 @@ private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, 
     }
 }
 
+@Suppress("DEPRECATION")
 internal fun processFlags(
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker
@@ -421,6 +421,7 @@ internal fun processFlags(
  * * Concrete methods - in the signature file concrete implementations of inherited abstract methods
  *   are not listed on concrete classes but the stub concrete classes need those implementations.
  */
+@Suppress("DEPRECATION")
 private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
     textCodebase: TextCodebase,
@@ -574,6 +575,7 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
+@Suppress("DEPRECATION")
 fun checkCompatibility(
     progressTracker: ProgressTracker,
     reporter: Reporter,
@@ -636,6 +638,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
     }
 }
 
+@Suppress("DEPRECATION")
 private fun loadFromSources(
     progressTracker: ProgressTracker,
     reporter: Reporter,
@@ -722,6 +725,7 @@ private fun loadFromSources(
     return codebase
 }
 
+@Suppress("DEPRECATION")
 private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
@@ -732,6 +736,7 @@ private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
     }
 }
 
+@Suppress("DEPRECATION")
 fun loadFromJarFile(
     progressTracker: ProgressTracker,
     reporter: Reporter,
@@ -766,6 +771,7 @@ internal fun disableStderrDumping(): Boolean {
         !isUnderTest()
 }
 
+@Suppress("DEPRECATION")
 private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codebase, file: File) {
     val localTimer = Stopwatch.createStarted()
 
@@ -779,6 +785,7 @@ private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codeb
     }
 }
 
+@Suppress("DEPRECATION")
 private fun createStubFiles(
     progressTracker: ProgressTracker,
     stubDir: File,
@@ -851,6 +858,7 @@ private fun createStubFiles(
     )
 }
 
+@Suppress("DEPRECATION")
 fun createReportFile(
     progressTracker: ProgressTracker,
     codebase: Codebase,
