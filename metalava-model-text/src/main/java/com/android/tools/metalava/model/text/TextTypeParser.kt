@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import java.util.HashMap
-import kotlin.math.min
 
 /** Parses and caches types for a [codebase]. */
 internal class TextTypeParser(val codebase: TextCodebase) {
@@ -79,73 +78,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             ?: asArray(trimmed, annotations, suffix, typeParams)
             // If it isn't anything else, parse the type as a class.
             ?: asClass(type, trimmed, typeParams)
-    }
-
-    /** Temporary method for parsing an unknown kind of type, until [parseType] is complete. */
-    private fun parseUnknownType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
-        if (typeParams.isNotEmpty() && TextTypeItem.isLikelyTypeParameter(type)) {
-            // Find the "name" part of the type (before a list of type parameters, array marking,
-            // or nullability annotation), and see if it is a type parameter name.
-            // This does not handle when a type variable is in the middle of a type (e.g. List<T>),
-            // which will be fixed when type parsing is rewritten later.
-            val length = type.length
-            var nameEnd = length
-            for (i in 0 until length) {
-                val c = type[i]
-                if (c == '<' || c == '[' || c == '!' || c == '?') {
-                    nameEnd = i
-                    break
-                }
-            }
-            val name =
-                if (nameEnd == length) {
-                    type
-                } else {
-                    type.substring(0, nameEnd)
-                }
-
-            // Confirm that it's a type variable
-            if (typeParams.any { it.simpleName() == name }) {
-                return TextTypeItem(codebase, type)
-            }
-        }
-
-        return if (implicitJavaLangType(type)) {
-            TextTypeItem(codebase, "java.lang.$type")
-        } else {
-            TextTypeItem(codebase, type)
-        }
-    }
-
-    private fun implicitJavaLangType(s: String): Boolean {
-        if (s.length <= 1) {
-            return false // Usually a type variable
-        }
-        if (s[1] == '[') {
-            return false // Type variable plus array
-        }
-
-        val dotIndex = s.indexOf('.')
-        val array = s.indexOf('[')
-        val generics = s.indexOf('<')
-        if (array == -1 && generics == -1) {
-            return dotIndex == -1 && !isPrimitive(s)
-        }
-        val typeEnd =
-            if (array != -1) {
-                if (generics != -1) {
-                    min(array, generics)
-                } else {
-                    array
-                }
-            } else {
-                generics
-            }
-
-        // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return
-        // true
-        return (dotIndex == -1 || dotIndex > typeEnd) &&
-            !isPrimitive(s.substring(0, typeEnd).trim())
     }
 
     /**

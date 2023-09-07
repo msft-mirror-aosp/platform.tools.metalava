@@ -36,8 +36,7 @@ import kotlin.math.min
 
 const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
 
-// TODO: change from `open` to `sealed` once parsing is done and only the implementations are used
-open class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
+sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
 
     override fun toString(): String = type
 
@@ -213,7 +212,7 @@ open class TextTypeItem(open val codebase: TextCodebase, open val type: String) 
     override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        return TextTypeItem(codebase, convertTypeString(replacementMap))
+        return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }
 
     override fun markRecent() = codebase.unsupported()
