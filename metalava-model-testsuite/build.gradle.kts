@@ -15,7 +15,6 @@
  */
 
 plugins {
-    `application`
     `java-library`
     `java-test-fixtures`
     id("org.jetbrains.kotlin.jvm")
@@ -34,5 +33,3 @@ dependencies {
     implementation(libs.truth)
     implementation(libs.kotlinTest)
 }
-
-application { mainClass = "com.android.tools.metalava.Gibber" }
