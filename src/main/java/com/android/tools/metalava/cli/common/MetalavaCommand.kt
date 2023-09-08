@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.cli.clikt.allHelpParams
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -58,6 +59,7 @@ internal open class MetalavaCommand(
      * [excludeArgumentsWithNoHelp]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
+    private val progressTracker: ProgressTracker,
 
     /** Provider for additional non-Clikt usage information. */
     private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
@@ -217,10 +219,28 @@ internal open class MetalavaCommand(
      * visible to callers of this command.
      */
     private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
-        return if (currentContext.command === this)
-            parameters +
-                defaultCommand.allHelpParams(currentContext).filter(::excludeArgumentsWithNoHelp)
-        else {
+        return if (currentContext.command === this) {
+            // If this is called because help was requested from the main command, i.e. using
+            // `metalava -h` then the default command will not have been parsed and so its context
+            // will not have been initialized properly and so the allHelpParams() method will fail.
+            // To prevent that this ensures that the default command is parsed first. It passes an
+            // invalid option so that the command is not actually run.
+            try {
+                defaultCommand.parse(arrayOf("--invalid-option"), currentContext)
+            } catch (e: UsageError) {
+                // The caught error is of type UsageError as the exact error that is thrown depends
+                // on how the command is configured. If the message contains mention of the invalid
+                // option then ignore the error as it is expected. Otherwise, rethrow as something
+                // else has happened.
+                if (e.message?.contains("--invalid-option") != true) {
+                    throw e
+                }
+            }
+
+            // Get the combined parameters from this command and the default command, excluding any
+            // that are not needed.
+            parameters + defaultCommand.allHelpParams().filter(::excludeArgumentsWithNoHelp)
+        } else {
             parameters
         }
     }
@@ -249,7 +269,7 @@ internal open class MetalavaCommand(
             e.message?.let { append(errorContext.localization.usageError(it)).append("\n\n") }
             e.context?.let {
                 val programName = it.commandNameWithParents().joinToString(" ")
-                val helpParams = it.command.allHelpParams(currentContext)
+                val helpParams = it.command.allHelpParams()
                 val commandHelp = it.helpFormatter.formatHelp("", "", helpParams, programName)
                 append(commandHelp)
             }
@@ -264,7 +284,7 @@ internal open class MetalavaCommand(
      */
     override fun run() {
         // Make the CommonOptions available to all sub-commands.
-        currentContext.obj = common
+        currentContext.obj = SubCommandContext(common, progressTracker)
 
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null) {
@@ -292,6 +312,12 @@ internal open class MetalavaCommand(
     }
 }
 
+/** Encapsulates information that this command makes available to all the subcommands. */
+private data class SubCommandContext(
+    val commonOptions: CommonOptions,
+    val progressTracker: ProgressTracker,
+)
+
 /** The [PrintWriter] to use for error output from the command. */
 val CliktCommand.stderr: PrintWriter
     get() {
@@ -306,10 +332,22 @@ val CliktCommand.stdout: PrintWriter
         return metalavaConsole.stdout
     }
 
+/**
+ * Get the [SubCommandContext] made available by the containing MetalavaCommand.
+ *
+ * It will always be set.
+ */
+private val CliktCommand.subCommandContext
+    get() = currentContext.findObject<SubCommandContext>()!!
+
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
-    get() = currentContext.findObject<CommonOptions>()
+    get() = subCommandContext.commonOptions
 
 val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
-    get() = commonOptions?.terminal ?: plainTerminal
+    get() = commonOptions.terminal
+
+val CliktCommand.progressTracker
+    // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
+    get() = subCommandContext.progressTracker

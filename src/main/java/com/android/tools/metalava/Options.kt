@@ -34,6 +34,7 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
+import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
@@ -51,7 +52,9 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.unique
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -63,8 +66,54 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
 import java.util.Optional
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
+
+/**
+ * A [ReadWriteProperty] that is used as the delegate for [options].
+ *
+ * It provides read/write methods and also a [disallowAccess] method which when called will cause
+ * any attempt to read the [options] property to fail. This allows code to ensure that any code
+ * which it calls does not access the deprecated [options] property.
+ */
+object OptionsDelegate : ReadWriteProperty<Nothing?, Options> {
+
+    /**
+     * The value of this delegate.
+     *
+     * Is `null` if [setValue] has not been called since the last call to [disallowAccess]. In that
+     * case any attempt to read the value of this delegate will fail.
+     */
+    private var possiblyNullOptions: Options? = Options()
+
+    /**
+     * The stack trace of the last caller to [disallowAccess] (if any) to make it easy to determine
+     * why a read of [options] failed.
+     */
+    private var disallowerStackTrace: Throwable? = null
+
+    /** Prevent all future reads of [options] until the [setValue] method is next called. */
+    fun disallowAccess() {
+        disallowerStackTrace = UnexpectedOptionsAccess("Global options property cleared")
+        possiblyNullOptions = null
+    }
+
+    override fun setValue(thisRef: Nothing?, property: KProperty<*>, value: Options) {
+        disallowerStackTrace = null
+        possiblyNullOptions = value
+    }
+
+    override fun getValue(thisRef: Nothing?, property: KProperty<*>): Options {
+        return possiblyNullOptions
+            ?: throw UnexpectedOptionsAccess("options is not set", disallowerStackTrace!!)
+    }
+}
+
+/** A private class to try and avoid it being caught and ignored. */
+private class UnexpectedOptionsAccess(message: String, cause: Throwable? = null) :
+    RuntimeException(message, cause)
 
 /**
  * Global options for the metadata extraction tool
@@ -81,7 +130,7 @@ import org.jetbrains.jps.model.java.impl.JavaSdkUtil
     eventually the global variable itself.
     """
 )
-var options = Options()
+var options by OptionsDelegate
 
 private const val INDENT_WIDTH = 45
 
@@ -90,8 +139,6 @@ const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
-const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
-const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
@@ -143,7 +190,6 @@ const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
-const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
@@ -169,6 +215,8 @@ const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:comp
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
+const val ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES = "--add-nonessential-overrides-classes"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
@@ -208,8 +256,6 @@ class Options(
     private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [skipEmitPackages] */
     private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [convertToXmlFiles] */
-    private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -408,6 +454,19 @@ class Options(
      */
     var allowClassesFromClasspath = true
 
+    /** The configuration options for the [ApiAnalyzer] class. */
+    val apiAnalyzerConfig by lazy {
+        ApiAnalyzer.Config(
+            manifest = manifest,
+            hidePackages = hidePackages,
+            skipEmitPackages = skipEmitPackages,
+            mergeQualifierAnnotations = mergeQualifierAnnotations,
+            mergeInclusionAnnotations = mergeInclusionAnnotations,
+            stubImportPackages = stubImportPackages,
+            allShowAnnotations = allShowAnnotations,
+        )
+    }
+
     /** This is set directly by [preprocessArgv]. */
     internal var verbosity: Verbosity = Verbosity.NORMAL
 
@@ -469,12 +528,6 @@ class Options(
      * flag.
      */
     var externalAnnotations: File? = null
-
-    /** For [ARG_COPY_ANNOTATIONS], the source directory to read stub annotations from */
-    var privateAnnotationsSource: File? = null
-
-    /** For [ARG_COPY_ANNOTATIONS], the target directory to write converted stub annotations from */
-    var privateAnnotationsTarget: File? = null
 
     /** A [Manifest] object to look up available permissions and min_sdk_version. */
     val manifest by
@@ -670,9 +723,6 @@ class Options(
      */
     private var compileSdkVersion: String? = null
 
-    /** List of signature files to export as JDiff files */
-    internal val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
-
     /**
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
@@ -689,7 +739,34 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
+    val additionalNonessentialOverridesClasses by
+        option(
+                ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES,
+                help =
+                    """
+                    Specifies a list of qualified class names where all visible overriding methods are added to signature files.
+                    This is a no-op when $ARG_FORMAT does not specify --add-additional-overrides=yes.
+
+                    The list of qualified class names should be separated with ':'(colon).
+                """
+                        .trimIndent(),
+            )
+            .split(":")
+            .default(emptyList())
+
     var useK2Uast = false
+
+    val sourceModelProvider by
+        option(
+                ARG_SOURCE_MODEL_PROVIDER,
+                hidden = true,
+            )
+            .choice("psi", "turbine")
+            .default("psi")
+            .deprecated(
+                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
+                    .trimIndent()
+            )
 
     val encoding by
         option("-encoding", hidden = true)
@@ -902,10 +979,6 @@ class Options(
                 ARG_INPUT_API_JAR -> apiJar = stringToExistingFile(getValue(args, ++index))
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
-                ARG_COPY_ANNOTATIONS -> {
-                    privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
-                    privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
-                }
                 ARG_MIGRATE_NULLNESS -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
                 }
@@ -994,21 +1067,6 @@ class Options(
                 }
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
-                }
-                ARG_CONVERT_TO_JDIFF -> {
-                    val signatureFile = stringToExistingFile(getValue(args, ++index))
-                    val outputFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, outputFile, null, false)
-                    )
-                }
-                ARG_CONVERT_NEW_TO_JDIFF -> {
-                    val baseFile = stringToExistingFile(getValue(args, ++index))
-                    val signatureFile = stringToExistingFile(getValue(args, ++index))
-                    val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, jDiffFile, baseFile, false)
-                    )
                 }
                 ARG_JAVA_SOURCE,
                 "-source" -> {
@@ -1435,7 +1493,9 @@ class Options(
         }
         return file
     }
+}
 
+object OptionsHelp {
     fun getUsage(terminal: Terminal, width: Int): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
@@ -1627,20 +1687,11 @@ class Options(
                 "JDiff:",
                 "$ARG_XML_API <file>",
                 "Like $ARG_API, but emits the API in the JDiff XML format instead",
-                "$ARG_CONVERT_TO_JDIFF <sig> <xml>",
-                "Reads in the given signature file, and writes it out " +
-                    "in the JDiff XML format. Can be specified multiple times.",
-                "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>",
-                "Reads in the given old and new api files, " +
-                    "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
-                "$ARG_COPY_ANNOTATIONS <source> <dest>",
-                "For a source folder full of annotation " +
-                    "sources, generates corresponding package private versions of the same annotations.",
                 ARG_INCLUDE_SOURCE_RETENTION,
                 "If true, include source-retention annotations in the stub files. Does " +
                     "not apply to signature files. Source retention annotations are extracted into the external " +

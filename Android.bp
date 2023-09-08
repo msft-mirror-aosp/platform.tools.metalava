@@ -16,6 +16,14 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+java_library_host {
+    name: "metalava-signature-reader",
+    static_libs: [
+        "metalava-model",
+        "metalava-model-text",
+    ],
+}
+
 java_binary_host {
     name: "metalava",
     srcs: [
@@ -27,6 +35,12 @@ java_binary_host {
         "jsr305",
         "jsr330",
         "kotlin-reflect",
+        "metalava-model",
+        "metalava-model-psi",
+        "metalava-model-source",
+        "metalava-model-text",
+        "metalava-model-turbine",
+        "metalava-reporter",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",
         "gson-prebuilt-jar-2.9.1",
@@ -75,8 +89,9 @@ genrule {
     srcs: [
         "stub-annotations/src/main/java/**/*.java",
     ],
-    cmd: "($(location metalava) --no-banner --copy-annotations tools/metalava/stub-annotations " +
-        "$(genDir)/private-stub-annotations) && ($(location soong_zip) -o $(out) -C $(genDir) -D $(genDir))",
+    cmd: "($(location metalava) make-annotations-package-private " +
+        "tools/metalava/stub-annotations/src/main/java $(genDir)/private-stub-annotations) " +
+        "&& ($(location soong_zip) -o $(out) -C $(genDir) -D $(genDir))",
     out: [
         "private-stub-annotations.srcjar",
     ],

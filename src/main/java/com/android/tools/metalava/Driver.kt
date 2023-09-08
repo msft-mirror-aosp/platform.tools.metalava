@@ -24,13 +24,16 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.help.HelpCommand
+import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -48,8 +51,10 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -89,15 +94,28 @@ fun run(
     stdout: PrintWriter,
     stderr: PrintWriter,
 ): Int {
+    // Preprocess the arguments by adding any additional arguments specified in environment
+    // variables.
     val modifiedArgs = preprocessArgv(originalArgs)
 
-    progress("$PROGRAM_NAME started\n")
+    // Process the early options. This does not consume any arguments, they will be parsed again
+    // later. A little inefficient but produces cleaner code.
+    val earlyOptions = EarlyOptions.parse(modifiedArgs)
+
+    val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
+
+    progressTracker.progress("$PROGRAM_NAME started\n")
 
     // Dump the arguments, and maybe generate a rerun-script.
     maybeDumpArgv(stdout, originalArgs, modifiedArgs)
 
     // Actual work begins here.
-    val command = createMetalavaCommand(stdout, stderr)
+    val command =
+        createMetalavaCommand(
+            stdout,
+            stderr,
+            progressTracker,
+        )
     val exitCode = command.process(modifiedArgs)
 
     // Update and close all baseline files.
@@ -120,9 +138,7 @@ fun run(
     stdout.flush()
     stderr.flush()
 
-    if (options.verbose) {
-        progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
-    }
+    progressTracker.progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
 
     return exitCode
 }
@@ -144,14 +160,16 @@ private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, 
     }
 }
 
-internal fun processFlags(environmentManager: EnvironmentManager) {
+internal fun processFlags(
+    environmentManager: EnvironmentManager,
+    progressTracker: ProgressTracker
+) {
     val stopwatch = Stopwatch.createStarted()
 
-    processNonCodebaseFlags()
-
+    val reporter = options.reporter
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = options.reporter,
+            reporter = reporter,
             annotationManager = options.annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
@@ -180,22 +198,26 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(sourceParser, options.apiJar!!)
+            loadFromJarFile(progressTracker, reporter, sourceParser, options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(sourceParser, sources[0])
+            loadFromJarFile(progressTracker, reporter, sourceParser, sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources(sourceParser)
+            loadFromSources(progressTracker, reporter, sourceParser)
         } else {
             return
         }
 
-    if (options.verbose) {
-        progress("$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n")
-    }
+    progressTracker.progress(
+        "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
+    )
 
     options.subtractApi?.let {
-        progress("Subtracting API: ")
-        subtractApi(sourceParser, codebase, it)
+        progressTracker.progress("Subtracting API: ")
+        subtractApi(progressTracker, reporter, sourceParser, codebase, it)
+    }
+
+    if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+        reallyHideFlaggedSystemApis(codebase)
     }
 
     val androidApiLevelXml = options.generateApiLevelXml
@@ -203,7 +225,9 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
     if (androidApiLevelXml != null && apiLevelJars != null) {
         assert(options.currentApiLevel != -1)
 
-        progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
+        progressTracker.progress(
+            "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
+        )
         ApiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
@@ -221,12 +245,12 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
         if (!codebase.supportsDocumentation()) {
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
-        progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, options.reporter)
+        progressTracker.progress("Enhancing docs: ")
+        val docAnalyzer = DocAnalyzer(codebase, reporter)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
-            progress("Applying API levels")
+            progressTracker.progress("Applying API levels")
             docAnalyzer.applyApiLevels(applyApiLevelsXml)
         }
     }
@@ -234,7 +258,9 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
     val apiVersionsJson = options.generateApiVersionsJson
     val apiVersionNames = options.apiVersionNames
     if (apiVersionsJson != null && apiVersionNames != null) {
-        progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
+        progressTracker.progress(
+            "Generating API version history JSON file, ${apiVersionsJson.name}: "
+        )
         ApiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
@@ -247,6 +273,7 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {
         createStubFiles(
+            progressTracker,
             it,
             codebase,
             docStubs = true,
@@ -261,12 +288,15 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
         val apiEmit = apiType.getEmitFilter()
         val apiReference = apiType.getReferenceFilter()
 
-        createReportFile(codebase, apiFile, "API") { printWriter ->
+        createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
                 printWriter,
                 apiEmit,
                 apiReference,
                 codebase.preFiltered,
+                fileFormat = options.signatureFileFormat,
+                showUnannotated = options.showUnannotated,
+                packageFilter = options.stubPackages,
             )
         }
     }
@@ -276,7 +306,7 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
         val apiEmit = apiType.getEmitFilter()
         val apiReference = apiType.getReferenceFilter()
 
-        createReportFile(codebase, apiFile, "XML API") { printWriter ->
+        createReportFile(progressTracker, codebase, apiFile, "XML API") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
         }
     }
@@ -289,6 +319,7 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
         val removedReference = apiType.getReferenceFilter()
 
         createReportFile(
+            progressTracker,
             unfiltered,
             apiFile,
             "removed API",
@@ -300,6 +331,9 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
                 removedReference,
                 codebase.original != null,
                 options.includeSignatureFormatVersionRemoved,
+                options.signatureFileFormat,
+                options.showUnannotated,
+                options.stubPackages,
             )
         }
     }
@@ -310,7 +344,7 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
         val apiReference = ApiPredicate(ignoreShown = true)
         val dexApiEmit = memberIsNotCloned.and(apiFilter)
 
-        createReportFile(codebase, apiFile, "DEX API") { printWriter ->
+        createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
             DexApiWriter(printWriter, dexApiEmit, apiReference)
         }
     }
@@ -318,7 +352,7 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
     options.proguard?.let { proguard ->
         val apiEmit = FilterPredicate(ApiPredicate())
         val apiReference = ApiPredicate(ignoreShown = true)
-        createReportFile(codebase, proguard, "Proguard file") { printWriter ->
+        createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter, apiEmit, apiReference)
         }
     }
@@ -329,14 +363,14 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(sourceParser, codebase, check)
+        checkCompatibility(progressTracker, reporter, sourceParser, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(sourceParser, previousApiFile)
+                loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
             } else {
                 SignatureFileLoader.load(file = previousApiFile)
             }
@@ -360,6 +394,7 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
 
     options.stubsDir?.let {
         createStubFiles(
+            progressTracker,
             it,
             codebase,
             docStubs = false,
@@ -385,14 +420,12 @@ internal fun processFlags(environmentManager: EnvironmentManager) {
         options.stubsSourceList?.let(writeStubsFile)
         options.docStubsSourceList?.let(writeStubsFile)
     }
-    options.externalAnnotations?.let { extractAnnotations(codebase, it) }
+    options.externalAnnotations?.let { extractAnnotations(progressTracker, codebase, it) }
 
-    if (options.verbose) {
-        val packageCount = codebase.size()
-        progress(
-            "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
-        )
-    }
+    val packageCount = codebase.size()
+    progressTracker.progress(
+        "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
+    )
 }
 
 /**
@@ -415,7 +448,8 @@ private fun addMissingItemsRequiredForGeneratingStubs(
         // Reuse the existing ApiAnalyzer support for adding constructors that is used in
         // [loadFromSources], to make sure that the constructors are correct when generating stubs
         // from source files.
-        val analyzer = ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.manifest)
+        val analyzer =
+            ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.apiAnalyzerConfig)
         analyzer.addConstructors { _ -> true }
 
         addMissingConcreteMethods(
@@ -507,6 +541,8 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
 }
 
 fun subtractApi(
+    progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
     codebase: Codebase,
     subtractApiFile: File,
@@ -515,7 +551,8 @@ fun subtractApi(
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
-            path.endsWith(DOT_JAR) -> loadFromJarFile(sourceParser, subtractApiFile)
+            path.endsWith(DOT_JAR) ->
+                loadFromJarFile(progressTracker, reporter, sourceParser, subtractApiFile)
             else ->
                 throw MetalavaCliException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -535,37 +572,37 @@ fun subtractApi(
         )
 }
 
-fun processNonCodebaseFlags() {
-    // --copy-annotations?
-    val privateAnnotationsSource = options.privateAnnotationsSource
-    val privateAnnotationsTarget = options.privateAnnotationsTarget
-    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
-        val rewrite = RewriteAnnotations()
-        // Support pointing to both stub-annotations and stub-annotations/src/main/java
-        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
-        val source = if (src.isDirectory) src else privateAnnotationsSource
-        source.listFiles()?.forEach { file ->
-            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
+fun reallyHideFlaggedSystemApis(codebase: Codebase) {
+    codebase.accept(
+        object :
+            ApiVisitor(
+                filterEmit = ApiPredicate(ignoreShown = true),
+                filterReference = ApiPredicate(ignoreShown = true),
+                includeEmptyOuterClasses = true
+            ) {
+            override fun visitItem(item: Item) {
+                item.modifiers.findAnnotation(ANDROID_FLAGGED_API) ?: return
+                item.hidden = true
+                item.mutableModifiers().removeAnnotations { it.isShowAnnotation() }
+            }
         }
-    }
-
-    for (convert in options.convertToXmlFiles) {
-        convert.process()
-    }
+    )
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 fun checkCompatibility(
+    progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
-    progress("Checking API compatibility ($check): ")
+    progressTracker.progress("Checking API compatibility ($check): ")
     val signatureFile = check.file
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(sourceParser, signatureFile)
+            loadFromJarFile(progressTracker, reporter, sourceParser, signatureFile)
         } else {
             val classResolver = getClassResolver(sourceParser)
             SignatureFileLoader.load(signatureFile, classResolver)
@@ -615,8 +652,12 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
     }
 }
 
-private fun loadFromSources(sourceParser: SourceParser): Codebase {
-    progress("Processing sources: ")
+private fun loadFromSources(
+    progressTracker: ProgressTracker,
+    reporter: Reporter,
+    sourceParser: SourceParser,
+): Codebase {
+    progressTracker.progress("Processing sources: ")
 
     val sources =
         options.sources.ifEmpty {
@@ -628,7 +669,7 @@ private fun loadFromSources(sourceParser: SourceParser): Codebase {
             gatherSources(options.reporter, options.sourcePath)
         }
 
-    progress("Reading Codebase: ")
+    progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
             sources,
@@ -637,9 +678,9 @@ private fun loadFromSources(sourceParser: SourceParser): Codebase {
             classPath = options.classpath,
         )
 
-    progress("Analyzing API: ")
+    progressTracker.progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter, options.manifest)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
@@ -650,7 +691,7 @@ private fun loadFromSources(sourceParser: SourceParser): Codebase {
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
     // this before merging annotations or performing checks on the API to ensure that these methods
     // can have annotations added and are checked properly.
-    progress("Insert missing stubs methods: ")
+    progressTracker.progress("Insert missing stubs methods: ")
     analyzer.generateInheritedStubs(apiEmit, apiReference)
 
     analyzer.mergeExternalQualifierAnnotations()
@@ -665,7 +706,7 @@ private fun loadFromSources(sourceParser: SourceParser): Codebase {
     AndroidApiChecks(options.reporter).check(codebase)
 
     if (options.checkApi) {
-        progress("API Lint: ")
+        progressTracker.progress("API Lint: ")
         val localTimer = Stopwatch.createStarted()
         // See if we should provide a previous codebase to provide a delta from?
         val previousApiFile = options.checkApiBaselineApiFile
@@ -673,12 +714,12 @@ private fun loadFromSources(sourceParser: SourceParser): Codebase {
             when {
                 previousApiFile == null -> null
                 previousApiFile.path.endsWith(DOT_JAR) ->
-                    loadFromJarFile(sourceParser, previousApiFile)
+                    loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
         ApiLint.check(codebase, previous, apiLintReporter)
-        progress(
+        progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
         )
     }
@@ -687,11 +728,11 @@ private fun loadFromSources(sourceParser: SourceParser): Codebase {
     // to make stubs compilable if necessary). Do this after all the checks as
     // these are not part of the API.
     if (options.stubsDir != null || options.docStubsDir != null) {
-        progress("Insert missing constructors: ")
+        progressTracker.progress("Insert missing constructors: ")
         analyzer.addConstructors(filterEmit)
     }
 
-    progress("Performing misc API checks: ")
+    progressTracker.progress("Performing misc API checks: ")
     analyzer.performChecks()
 
     return codebase
@@ -708,16 +749,21 @@ private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
 }
 
 fun loadFromJarFile(
+    progressTracker: ProgressTracker,
+    reporter: Reporter,
     sourceParser: SourceParser,
     apiJar: File,
     preFiltered: Boolean = false,
+    allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
+    apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
 ): Codebase {
-    progress("Processing jar file: ")
+    progressTracker.progress("Processing jar file: ")
 
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
-    val apiEmit = ApiPredicate(ignoreShown = true)
-    val apiReference = ApiPredicate(ignoreShown = true)
-    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter)
+    val apiEmit =
+        ApiPredicate(ignoreShown = true, allowClassesFromClasspath = allowClassesFromClasspath)
+    val apiReference = apiEmit
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
@@ -736,13 +782,13 @@ internal fun disableStderrDumping(): Boolean {
         !isUnderTest()
 }
 
-private fun extractAnnotations(codebase: Codebase, file: File) {
+private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codebase, file: File) {
     val localTimer = Stopwatch.createStarted()
 
     options.externalAnnotations?.let { outputFile ->
         ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
         if (options.verbose) {
-            progress(
+            progressTracker.progress(
                 "$PROGRAM_NAME extracted annotations into $file in ${localTimer.elapsed(SECONDS)} seconds\n"
             )
         }
@@ -750,6 +796,7 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
 }
 
 private fun createStubFiles(
+    progressTracker: ProgressTracker,
     stubDir: File,
     codebase: Codebase,
     docStubs: Boolean,
@@ -771,9 +818,9 @@ private fun createStubFiles(
     }
 
     if (docStubs) {
-        progress("Generating documentation stub files: ")
+        progressTracker.progress("Generating documentation stub files: ")
     } else {
-        progress("Generating stub files: ")
+        progressTracker.progress("Generating stub files: ")
     }
 
     val localTimer = Stopwatch.createStarted()
@@ -814,13 +861,14 @@ private fun createStubFiles(
         }
     }
 
-    progress(
+    progressTracker.progress(
         "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
         localTimer.elapsed(SECONDS)} seconds\n"
     )
 }
 
 fun createReportFile(
+    progressTracker: ProgressTracker,
     codebase: Codebase,
     apiFile: File,
     description: String?,
@@ -828,7 +876,7 @@ fun createReportFile(
     createVisitor: (PrintWriter) -> ApiVisitor
 ) {
     if (description != null) {
-        progress("Writing $description file: ")
+        progressTracker.progress("Writing $description file: ")
     }
     val localTimer = Stopwatch.createStarted()
     try {
@@ -845,8 +893,8 @@ fun createReportFile(
     } catch (e: IOException) {
         options.reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
     }
-    if (description != null && options.verbose) {
-        progress(
+    if (description != null) {
+        progressTracker.progress(
             "$PROGRAM_NAME wrote $description file $apiFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
@@ -858,11 +906,28 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 /** Whether metalava is being invoked as part of an Android platform build */
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
-private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): MetalavaCommand {
-    val command = MetalavaCommand(stdout, stderr, ::DriverCommand, options::getUsage)
+private fun createMetalavaCommand(
+    stdout: PrintWriter,
+    stderr: PrintWriter,
+    progressTracker: ProgressTracker
+): MetalavaCommand {
+    val command =
+        MetalavaCommand(
+            stdout,
+            stderr,
+            { commonOptions ->
+                DriverCommand(
+                    commonOptions,
+                    progressTracker,
+                )
+            },
+            progressTracker,
+            OptionsHelp::getUsage,
+        )
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
+        MakeAnnotationsPackagePrivateCommand(),
         MergeSignaturesCommand(),
         SignatureToJDiffCommand(),
         UpdateSignatureHeaderCommand(),
@@ -875,8 +940,16 @@ private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): Met
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
  * needs to be run when no subcommand is provided.
  */
-private class DriverCommand(commonOptions: CommonOptions) :
-    CliktCommand(treatUnknownOptionsAsArgs = true) {
+private class DriverCommand(
+    commonOptions: CommonOptions,
+    private val progressTracker: ProgressTracker,
+) : CliktCommand(treatUnknownOptionsAsArgs = true) {
+
+    init {
+        // Although, the `helpFormatter` is inherited from the parent context unless overridden the
+        // same is not true for the `localization` so make sure to initialize it for this command.
+        context { localization = MetalavaLocalization() }
+    }
 
     /**
      * Property into which all the arguments (and unknown options) are gathered.
@@ -922,8 +995,10 @@ private class DriverCommand(commonOptions: CommonOptions) :
         @Suppress("DEPRECATION")
         options = optionGroup
 
-        val sourceModelProvider = SourceModelProvider.getImplementation("psi")
-        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use(::processFlags)
+        val sourceModelProvider = SourceModelProvider.getImplementation(options.sourceModelProvider)
+        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
+            processFlags(it, progressTracker)
+        }
 
         if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.

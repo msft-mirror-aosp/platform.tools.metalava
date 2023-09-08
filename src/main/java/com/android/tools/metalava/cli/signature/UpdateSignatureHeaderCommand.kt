@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
@@ -66,7 +67,7 @@ class UpdateSignatureHeaderCommand :
                 .trimIndent()
     ) {
 
-    private val formatOptions by SignatureFormatOptions()
+    private val formatOptions by SignatureFormatOptions(migratingAllowed = true)
 
     private val files by
         argument(
@@ -82,7 +83,12 @@ class UpdateSignatureHeaderCommand :
             .multiple(required = true)
 
     override fun run() {
+        // Make sure that none of the code called by this command accesses the global `options`
+        // property.
+        OptionsDelegate.disallowAccess()
+
         val outputFormat = formatOptions.fileFormat
+
         files.forEach { updateHeader(outputFormat, it) }
     }
 
@@ -99,7 +105,7 @@ class UpdateSignatureHeaderCommand :
                 }
 
                 // Create a temporary file and write the updated contents into it.
-                val temp = createTempFile("${file.name}-${outputFormat.defaultsVersion.name}")
+                val temp = createTempFile("${file.name}-${outputFormat.version.name}")
                 temp.bufferedWriter().use { writer ->
                     // Write the new header.
                     writer.write(outputFormat.header())

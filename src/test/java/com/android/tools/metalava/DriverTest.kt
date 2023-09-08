@@ -101,8 +101,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Suppress("SameParameterValue") vararg args: String,
         expectedFail: String = "",
     ): String {
-        resetTicker()
-
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
         // print calls littered in the code!
@@ -358,8 +356,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         validateNullability: Set<String>? = null,
         /** Enable nullability validation for the listed classes */
         validateNullabilityFromList: String? = null,
-        /** List of signature files to convert to JDiff XML and the expected XML output. */
-        convertToJDiff: List<ConvertData> = emptyList(),
         /** Hook for performing additional initialization of the project directory */
         projectSetup: ((File) -> Unit)? = null,
         /** Content of the baseline file to use, if any */
@@ -779,47 +775,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        val convertFiles = mutableListOf<ConvertFile>()
-        val convertArgs =
-            if (convertToJDiff.isNotEmpty()) {
-                val args = mutableListOf<String>()
-                var index = 1
-                for (convert in convertToJDiff) {
-                    val signature = convert.fromApi
-                    val base = convert.baseApi
-                    val convertSig = temporaryFolder.newFile("convert-signatures$index.txt")
-                    convertSig.writeText(signature.trimIndent(), UTF_8)
-                    val extension = DOT_XML
-                    val output = temporaryFolder.newFile("convert-output$index$extension")
-                    val baseFile =
-                        if (base != null) {
-                            val baseFile =
-                                temporaryFolder.newFile("convert-signatures$index-base.txt")
-                            baseFile.writeText(base.trimIndent(), UTF_8)
-                            baseFile
-                        } else {
-                            null
-                        }
-                    convertFiles += ConvertFile(convertSig, output, baseFile, strip = true)
-                    index++
-
-                    if (convert.strip) {
-                        throw IllegalArgumentException("Stripping not supported: $convert")
-                    }
-                    if (baseFile != null) {
-                        args += ARG_CONVERT_NEW_TO_JDIFF
-                        args += baseFile.path
-                    } else {
-                        args += ARG_CONVERT_TO_JDIFF
-                    }
-                    args += convertSig.path
-                    args += output.path
-                }
-                args.toTypedArray()
-            } else {
-                emptyArray()
-            }
-
         var stubsDir: File? = null
         val stubsArgs =
             if (stubFiles.isNotEmpty()) {
@@ -1011,6 +966,10 @@ abstract class DriverTest : TemporaryFolderOwner {
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
+        // Make sure that the options is initialized. Just in case access was disallowed by another
+        // test.
+        options = Options()
+
         val actualOutput =
             runDriver(
                 ARG_NO_COLOR,
@@ -1049,7 +1008,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *checkCompatibilityRemovedReleasedArguments,
                 *proguardKeepArguments,
                 *manifestFileArgs,
-                *convertArgs,
                 *applyApiLevelsXmlArgs,
                 *baselineArgs,
                 *baselineApiLintArgs,
@@ -1155,26 +1113,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             null,
             baselineCheckCompatibilityReleasedFile
         )
-
-        if (convertFiles.isNotEmpty()) {
-            for (i in convertToJDiff.indices) {
-                val expected = convertToJDiff[i].outputFile
-                val converted = convertFiles[i].outputFile
-                assertTrue(
-                    "${converted.path} does not exist even though $ARG_CONVERT_TO_JDIFF was used",
-                    converted.exists()
-                )
-                val actualText = readFile(converted)
-                if (actualText.contains("<api")) {
-                    parseDocument(actualText, false)
-                }
-                assertEquals(
-                    stripComments(expected, DOT_XML, stripLineComments = false).trimIndent(),
-                    actualText
-                )
-                // Make sure we can read back the files we write
-            }
-        }
 
         if (dexApi != null && dexApiFile != null) {
             assertTrue(
@@ -1941,6 +1879,31 @@ val columnSource: TestFile =
     public @interface Column {
         int value();
         boolean readOnly() default false;
+    }
+    """
+        )
+        .indented()
+
+val flaggedApiSource: TestFile =
+    java(
+            """
+    package android.annotation;
+
+    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+    import static java.lang.annotation.ElementType.CONSTRUCTOR;
+    import static java.lang.annotation.ElementType.FIELD;
+    import static java.lang.annotation.ElementType.METHOD;
+    import static java.lang.annotation.ElementType.TYPE;
+
+    import java.lang.annotation.Retention;
+    import java.lang.annotation.RetentionPolicy;
+    import java.lang.annotation.Target;
+
+    /** @hide */
+    @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface FlaggedApi {
+        String value();
     }
     """
         )

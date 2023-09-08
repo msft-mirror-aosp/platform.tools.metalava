@@ -20,11 +20,11 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
-import java.util.Locale
 import org.junit.Assert.fail
 import org.junit.Test
 
-class MergeSignaturesCommandTest : BaseCommandTest(::MergeSignaturesCommand) {
+class MergeSignaturesCommandTest :
+    BaseCommandTest<MergeSignaturesCommand>(::MergeSignaturesCommand) {
 
     private fun checkMergeSignatures(
         vararg files: String,
@@ -48,7 +48,7 @@ class MergeSignaturesCommandTest : BaseCommandTest(::MergeSignaturesCommand) {
             args += output.path
 
             args += "--format"
-            args += format.defaultsVersion.name.lowercase(Locale.US)
+            args += format.specifier()
 
             if (expectedOutput == null) {
                 verify {

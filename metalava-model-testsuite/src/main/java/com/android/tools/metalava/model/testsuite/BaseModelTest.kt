@@ -17,10 +17,18 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import java.util.ServiceLoader
+import kotlin.test.assertNotNull
 import kotlin.test.fail
+import org.junit.AssumptionViolatedException
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestRule
+import org.junit.runner.Description
 import org.junit.runners.Parameterized
+import org.junit.runners.model.Statement
 
 /**
  * Base class for tests that verify the behavior of model implementations.
@@ -35,6 +43,10 @@ import org.junit.runners.Parameterized
  * into the same project and run tests against them all at the same time.
  */
 abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
+
+    @get:Rule val temporaryFolder = TemporaryFolder()
+
+    @get:Rule val baselineTestRule: TestRule = BaselineTestRule(runner)
 
     companion object {
         @JvmStatic
@@ -63,6 +75,63 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
         source: TestFile,
         test: (Codebase) -> Unit,
     ) {
-        runner.createCodebaseAndRun(signature, source, test)
+        val tempDir = temporaryFolder.newFolder()
+        runner.createCodebaseAndRun(tempDir, signature, source, test)
+    }
+
+    /** Get the class from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertClass(qualifiedName: String): ClassItem {
+        val classItem = findClass(qualifiedName)
+        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
+        return classItem
+    }
+}
+
+private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
+    "`./gradlew updateModelTestSuiteBaseline` to update the baseline"
+
+/** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
+private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
+
+    /**
+     * The [ModelTestSuiteBaseline] that indicates whether the tests are expected to fail or not.
+     */
+    private val baseline = ModelTestSuiteBaseline.fromResource
+
+    override fun apply(base: Statement, description: Description): Statement {
+        return object : Statement() {
+            override fun evaluate() {
+                val expectedFailure =
+                    baseline.isExpectedFailure(description.className, description.methodName)
+                try {
+                    // Run the test even if it is expected to fail as a change that fixes one test
+                    // may fix more. Instead, this will just discard any failure.
+                    base.evaluate()
+                    if (expectedFailure) {
+                        // If a test that was expected to fail passes then updating the baseline
+                        // will remove that test from the expected test failures.
+                        System.err.println(
+                            "Test was expected to fail but passed, please run $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
+                        )
+                    }
+                } catch (e: Throwable) {
+                    if (expectedFailure) {
+                        // If this was expected to fail then throw an AssumptionViolatedException
+                        // so it is not treated as either a pass or fail.
+                        throw AssumptionViolatedException(
+                            "Test skipped since it is listed in the baseline file for $runner"
+                        )
+                    } else {
+                        // Inform the developer on how to ignore this failing test.
+                        System.err.println(
+                            "Failing tests can be ignored by running $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
+                        )
+
+                        // Rethrow the error
+                        throw e
+                    }
+                }
+            }
+        }
     }
 }

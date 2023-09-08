@@ -20,10 +20,12 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 
 // @AutoService(SourceModelProvider::class)
-class PsiSourceModelProvider : SourceModelProvider {
+internal class PsiSourceModelProvider : SourceModelProvider {
 
     override val providerName: String = "psi"
 
-    override fun createEnvironmentManager(disableStderrDumping: Boolean): EnvironmentManager =
-        PsiEnvironmentManager(disableStderrDumping)
+    override fun createEnvironmentManager(
+        disableStderrDumping: Boolean,
+        forTesting: Boolean,
+    ): EnvironmentManager = PsiEnvironmentManager(disableStderrDumping, forTesting)
 }
