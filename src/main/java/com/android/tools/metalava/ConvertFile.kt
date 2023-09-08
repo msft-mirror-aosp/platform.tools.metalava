@@ -150,7 +150,8 @@ fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): Tex
                             textClass.qualifiedName,
                             textClass.qualifiedName,
                             textClass.name,
-                            textClass.annotations
+                            textClass.annotations,
+                            textClass.typeParameterList
                         )
                     val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
                     pkg.addClass(newClass)
