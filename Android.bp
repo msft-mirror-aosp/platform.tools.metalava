@@ -16,6 +16,14 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+java_library_host {
+    name: "metalava-signature-reader",
+    static_libs: [
+        "metalava-model",
+        "metalava-model-text",
+    ],
+}
+
 java_binary_host {
     name: "metalava",
     srcs: [
@@ -27,6 +35,12 @@ java_binary_host {
         "jsr305",
         "jsr330",
         "kotlin-reflect",
+        "metalava-model",
+        "metalava-model-psi",
+        "metalava-model-source",
+        "metalava-model-text",
+        "metalava-model-turbine",
+        "metalava-reporter",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",
         "gson-prebuilt-jar-2.9.1",
