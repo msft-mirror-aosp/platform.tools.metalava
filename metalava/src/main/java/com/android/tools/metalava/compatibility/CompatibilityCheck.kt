@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -414,11 +415,9 @@ class CompatibilityCheck(
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
         if (!new.isConstructor()) {
-            val oldTypeParameter = oldReturnType.asTypeParameter(old)
-            val newTypeParameter = newReturnType.asTypeParameter(new)
             var compatible = true
-            if (oldTypeParameter == null) {
-                if (newTypeParameter == null) {
+            if (oldReturnType !is VariableTypeItem) {
+                if (newReturnType !is VariableTypeItem) {
                     if (oldReturnType != newReturnType) {
                         compatible = false
                     }
@@ -426,7 +425,7 @@ class CompatibilityCheck(
                     // If the old return type was not parameterized but the new return type is,
                     // the new type parameter must have the old return type in its bounds
                     // (e.g. changing return type from `String` to `T extends String` is valid).
-                    val constraints = newTypeParameter.typeBounds()
+                    val constraints = newReturnType.asTypeParameter.typeBounds()
                     val oldClass = oldReturnType.asClass()
                     for (constraint in constraints) {
                         val newClass = constraint.asClass()
@@ -440,15 +439,15 @@ class CompatibilityCheck(
                     }
                 }
             } else {
-                if (newTypeParameter == null) {
+                if (newReturnType !is VariableTypeItem) {
                     // It's never valid to go from being a parameterized type to not being one.
                     // This would drop the implicit cast breaking backwards compatibility.
                     compatible = false
                 } else {
                     // If both return types are parameterized then the constraints must be
                     // exactly the same.
-                    val oldConstraints = oldTypeParameter.typeBounds()
-                    val newConstraints = newTypeParameter.typeBounds()
+                    val oldConstraints = oldReturnType.asTypeParameter.typeBounds()
+                    val newConstraints = newReturnType.asTypeParameter.typeBounds()
                     if (newConstraints != oldConstraints) {
                         val oldTypeString = describeBounds(oldReturnType, oldConstraints)
                         val newTypeString = describeBounds(newReturnType, newConstraints)

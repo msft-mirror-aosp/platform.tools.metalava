@@ -165,14 +165,6 @@ interface TypeItem {
     }
 
     /**
-     * If this type is a type parameter, then return the corresponding [TypeParameterItem]. The
-     * optional [context] provides the method or class where this type parameter appears, and can be
-     * used for example to resolve the bounds for a type variable used in a method that was
-     * specified on the class.
-     */
-    fun asTypeParameter(context: MemberItem? = null): TypeParameterItem?
-
-    /**
      * Mark nullness annotations in the type as recent.
      *
      * TODO: This isn't very clean; we should model individual annotations.
