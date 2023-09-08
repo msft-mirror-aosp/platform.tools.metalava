@@ -3745,12 +3745,7 @@ class ApiLintTest : DriverTest() {
     fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues =
-                """
-                src/android/foobar/ExistingSystemApi.java:14: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingSystemApi.existingPublicApi() [UnflaggedApi]
-                src/android/foobar/ExistingSystemApi.java:16: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingSystemApi.existingSystemApi() [UnflaggedApi]
-                src/android/foobar/ExistingSystemApi.java:11: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingSystemApi.hashCode() [UnflaggedApi]
-            """,
+            expectedIssues = "",
             apiLint =
                 """
                 package android.foobar {
