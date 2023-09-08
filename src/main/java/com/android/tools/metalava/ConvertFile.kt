@@ -79,6 +79,7 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
             apiReference,
             signatureApi.preFiltered && !strip,
             apiName,
+            showUnannotated = false,
             ApiVisitor.Config(),
         )
     }

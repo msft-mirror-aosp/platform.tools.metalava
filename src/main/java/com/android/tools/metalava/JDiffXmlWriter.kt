@@ -48,7 +48,8 @@ class JDiffXmlWriter(
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
     private val apiName: String? = null,
-    config: Config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+    showUnannotated: Boolean,
+    config: Config,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -58,7 +59,7 @@ class JDiffXmlWriter(
         fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
-        showUnannotated = @Suppress("DEPRECATION") options.showUnannotated,
+        showUnannotated = showUnannotated,
         config = config,
     ) {
     override fun visitCodebase(codebase: Codebase) {
@@ -263,7 +264,7 @@ class JDiffXmlWriter(
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
-        var interfaces =
+        val interfaces =
             if (preFiltered) cls.interfaceTypes().asSequence()
             else cls.filteredInterfaceTypes(filterReference).asSequence()
 
@@ -303,7 +304,7 @@ class JDiffXmlWriter(
                 else -> method.filteredThrowsTypes(filterReference).asSequence()
             }
         if (throws.any()) {
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEach { type ->
+            throws.sortedWith(ClassItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 writer.print(type.fullName())
                 writer.print("\" type=\"")

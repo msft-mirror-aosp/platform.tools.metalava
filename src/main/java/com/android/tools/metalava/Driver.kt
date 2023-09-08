@@ -291,7 +291,14 @@ internal fun processFlags(
         val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(progressTracker, codebase, apiFile, "XML API") { printWriter ->
-            JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+            JDiffXmlWriter(
+                printWriter,
+                apiEmit,
+                apiReference,
+                codebase.preFiltered,
+                showUnannotated = @Suppress("DEPRECATION") options.showUnannotated,
+                config = options.apiVisitorConfig,
+            )
         }
     }
 
