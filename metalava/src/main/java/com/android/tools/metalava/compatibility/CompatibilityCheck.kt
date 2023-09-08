@@ -418,10 +418,7 @@ class CompatibilityCheck(
             val newTypeParameter = newReturnType.asTypeParameter(new)
             var compatible = true
             if (oldTypeParameter == null && newTypeParameter == null) {
-                if (
-                    oldReturnType != newReturnType ||
-                        oldReturnType.arrayDimensions() != newReturnType.arrayDimensions()
-                ) {
+                if (oldReturnType != newReturnType) {
                     compatible = false
                 }
             } else if (oldTypeParameter == null && newTypeParameter != null) {

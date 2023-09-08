@@ -193,10 +193,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         )
     }
 
-    override fun arrayDimensions(): Int {
-        return psiType.arrayDimensions
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 
