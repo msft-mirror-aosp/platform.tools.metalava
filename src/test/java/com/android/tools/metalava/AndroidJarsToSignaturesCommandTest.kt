@@ -16,13 +16,16 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.testing.BaseCommandTest
+import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
+import com.android.tools.metalava.model.text.FileFormat
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
-class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
+class AndroidJarsToSignaturesCommandTest :
+    BaseCommandTest<AndroidJarsToSignaturesCommand>(::AndroidJarsToSignaturesCommand) {
 
     @Test
     fun `Test help`() {
@@ -31,20 +34,21 @@ class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
 
             expectedStdout =
                 """
-
 Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir>
 
-  Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by reading the API defined in
-  the `android.jar` files.
+  Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree.
+
+  It does this by reading the API defined in the corresponding `android.jar` files.
 
 Options:
   -h, -?, --help                             Show this message and exit
+
+$SIGNATURE_FORMAT_OPTIONS_HELP
 
 Arguments:
   <android-root-dir>                         The root directory of the Android source tree. The new signature files will
                                              be generated in the `prebuilts/sdk/<api>/public/api/android.txt`
                                              sub-directories.
-
             """
                     .trimIndent()
         }
@@ -60,10 +64,8 @@ Arguments:
 
             expectedStderr =
                 """
-
-                Aborting: <android-root-dir> does not point to an Android source tree
-
-            """
+                    Aborting: <android-root-dir> does not point to an Android source tree
+                """
                     .trimIndent()
         }
     }
@@ -97,7 +99,11 @@ Arguments:
                 return "${currentApiDir(apiVersion)}/android.txt"
             }
 
-            data class ApiVersionInfo(val version: Int, val inputAndroidJarFile: File)
+            data class ApiVersionInfo(
+                val version: Int,
+                val inputAndroidJarFile: File,
+                val inputAndroidTxtFile: File? = null,
+            )
             val apiVersionsInfo = mutableListOf<ApiVersionInfo>()
 
             // The first few android.jars are not in prebuilts/sdk
@@ -110,14 +116,26 @@ Arguments:
             // The remaining android.jars are in prebuilts/sdk/<N>/public/android.jar.
             for (apiVersion in 4..5) {
                 val versionJar = androidRootDir.resolve(currentAndroidJarFile(apiVersion))
+
+                // Some android.jar files already have a corresponding android.txt file.
+                val androidTxtFile =
+                    if (apiVersion == 5) androidRootDir.resolve(currentApiTxtFile(apiVersion))
+                    else null
+
                 // Add to the list of api versions.
-                apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar))
+                apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar, androidTxtFile))
             }
 
             // Set up the input file structure.
             for (apiVersionInfo in apiVersionsInfo) {
                 // Copy the android.jar created in the build.gradle.kts file.
                 androidJar.copyTo(apiVersionInfo.inputAndroidJarFile, overwrite = true)
+
+                // Create an android.txt file, if provided.
+                apiVersionInfo.inputAndroidTxtFile?.apply {
+                    parentFile.mkdirs()
+                    writeText(FileFormat.V2.header())
+                }
 
                 // Make sure the directory for the android.txt file exists.
                 androidRootDir.resolve(currentApiDir(apiVersionInfo.version)).mkdirs()

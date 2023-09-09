@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
@@ -38,23 +40,35 @@ import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 
-class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
+class DefaultAnnotationManager(
+    /**
+     * The optional reporter.
+     *
+     * This is optional as at the moment not all callers have or need a [Reporter].
+     */
+    private val reporter: Reporter? = null,
+    private val config: Config = Config()
+) : BaseAnnotationManager() {
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
+        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val hideMetaAnnotations: List<String> = emptyList(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -95,9 +109,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // match on attribute values as well as the name.
         val filters =
             arrayOf(
-                config.showAnnotations,
+                config.allShowAnnotations,
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
+                config.hideAnnotations,
             )
         annotationNameToKeyFactory =
             filters
@@ -245,7 +260,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // Should not be mapped to a different package name:
             "android.annotation.TargetApi",
             "android.annotation.SuppressLint" -> return qualifiedName
-            "android.annotation.FlaggedApi" -> return qualifiedName
+            ANDROID_FLAGGED_API -> return qualifiedName
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
@@ -301,7 +316,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
-            config.showAnnotations.matches(qualifiedName) ||
+            config.allShowAnnotations.matches(qualifiedName) ||
             config.hideAnnotations.matches(qualifiedName)
 
     private val TYPEDEF_ANNOTATION_TARGETS =
@@ -341,7 +356,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            "android.annotation.FlaggedApi" -> return ANNOTATION_SIGNATURE_ONLY
+            ANDROID_FLAGGED_API -> return ANNOTATION_SIGNATURE_ONLY
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are
@@ -448,7 +463,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
         if (!config.apiPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
-                if (cls.modifiers.annotations().any { it.isTypeDefAnnotation() }) {
+                if (cls.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)) {
                     return ANNOTATION_SIGNATURE_ONLY
                 }
             }
@@ -470,77 +485,74 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return ANNOTATION_EXTERNAL
     }
 
-    override fun hasShowAnnotation(modifiers: ModifierList): Boolean {
-        if (config.showAnnotations.isEmpty()) {
-            return false
-        }
-        return modifiers.annotations().any(AnnotationItem::isShowAnnotation)
-    }
+    override fun isShowAnnotationName(annotationName: String): Boolean =
+        config.allShowAnnotations.matchesAnnotationName(annotationName)
 
-    override fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean {
-        if (config.showSingleAnnotations.isEmpty()) {
-            return false
-        }
-        return modifiers.annotations().any(AnnotationItem::isShowSingleAnnotation)
-    }
-
-    override fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean {
-        if (config.showForStubPurposesAnnotations.isEmpty()) {
-            return false
-        }
-        return modifiers.annotations().any(AnnotationItem::isShowForStubPurposes) &&
-            !modifiers.annotations().any { it.isShowAnnotation() && !it.isShowForStubPurposes() }
+    override fun hasAnyStubPurposesAnnotations(): Boolean {
+        return config.showForStubPurposesAnnotations.isNotEmpty()
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
+        if (config.hideAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any { annotation ->
-            config.hideAnnotations.matches(annotation) ||
-                (config.hideMetaAnnotations.isNotEmpty() &&
-                    annotation.resolve()?.modifiers?.let { hasHideMetaAnnotation(it) } ?: false)
-        }
-    }
-
-    /**
-     * Returns true if the modifier list contains any hide meta-annotations.
-     *
-     * Hide meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn], which
-     * allows developers to create annotations that describe experimental features -- sets of
-     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
-     * hidden meta-annotation.
-     */
-    private fun hasHideMetaAnnotation(modifiers: ModifierList): Boolean {
-        return modifiers.annotations().any { annotation ->
-            config.hideMetaAnnotations.contains(annotation.qualifiedName)
-        }
+        return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
     }
 
     override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
         if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
             return false
         }
-        return modifiers.annotations().any { annotation ->
-            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                config.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
-                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
+        return modifiers.hasAnnotation(AnnotationItem::isSuppressCompatibilityAnnotation)
+    }
+
+    override fun getShowabilityForItem(item: Item): Showability {
+        // Iterates over the annotations on the item and computes the showability for the item by
+        // combining the showability of each annotation. The basic rules are:
+        // * `show=true` beats `show=false`
+        // * `recurse=true` beats `recurse=false`
+        // * `forStubsOnly=false` beats `forStubsOnly=true`
+        // This implementation is not implemented in terms of those properties as not all
+        // combinations are currently supported. Also, it is not clear how to combine something like
+        // SHOW_SINGLE and SHOW_FOR_STUBS, so if found they will result in an error. However, that
+        // should not be an issue in practices as the existing uses do not use both together.
+
+        // The resulting showability of the item.
+        var itemShowability = Showability.NO_EFFECT
+
+        // The annotation whose showability won.
+        var primaryAnnotation: AnnotationItem? = null
+        for (annotation in item.modifiers.annotations()) {
+            val showability = annotation.showability
+            if (itemShowability == Showability.NO_EFFECT) {
+                // NO_EFFECT is beaten by anything.
+                itemShowability = showability
+                primaryAnnotation = annotation
+            } else if (showability != Showability.NO_EFFECT && showability != itemShowability) {
+                // If an annotation has a different and significant showability then if it is SHOW
+                // then it wins, otherwise it is an error.
+                if (showability == LazyAnnotationInfo.SHOW) {
+                    // SHOW cannot be beaten so break out.
+                    itemShowability = showability
+                    break
+                } else {
+                    val message =
+                        "${item.describe(capitalize = true)} has conflicting show annotations $primaryAnnotation ($itemShowability) and $annotation ($showability)"
+                    reporter?.report(Issues.CONFLICTING_SHOW_ANNOTATIONS, item, message)
+                        ?: throw IllegalStateException(message)
+                    break
+                }
+            }
+
+            // SHOW cannot be beaten so break out.
+            if (itemShowability == LazyAnnotationInfo.SHOW) {
+                break
+            }
         }
+        return itemShowability
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
-
-    companion object {
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
-    }
 }
 
 /**
@@ -550,28 +562,110 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
  * The properties are initialized lazily to avoid doing more work than necessary.
  */
 private class LazyAnnotationInfo(
-    config: DefaultAnnotationManager.Config,
+    private val config: Config,
     private val annotationItem: AnnotationItem,
 ) : AnnotationInfo(annotationItem.qualifiedName!!) {
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val show: Boolean by
+    override val showability: Showability by
         lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.showAnnotations
-            filter.isNotEmpty() && filter.matches(annotationItem)
+            // The showAnnotations filter includes all the annotation patterns that are matched by
+            // the first two filters plus 0 or more additional patterns. Excluding the patterns that
+            // are purposely duplicated in showAnnotations the filters should not overlap, i.e. an
+            // AnnotationItem should not be matched by multiple filters. However, the filters could
+            // use the same annotation class (with different attributes). e.g. showAnnotations could
+            // match `@SystemApi(client=MODULE_LIBRARIES)` and showForStubPurposesAnnotations could
+            // match `@SystemApi(client=PRIVILEGED_APPS)`.
+            //
+            // Compare from most likely to match to least likely to match.
+            when {
+                config.showAnnotations.matches(annotationItem) -> SHOW
+                config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
+                config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
+                else -> Showability.NO_EFFECT
+            }
         }
 
-    /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showSingle: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.showSingleAnnotations
-            filter.isNotEmpty() && filter.matches(annotationItem)
+    companion object {
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to be shown.
+         */
+        val SHOW = Showability(show = true, recursive = true, forStubsOnly = false)
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to be shown in the stubs only.
+         */
+        val SHOW_FOR_STUBS = Showability(show = true, recursive = true, forStubsOnly = true)
+
+        /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
+        val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+
+        /**
+         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+         *
+         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
+         * doesn't need to maintain compatibility.
+         */
+        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+    }
+
+    /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
+    private val annotationClass: ClassItem? by
+        lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+
+    /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
+    private var isCheckingResolvedAnnotationClass: Boolean = false
+
+    /**
+     * Check to see whether the resolved annotation class matches the supplied predicate.
+     *
+     * If the annotation class could not be resolved or the annotation is part of a cycle, e.g.
+     * `java.lang.annotation.Retention` is annotated with itself, then returns false, otherwise it
+     * returns the result of applying the supplied predicate to the resolved class.
+     */
+    private fun checkResolvedAnnotationClass(test: (ClassItem) -> Boolean): Boolean {
+        if (isCheckingResolvedAnnotationClass) {
+            return false
         }
 
-    /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showForStubPurposes: Boolean by
+        try {
+            isCheckingResolvedAnnotationClass = true
+
+            // Try and resolve this to the class to see if it has been annotated with hide meta
+            // annotations. If it could not be resolved then assume it has not been annotated.
+            val resolved = annotationClass ?: return false
+
+            // Return the result of applying the test to the resolved class.
+            return test(resolved)
+        } finally {
+            isCheckingResolvedAnnotationClass = false
+        }
+    }
+
+    /**
+     * Compute lazily to avoid doing any more work than strictly necessary.
+     *
+     * This is `true` either if an annotation is matched by [Config.hideAnnotations] or the
+     * annotation is itself annotated with an annotation whose [hideMeta] is `true`.
+     */
+    override val hide: Boolean by
         lazy(LazyThreadSafetyMode.NONE) {
-            val filter = config.showForStubPurposesAnnotations
-            filter.isNotEmpty() && filter.matches(annotationItem)
+            val hideAnnotations = config.hideAnnotations
+            hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)
+        }
+
+    /**
+     * If true then this annotation will suppress compatibility checking on annotated items.
+     *
+     * This is true if this annotation is
+     */
+    override val suppressCompatibility: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) {
+            qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+                config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||
+                checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
         }
 }

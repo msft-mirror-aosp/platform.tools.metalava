@@ -31,8 +31,8 @@ import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
-import com.android.tools.metalava.java
 import com.android.tools.metalava.minApiLevel
+import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -695,6 +695,7 @@ class ApiGeneratorTest : DriverTest() {
                 createTextFile(
                     "1.1.0",
                     """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
                         method public <T extends java.lang.String> void methodV1(T);
@@ -709,6 +710,7 @@ class ApiGeneratorTest : DriverTest() {
                 createTextFile(
                     "1.2.0",
                     """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
                         method public <T extends java.lang.String> void methodV1(T);
@@ -725,6 +727,7 @@ class ApiGeneratorTest : DriverTest() {
                 createTextFile(
                     "1.3.0",
                     """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
                         method @Deprecated public <T extends java.lang.String> void methodV1(T);
