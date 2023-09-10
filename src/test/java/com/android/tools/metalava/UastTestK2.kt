@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import org.junit.Ignore
 import org.junit.Test
 
 class UastTestK2 : UastTestBase() {
@@ -63,8 +62,8 @@ class UastTestK2 : UastTestBase() {
     }
 
     @Test
-    fun `Member of companion object in value class -- K2`() {
-        `Member of companion object in value class`(isK2 = true)
+    fun `declarations with value class in its signature -- K2`() {
+        `declarations with value class in its signature`(isK2 = true)
     }
 
     @Test
@@ -82,7 +81,6 @@ class UastTestK2 : UastTestBase() {
         `constant in file-level annotation`(isK2 = true)
     }
 
-    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
     @Test
     fun `final modifier in enum members -- K2`() {
         `final modifier in enum members`(isK2 = true)
@@ -93,14 +91,43 @@ class UastTestK2 : UastTestBase() {
         `lateinit var as mutable bare field`(isK2 = true)
     }
 
-    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
     @Test
-    fun `Upper bound wildcards -- K2`() {
-        `Upper bound wildcards`(isK2 = true)
+    fun `Upper bound wildcards -- enum members -- K2`() {
+        `Upper bound wildcards -- enum members`(isK2 = true)
+    }
+
+    @Test
+    fun `Upper bound wildcards -- type alias -- K2`() {
+        `Upper bound wildcards -- type alias`(isK2 = true)
+    }
+
+    @Test
+    fun `Upper bound wildcards -- extension function type -- K2`() {
+        `Upper bound wildcards -- extension function type`(isK2 = true)
     }
 
     @Test
     fun `boxed type argument as method return type -- K2`() {
         `boxed type argument as method return type`(isK2 = true)
+    }
+
+    @Test
+    fun `setter returns this with type cast -- K2`() {
+        `setter returns this with type cast`(isK2 = true)
+    }
+
+    @Test
+    fun `suspend fun in interface -- K2`() {
+        `suspend fun in interface`(isK2 = true)
+    }
+
+    @Test
+    fun `nullable return type via type alias -- K2`() {
+        `nullable return type via type alias`(isK2 = true)
+    }
+
+    @Test
+    fun `IntDef with constant in companion object -- K2`() {
+        `IntDef with constant in companion object`(isK2 = true)
     }
 }

@@ -16,22 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.CommonTypeItemTest
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class TextTypeItemTest : CommonTypeItemTest() {
-
-    override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit,
-    ) {
-        val codebase = ApiFile.parseApi("test", signature.trimIndent())
-        test(codebase)
-    }
+class TextTypeItemTest {
 
     @Test
     fun `test typeString()`() {
@@ -69,6 +57,7 @@ class TextTypeItemTest : CommonTypeItemTest() {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();
@@ -102,6 +91,7 @@ class TextTypeItemTest : CommonTypeItemTest() {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package test.pkg {
               public final class TestClass<D> {
                 method public D build();
@@ -131,6 +121,7 @@ class TextTypeItemTest : CommonTypeItemTest() {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package test.pkg {
               public class EnumMap<K extends java.lang.Enum<K>, V> extends java.util.AbstractMap implements java.lang.Cloneable java.io.Serializable {
                 method public java.util.EnumMap<K, V> clone();

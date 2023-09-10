@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class SdkFileWriterTest : DriverTest() {
@@ -49,7 +50,7 @@ class SdkFileWriterTest : DriverTest() {
                     ),
                     sdkConstantSource
                 ),
-            sdk_broadcast_actions =
+            sdkBroadcastActions =
                 """
             android.telephony.action.DEFAULT_SUBSCRIPTION_CHANGED
             """
@@ -76,7 +77,7 @@ class SdkFileWriterTest : DriverTest() {
                     ),
                     sdkConstantSource
                 ),
-            sdk_activity_actions = """
+            sdkActivityActions = """
             android.intent.action.MAIN
             """
         )
@@ -104,7 +105,7 @@ class SdkFileWriterTest : DriverTest() {
                     ),
                     widgetSource
                 ),
-            sdk_widgets =
+            sdkWidgets =
                 """
             Wandroid.view.View java.lang.Object
             Wandroid.widget.MyButton android.view.View java.lang.Object
