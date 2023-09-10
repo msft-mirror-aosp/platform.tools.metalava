@@ -20,21 +20,35 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
+import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.ReporterOptions
+import com.android.tools.metalava.cli.common.Terminal
+import com.android.tools.metalava.cli.common.TerminalColor
+import com.android.tools.metalava.cli.common.Verbosity
+import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.stringToExistingDir
+import com.android.tools.metalava.cli.common.stringToExistingFile
+import com.android.tools.metalava.cli.common.stringToNewDir
+import com.android.tools.metalava.cli.common.stringToNewFile
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.Severity
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -42,19 +56,15 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
-import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
+import java.util.Optional
 import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
-import org.jetbrains.kotlin.config.ApiVersion
-import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
 /**
  * Global options for the metadata extraction tool
@@ -63,29 +73,25 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
  * the actual options to use, either created from the command line arguments for the main process or
  * with arguments supplied by tests.
  */
-var options =
-    Options().let {
-        // Call parse with an empty array to ensure that the properties are set to the correct
-        // defaults.
-        it.parse(emptyArray())
-        it
-    }
+@Deprecated(
+    """
+    Do not add any more usages of this and please remove any existing uses that you find. Global
+    variables tightly couple all the code that uses them making them hard to test, modularize and
+    reuse. Which is why there is an ongoing process to remove usages of global variables and
+    eventually the global variable itself.
+    """
+)
+var options = Options()
 
 private const val INDENT_WIDTH = 45
 
-const val ARG_FORMAT = "--format"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
-const val ARG_API = "--api"
-const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
-const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
-const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
-const val ARG_REMOVED_API = "--removed-api"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
@@ -93,7 +99,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
-const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
@@ -101,7 +106,6 @@ const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
@@ -110,26 +114,14 @@ const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
-const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
-const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
-const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
-const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
-const val ARG_ERROR = "--error"
-const val ARG_WARNING = "--warning"
-const val ARG_LINT = "--lint"
-const val ARG_HIDE = "--hide"
-const val ARG_ERROR_CATEGORY = "--error-category"
-const val ARG_WARNING_CATEGORY = "--warning-category"
-const val ARG_LINT_CATEGORY = "--lint-category"
-const val ARG_HIDE_CATEGORY = "--hide-category"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
@@ -149,12 +141,10 @@ const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
-const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
@@ -171,22 +161,20 @@ const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
-const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
-    "--force-convert-to-warning-nullability-annotations"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
-const val ARG_NO_IMPLICIT_ROOT = "--no-implicit-root"
-const val ARG_STRICT_INPUT_FILES = "--strict-input-files"
-const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
-const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
-const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
-const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
-class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup() {
+class Options(
+    private val commonOptions: CommonOptions = CommonOptions(),
+    reporterOptions: ReporterOptions = ReporterOptions(),
+    signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
+    signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
+    stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
+) : OptionGroup() {
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
     /** Writer to direct error messages to */
@@ -198,16 +186,16 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal list backing [showAnnotations] */
+    /** Internal builder backing [allShowAnnotations] */
+    private val allShowAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal builder backing [showAnnotations] */
     private val showAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [showSingleAnnotations] */
+    /** Internal builder backing [showSingleAnnotations] */
     private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal builder backing [showForStubPurposesAnnotations] */
+    private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideAnnotations] */
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [hideMetaAnnotations] */
-    private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
-    /** Internal list backing [showForStubPurposesAnnotations] */
-    private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -218,8 +206,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [skipEmitPackages] */
     private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [convertToXmlFiles] */
-    private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -228,17 +214,39 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
 
+    /**
+     * Backing property for [nullabilityAnnotationsValidator]
+     *
+     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
+     * `null` as a special value.
+     *
+     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
+     * options which may be supplied in different orders.
+     */
+    private val optionalNullabilityAnnotationsValidator by lazy {
+        Optional.ofNullable(
+            if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
+                NullabilityAnnotationsValidator(
+                    reporter,
+                    nullabilityErrorsFatal,
+                    nullabilityWarningsTxt
+                )
+            } else null
+        )
+    }
+
     /** Validator for nullability annotations, if validation is enabled. */
-    var nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null
+    val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
+        get() = optionalNullabilityAnnotationsValidator.orElse(null)
 
     /** Whether nullability validation errors should be considered fatal. */
-    var nullabilityErrorsFatal = true
+    private var nullabilityErrorsFatal = true
 
     /**
      * A file to write non-fatal nullability validation issues to. If null, all issues are treated
      * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
      */
-    var nullabilityWarningsTxt: File? = null
+    private var nullabilityWarningsTxt: File? = null
 
     /**
      * Whether to validate nullability for all the classes where we are merging annotations from
@@ -264,18 +272,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * source annotations present in the code. This is implied by --doc-stubs.
      */
     var enhanceDocumentation = false
-
-    /**
-     * Whether nullness annotations should be displayed as ?/!/empty instead of
-     * with @NonNull/@Nullable.
-     */
-    var outputKotlinStyleNulls = false // requires v3
-
-    /** Whether default values should be included in signature files */
-    var outputDefaultValues = true
-
-    /** The output format version being used */
-    var outputFormat: FileFormat = FileFormat.recommended
 
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
@@ -307,16 +303,33 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
-     * [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
-     * [ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION].
+     * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
+     */
+    val allShowAnnotations by lazy(allShowAnnotationsBuilder::build)
+
+    /**
+     * A filter that will match annotations which will cause an annotated item (and its enclosed
+     * items unless overridden by a closer annotation) to be included in the API surface.
+     *
+     * @see [allShowAnnotations]
      */
     val showAnnotations by lazy(showAnnotationsBuilder::build)
 
     /**
-     * Like [showAnnotations], but does not work recursively. Note that these annotations are *also*
-     * show annotations and will be added to the above list; this is a subset.
+     * Like [showAnnotations], but does not work recursively.
+     *
+     * @see [allShowAnnotations]
      */
     private val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
+
+    /**
+     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
+     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
+     * API signature file) ignore them.
+     *
+     * @see [allShowAnnotations]
+     */
+    private val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
@@ -329,7 +342,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     val checkApiIgnorePrefix: MutableList<String> = mutableListOf()
 
-    /** If non null, an API file to use to hide for controlling what parts of the API are new */
+    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
 
     /** Packages to include (if null, include all) */
@@ -347,18 +360,16 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
-    /** Meta-annotations to hide */
-    var hideMetaAnnotations = mutableHideMetaAnnotations
-
     val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
+            reporter = reporter,
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
+                allShowAnnotations = allShowAnnotations,
                 showAnnotations = showAnnotations,
                 showSingleAnnotations = showSingleAnnotations,
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
-                hideMetaAnnotations = hideMetaAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
@@ -383,13 +394,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             .unique()
 
     /**
-     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
-     * API signature file) ignore them.
-     */
-    val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
-
-    /**
      * Whether the generated API can contain classes that are not present in the source but are
      * present on the classpath. Defaults to true for backwards compatibility but is set to false if
      * any API signatures are imported as they must provide a complete set of all classes required
@@ -400,17 +404,24 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var allowClassesFromClasspath = true
 
+    /** This is set directly by [preprocessArgv]. */
+    internal var verbosity: Verbosity = Verbosity.NORMAL
+
     /** Whether to report warnings and other diagnostics along the way */
-    var quiet = commonOptions.verbosity.quiet
+    val quiet: Boolean
+        get() = verbosity.quiet
 
     /**
      * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
      * quiet)
      */
-    var verbose = commonOptions.verbosity.verbose
+    val verbose: Boolean
+        get() = verbosity.verbose
 
-    /** If set, a directory to write stub files to. Corresponds to the --stubs/-stubs flag. */
-    var stubsDir: File? = null
+    val stubsDir by stubGenerationOptions::stubsDir
+    val forceConvertToWarningNullabilityAnnotations by
+        stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
+    val generateAnnotations by stubGenerationOptions::includeAnnotations
 
     /**
      * If set, a directory to write documentation stub files to. Corresponds to the --stubs/-stubs
@@ -436,50 +447,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Proguard Keep list file to write */
     var proguard: File? = null
 
-    /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
-    var apiFile: File? = null
-
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>, val help: String) {
-        /** Sort overloaded methods according to source order. */
-        SOURCE(
-            MethodItem.sourceOrderForOverloadedMethodsComparator,
-            help =
-                """
-            preserves the order in which overloaded methods appear in the source files. This means
-            that refactorings of the source files which change the order but not the API can cause
-            unnecessary changes in the API signature files.
-        """
-                    .trimIndent()
-        ),
-
-        /** Sort overloaded methods by their signature. */
-        SIGNATURE(
-            MethodItem.comparator,
-            help =
-                """
-            sorts overloaded methods by their signature. This means that refactorings of the source
-            files which change the order but not the API will have no effect on the API signature
-            files.
-        """
-                    .trimIndent()
-        )
-    }
-
-    /**
-     * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
-     * files.
-     */
-    val apiOverloadedMethodOrder by
-        enumOption(
-            help =
-                """
-                Specifies the order of overloaded methods in signature files.
-                Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API.
-            """
-                    .trimIndent(),
-            enumValueHelpGetter = { it.help },
-            default = OverloadedMethodOrder.SIGNATURE,
-        )
+    val apiFile by signatureFileOptions::apiFile
+    val removedApiFile by signatureFileOptions::removedApiFile
+    val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -506,7 +476,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     val manifest by
         option(
                 ARG_MANIFEST,
-                "-manifest",
                 help =
                     """
         A manifest file, used to check permissions to cross check APIs and retrieve min_sdk_version.
@@ -514,26 +483,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         .trimIndent()
             )
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
-            .convert("<file>") { Manifest(it) }
+            .convert("<file>") { Manifest(it, reporter) }
             .default(emptyManifest, defaultForHelp = "no manifest")
 
-    /**
-     * If set, a file to write a dex API file to. Corresponds to the
-     * --removed-dex-api/-removedDexApi flag.
-     */
-    var removedApiFile: File? = null
-
     /** Whether output should be colorized */
-    var terminal = commonOptions.terminal
-
-    /** Whether to generate annotations into the stubs */
-    var generateAnnotations = false
+    val terminal by commonOptions::terminal
 
     /** The set of annotation classes that should be passed through unchanged */
-    var passThroughAnnotations = mutablePassThroughAnnotations
+    private var passThroughAnnotations = mutablePassThroughAnnotations
 
     /** The set of annotation classes that should be removed from all outputs */
-    var excludeAnnotations = mutableExcludeAnnotations
+    private var excludeAnnotations = mutableExcludeAnnotations
 
     /** A signature file to migrate nullness data from */
     var migrateNullsFrom: File? = null
@@ -547,18 +507,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** The API to use a base for the otherwise checked API during compat checks. */
     var baseApiForCompatCheck: File? = null
 
-    /** If false, attempt to use the native diff utility on the system */
-    var noNativeDiff = false
-
     /** Existing external annotation files to merge in */
     var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
-
-    /**
-     * We modify the annotations on these APIs to ask kotlinc to treat it as only a warning if a
-     * caller of one of these APIs makes an incorrect assumption about its nullability.
-     */
-    var forceConvertToWarningNullabilityAnnotations: PackageFilter? = null
 
     /**
      * An optional <b>jar</b> file to load classes from instead of from source. This is similar to
@@ -599,8 +550,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var sdkJarRoot: File? = null
 
     /**
-     * Rules to filter out some of the extension SDK APIs from the API, and assign extensions to the
-     * APIs that are kept
+     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
+     * that are kept
      */
     var sdkInfoFile: File? = null
 
@@ -616,29 +567,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var apiVersionNames: List<String>? = null
 
-    /** Whether to include the signature file format version header in most signature files */
-    var includeSignatureFormatVersion: Boolean = true
-
-    /** Whether to include the signature file format version header in removed signature files */
-    val includeSignatureFormatVersionNonRemoved: EmitFileHeader
-        get() =
-            if (includeSignatureFormatVersion) {
-                EmitFileHeader.ALWAYS
-            } else {
-                EmitFileHeader.NEVER
-            }
-
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
         get() =
-            if (includeSignatureFormatVersion) {
-                if (deleteEmptyRemovedSignatures) {
-                    EmitFileHeader.IF_NONEMPTY_FILE
-                } else {
-                    EmitFileHeader.ALWAYS
-                }
+            if (deleteEmptyRemovedSignatures) {
+                EmitFileHeader.IF_NONEMPTY_FILE
             } else {
-                EmitFileHeader.NEVER
+                EmitFileHeader.ALWAYS
             }
 
     /** A baseline to check against */
@@ -666,14 +601,20 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     private var errorMessageCompatibilityReleased: String? = null
 
+    /** [IssueConfiguration] used by all reporters. */
+    val issueConfiguration by reporterOptions::issueConfiguration
+
+    /** [Reporter] for general use. */
+    val reporter: Reporter by reporterOptions::reporter
+
     /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = DefaultReporter(null, null)
+    var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
      * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var reporterCompatibilityReleased: Reporter = DefaultReporter(null, null)
+    var reporterCompatibilityReleased: Reporter = DefaultReporter(issueConfiguration)
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -683,7 +624,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** If updating baselines and the baseline is empty, delete the file */
     var deleteEmptyBaselines = false
 
-    /** If generating a removed signature file and it is empty, delete it */
+    /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
     /** Whether the baseline should only contain errors */
@@ -701,13 +642,10 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var omitLocations = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
-    var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
+    var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
 
-    /** The language level to use for Java files, set with [ARG_KOTLIN_SOURCE] */
-    var kotlinLanguageLevel: LanguageVersionSettings =
-        // TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
-        // LanguageVersionSettingsImpl.DEFAULT
-        kotlinLanguageVersionSettings("1.8")
+    /** The language level to use for Kotlin files, set with [ARG_KOTLIN_SOURCE] */
+    var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
 
     /**
      * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
@@ -724,18 +662,15 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /**
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
-     * For R preview, if would be "R".
+     * For R preview, it would be "R".
      */
     private var compileSdkVersion: String? = null
-
-    /** List of signature files to export as JDiff files */
-    internal val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
      */
-    val typedefMode by
+    private val typedefMode by
         enumOption(
             ARG_TYPEDEFS_IN_SIGNATURES,
             help = """Whether to include typedef annotations in signature files.""",
@@ -744,50 +679,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             key = { it.optionValue },
         )
 
-    /** Allow implicit root detection (which is the default behavior). See [ARG_NO_IMPLICIT_ROOT] */
-    var allowImplicitRoot = true
-
-    enum class StrictInputFileMode {
-        PERMISSIVE,
-        STRICT {
-            override val shouldFail = true
-        },
-        STRICT_WARN,
-        STRICT_WITH_STACK {
-            override val shouldFail = true
-        };
-
-        open val shouldFail = false
-
-        companion object {
-            fun fromArgument(arg: String): StrictInputFileMode {
-                return when (arg) {
-                    ARG_STRICT_INPUT_FILES -> STRICT
-                    ARG_STRICT_INPUT_FILES_WARN -> STRICT_WARN
-                    ARG_STRICT_INPUT_FILES_STACK -> STRICT_WITH_STACK
-                    else -> PERMISSIVE
-                }
-            }
-        }
-    }
-
-    /**
-     * Whether we should allow metalava to read files that are not explicitly specified in the
-     * command line. See [ARG_STRICT_INPUT_FILES], [ARG_STRICT_INPUT_FILES_WARN] and
-     * [ARG_STRICT_INPUT_FILES_STACK].
-     */
-    var strictInputFiles = StrictInputFileMode.PERMISSIVE
-
-    var strictInputViolationsFile: File? = null
-    var strictInputViolationsPrintWriter: PrintWriter? = null
-
     /** Temporary folder to use instead of the JDK default, if any */
-    var tempFolder: File? = null
-
-    /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
-    var repeatErrorsMax = 0
+    private var tempFolder: File? = null
 
     var useK2Uast = false
+
+    val encoding by
+        option("-encoding", hidden = true)
+            .deprecated(
+                "WARNING: option `-encoding` is deprecated; it has no effect please remove",
+                tagValue = "please remove"
+            )
 
     fun parse(
         args: Array<String>,
@@ -801,7 +703,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        reporter = DefaultReporter(null, null)
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
         val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
@@ -824,17 +725,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
-                // For now we don't distinguish between bootclasspath and classpath
-                ARG_CLASS_PATH,
-                "-classpath",
-                "-bootclasspath" -> {
+                // For now, we don't distinguish between bootclasspath and classpath
+                ARG_CLASS_PATH -> {
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
                 }
                 ARG_SOURCE_PATH,
                 "--sources",
-                "--sourcepath",
-                "-sourcepath" -> {
+                "--sourcepath" -> {
                     val path = getValue(args, ++index)
                     if (path.isBlank()) {
                         // Don't compute absolute path; we want to skip this file later on.
@@ -842,11 +740,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         mutableSourcePath.add(File(""))
                     } else {
                         if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                            throw DriverException(
+                            throw MetalavaCliException(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path, false))
+                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
                     }
                 }
                 ARG_SOURCE_FILES -> {
@@ -857,7 +755,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 }
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
-                        throw DriverException(stderr = "Only one $ARG_SUBTRACT_API can be supplied")
+                        throw MetalavaCliException(
+                            stderr = "Only one $ARG_SUBTRACT_API can be supplied"
+                        )
                     }
                     subtractApi = stringToExistingFile(getValue(args, ++index))
                 }
@@ -874,71 +774,45 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     mutableMergeInclusionAnnotations.addAll(
                         stringToExistingDirsOrFiles(getValue(args, ++index))
                     )
-                ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS -> {
-                    val nextArg = getValue(args, ++index)
-                    forceConvertToWarningNullabilityAnnotations = PackageFilter.parse(nextArg)
-                }
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
-                    nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
                 }
                 ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
                     validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
-                    nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
                 }
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                "-sdkvalues",
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_API,
-                "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
-                ARG_DEX_API,
-                "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_REMOVED_API,
-                "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
-                ARG_SHOW_ANNOTATION,
-                "-showAnnotation" -> showAnnotationsBuilder.add(getValue(args, ++index))
+                ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
+                ARG_SHOW_ANNOTATION -> {
+                    val annotation = getValue(args, ++index)
+                    showAnnotationsBuilder.add(annotation)
+                    // These should also be counted as allShowAnnotations
+                    allShowAnnotationsBuilder.add(annotation)
+                }
                 ARG_SHOW_SINGLE_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showSingleAnnotationsBuilder.add(annotation)
-                    // These should also be counted as show annotations
-                    showAnnotationsBuilder.add(annotation)
+                    // These should also be counted as allShowAnnotations
+                    allShowAnnotationsBuilder.add(annotation)
                 }
-                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
-                "--show-for-stub-purposes-annotations",
-                "-show-for-stub-purposes-annotation" -> {
+                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showForStubPurposesAnnotationBuilder.add(annotation)
-                    // These should also be counted as show annotations
-                    showAnnotationsBuilder.add(annotation)
+                    // These should also be counted as allShowAnnotations
+                    allShowAnnotationsBuilder.add(annotation)
                 }
-                ARG_SHOW_UNANNOTATED,
-                "-showUnannotated" -> showUnannotated = true
-                ARG_HIDE_ANNOTATION,
-                "--hideAnnotations",
-                "-hideAnnotation" -> hideAnnotationsBuilder.add(getValue(args, ++index))
-                ARG_HIDE_META_ANNOTATION,
-                "--hideMetaAnnotations",
-                "-hideMetaAnnotation" -> mutableHideMetaAnnotations.add(getValue(args, ++index))
-                ARG_STUBS,
-                "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
+                ARG_SHOW_UNANNOTATED -> showUnannotated = true
+                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST ->
                     docStubsSourceList = stringToNewFile(getValue(args, ++index))
-                ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
-
-                // Note that this only affects stub generation, not signature files.
-                // For signature files, clear the compatibility mode
-                // (--annotations-in-signatures)
-                ARG_INCLUDE_ANNOTATIONS -> generateAnnotations = true
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
@@ -953,10 +827,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
-                ARG_PROGUARD,
-                "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_HIDE_PACKAGE,
-                "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
+                ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
+                ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES,
                 "-stubpackages" -> {
                     val packages = getValue(args, ++index)
@@ -969,8 +841,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                             }
                     filter.addPackages(packages)
                 }
-                ARG_STUB_IMPORT_PACKAGES,
-                "-stubimportpackages" -> {
+                ARG_STUB_IMPORT_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     for (pkg in packages.split(File.pathSeparatorChar)) {
                         mutableStubImportPackages.add(pkg)
@@ -994,7 +865,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_REPORT_EVEN_IF_SUPPRESSED -> {
                     val relative = getValue(args, ++index)
                     if (reportEvenIfSuppressed != null) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "Only one $ARG_REPORT_EVEN_IF_SUPPRESSED is allowed; found both $reportEvenIfSuppressed and $relative"
                         )
                     }
@@ -1028,27 +899,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
                     privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
                 }
-                "--previous-api" -> {
-                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION,
-                        null as File?,
-                        "--previous-api is deprecated; instead " +
-                            "use $ARG_MIGRATE_NULLNESS $migrateNullsFrom"
-                    )
-                }
                 ARG_MIGRATE_NULLNESS -> {
-                    // See if the next argument specifies the nullness API codebase
-                    if (index < args.size - 1) {
-                        val nextArg = args[index + 1]
-                        if (!nextArg.startsWith("-")) {
-                            val file = stringToExistingFile(nextArg)
-                            if (file.isFile) {
-                                index++
-                                migrateNullsFrom = file
-                            }
-                        }
-                    }
+                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
                 }
                 ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
@@ -1062,38 +914,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val file = stringToExistingFile(getValue(args, ++index))
                     baseApiForCompatCheck = file
                 }
-                ARG_NO_NATIVE_DIFF -> noNativeDiff = true
-                ARG_ERROR,
-                "-error" -> setIssueSeverity(getValue(args, ++index), Severity.ERROR, arg)
-                ARG_WARNING,
-                "-warning" -> setIssueSeverity(getValue(args, ++index), Severity.WARNING, arg)
-                ARG_LINT,
-                "-lint" -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
-                ARG_HIDE,
-                "-hide" -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
-                ARG_ERROR_CATEGORY,
-                "-error-category" ->
-                    setCategorySeverity(getValue(args, ++index), Severity.ERROR, arg)
-                ARG_WARNING_CATEGORY,
-                "-warning-category" ->
-                    setCategorySeverity(getValue(args, ++index), Severity.WARNING, arg)
-                ARG_LINT_CATEGORY,
-                "-lint-category" -> setCategorySeverity(getValue(args, ++index), Severity.LINT, arg)
-                ARG_HIDE_CATEGORY,
-                "-hide-category" ->
-                    setCategorySeverity(getValue(args, ++index), Severity.HIDDEN, arg)
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
-                "-werror" -> {
-                    // Temporarily disabled; this is used in various builds but is pretty much
-                    // never what we want.
-                    // warningsAreErrors = true
-                }
-                "-lerror" -> {
-                    // Temporarily disabled; this is used in various builds but is pretty much
-                    // never what we want.
-                    // lintsAreErrors = true
-                }
                 ARG_API_LINT -> {
                     checkApi = true
                     if (index < args.size - 1) {
@@ -1125,7 +947,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_CURRENT_VERSION -> {
                     currentApiLevel = Integer.parseInt(getValue(args, ++index))
                     if (currentApiLevel <= 26) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "Suspicious currentApi=$currentApiLevel, expected at least 27"
                         )
                     }
@@ -1166,52 +988,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
-                ARG_CONVERT_TO_JDIFF,
-                // doclava compatibility:
-                "-convert2xml",
-                "-convert2xmlnostrip" -> {
-                    val strip = arg == "-convert2xml"
-                    val signatureFile = stringToExistingFile(getValue(args, ++index))
-                    val outputFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, outputFile, null, strip)
-                    )
-                }
-                ARG_CONVERT_NEW_TO_JDIFF,
-                // doclava compatibility:
-                "-new_api",
-                "-new_api_no_strip" -> {
-                    val strip = arg == "-new_api"
-                    val baseFile = stringToExistingFile(getValue(args, ++index))
-                    val signatureFile = stringToExistingFile(getValue(args, ++index))
-                    val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, jDiffFile, baseFile, strip)
-                    )
-                }
-                "-encoding" -> {
-                    val value = getValue(args, ++index)
-                    if (value.uppercase(Locale.getDefault()) != "UTF-8") {
-                        throw DriverException("$value: Only UTF-8 encoding is supported")
-                    }
-                }
                 ARG_JAVA_SOURCE,
                 "-source" -> {
                     val value = getValue(args, ++index)
-                    val level = LanguageLevel.parse(value)
-                    when {
-                        level == null ->
-                            throw DriverException(
-                                "$value is not a valid or supported Java language level"
-                            )
-                        level.isLessThan(LanguageLevel.JDK_1_7) ->
-                            throw DriverException("$arg must be at least 1.7")
-                        else -> javaLanguageLevel = level
-                    }
+                    javaLanguageLevelAsString = value
                 }
                 ARG_KOTLIN_SOURCE -> {
                     val value = getValue(args, ++index)
-                    kotlinLanguageLevel = kotlinLanguageVersionSettings(value)
+                    kotlinLanguageLevelAsString = value
                 }
                 ARG_JDK_HOME -> {
                     jdkHome = stringToExistingDir(getValue(args, ++index))
@@ -1221,34 +1005,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 }
                 ARG_COMPILE_SDK_VERSION -> {
                     compileSdkVersion = getValue(args, ++index)
-                }
-                ARG_NO_IMPLICIT_ROOT -> {
-                    allowImplicitRoot = false
-                }
-                ARG_STRICT_INPUT_FILES,
-                ARG_STRICT_INPUT_FILES_WARN,
-                ARG_STRICT_INPUT_FILES_STACK -> {
-                    if (strictInputViolationsFile != null) {
-                        throw DriverException(
-                            "$ARG_STRICT_INPUT_FILES, $ARG_STRICT_INPUT_FILES_WARN and $ARG_STRICT_INPUT_FILES_STACK may be specified only once"
-                        )
-                    }
-                    strictInputFiles = StrictInputFileMode.fromArgument(arg)
-
-                    val file = stringToNewOrExistingFile(getValue(args, ++index))
-                    strictInputViolationsFile = file
-                    strictInputViolationsPrintWriter = file.printWriter()
-                }
-                ARG_STRICT_INPUT_FILES_EXEMPT -> {
-                    val listString = getValue(args, ++index)
-                    listString.split(File.pathSeparatorChar).forEach { path ->
-                        // Throw away the result; just let the function add the files to the
-                        // allowed list.
-                        stringToExistingFilesOrDirs(path)
-                    }
-                }
-                ARG_REPEAT_ERRORS_MAX -> {
-                    repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
                 ARG_SDK_JAR_ROOT -> {
@@ -1269,41 +1025,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     System.setProperty("user.dir", pwd.path)
                 }
                 else -> {
-                    if (arg.startsWith(ARG_OUTPUT_KOTLIN_NULLS)) {
-                        outputKotlinStyleNulls =
-                            if (arg == ARG_OUTPUT_KOTLIN_NULLS) {
-                                true
-                            } else {
-                                yesNo(arg.substring(ARG_OUTPUT_KOTLIN_NULLS.length + 1))
-                            }
-                    } else if (arg.startsWith(ARG_OUTPUT_DEFAULT_VALUES)) {
-                        outputDefaultValues =
-                            if (arg == ARG_OUTPUT_DEFAULT_VALUES) {
-                                true
-                            } else {
-                                yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
-                            }
-                    } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
-                        includeSignatureFormatVersion =
-                            if (arg == ARG_INCLUDE_SIG_VERSION) true
-                            else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
-                    } else if (arg.startsWith(ARG_FORMAT)) {
-                        outputFormat =
-                            when (arg) {
-                                "$ARG_FORMAT=v1" -> FileFormat.V1
-                                "$ARG_FORMAT=v2" -> FileFormat.V2
-                                "$ARG_FORMAT=v3" -> FileFormat.V3
-                                "$ARG_FORMAT=v4" -> FileFormat.V4
-                                "$ARG_FORMAT=recommended" -> FileFormat.recommended
-                                "$ARG_FORMAT=latest" -> FileFormat.latest
-                                else ->
-                                    throw DriverException(
-                                        stderr =
-                                            "Unexpected signature format; expected v1, v2, v3 or v4"
-                                    )
-                            }
-                        outputFormat.configureOptions(this)
-                    } else if (arg.startsWith("-")) {
+                    if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
                         throw NoSuchOption(givenName = arg)
                     } else {
@@ -1318,7 +1040,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         if (generateApiLevelXml != null) {
             if (currentApiLevel == -1) {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
                 )
             }
@@ -1341,7 +1063,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
 
         if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
-            throw DriverException(
+            throw MetalavaCliException(
                 stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
             )
         }
@@ -1351,23 +1073,15 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         val numVersionNames = apiVersionNames?.size ?: 0
         val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
         if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw DriverException(
+            throw MetalavaCliException(
                 "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
             )
-        }
-
-        // outputKotlinStyleNulls implies at least format=v3
-        if (outputKotlinStyleNulls) {
-            if (outputFormat < FileFormat.V3) {
-                outputFormat = FileFormat.V3
-            }
-            outputFormat.configureOptions(this)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
         // members should be shown in the output then only show them if no annotations were
         // provided.
-        if (!showUnannotated && showAnnotations.isEmpty()) {
+        if (!showUnannotated && allShowAnnotations.isEmpty()) {
             showUnannotated = true
         }
 
@@ -1394,11 +1108,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
 
         // Override the default reporters.
-        reporterApiLint = DefaultReporter(baselineApiLint ?: baseline, errorMessageApiLint)
+        reporterApiLint =
+            DefaultReporter(
+                issueConfiguration,
+                baselineApiLint ?: baseline,
+                errorMessageApiLint,
+            )
         reporterCompatibilityReleased =
             DefaultReporter(
+                issueConfiguration,
                 baselineCompatibilityReleased ?: baseline,
-                errorMessageCompatibilityReleased
+                errorMessageCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1436,14 +1156,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             if (jar.isFile) {
                 mutableClassPath.add(jar)
             } else {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr =
                         "Could not find android.jar for API level " +
                             "$compileSdkVersion in SDK $sdkHome: $jar does not exist"
                 )
             }
             if (jdkHome != null) {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME"
                 )
             }
@@ -1452,10 +1172,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
-    }
-
-    fun isJdkModular(homePath: File): Boolean {
-        return File(homePath, "jmods").isDirectory
     }
 
     /**
@@ -1474,7 +1190,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
-            showAnnotations.getIncludedAnnotationNames().forEach {
+            allShowAnnotations.getIncludedAnnotationNames().forEach {
                 sb.append(annotationToPrefix(it))
             }
             sb.append(DEFAULT_BASELINE_NAME)
@@ -1541,7 +1257,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                                 argList.add(args[index + 1])
                             }
                         }
-                        throw DriverException(
+                        throw MetalavaCliException(
                             stderr =
                                 "Could not find android.jar for API level $apiLevel; the " +
                                     "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}"
@@ -1563,30 +1279,15 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     }
 
     private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
-        // Note this method doesn't register the result to [FileReadSandbox]
         return patterns
             .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
             .firstOrNull { it.isFile }
     }
 
-    private fun yesNo(answer: String): Boolean {
-        return when (answer) {
-            "yes",
-            "true",
-            "enabled",
-            "on" -> true
-            "no",
-            "false",
-            "disabled",
-            "off" -> false
-            else -> throw DriverException(stderr = "Unexpected $answer; expected yes or no")
-        }
-    }
-
     /** Makes sure that the flag combinations make sense */
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
-            throw DriverException(
+            throw MetalavaCliException(
                 stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both"
             )
         }
@@ -1594,7 +1295,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
-            throw DriverException("Missing argument for ${args[index - 1]}")
+            throw MetalavaCliException("Missing argument for ${args[index - 1]}")
         }
         return args[index]
     }
@@ -1605,24 +1306,21 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory) {
-                throw DriverException("$file is not a directory")
+                throw MetalavaCliException("$file is not a directory")
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        return files
     }
 
-    private fun stringToExistingDirsOrJars(value: String, exempt: Boolean = true): List<File> {
+    private fun stringToExistingDirsOrJars(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                throw DriverException("$file is not a jar or directory")
+                throw MetalavaCliException("$file is not a jar or directory")
             }
             files.add(file)
-        }
-        if (exempt) {
-            return FileReadSandbox.allowAccess(files)
         }
         return files
     }
@@ -1632,28 +1330,24 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.exists()) {
-                throw DriverException("$file does not exist")
+                throw MetalavaCliException("$file does not exist")
             }
             files.add(file)
         }
-        return FileReadSandbox.allowAccess(files)
+        return files
     }
 
     @Suppress("unused")
     private fun stringToExistingFileOrDir(value: String): File {
         val file = fileForPathInner(value)
         if (!file.exists()) {
-            throw DriverException("$file is not a file or directory")
+            throw MetalavaCliException("$file is not a file or directory")
         }
-        return FileReadSandbox.allowAccess(file)
+        return file
     }
 
     private fun stringToExistingFiles(value: String): List<File> {
         return stringToExistingFilesOrDirsInternal(value, false)
-    }
-
-    private fun stringToExistingFilesOrDirs(value: String): List<File> {
-        return stringToExistingFilesOrDirsInternal(value, true)
     }
 
     private fun stringToExistingFilesOrDirsInternal(value: String, allowDirs: Boolean): List<File> {
@@ -1668,7 +1362,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     // which means you can't point to files in paths with spaces)
                     val listFile = File(file.path.substring(1))
                     if (!allowDirs && !listFile.isFile) {
-                        throw DriverException("$listFile is not a file")
+                        throw MetalavaCliException("$listFile is not a file")
                     }
                     val contents = Files.asCharSource(listFile, UTF_8).read()
                     val pathList =
@@ -1681,18 +1375,18 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         .map { File(it) }
                         .forEach {
                             if (!allowDirs && !it.isFile) {
-                                throw DriverException("$it is not a file")
+                                throw MetalavaCliException("$it is not a file")
                             }
                             files.add(it)
                         }
                 } else {
                     if (!allowDirs && !file.isFile) {
-                        throw DriverException("$file is not a file")
+                        throw MetalavaCliException("$file is not a file")
                     }
                     files.add(file)
                 }
             }
-        return FileReadSandbox.allowAccess(files)
+        return files
     }
 
     private fun stringToNewOrExistingDir(value: String): File {
@@ -1700,10 +1394,10 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         if (!dir.isDirectory) {
             val ok = dir.mkdirs()
             if (!ok) {
-                throw DriverException("Could not create $dir")
+                throw MetalavaCliException("Could not create $dir")
             }
         }
-        return FileReadSandbox.allowAccess(dir)
+        return dir
     }
 
     private fun stringToNewOrExistingFile(value: String): File {
@@ -1713,33 +1407,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             if (parentFile != null && !parentFile.isDirectory) {
                 val ok = parentFile.mkdirs()
                 if (!ok) {
-                    throw DriverException("Could not create $parentFile")
+                    throw MetalavaCliException("Could not create $parentFile")
                 }
             }
         }
-        return FileReadSandbox.allowAccess(file)
-    }
-
-    private fun stringToNewDir(value: String): File {
-        val output = fileForPathInner(value)
-        val ok =
-            if (output.exists()) {
-                if (output.isDirectory) {
-                    output.deleteRecursively()
-                }
-                if (output.exists()) {
-                    true
-                } else {
-                    output.mkdir()
-                }
-            } else {
-                output.mkdirs()
-            }
-        if (!ok) {
-            throw DriverException("Could not create $output")
-        }
-
-        return FileReadSandbox.allowAccess(output)
+        return file
     }
 
     fun getUsage(terminal: Terminal, width: Int): String {
@@ -1753,20 +1425,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         val args =
             arrayOf(
                 "",
-                "General:",
-                "$ARG_REPEAT_ERRORS_MAX <N>",
-                "When specified, repeat at most N errors before finishing.",
-                "",
                 "API sources:",
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
                 "$ARG_SOURCE_PATH <paths>",
                 "One or more directories (separated by `${File.pathSeparator}`) " +
-                    "containing source files (within a package hierarchy). If $ARG_STRICT_INPUT_FILES, " +
-                    "$ARG_STRICT_INPUT_FILES_WARN, or $ARG_STRICT_INPUT_FILES_STACK are used, files accessed under " +
-                    "$ARG_SOURCE_PATH that are not explicitly specified in $ARG_SOURCE_FILES are reported as " +
-                    "violations.",
+                    "containing source files (within a package hierarchy).",
                 "$ARG_CLASS_PATH <paths>",
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
@@ -1811,15 +1476,12 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     "in certain kinds of output such as stubs, but not in others, such as the signature file and API lint",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
-                "$ARG_HIDE_META_ANNOTATION <meta-annotation class>",
-                "Treat as hidden any elements annotated with an " +
-                    "annotation which is itself annotated with the given meta-annotation",
                 ARG_SHOW_UNANNOTATED,
                 "Include un-annotated public APIs in the signature file as well",
                 "$ARG_JAVA_SOURCE <level>",
-                "Sets the source level for Java source files; default is 1.8.",
+                "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
-                "Sets the source level for Kotlin source files; default is ${LanguageVersionSettingsImpl.DEFAULT.languageVersion}.",
+                "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
                 "$ARG_SDK_HOME <dir>",
                 "If set, locate the `android.jar` file from the given Android SDK",
                 "$ARG_COMPILE_SDK_VERSION <api>",
@@ -1842,37 +1504,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
-                "$ARG_API <file>",
-                "Generate a signature descriptor file",
                 "$ARG_DEX_API <file>",
                 "Generate a DEX signature descriptor file listing the APIs",
-                "$ARG_REMOVED_API <file>",
-                "Generate a signature descriptor file for APIs that have been removed",
-                "$ARG_API_OVERLOADED_METHOD_ORDER <source|signature>",
-                "Specifies the order of overloaded methods in signature files (default `signature`). " +
-                    "Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API. " +
-                    "`$ARG_API_OVERLOADED_METHOD_ORDER source` will preserve the order in which they appear in the source files. " +
-                    "`$ARG_API_OVERLOADED_METHOD_ORDER signature` will sort them based on their signature.",
-                "$ARG_FORMAT=<v1,v2,v3,...>",
-                "Sets the output signature file format to be the given version.",
-                "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]",
-                "Controls whether nullness annotations should be formatted as " +
-                    "in Kotlin (with \"?\" for nullable types, \"\" for non nullable types, and \"!\" for unknown. " +
-                    "The default is yes.",
-                "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]",
-                "Controls whether default values should be included in " +
-                    "signature files. The default is yes.",
-                "$ARG_INCLUDE_SIG_VERSION[=yes|no]",
-                "Whether the signature files should include a comment listing " +
-                    "the format version of the signature file.",
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
                 "$ARG_SDK_VALUES <dir>",
                 "Write SDK values files to the given directory",
                 "",
                 "Generating Stubs:",
-                "$ARG_STUBS <dir>",
-                "Generate stub source files for the API",
                 "$ARG_DOC_STUBS <dir>",
                 "Generate documentation stub source files for the API. Documentation stub " +
                     "files are similar to regular stub files, but there are some differences. For example, in " +
@@ -1883,10 +1522,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_KOTLIN_STUBS,
                 "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
                     "be written in Kotlin rather than the Java programming language.",
-                ARG_INCLUDE_ANNOTATIONS,
-                "Include annotations such as @Nullable in the stub files.",
-                ARG_EXCLUDE_ALL_ANNOTATIONS,
-                "Exclude annotations such as @Nullable from the stub files; the default.",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",
@@ -1931,22 +1566,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "Promote all warnings to errors",
                 ARG_LINTS_AS_ERRORS,
                 "Promote all API lint warnings to errors",
-                "$ARG_ERROR <id>",
-                "Report issues of the given id as errors",
-                "$ARG_WARNING <id>",
-                "Report issues of the given id as warnings",
-                "$ARG_LINT <id>",
-                "Report issues of the given id as having lint-severity",
-                "$ARG_HIDE <id>",
-                "Hide/skip issues of the given id",
-                "$ARG_ERROR_CATEGORY <name>",
-                "Report all issues in the given category as errors",
-                "$ARG_WARNING_CATEGORY <name>",
-                "Report all issues in the given category as warnings",
-                "$ARG_LINT_CATEGORY <name>",
-                "Report all issues in the given category as having lint-severity",
-                "$ARG_HIDE_CATEGORY <name>",
-                "Hide/skip all issues in the given category",
                 "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>",
                 "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY')",
                 "$ARG_BASELINE <file>",
@@ -1986,22 +1605,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "JDiff:",
                 "$ARG_XML_API <file>",
                 "Like $ARG_API, but emits the API in the JDiff XML format instead",
-                "$ARG_CONVERT_TO_JDIFF <sig> <xml>",
-                "Reads in the given signature file, and writes it out " +
-                    "in the JDiff XML format. Can be specified multiple times.",
-                "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>",
-                "Reads in the given old and new api files, " +
-                    "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
-                "$ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS <package1:-package2:...>",
-                "On every API declared " +
-                    "in a class referenced by the given filter, makes nullability issues appear to callers as warnings " +
-                    "rather than errors by replacing @Nullable/@NonNull in these APIs with " +
-                    "@RecentlyNullable/@RecentlyNonNull",
                 "$ARG_COPY_ANNOTATIONS <source> <dest>",
                 "For a source folder full of annotation " +
                     "sources, generates corresponding package private versions of the same annotations.",
@@ -2073,26 +1681,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
                     "Required to generate API version JSON.",
                 "",
-                "Sandboxing:",
-                ARG_NO_IMPLICIT_ROOT,
-                "Disable implicit root directory detection. " +
-                    "Otherwise, $PROGRAM_NAME adds in source roots implied by the source files",
-                "$ARG_STRICT_INPUT_FILES <file>",
-                "Do not read files that are not explicitly specified in the command line. " +
-                    "All violations are written to the given file. Reads on directories are always allowed, but " +
-                    "$PROGRAM_NAME still tracks reads on directories that are not specified in the command line, " +
-                    "and write them to the file.",
-                "$ARG_STRICT_INPUT_FILES_WARN <file>",
-                "Warn when files not explicitly specified on the command line are " +
-                    "read. All violations are written to the given file. Reads on directories not specified in the command " +
-                    "line are allowed but also logged.",
-                "$ARG_STRICT_INPUT_FILES_STACK <file>",
-                "Same as $ARG_STRICT_INPUT_FILES but also print stacktraces.",
-                "$ARG_STRICT_INPUT_FILES_EXEMPT <files or dirs>",
-                "Used with $ARG_STRICT_INPUT_FILES. Explicitly allow " +
-                    "access to files and/or directories (separated by `${File.pathSeparator}). Can also be " +
-                    "@ followed by a path to a text file containing paths to the full set of files and/or directories.",
-                "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
                 "Set to true to have metalava emit all the arguments it was invoked with. " +
@@ -2142,59 +1730,4 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             i += 2
         }
     }
-
-    companion object {
-        private fun setIssueSeverity(id: String, severity: Severity, arg: String) {
-            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-                id.split(",").forEach { setIssueSeverity(it.trim(), severity, arg) }
-                return
-            }
-            val issue =
-                Issues.findIssueById(id)
-                    ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        reporter.report(
-                            Issues.DEPRECATED_OPTION,
-                            null as File?,
-                            "Case-insensitive issue matching is deprecated, use " +
-                                "$arg ${it.name} instead of $arg $id"
-                        )
-                    }
-                        ?: throw DriverException("Unknown issue id: $arg $id")
-
-            defaultConfiguration.setSeverity(issue, severity)
-        }
-
-        private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
-            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-                id.split(",").forEach { setCategorySeverity(it.trim(), severity, arg) }
-                return
-            }
-            val issues =
-                Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                    ?: throw DriverException("Unknown category: $arg $id")
-
-            issues.forEach { defaultConfiguration.setSeverity(it, severity) }
-        }
-
-        private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
-            val languageLevel =
-                LanguageVersion.fromVersionString(value)
-                    ?: throw DriverException(
-                        "$value is not a valid or supported Kotlin language level"
-                    )
-            val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
-            return LanguageVersionSettingsImpl(languageLevel, apiVersion)
-        }
-    }
-}
-
-/** Configures the option object such that the output format will be the given format */
-private fun FileFormat.configureOptions(options: Options) {
-    if (this == FileFormat.JDIFF) {
-        return
-    }
-    options.outputFormat = this
-    options.outputKotlinStyleNulls = this >= FileFormat.V3
-    options.outputDefaultValues = this >= FileFormat.V2
-    options.includeSignatureFormatVersion = this >= FileFormat.V2
 }
