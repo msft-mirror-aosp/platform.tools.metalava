@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 
@@ -56,8 +56,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V3,
             signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
+            api = source,
         )
     }
 
@@ -76,8 +75,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V3,
             signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
+            api = source,
         )
     }
 
@@ -107,12 +105,7 @@ class ApiFromTextTest : DriverTest() {
             }
             """
 
-        check(
-            format = FileFormat.V3,
-            signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
-        )
+        check(format = FileFormat.V3, signatureSource = source, api = source)
     }
 
     @Test
@@ -143,8 +136,7 @@ class ApiFromTextTest : DriverTest() {
         check(
             format = FileFormat.V3,
             signatureSource = source,
-            includeSignatureVersion = true,
-            api = source
+            api = source,
         )
     }
 
@@ -160,12 +152,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(
-            format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
-            signatureSource = source,
-            api = source
-        )
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -180,13 +167,13 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
     fun `Native and strictfp keywords`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             signatureSource =
                 """
                     package test.pkg {
@@ -212,7 +199,6 @@ class ApiFromTextTest : DriverTest() {
     fun `Type use annotations`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             signatureSource =
                 """
                 package test.pkg {
@@ -253,7 +239,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(outputKotlinStyleNulls = false, signatureSource = source)
+        check(format = FileFormat.V2, signatureSource = source)
     }
 
     @Test
@@ -454,7 +440,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -468,7 +454,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -482,7 +468,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -623,12 +609,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(
-            format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
-            signatureSource = source,
-            api = source
-        )
+        check(format = FileFormat.V3, signatureSource = source, api = source)
     }
 
     @Test
@@ -669,12 +650,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(
-            format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
-            signatureSource = source,
-            api = source
-        )
+        check(format = FileFormat.V3, signatureSource = source, api = source)
     }
 
     @Test

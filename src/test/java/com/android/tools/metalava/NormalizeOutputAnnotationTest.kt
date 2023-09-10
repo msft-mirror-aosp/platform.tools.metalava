@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class NormalizeOutputAnnotationTest : DriverTest() {
@@ -67,6 +69,7 @@ class NormalizeOutputAnnotationTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "android.annotation",
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
