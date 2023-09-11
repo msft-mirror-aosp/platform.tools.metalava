@@ -40,6 +40,17 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         type: String,
         typeParams: List<TypeParameterItem> = emptyList()
     ): TextTypeItem {
+        // Only use the cache if there are no type parameters to prevent identically named type
+        // variables from different contexts being parsed as the same type.
+        return if (typeParams.isEmpty()) {
+            typeCache.obtain(type) { parseType(it, typeParams) }
+        } else {
+            parseType(type, typeParams)
+        }
+    }
+
+    /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
+    private fun parseType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
         if (typeParams.isNotEmpty() && TextTypeItem.isLikelyTypeParameter(type)) {
             // Find the "name" part of the type (before a list of type parameters, array marking,
             // or nullability annotation), and see if it is a type parameter name.
@@ -61,22 +72,16 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                     type.substring(0, nameEnd)
                 }
 
+            // Confirm that it's a type variable
             if (typeParams.any { it.simpleName() == name }) {
-                // Confirm that it's a type variable
-                // If so, create type variable WITHOUT placing it into the
-                // cache, since we can't cache these; they can have different
-                // inherited bounds etc
                 return TextTypeItem(codebase, type)
             }
         }
 
-        return typeCache.obtain(type) {
-            // Reverse effect of TypeItem.shortenTypes(...)
-            if (implicitJavaLangType(it)) {
-                TextTypeItem(codebase, "java.lang.$it")
-            } else {
-                TextTypeItem(codebase, it)
-            }
+        return if (implicitJavaLangType(type)) {
+            TextTypeItem(codebase, "java.lang.$type")
+        } else {
+            TextTypeItem(codebase, type)
         }
     }
 
