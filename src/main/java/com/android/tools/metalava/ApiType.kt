@@ -35,7 +35,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                     )
                 )
             val apiReference = ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
-            return apiFilter.and(ElidingPredicate(apiReference))
+            return apiFilter.and(elidingPredicate(apiReference, apiPredicateConfig))
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
@@ -63,7 +63,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                     ignoreRemoved = true,
                     config = apiPredicateConfig,
                 )
-            return removedFilter.and(ElidingPredicate(removedReference))
+            return removedFilter.and(elidingPredicate(removedReference, apiPredicateConfig))
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
@@ -90,6 +90,21 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     abstract fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
     abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+
+    /**
+     * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
+     * [apiPredicateConfig].
+     */
+    protected fun elidingPredicate(
+        wrappedPredicate: ApiPredicate,
+        apiPredicateConfig: ApiPredicate.Config
+    ) =
+        ElidingPredicate(
+            wrappedPredicate,
+            addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
+            additionalNonessentialOverridesClasses =
+                apiPredicateConfig.additionalNonessentialOverridesClasses,
+        )
 
     override fun toString(): String = displayName
 }
