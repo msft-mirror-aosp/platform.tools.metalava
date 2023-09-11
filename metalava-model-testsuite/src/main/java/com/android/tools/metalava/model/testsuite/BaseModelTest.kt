@@ -134,7 +134,7 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
 }
 
 private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
-    "`./gradlew updateModelTestSuiteBaseline` to update the baseline"
+    "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
 
 /** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
 private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
