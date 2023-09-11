@@ -3742,6 +3742,72 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues =
+                """
+                src/android/foobar/ExistingSystemApi.java:14: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingSystemApi.existingPublicApi() [UnflaggedApi]
+                src/android/foobar/ExistingSystemApi.java:16: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingSystemApi.existingSystemApi() [UnflaggedApi]
+                src/android/foobar/ExistingSystemApi.java:11: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingSystemApi.hashCode() [UnflaggedApi]
+            """,
+            apiLint =
+                """
+                package android.foobar {
+                  public class ExistingSystemApi {
+                      ctor public ExistingSystemApi();
+                  }
+                  public class Existing {
+                      method public int existingSystemApi();
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+                        import android.annotation.FlaggedApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class ExistingSystemApi extends Existing {
+                            /** exactly matches Object.hashCode, not emitted */
+                            @Override
+                            public int hashCode() { return 0; }
+                            /** exactly matches ExistingPublicApi.existingPublicApi, not emitted */
+                            @Override
+                            public int existingPublicApi() { return 0; }
+                            @Override
+                            public int existingSystemApi() { return 0; }
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+                        import android.annotation.FlaggedApi;
+
+                        public class Existing {
+                            public int existingPublicApi() { return 0; }
+                            /** @hide */
+                            @SystemApi
+                            public int existingSystemApi() { return 0; }
+                        }
+                    """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
     fun `Require @FlaggedApi on new APIs`() {
         check(
             expectedIssues =
