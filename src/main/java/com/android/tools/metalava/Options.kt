@@ -479,6 +479,7 @@ class Options(
 
     val apiPredicateConfig by lazy {
         ApiPredicate.Config(
+            ignoreShown = showUnannotated,
             addAdditionalOverrides = signatureFileFormat.addAdditionalOverrides,
             additionalNonessentialOverridesClasses = additionalNonessentialOverridesClasses.toSet(),
         )

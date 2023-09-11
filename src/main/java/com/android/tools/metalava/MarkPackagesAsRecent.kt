@@ -28,8 +28,8 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
  */
 class MarkPackagesAsRecent(val filter: PackageFilter) :
     ApiVisitor(
-        filterEmit = ApiPredicate(ignoreShown = true),
-        filterReference = ApiPredicate(ignoreShown = true),
+        filterEmit = apiPredicate(),
+        filterReference = apiPredicate(),
         includeEmptyOuterClasses = true
     ) {
     override fun include(cls: ClassItem): Boolean {
@@ -40,3 +40,7 @@ class MarkPackagesAsRecent(val filter: PackageFilter) :
         item.markRecent()
     }
 }
+
+@Suppress("DEPRECATION")
+private fun apiPredicate() =
+    ApiPredicate(config = options.apiPredicateConfig.copy(ignoreShown = true))

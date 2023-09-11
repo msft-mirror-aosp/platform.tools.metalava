@@ -322,22 +322,22 @@ internal fun processFlags(
         }
     }
 
+    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+    val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
     options.dexApiFile?.let { apiFile ->
         val apiFilter = FilterPredicate(ApiPredicate())
         val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val apiReference = ApiPredicate(ignoreShown = true)
         val dexApiEmit = memberIsNotCloned.and(apiFilter)
 
         createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, dexApiEmit, apiReference)
+            DexApiWriter(printWriter, dexApiEmit, apiReferenceIgnoreShown)
         }
     }
 
     options.proguard?.let { proguard ->
         val apiEmit = FilterPredicate(ApiPredicate())
-        val apiReference = ApiPredicate(ignoreShown = true)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
-            ProguardWriter(printWriter, apiEmit, apiReference)
+            ProguardWriter(printWriter, apiEmit, apiReferenceIgnoreShown)
         }
     }
 
@@ -559,11 +559,14 @@ fun subtractApi(
 }
 
 fun reallyHideFlaggedSystemApis(codebase: Codebase) {
+    @Suppress("DEPRECATION")
+    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+    val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
     codebase.accept(
         object :
             ApiVisitor(
-                filterEmit = ApiPredicate(ignoreShown = true),
-                filterReference = ApiPredicate(ignoreShown = true),
+                filterEmit = apiEmitAndReference,
+                filterReference = apiEmitAndReference,
                 includeEmptyOuterClasses = true
             ) {
             override fun visitItem(item: Item) {
@@ -672,15 +675,15 @@ private fun loadFromSources(
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
 
-    val filterEmit = ApiPredicate(ignoreShown = true, ignoreRemoved = false)
-    val apiEmit = ApiPredicate(ignoreShown = true)
-    val apiReference = ApiPredicate(ignoreShown = true)
+    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+    val filterEmit = ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
+    val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
     // this before merging annotations or performing checks on the API to ensure that these methods
     // can have annotations added and are checked properly.
     progressTracker.progress("Insert missing stubs methods: ")
-    analyzer.generateInheritedStubs(apiEmit, apiReference)
+    analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
 
     analyzer.mergeExternalQualifierAnnotations()
     options.nullabilityAnnotationsValidator?.validateAllFrom(
@@ -760,9 +763,8 @@ fun loadFromJarFile(
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
     val apiEmit =
         ApiPredicate(
-            ignoreShown = true,
             allowClassesFromClasspath = allowClassesFromClasspath,
-            config = apiPredicateConfig,
+            config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val apiReference = apiEmit
     val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)

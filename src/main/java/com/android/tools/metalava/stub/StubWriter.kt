@@ -57,8 +57,8 @@ class StubWriter(
         // Methods are by default sorted in source order in stubs, to encourage methods
         // that are near each other in the source to show up near each other in the documentation
         methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs)),
-        filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
+        filterEmit = FilterPredicate(apiPredicate(docStubs)),
+        filterReference = apiPredicate(docStubs),
         includeEmptyOuterClasses = true
     ) {
     private val annotationTarget =
@@ -269,6 +269,12 @@ class StubWriter(
         stubWriter?.afterVisitField(field)
     }
 }
+
+private fun apiPredicate(docStubs: Boolean) =
+    ApiPredicate(
+        includeDocOnly = docStubs,
+        config = options.apiPredicateConfig.copy(ignoreShown = true)
+    )
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, docStubs: Boolean) {
     if (options.includeDocumentationInStubs || docStubs) {

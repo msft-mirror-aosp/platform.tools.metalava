@@ -34,12 +34,12 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                         config = apiPredicateConfig,
                     )
                 )
-            val apiReference = ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
+            val apiReference = ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
             return apiFilter.and(elidingPredicate(apiReference, apiPredicateConfig))
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-            return ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
+            return ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
         }
     },
 
@@ -59,18 +59,16 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                 )
             val removedReference =
                 ApiPredicate(
-                    ignoreShown = true,
                     ignoreRemoved = true,
-                    config = apiPredicateConfig,
+                    config = apiPredicateConfig.copy(ignoreShown = true),
                 )
             return removedFilter.and(elidingPredicate(removedReference, apiPredicateConfig))
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return ApiPredicate(
-                ignoreShown = true,
                 ignoreRemoved = true,
-                config = apiPredicateConfig,
+                config = apiPredicateConfig.copy(ignoreShown = true),
             )
         }
     },

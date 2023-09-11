@@ -31,15 +31,6 @@ import java.util.function.Predicate
  */
 class ApiPredicate(
     /**
-     * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this predicate
-     * will assume that all encountered members match the "shown" requirement.
-     *
-     * This is typically useful when generating "current.txt", when no [Options.allShowAnnotations]
-     * have been defined.
-     */
-    val ignoreShown: Boolean = @Suppress("DEPRECATION") options.showUnannotated,
-
-    /**
      * Set if the value of [MemberItem.removed] should be ignored. That is, this predicate will
      * assume that all encountered members match the "removed" requirement.
      *
@@ -75,6 +66,15 @@ class ApiPredicate(
      * options.
      */
     data class Config(
+        /**
+         * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this
+         * predicate will assume that all encountered members match the "shown" requirement.
+         *
+         * This is typically useful when generating "current.txt", when no
+         * [Options.allShowAnnotations] have been defined.
+         */
+        val ignoreShown: Boolean = true,
+
         /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
          * or not.
@@ -140,7 +140,7 @@ class ApiPredicate(
             return member.removed == matchRemoved
         }
 
-        var hasShowAnnotation = ignoreShown || member.hasShowAnnotation()
+        var hasShowAnnotation = config.ignoreShown || member.hasShowAnnotation()
         var docOnly = member.docOnly
         var removed = member.removed
 
@@ -166,7 +166,8 @@ class ApiPredicate(
                     (clazz.isPublic ||
                         clazz.isProtected ||
                         (clazz.isInternal && clazz.hasShowAnnotation()))
-            hasShowAnnotation = hasShowAnnotation or (ignoreShown || clazz.hasShowAnnotation())
+            hasShowAnnotation =
+                hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
             hidden = hidden or clazz.hidden
             docOnly = docOnly or clazz.docOnly
             removed = removed or clazz.removed

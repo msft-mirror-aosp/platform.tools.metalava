@@ -132,16 +132,14 @@ open class ApiVisitor(
         fieldComparator = fieldComparator,
         filterEmit =
             ApiPredicate(
-                ignoreShown = ignoreShown,
                 matchRemoved = remove,
                 includeApisForStubPurposes = includeApisForStubPurposes,
-                config = config.apiPredicateConfig,
+                config = config.apiPredicateConfig.copy(ignoreShown = ignoreShown),
             ),
         filterReference =
             ApiPredicate(
-                ignoreShown = true,
                 ignoreRemoved = remove,
-                config = config.apiPredicateConfig,
+                config = config.apiPredicateConfig.copy(ignoreShown = true),
             ),
         config = config,
     )
