@@ -753,12 +753,17 @@ fun loadFromJarFile(
         )
         options.nullabilityAnnotationsValidator?.report()
     },
+    apiPredicateConfig: ApiPredicate.Config = options.apiPredicateConfig,
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
     val apiEmit =
-        ApiPredicate(ignoreShown = true, allowClassesFromClasspath = allowClassesFromClasspath)
+        ApiPredicate(
+            ignoreShown = true,
+            allowClassesFromClasspath = allowClassesFromClasspath,
+            config = apiPredicateConfig,
+        )
     val apiReference = apiEmit
     val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()

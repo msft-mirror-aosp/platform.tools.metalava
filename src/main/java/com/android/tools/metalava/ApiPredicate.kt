@@ -67,12 +67,7 @@ class ApiPredicate(
     private val includeApisForStubPurposes: Boolean = true,
 
     /** Configuration that may be provided by command line options. */
-    private val config: Config =
-        try {
-            @Suppress("DEPRECATION") options.apiPredicateConfig
-        } catch (e: IllegalStateException) {
-            Config()
-        },
+    private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
 ) : Predicate<Item> {
 
     /**
