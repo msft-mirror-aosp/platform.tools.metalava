@@ -94,6 +94,9 @@ class ApiAnalyzer(
 
         /** The filter for all the show annotations. */
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+
+        /** Configuration for any [ApiPredicate] instances this needs to create. */
+        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
     )
 
     /** All packages in the API */
@@ -1085,7 +1088,7 @@ class ApiAnalyzer(
     private fun handleStripping(stubImportPackages: Set<String>) {
         val notStrippable = HashSet<ClassItem>(5000)
 
-        val filter = ApiPredicate(ignoreShown = true)
+        val filter = ApiPredicate(ignoreShown = true, config = config.apiPredicateConfig)
 
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it

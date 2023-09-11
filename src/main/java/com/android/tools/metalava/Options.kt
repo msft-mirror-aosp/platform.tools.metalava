@@ -464,6 +464,7 @@ class Options(
             mergeInclusionAnnotations = mergeInclusionAnnotations,
             stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
+            apiPredicateConfig = apiPredicateConfig,
         )
     }
 
