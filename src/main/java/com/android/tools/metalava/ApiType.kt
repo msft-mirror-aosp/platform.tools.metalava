@@ -24,53 +24,72 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
     PUBLIC_API("api", "public") {
 
-        override fun getEmitFilter(): Predicate<Item> {
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
-            val apiFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false))
-            val apiReference = ApiPredicate(ignoreShown = true)
+            val apiFilter =
+                FilterPredicate(
+                    ApiPredicate(
+                        includeApisForStubPurposes = false,
+                        config = apiPredicateConfig,
+                    )
+                )
+            val apiReference = ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
             return apiFilter.and(ElidingPredicate(apiReference))
         }
 
-        override fun getReferenceFilter(): Predicate<Item> {
-            return ApiPredicate(ignoreShown = true)
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            return ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
         }
     },
 
     /** The API that has been removed */
     REMOVED("removed", "removed") {
 
-        override fun getEmitFilter(): Predicate<Item> {
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             val removedFilter =
                 FilterPredicate(
-                    ApiPredicate(includeApisForStubPurposes = false, matchRemoved = true)
+                    ApiPredicate(
+                        includeApisForStubPurposes = false,
+                        matchRemoved = true,
+                        config = apiPredicateConfig,
+                    )
                 )
-            val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
+            val removedReference =
+                ApiPredicate(
+                    ignoreShown = true,
+                    ignoreRemoved = true,
+                    config = apiPredicateConfig,
+                )
             return removedFilter.and(ElidingPredicate(removedReference))
         }
 
-        override fun getReferenceFilter(): Predicate<Item> {
-            return ApiPredicate(ignoreShown = true, ignoreRemoved = true)
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            return ApiPredicate(
+                ignoreShown = true,
+                ignoreRemoved = true,
+                config = apiPredicateConfig,
+            )
         }
     },
 
     /** Everything */
     ALL("all", "all") {
 
-        override fun getEmitFilter(): Predicate<Item> {
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return Predicate { it.emit }
         }
 
-        override fun getReferenceFilter(): Predicate<Item> {
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return Predicate { true }
         }
     };
 
-    abstract fun getEmitFilter(): Predicate<Item>
+    abstract fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
-    abstract fun getReferenceFilter(): Predicate<Item>
+    abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
     override fun toString(): String = displayName
 }

@@ -269,8 +269,8 @@ internal fun processFlags(
     // as signature files and/or stubs files
     options.apiFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
+        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
@@ -287,8 +287,8 @@ internal fun processFlags(
 
     options.apiXmlFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
+        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(progressTracker, codebase, apiFile, "XML API") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
@@ -299,8 +299,8 @@ internal fun processFlags(
         val unfiltered = codebase.original ?: codebase
 
         val apiType = ApiType.REMOVED
-        val removedEmit = apiType.getEmitFilter()
-        val removedReference = apiType.getReferenceFilter()
+        val removedEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val removedReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(
             progressTracker,
@@ -544,6 +544,7 @@ fun subtractApi(
                 )
         }
 
+    @Suppress("DEPRECATION")
     CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
@@ -553,7 +554,7 @@ fun subtractApi(
             },
             oldCodebase,
             codebase,
-            ApiType.ALL.getReferenceFilter()
+            ApiType.ALL.getReferenceFilter(options.apiPredicateConfig)
         )
 }
 
