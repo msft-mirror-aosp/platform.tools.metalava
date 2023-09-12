@@ -47,10 +47,6 @@ class ApiPredicate(
      */
     private val matchRemoved: Boolean = false,
 
-    /** Whether we allow matching items loaded from jar files instead of sources */
-    private val allowClassesFromClasspath: Boolean =
-        @Suppress("DEPRECATION") options.allowClassesFromClasspath,
-
     /** Whether we should include doc-only items */
     private val includeDocOnly: Boolean = false,
 
@@ -75,6 +71,9 @@ class ApiPredicate(
          */
         val ignoreShown: Boolean = true,
 
+        /** Whether we allow matching items loaded from jar files instead of sources */
+        val allowClassesFromClasspath: Boolean = true,
+
         /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
          * or not.
@@ -94,7 +93,7 @@ class ApiPredicate(
             return true
         }
 
-        if (!allowClassesFromClasspath && member.isFromClassPath()) {
+        if (!config.allowClassesFromClasspath && member.isFromClassPath()) {
             return false
         }
 

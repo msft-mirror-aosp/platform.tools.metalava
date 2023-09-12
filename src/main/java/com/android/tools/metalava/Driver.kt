@@ -747,7 +747,6 @@ fun loadFromJarFile(
     sourceParser: SourceParser,
     apiJar: File,
     preFiltered: Boolean = false,
-    allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
     codebaseValidator: (Codebase) -> Unit = { codebase ->
         options.nullabilityAnnotationsValidator?.validateAllFrom(
@@ -763,7 +762,6 @@ fun loadFromJarFile(
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
     val apiEmit =
         ApiPredicate(
-            allowClassesFromClasspath = allowClassesFromClasspath,
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val apiReference = apiEmit

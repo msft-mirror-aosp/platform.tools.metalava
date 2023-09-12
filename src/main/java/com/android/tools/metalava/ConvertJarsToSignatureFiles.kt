@@ -89,7 +89,6 @@ class ConvertJarsToSignatureFiles(
                     sourceParser,
                     apiJar,
                     preFiltered = false,
-                    allowClassesFromClasspath = true,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
                     codebaseValidator = {},
                     apiPredicateConfig = ApiPredicate.Config(),
