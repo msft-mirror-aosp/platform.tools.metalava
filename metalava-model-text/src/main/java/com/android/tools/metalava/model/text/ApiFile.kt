@@ -683,7 +683,8 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type = token
-        val typeInfo = api.typeResolver.obtainTypeFromString(type)
+        val typeInfo =
+            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name = token
@@ -882,7 +883,8 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type: String = token
-        val typeInfo = api.typeResolver.obtainTypeFromString(type)
+        val typeInfo =
+            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name: String = token
