@@ -188,7 +188,7 @@ data class FileFormat(
             append("\n")
             // Only output properties if the version supports them fully or it is migrating.
             if (version.propertySupport == PropertySupport.FULL || migrating != null) {
-                iterateOverOverridingProperties { property, value ->
+                iterateOverCustomizableProperties { property, value ->
                     append(PROPERTY_LINE_PREFIX)
                     append(property)
                     append("=")
@@ -210,7 +210,7 @@ data class FileFormat(
             append(version.versionNumber)
 
             var separator = VERSION_PROPERTIES_SEPARATOR
-            iterateOverOverridingProperties { property, value ->
+            iterateOverCustomizableProperties { property, value ->
                 append(separator)
                 separator = ","
                 append(property)
@@ -224,10 +224,10 @@ data class FileFormat(
      * Iterate over all the properties of this format which have different values to the values in
      * this format's [Version.defaults], invoking the [consumer] with each property, value pair.
      */
-    private fun iterateOverOverridingProperties(consumer: (String, String) -> Unit) {
+    private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaults
         if (this@FileFormat != defaults) {
-            OverrideableProperty.values().forEach { prop ->
+            CustomizableProperty.values().forEach { prop ->
                 val thisValue = prop.stringFromFormat(this@FileFormat)
                 val defaultValue = prop.stringFromFormat(defaults)
                 if (thisValue != defaultValue) {
@@ -464,8 +464,8 @@ data class FileFormat(
             }
             val name = propertyParts[0]
             val value = propertyParts[1]
-            val overrideable = OverrideableProperty.getByName(name)
-            overrideable.setFromString(builder, value)
+            val customizable = CustomizableProperty.getByName(name)
+            customizable.setFromString(builder, value)
         }
 
         private const val PROPERTY_LINE_PREFIX = "// - "
@@ -520,8 +520,8 @@ data class FileFormat(
             )
     }
 
-    /** Information about the different overrideable properties in [FileFormat]. */
-    private enum class OverrideableProperty {
+    /** Information about the different customizable properties in [FileFormat]. */
+    private enum class CustomizableProperty {
         /** add-additional-overrides=[yes|no] */
         ADD_ADDITIONAL_OVERRIDES {
             override fun setFromString(builder: Builder, value: String) {
@@ -631,7 +631,7 @@ data class FileFormat(
         companion object {
             val byPropertyName = values().associateBy { it.propertyName }
 
-            fun getByName(name: String): OverrideableProperty =
+            fun getByName(name: String): CustomizableProperty =
                 byPropertyName[name]
                     ?: throw ApiParseException(
                         "unknown format property name `$name`, expected one of '${byPropertyName.keys.joinToString("', '")}'"
