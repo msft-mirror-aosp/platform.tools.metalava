@@ -132,12 +132,8 @@ class SignatureFormatOptionsTest :
     fun `--use-same-format-as will honor --api-overloaded-method-order=source`() {
         val path = source("api.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--api-overloaded-method-order=source") {
-            assertThat(it.fileFormat)
-                .isEqualTo(
-                    FileFormat.V2.copy(
-                        specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE
-                    )
-                )
+            assertThat(it.fileFormat.overloadedMethodOrder)
+                .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
 
@@ -177,10 +173,8 @@ class SignatureFormatOptionsTest :
     fun `--format with no properties and --api-overloaded-method-order=source`() {
         runTest("--format", "2.0", "--api-overloaded-method-order=source") {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                ),
-                it.fileFormat
+                FileFormat.OverloadedMethodOrder.SOURCE,
+                it.fileFormat.overloadedMethodOrder
             )
         }
     }
@@ -205,10 +199,8 @@ class SignatureFormatOptionsTest :
             "--api-overloaded-method-order=source",
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
-                ),
-                it.fileFormat
+                FileFormat.OverloadedMethodOrder.SIGNATURE,
+                it.fileFormat.overloadedMethodOrder
             )
         }
     }
