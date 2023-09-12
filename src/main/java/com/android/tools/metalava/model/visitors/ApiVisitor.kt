@@ -71,8 +71,21 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     val showUnannotated: Boolean = true,
-    @Suppress("DEPRECATION") val packageFilter: PackageFilter? = options.stubPackages,
+
+    /** Configuration that may come from the command line. */
+    @Suppress("DEPRECATION") config: Config = options.apiVisitorConfig,
 ) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
+
+    private val packageFilter: PackageFilter? = config.packageFilter
+
+    /**
+     * Contains configuration for [ApiVisitor] that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        val packageFilter: PackageFilter? = null,
+    )
+
     constructor(
         /**
          * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
@@ -104,19 +117,28 @@ open class ApiVisitor(
          *
          * See [ApiPredicate.includeOnlyForStubPurposes]
          */
-        includeApisForStubPurposes: Boolean = true
+        includeApisForStubPurposes: Boolean = true,
+
+        /** Configuration that may come from the command line. */
+        @Suppress("DEPRECATION") config: Config = options.apiVisitorConfig,
     ) : this(
-        visitConstructorsAsMethods,
-        nestInnerClasses,
-        true,
-        methodComparator,
-        fieldComparator,
-        ApiPredicate(
-            ignoreShown = ignoreShown,
-            matchRemoved = remove,
-            includeApisForStubPurposes = includeApisForStubPurposes
-        ),
-        ApiPredicate(ignoreShown = true, ignoreRemoved = remove)
+        visitConstructorsAsMethods = visitConstructorsAsMethods,
+        nestInnerClasses = nestInnerClasses,
+        inlineInheritedFields = true,
+        methodComparator = methodComparator,
+        fieldComparator = fieldComparator,
+        filterEmit =
+            ApiPredicate(
+                ignoreShown = ignoreShown,
+                matchRemoved = remove,
+                includeApisForStubPurposes = includeApisForStubPurposes,
+            ),
+        filterReference =
+            ApiPredicate(
+                ignoreShown = true,
+                ignoreRemoved = remove,
+            ),
+        config = config,
     )
 
     // The API visitor lazily visits packages only when there's a match within at least one class;

@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -453,6 +454,13 @@ class Options(
      * removed and no classes will be allowed from the classpath JARs.
      */
     var allowClassesFromClasspath = true
+
+    /** The configuration options for the [ApiVisitor] class. */
+    val apiVisitorConfig by lazy {
+        ApiVisitor.Config(
+            packageFilter = stubPackages,
+        )
+    }
 
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {

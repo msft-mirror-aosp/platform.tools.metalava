@@ -191,7 +191,7 @@ class ConvertJarsToSignatureFiles(
                     jarCodebase.preFiltered,
                     fileFormat = fileFormat,
                     showUnannotated = false,
-                    packageFilter = null,
+                    apiVisitorConfig = ApiVisitor.Config(),
                 )
             }
 

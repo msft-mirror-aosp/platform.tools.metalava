@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -40,7 +41,7 @@ class SignatureWriterTest {
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
                             showUnannotated = false,
-                            packageFilter = null,
+                            apiVisitorConfig = ApiVisitor.Config(),
                         )
                     body(writer)
                 }

@@ -40,7 +40,7 @@ class SignatureWriter(
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
     showUnannotated: Boolean,
-    packageFilter: PackageFilter?,
+    apiVisitorConfig: ApiVisitor.Config,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -51,7 +51,7 @@ class SignatureWriter(
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
-        packageFilter = packageFilter,
+        config = apiVisitorConfig,
     ) {
     init {
         // If a header must always be written out (even if the file is empty) then write it here.

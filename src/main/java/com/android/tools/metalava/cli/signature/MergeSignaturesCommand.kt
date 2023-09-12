@@ -27,6 +27,7 @@ import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -90,7 +91,7 @@ class MergeSignaturesCommand :
                     preFiltered = true,
                     fileFormat = signatureFormat.fileFormat,
                     showUnannotated = false,
-                    packageFilter = null,
+                    apiVisitorConfig = ApiVisitor.Config(),
                 )
             }
         } catch (e: ApiParseException) {

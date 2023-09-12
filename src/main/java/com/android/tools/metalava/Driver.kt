@@ -280,7 +280,7 @@ internal fun processFlags(
                 codebase.preFiltered,
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
-                packageFilter = options.stubPackages,
+                apiVisitorConfig = options.apiVisitorConfig,
             )
         }
     }
@@ -317,7 +317,7 @@ internal fun processFlags(
                 options.includeSignatureFormatVersionRemoved,
                 options.signatureFileFormat,
                 options.showUnannotated,
-                options.stubPackages,
+                options.apiVisitorConfig,
             )
         }
     }
