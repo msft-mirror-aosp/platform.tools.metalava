@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterItem
 import java.util.HashMap
 import kotlin.math.min
 
@@ -32,12 +32,19 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         return TextTypeItem(codebase, cl.qualifiedTypeName)
     }
 
+    /**
+     * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
+     * the type parameters from [typeParams], if applicable.
+     */
     fun obtainTypeFromString(
         type: String,
-        cl: TextClassItem,
-        methodTypeParameterList: TypeParameterList
+        typeParams: List<TypeParameterItem> = emptyList()
     ): TextTypeItem {
-        if (TextTypeItem.isLikelyTypeParameter(type)) {
+        if (typeParams.isNotEmpty() && TextTypeItem.isLikelyTypeParameter(type)) {
+            // Find the "name" part of the type (before a list of type parameters, array marking,
+            // or nullability annotation), and see if it is a type parameter name.
+            // This does not handle when a type variable is in the middle of a type (e.g. List<T>),
+            // which will be fixed when type parsing is rewritten later.
             val length = type.length
             var nameEnd = length
             for (i in 0 until length) {
@@ -54,10 +61,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                     type.substring(0, nameEnd)
                 }
 
-            val isMethodTypeVar = methodTypeParameterList.typeParameterNames().contains(name)
-            val isClassTypeVar = cl.typeParameterList().typeParameterNames().contains(name)
-
-            if (isMethodTypeVar || isClassTypeVar) {
+            if (typeParams.any { it.simpleName() == name }) {
                 // Confirm that it's a type variable
                 // If so, create type variable WITHOUT placing it into the
                 // cache, since we can't cache these; they can have different
@@ -66,12 +70,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             }
         }
 
-        return obtainTypeFromString(type)
-    }
-
-    // Copied from Converter:
-
-    fun obtainTypeFromString(type: String): TextTypeItem {
         return typeCache.obtain(type) {
             // Reverse effect of TypeItem.shortenTypes(...)
             if (implicitJavaLangType(it)) {
