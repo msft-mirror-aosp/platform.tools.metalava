@@ -103,6 +103,17 @@ Usage: metalava help signature-file-formats
   in the signature file. If `yes` then those parameters will simply be prefixed with `optional`, as if it was a keyword
   and no value will be included.
 
+  Plus the following properties which can have their default changed using the `--format-defaults` option.
+
+  * `overloaded-method-order = source|signature` - Specifies the order of overloaded methods in signature files. Applies
+  to the contents of the files specified on `--api` and `--removed-api`.
+
+  `source` - preserves the order in which overloaded methods appear in the source files. This means that refactorings of
+  the source files which change the order but not the API can cause unnecessary changes in the API signature files.
+
+  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings of the source files
+  which change the order but not the API will have no effect on the API signature files.
+
   Currently, metalava supports the following versions:
 
   * `2.0` (--format=v2) - this is the base version (more details in `FORMAT.md`) on which all the others are based. It
@@ -120,11 +131,6 @@ Usage: metalava help signature-file-formats
 
   + kotlin-style-nulls = yes
   + concise-default-values = yes
-
-  The `--api-overloaded-method-order` option also affects the contents in the signature file, i.e. whether overloaded
-  methods are sorted based on their source order or purely based on their signature. However, it is orthogonal to a
-  specific version and should be considered as purely a temporary measure, provided to aid migration and as such will be
-  removed at some time in future.
                 """
                     .trimIndent()
         }

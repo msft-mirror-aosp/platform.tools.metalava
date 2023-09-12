@@ -35,19 +35,6 @@ Signature Format Output:
 
   See `metalava help signature-file-formats` for more information.
 
-  --api-overloaded-method-order [source|signature]
-                                             Specifies the order of overloaded methods in signature files. Applies to
-                                             the contents of the files specified on --api and --removed-api.
-
-                                             source - preserves the order in which overloaded methods appear in the
-                                             source files. This means that refactorings of the source files which change
-                                             the order but not the API can cause unnecessary changes in the API
-                                             signature files.
-
-                                             signature (default) - sorts overloaded methods by their signature. This
-                                             means that refactorings of the source files which change the order but not
-                                             the API will have no effect on the API signature files.
-                                             (deprecated)
   --format-defaults <defaults>               Specifies defaults for format properties.
 
                                              A comma separated list of `<property>=<value>` assignments where
@@ -96,8 +83,7 @@ Signature Format Output:
 
                                              If this is specified (and the file is not empty) then this will be used in
                                              preference to most of the other options in this group. Those options will
-                                             be validated but otherwise ignored. The exception is the
-                                             --api-overloaded-method-order option which if present will be used.
+                                             be validated but otherwise ignored.
 
                                              The intention is that the other options will be used to specify the default
                                              for new empty API files (e.g. created using `touch`) while this option is
@@ -134,15 +120,6 @@ class SignatureFormatOptionsTest :
         val path = source("api.txt", "").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
             assertThat(it.fileFormat).isEqualTo(FileFormat.V4)
-        }
-    }
-
-    @Test
-    fun `--use-same-format-as will honor --api-overloaded-method-order=source`() {
-        val path = source("api.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
-        runTest("--use-same-format-as", path.path, "--api-overloaded-method-order=source") {
-            assertThat(it.fileFormat.overloadedMethodOrder)
-                .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
 
@@ -193,16 +170,6 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
-    fun `--format with no properties and --api-overloaded-method-order=source`() {
-        runTest("--format", "2.0", "--api-overloaded-method-order=source") {
-            assertEquals(
-                FileFormat.OverloadedMethodOrder.SOURCE,
-                it.fileFormat.overloadedMethodOrder
-            )
-        }
-    }
-
-    @Test
     fun `--format with no properties and --format-defaults overloaded-method-order=source`() {
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
@@ -227,20 +194,6 @@ class SignatureFormatOptionsTest :
                     specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
                 ),
                 it.fileFormat
-            )
-        }
-    }
-
-    @Test
-    fun `--format with overloaded-method-order=signature and --api-overloaded-method-order=source`() {
-        runTest(
-            "--format",
-            "2.0:overloaded-method-order=signature",
-            "--api-overloaded-method-order=source",
-        ) {
-            assertEquals(
-                FileFormat.OverloadedMethodOrder.SIGNATURE,
-                it.fileFormat.overloadedMethodOrder
             )
         }
     }

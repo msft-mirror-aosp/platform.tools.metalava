@@ -16,83 +16,16 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.ARG_API
-import com.android.tools.metalava.ARG_REMOVED_API
-import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.option
 
-const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
 const val ARG_FORMAT = "--format"
 const val ARG_USE_SAME_FORMAT_AS = "--use-same-format-as"
-
-/**
- * A special enum to handle the mapping from command line to internal representation for the
- * [SignatureFormatOptions.apiOverloadedMethodOrder] property.
- *
- * This is added purely to provide a convenient way to map from the input to a fixed set of values.
- * It provides help for each individual option as well as a container for the internal object to
- * which it maps.
- *
- * This MUST not be accessed from anywhere other than the property for which it was created. It
- * suppresses unused because while the individual values are not used directly they are used via the
- * [OptionOverloadedMethodOrder.values] method.
- */
-@Suppress("unused")
-private enum class OptionOverloadedMethodOrder(
-    val order: OverloadedMethodOrder?,
-    val optionName: String,
-    val help: String,
-) {
-    SOURCE(
-        OverloadedMethodOrder.SOURCE,
-        optionName = "source",
-        help =
-            """
-                preserves the order in which overloaded methods appear in the source files. This
-                means that refactorings of the source files which change the order but not the API
-                can cause unnecessary changes in the API signature files.
-            """
-                .trimIndent(),
-    ),
-    SIGNATURE(
-        OverloadedMethodOrder.SIGNATURE,
-        optionName = "signature",
-        help =
-            """
-                sorts overloaded methods by their signature. This means that refactorings of the
-                source files which change the order but not the API will have no effect on the API
-                signature files.
-            """
-                .trimIndent(),
-    ),
-
-    /**
-     * A special value that is used as the default in the [enumOption] use.
-     *
-     * It does two things:
-     * 1. Sets the default value displayed in the help to be the CLI value of [SIGNATURE] which
-     *    while not the default given to the option is the default provided by
-     *    [FileFormat.overloadedMethodOrder].
-     * 2. Maps to `null` so that consuming code can differentiate between specifying no option on
-     *    the command line and specifying `signature.`.
-     */
-    DEFAULT(
-        // Allow consuming code to differentiate between `signature` and no option.
-        null,
-        // Set the default value displayed in the help.
-        optionName = SIGNATURE.optionName,
-        // Hide this from the list of available values for the option.
-        help = "",
-    )
-}
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
@@ -121,26 +54,6 @@ class SignatureFormatOptions(
                 .trimIndent()
     ) {
 
-    /**
-     * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
-     * files.
-     */
-    private val apiOverloadedMethodOrder by
-        enumOption(
-                help =
-                    """
-                        Specifies the order of overloaded methods in signature files.
-                        Applies to the contents of the files specified on $ARG_API and
-                        $ARG_REMOVED_API.
-                    """
-                        .trimIndent(),
-                key = { it.optionName },
-                enumValueHelpGetter = { it.help },
-                default = OptionOverloadedMethodOrder.DEFAULT,
-            )
-            .deprecated("use --format-defaults overloaded-method-order=... instead")
-            .map { it.order }
-
     private val formatDefaults by
         option(
                 "--format-defaults",
@@ -159,18 +72,6 @@ class SignatureFormatOptions(
                         .trimIndent(),
             )
             .convert { defaults -> FileFormat.parseDefaults(defaults) }
-            .map {
-                if (
-                    apiOverloadedMethodOrder != null && it?.specifiedOverloadedMethodOrder == null
-                ) {
-                    // The choice to use FileFormat.V5 here was completely arbitrary. Any version
-                    // will do, this just needs a version.
-                    val base = it ?: FileFormat.V5
-                    base.copy(specifiedOverloadedMethodOrder = apiOverloadedMethodOrder)
-                } else {
-                    it
-                }
-            }
 
     /** The output format version being used */
     private val formatSpecifier by
@@ -237,8 +138,7 @@ class SignatureFormatOptions(
 
                         If this is specified (and the file is not empty) then this will be used in
                         preference to most of the other options in this group. Those options will be
-                        validated but otherwise ignored. The exception is the
-                        $ARG_API_OVERLOADED_METHOD_ORDER option which if present will be used.
+                        validated but otherwise ignored.
 
                         The intention is that the other options will be used to specify the default
                         for new empty API files (e.g. created using `touch`) while this option is
