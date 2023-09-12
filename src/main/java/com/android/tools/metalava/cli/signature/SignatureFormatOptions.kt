@@ -230,8 +230,14 @@ class SignatureFormatOptions(
             val format = useSameFormatAs ?: formatSpecifier
 
             // Apply any additional overrides.
-            format.applyOptionalCommandLineSuppliedOverrides(
-                overloadedMethodOrder = apiOverloadedMethodOrder,
-            )
+            if (apiOverloadedMethodOrder != null) {
+                // The choice to use FileFormat.V5 here was completely arbitrary. Any version will
+                // do, it just needs a version.
+                val overrides =
+                    FileFormat.V5.copy(specifiedOverloadedMethodOrder = apiOverloadedMethodOrder)
+                format.copy(formatDefaults = overrides)
+            } else {
+                format
+            }
         }
 }

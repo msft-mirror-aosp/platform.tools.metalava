@@ -29,6 +29,15 @@ import java.util.Locale
  */
 data class FileFormat(
     val version: Version,
+    /**
+     * If specified then it contains property defaults that have been specified on the command line
+     * and whose value should be used as the default for any property that has not been specified in
+     * this format.
+     *
+     * Not every property is eligible to have its default overridden on the command line. Only those
+     * that have a property getter to provide the default.
+     */
+    val formatDefaults: FileFormat? = null,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
     /**
@@ -61,7 +70,9 @@ data class FileFormat(
 
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
-        get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
+        get() =
+            specifiedOverloadedMethodOrder
+                ?: formatDefaults?.specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
 
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
@@ -152,26 +163,6 @@ data class FileFormat(
 
         /** Sort overloaded methods by their signature. */
         SIGNATURE(MethodItem.comparator)
-    }
-
-    /**
-     * Apply some optional overrides, provided from the command line, to this format, returning a
-     * new format.
-     *
-     * @param overloadedMethodOrder If non-null then override the [overloadedMethodOrder] property.
-     * @return a format with the overrides applied.
-     */
-    fun applyOptionalCommandLineSuppliedOverrides(
-        overloadedMethodOrder: OverloadedMethodOrder? = null,
-    ): FileFormat {
-        // Only apply the overloadedMethodOrder command line override to the format if it has not
-        // already been specified.
-        val effectiveOverloadedMethodOrder =
-            this.specifiedOverloadedMethodOrder ?: overloadedMethodOrder
-
-        return copy(
-            specifiedOverloadedMethodOrder = effectiveOverloadedMethodOrder,
-        )
     }
 
     /**
