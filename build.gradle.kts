@@ -6,6 +6,7 @@ defaultTasks =
     mutableListOf(
         "installDist",
         "test",
+        "publish",
         CREATE_ARCHIVE_TASK,
         CREATE_BUILD_INFO_TASK,
         CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,

@@ -126,13 +126,15 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     fun configurePublishing(project: Project) {
+        val projectRepo = project.layout.buildDirectory.dir("repo")
         val archiveTaskProvider =
             configurePublishingArchive(
                 project,
                 publicationName,
                 repositoryName,
                 getBuildId(),
-                getDistributionDirectory(project)
+                getDistributionDirectory(project),
+                projectRepo,
             )
 
         project.extensions.getByType<PublishingExtension>().apply {
@@ -174,13 +176,16 @@ class MetalavaBuildPlugin : Plugin<Project> {
             }
             repositories { handler ->
                 handler.maven { repository ->
-                    repository.name = repositoryName
                     repository.url =
                         project.uri(
                             "file://${
                                 getDistributionDirectory(project).canonicalPath
                             }/repo/m2repository"
                         )
+                }
+                handler.maven { repository ->
+                    repository.name = repositoryName
+                    repository.url = project.uri(projectRepo)
                 }
             }
         }
