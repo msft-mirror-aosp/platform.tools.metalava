@@ -459,6 +459,7 @@ class Options(
     val apiVisitorConfig by lazy {
         ApiVisitor.Config(
             packageFilter = stubPackages,
+            apiPredicateConfig = apiPredicateConfig,
         )
     }
 

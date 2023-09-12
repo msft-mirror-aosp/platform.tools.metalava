@@ -177,7 +177,8 @@ class ConvertJarsToSignatureFiles(
                                 }
                             }
                         }
-                    CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
+                    CodebaseComparator(apiVisitorConfig = ApiVisitor.Config())
+                        .compare(visitor, oldCodebase, jarCodebase, null)
                 } catch (e: Exception) {
                     throw IllegalStateException("Could not load $oldApiFile: ${e.message}", e)
                 }

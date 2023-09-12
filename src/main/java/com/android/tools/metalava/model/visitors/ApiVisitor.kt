@@ -84,6 +84,9 @@ open class ApiVisitor(
      */
     data class Config(
         val packageFilter: PackageFilter? = null,
+
+        /** Configuration for any [ApiPredicate] instances this needs to create. */
+        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
     )
 
     constructor(
@@ -132,11 +135,13 @@ open class ApiVisitor(
                 ignoreShown = ignoreShown,
                 matchRemoved = remove,
                 includeApisForStubPurposes = includeApisForStubPurposes,
+                config = config.apiPredicateConfig,
             ),
         filterReference =
             ApiPredicate(
                 ignoreShown = true,
                 ignoreRemoved = remove,
+                config = config.apiPredicateConfig,
             ),
         config = config,
     )

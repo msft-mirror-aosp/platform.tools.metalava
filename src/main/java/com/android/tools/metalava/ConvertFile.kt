@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.text.TextFieldItem
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.TextPackageItem
 import com.android.tools.metalava.model.text.TextPropertyItem
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.File
 
 /** File conversion tasks */
@@ -50,7 +51,8 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
     val annotationManager = DefaultAnnotationManager()
     val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
 
-    val apiPredicateConfig = ApiPredicate.Config()
+    val apiVisitorConfig = ApiVisitor.Config()
+    val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
     val apiType = ApiType.ALL
     val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
     val strip = strip
@@ -63,7 +65,7 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
         if (baseFile != null) {
             // Convert base on a diff
             val baseApi = SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
-            computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
+            computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
         } else {
             signatureApi
         }
@@ -76,7 +78,8 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
             apiEmit,
             apiReference,
             signatureApi.preFiltered && !strip,
-            apiName
+            apiName,
+            ApiVisitor.Config(),
         )
     }
 }
@@ -103,13 +106,13 @@ private fun computeDelta(
     baseFile: File,
     baseApi: Codebase,
     signatureApi: Codebase,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiVisitorConfig: ApiVisitor.Config,
 ): TextCodebase {
     // Compute just the delta
     val delta = TextCodebase(baseFile, signatureApi.annotationManager)
     delta.description = "Delta between $baseApi and $signatureApi"
 
-    CodebaseComparator()
+    CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
         .compare(
             object : ComparisonVisitor() {
                 override fun added(new: PackageItem) {
@@ -186,7 +189,7 @@ private fun computeDelta(
             },
             baseApi,
             signatureApi,
-            ApiType.ALL.getReferenceFilter(apiPredicateConfig)
+            ApiType.ALL.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
         )
 
     // As the delta has not been created by the parser there is no parser provided

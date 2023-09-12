@@ -47,7 +47,8 @@ class JDiffXmlWriter(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    private val apiName: String? = null
+    private val apiName: String? = null,
+    config: Config = @Suppress("DEPRECATION") options.apiVisitorConfig,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -57,7 +58,8 @@ class JDiffXmlWriter(
         fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
-        showUnannotated = @Suppress("DEPRECATION") options.showUnannotated
+        showUnannotated = @Suppress("DEPRECATION") options.showUnannotated,
+        config = config,
     ) {
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
