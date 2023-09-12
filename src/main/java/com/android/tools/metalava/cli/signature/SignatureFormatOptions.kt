@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.option
 
 const val ARG_API_OVERLOADED_METHOD_ORDER = "--api-overloaded-method-order"
@@ -137,7 +138,39 @@ class SignatureFormatOptions(
                 enumValueHelpGetter = { it.help },
                 default = OptionOverloadedMethodOrder.DEFAULT,
             )
+            .deprecated("use --format-defaults overloaded-method-order=... instead")
             .map { it.order }
+
+    private val formatDefaults by
+        option(
+                "--format-defaults",
+                metavar = "<defaults>",
+                help =
+                    """
+                        Specifies defaults for format properties.
+
+                        A comma separated list of `<property>=<value>` assignments where
+                        `<property>` is one of the following:
+                        '${FileFormat.defaultableProperties().joinToString(separator = "', '")}'.
+
+                        See `metalava help signature-file-formats` for more information on the
+                        properties.
+                    """
+                        .trimIndent(),
+            )
+            .convert { defaults -> FileFormat.parseDefaults(defaults) }
+            .map {
+                if (
+                    apiOverloadedMethodOrder != null && it?.specifiedOverloadedMethodOrder == null
+                ) {
+                    // The choice to use FileFormat.V5 here was completely arbitrary. Any version
+                    // will do, this just needs a version.
+                    val base = it ?: FileFormat.V5
+                    base.copy(specifiedOverloadedMethodOrder = apiOverloadedMethodOrder)
+                } else {
+                    it
+                }
+            }
 
     /** The output format version being used */
     private val formatSpecifier by
@@ -230,14 +263,6 @@ class SignatureFormatOptions(
             val format = useSameFormatAs ?: formatSpecifier
 
             // Apply any additional overrides.
-            if (apiOverloadedMethodOrder != null) {
-                // The choice to use FileFormat.V5 here was completely arbitrary. Any version will
-                // do, it just needs a version.
-                val overrides =
-                    FileFormat.V5.copy(specifiedOverloadedMethodOrder = apiOverloadedMethodOrder)
-                format.copy(formatDefaults = overrides)
-            } else {
-                format
-            }
+            formatDefaults?.let { format.copy(formatDefaults = it) } ?: format
         }
 }

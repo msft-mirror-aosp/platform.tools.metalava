@@ -47,6 +47,15 @@ Signature Format Output:
                                              signature (default) - sorts overloaded methods by their signature. This
                                              means that refactorings of the source files which change the order but not
                                              the API will have no effect on the API signature files.
+                                             (deprecated)
+  --format-defaults <defaults>               Specifies defaults for format properties.
+
+                                             A comma separated list of `<property>=<value>` assignments where
+                                             `<property>` is one of the following: 'add-additional-overrides',
+                                             'overloaded-method-order'.
+
+                                             See `metalava help signature-file-formats` for more information on the
+                                             properties.
   --format [v2|v3|v4|latest|recommended|<specifier>]
                                              Specifies the output signature file format.
 
@@ -138,6 +147,20 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
+    fun `--use-same-format-as will honor --format-defaults overloaded-method-order=source`() {
+        val path = source("api.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(
+            "--use-same-format-as",
+            path.path,
+            "--format-defaults",
+            "overloaded-method-order=source"
+        ) {
+            assertThat(it.fileFormat.overloadedMethodOrder)
+                .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
+        }
+    }
+
+    @Test
     fun `--use-same-format-as fails on non-existent file`() {
         val e =
             assertThrows(BadParameterValue::class.java) {
@@ -180,6 +203,23 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
+    fun `--format with no properties and --format-defaults overloaded-method-order=source`() {
+        runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
+            assertEquals(
+                FileFormat.OverloadedMethodOrder.SOURCE,
+                it.fileFormat.overloadedMethodOrder
+            )
+        }
+    }
+
+    @Test
+    fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
+        runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
+            assertEquals(true, it.fileFormat.addAdditionalOverrides)
+        }
+    }
+
+    @Test
     fun `--format with overloaded-method-order=signature`() {
         runTest("--format", "2.0:overloaded-method-order=signature") {
             assertEquals(
@@ -197,6 +237,21 @@ class SignatureFormatOptionsTest :
             "--format",
             "2.0:overloaded-method-order=signature",
             "--api-overloaded-method-order=source",
+        ) {
+            assertEquals(
+                FileFormat.OverloadedMethodOrder.SIGNATURE,
+                it.fileFormat.overloadedMethodOrder
+            )
+        }
+    }
+
+    @Test
+    fun `--format with overloaded-method-order=signature and --format-defaults overloaded-method-order=source`() {
+        runTest(
+            "--format",
+            "2.0:overloaded-method-order=signature",
+            "--format-defaults",
+            "overloaded-method-order=source",
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
