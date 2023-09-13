@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.FILE_FORMAT_PROPERTIES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.source
 import com.github.ajalt.clikt.core.BadParameterValue
@@ -262,7 +263,7 @@ class SignatureFormatOptionsTest :
                 runTest("--format", "2.0:property=value") {}
             }
         assertEquals(
-            """Invalid value for "--format": unknown format property name `property`, expected one of 'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'""",
+            """Invalid value for "--format": unknown format property name `property`, expected one of $FILE_FORMAT_PROPERTIES""",
             e.message
         )
     }
