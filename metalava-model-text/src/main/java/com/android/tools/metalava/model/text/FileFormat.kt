@@ -40,6 +40,18 @@ data class FileFormat(
     val formatDefaults: FileFormat? = null,
 
     /**
+     * If non-null then it specifies the name of the API.
+     *
+     * It must start with a lower case letter, contain any number of lower case letters, numbers and
+     * hyphens, and end with either a lowercase letter or number.
+     *
+     * Its purpose is to provide information to metalava and to a lesser extent the owner of the
+     * file about which API the file contains. The exact meaning of the API name is determined by
+     * the owner, metalava simply uses this as an identifier for comparison.
+     */
+    val name: String? = null,
+
+    /**
      * If non-null then it specifies the name of the API surface.
      *
      * It must start with a lower case letter, contain any number of lower case letters, numbers and
@@ -87,11 +99,16 @@ data class FileFormat(
             )
         }
 
-        if (
-            surface != null && "[a-z]([a-z0-9-]*[a-z0-9])?".toRegex().matchEntire(surface) == null
-        ) {
+        validateIdentifier(name, "name")
+        validateIdentifier(surface, "surface")
+    }
+
+    /** Check that the supplied identifier is valid. */
+    private fun validateIdentifier(identifier: String?, propertyName: String) {
+        identifier ?: return
+        if ("[a-z]([a-z0-9-]*[a-z0-9])?".toRegex().matchEntire(identifier) == null) {
             throw IllegalStateException(
-                """invalid value for property 'surface': '$surface' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number"""
+                """invalid value for property '$propertyName': '$identifier' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number"""
             )
         }
     }
@@ -613,6 +630,7 @@ data class FileFormat(
         var kotlinStyleNulls: Boolean? = null
         var language: Language? = null
         var migrating: String? = null
+        var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var surface: String? = null
 
@@ -624,6 +642,7 @@ data class FileFormat(
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
                 language = language ?: base.language,
                 migrating = migrating ?: base.migrating,
+                name = name ?: base.name,
                 specifiedAddAdditionalOverrides = addAdditionalOverrides
                         ?: base.specifiedAddAdditionalOverrides,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
@@ -639,6 +658,13 @@ data class FileFormat(
         // in signature headers. The values in this block are not in alphabetical order because it
         // is important that they are at the start of the signature header.
 
+        NAME {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.name = value
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? = format.name
+        },
         SURFACE {
             override fun setFromString(builder: Builder, value: String) {
                 builder.surface = value

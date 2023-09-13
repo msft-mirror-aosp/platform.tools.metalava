@@ -508,6 +508,48 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check name with valid and invalid values`() {
+        fun checkValidName(name: String) {
+            headerAndSpecifierTest(
+                header =
+                    """
+                // Signature format: 5.0
+                // - name=$name
+
+            """,
+                specifier = "5.0:name=$name",
+                format =
+                    FileFormat.V5.copy(
+                        name = name,
+                    ),
+            )
+        }
+
+        fun checkInvalidName(name: String) {
+            val e =
+                assertThrows(IllegalStateException::class.java) {
+                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(name = name)
+                }
+
+            assertEquals(
+                """invalid value for property 'name': '$name' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number""",
+                e.message
+            )
+        }
+
+        checkValidName("a")
+        checkValidName("a1")
+        checkValidName("a--1")
+        checkValidName("large-name")
+
+        checkInvalidName("")
+        checkInvalidName("1")
+        checkInvalidName("-")
+        checkInvalidName("a-")
+        checkInvalidName("aBa")
+    }
+
+    @Test
     fun `Check surface with valid and invalid values`() {
         fun checkValidSurface(surface: String) {
             headerAndSpecifierTest(
