@@ -232,7 +232,9 @@ data class FileFormat(
         val defaults = version.defaults
         if (this@FileFormat != defaults) {
             CustomizableProperty.values().forEach { prop ->
-                val thisValue = prop.stringFromFormat(this@FileFormat)
+                // Get the string value of this property, if null then it was not specified so skip
+                // the property.
+                val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
                 val defaultValue = prop.stringFromFormat(defaults)
                 if (thisValue != defaultValue) {
                     consumer(prop.propertyName, thisValue)
@@ -566,8 +568,8 @@ data class FileFormat(
                 builder.addAdditionalOverrides = yesNo(value)
             }
 
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.addAdditionalOverrides)
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
         },
         /** concise-default-values=[yes|no] */
         CONCISE_DEFAULT_VALUES {
@@ -592,7 +594,7 @@ data class FileFormat(
                 builder.migrating = value
             }
 
-            override fun stringFromFormat(format: FileFormat): String = format.migrating ?: ""
+            override fun stringFromFormat(format: FileFormat): String? = format.migrating
         },
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER(defaultable = true) {
@@ -600,8 +602,8 @@ data class FileFormat(
                 builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
             }
 
-            override fun stringFromFormat(format: FileFormat): String =
-                format.overloadedMethodOrder.stringFromEnum()
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedOverloadedMethodOrder?.stringFromEnum()
         };
 
         /** The property name in the [parseSpecifier] input. */
@@ -617,7 +619,7 @@ data class FileFormat(
          * Get the string representation of the corresponding property from the supplied
          * [FileFormat].
          */
-        abstract fun stringFromFormat(format: FileFormat): String
+        abstract fun stringFromFormat(format: FileFormat): String?
 
         /** Inline function to map from a string value to an enum value of the required type. */
         inline fun <reified T : Enum<T>> enumFromString(value: String): T {
