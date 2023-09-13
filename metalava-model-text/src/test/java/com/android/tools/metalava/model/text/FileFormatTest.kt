@@ -469,4 +469,21 @@ class FileFormatTest {
             e.message
         )
     }
+
+    @Test
+    fun `Check defaults are not written to header or specifier`() {
+        val defaults = FileFormat.parseDefaults("add-additional-overrides=yes")
+        val format = FileFormat.V5.copy(formatDefaults = defaults)
+        // Defaults should not be written to the header or specifier.
+        assertEquals(
+            """
+                // Signature format: 5.0
+                // - add-additional-overrides=yes
+
+            """
+                .trimIndent(),
+            format.header()
+        )
+        assertEquals("5.0:add-additional-overrides=yes", format.specifier())
+    }
 }
