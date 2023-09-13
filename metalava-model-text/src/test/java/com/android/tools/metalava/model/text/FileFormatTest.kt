@@ -478,12 +478,11 @@ class FileFormatTest {
         assertEquals(
             """
                 // Signature format: 5.0
-                // - add-additional-overrides=yes
 
             """
                 .trimIndent(),
             format.header()
         )
-        assertEquals("5.0:add-additional-overrides=yes", format.specifier())
+        assertEquals("5.0", format.specifier())
     }
 }
