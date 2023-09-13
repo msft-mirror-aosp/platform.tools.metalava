@@ -46,13 +46,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
-        if (project.rootProject == project) {
-            project.tasks.register(
-                CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
-                CreateAggregateLibraryBuildInfoFileTask::class.java
-            )
-        }
-
         project.plugins.all { plugin ->
             when (plugin) {
                 is JavaPlugin -> {
@@ -227,7 +220,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
+            rootProject.layout.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {

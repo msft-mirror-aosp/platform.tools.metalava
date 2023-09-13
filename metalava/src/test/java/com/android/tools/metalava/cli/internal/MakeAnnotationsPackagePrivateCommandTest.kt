@@ -48,7 +48,7 @@ Arguments:
         }
     }
 
-    private val stubAnnotationsDir = File("stub-annotations/src/main/java")
+    private val stubAnnotationsDir = File("../stub-annotations/src/main/java")
 
     @Before
     fun `Check assumptions`() {

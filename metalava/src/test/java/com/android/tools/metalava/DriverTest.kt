@@ -1269,7 +1269,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     .toTypedArray()
 
             // Also need to include on the compile path annotation classes referenced in the stubs
-            val extraAnnotationsDir = File("stub-annotations/src/main/java")
+            val extraAnnotationsDir = File("../stub-annotations/src/main/java")
             if (!extraAnnotationsDir.isDirectory) {
                 fail(
                     "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of the metalava source code?"
