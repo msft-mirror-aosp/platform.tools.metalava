@@ -1846,6 +1846,7 @@ class CompatibilityCheckTest : DriverTest() {
                     method public <S> S myMethod4();
                     method public java.util.List<byte[]> myMethod5();
                     method public T_SPLITR[] myMethod6();
+                    method public String myMethod7();
                   }
                   public class Number {
                     ctor public Number();
@@ -1866,6 +1867,7 @@ class CompatibilityCheckTest : DriverTest() {
                         public <S extends Float> S myMethod4() { return null; }
                         public java.util.List<byte[]> myMethod5() { return null; }
                         public T_SPLITR[] myMethod6() { return null; }
+                        public <S extends String> S myMethod7() { return null; }
                     }
                     """
                     ),
@@ -1873,6 +1875,39 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     package test.pkg;
                     public class Number {
+                    }
+                    """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test fields with type variable types are correctly parsed as type variables`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/MyClass.java:5: error: Field test.pkg.MyClass.myField has changed type from String to java.lang.String [ChangedType]
+                """,
+            // If MyClass did not have a type parameter named String, myField would be parsed as
+            // type java.lang.String
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class MyClass<String> {
+                    field public String myField;
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public abstract class MyClass<String> {
+                        private MyClass() {}
+                        public java.lang.String myField;
                     }
                     """
                     )
