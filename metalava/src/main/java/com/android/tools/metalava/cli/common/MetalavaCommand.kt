@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.cli.clikt.allHelpParams
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
@@ -25,7 +24,6 @@ import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
-import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -49,27 +47,14 @@ internal open class MetalavaCommand(
     /**
      * The factory for the default command to run when no subcommand is provided on the command
      * line.
-     *
-     * The command itself does not appear in the help but any options that it provides do. The first
-     * part is achieved by not adding the command to the list of subcommands, and by ensuring that
-     * when an exception is processed that requests help for the default command that it reports the
-     * help for this command instead.
-     *
-     * The second part is achieved by appending the list of [ParameterHelp] from the default
-     * subcommand to the list from this, filtering out any which are not needed (see
-     * [excludeDuplicateParameters]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
     internal val progressTracker: ProgressTracker,
-
-    /** Provider for additional non-Clikt usage information. */
-    private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be handled by some
-        // non-Clikt option processor which it is assumed that this command has iff this is passed a
-        // non-null nonCliktUsageProvider.
-        treatUnknownOptionsAsArgs = nonCliktUsageProvider != null,
+        // non-Clikt option processor which it is assumed that the default command has.
+        treatUnknownOptionsAsArgs = true,
         // Call run on this command even if no sub-command is provided.
         invokeWithoutSubcommand = true,
         help =
@@ -92,13 +77,11 @@ internal open class MetalavaCommand(
              */
             helpOptionNames = emptySet()
 
-            // Override the help formatter to add in documentation for the legacy flags.
+            // Override the help formatter to use Metalava's special formatter.
             helpFormatter =
-                LegacyHelpFormatter(
+                MetalavaHelpFormatter(
                     { common.terminal },
                     localization,
-                    ::mergeDefaultParameterHelp,
-                    nonCliktUsageProvider ?: { _, _ -> "" },
                 )
 
             // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
@@ -205,90 +188,19 @@ internal open class MetalavaCommand(
         try {
             parse(args)
         } catch (e: PrintHelpMessage) {
-            // If the command in the message is the default command then use this command instead as
-            // the default command should not appear in the help.
-            val command = if (e.command == defaultCommand) this else e.command
             throw MetalavaCliException(
-                stdout = command.getFormattedHelp(),
+                stdout = e.command.getFormattedHelp(),
                 exitCode = if (e.error) 1 else 0
             )
         } catch (e: PrintMessage) {
             throw MetalavaCliException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
         } catch (e: NoSuchOption) {
-            correctContextInUsageError(e)
             val message = createNoSuchOptionErrorMessage(e)
             throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         } catch (e: UsageError) {
-            correctContextInUsageError(e)
             val message = e.helpMessage()
             throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         }
-    }
-
-    /**
-     * Ensure that any [UsageError] thrown by the [defaultCommand] is output as if it came from this
-     * command.
-     *
-     * This is needed because the [defaultCommand] is an implementation detail and so should not be
-     * visible to callers of this command.
-     */
-    private fun correctContextInUsageError(e: UsageError) {
-        // If no subcommand was specified (in which case the default command was used) then
-        // update the exception to use the current context so that it will display the help for
-        // this command, not the default command.
-        if (e.context?.command == defaultCommand) {
-            e.context = currentContext
-        }
-    }
-
-    /**
-     * Merge help for command line parameters provided by the [defaultCommand] into the list of
-     * parameters provided by this command.
-     *
-     * This is needed because the [defaultCommand] is an implementation detail and so should not be
-     * visible to callers of this command.
-     */
-    private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
-        return if (currentContext.command === this) {
-            // If this is called because help was requested from the main command, i.e. using
-            // `metalava -h` then the default command will not have been parsed and so its context
-            // will not have been initialized properly and so the allHelpParams() method will fail.
-            // To prevent that this ensures that the default command is parsed first. It passes an
-            // invalid option so that the command is not actually run.
-            try {
-                defaultCommand.parse(arrayOf("--invalid-option"), currentContext)
-            } catch (e: UsageError) {
-                // The caught error is of type UsageError as the exact error that is thrown depends
-                // on how the command is configured. If the message contains mention of the invalid
-                // option then ignore the error as it is expected. Otherwise, rethrow as something
-                // else has happened.
-                if (e.message?.contains("--invalid-option") != true) {
-                    throw e
-                }
-            }
-
-            // Get the combined parameters from this command and the default command, excluding any
-            // that are not needed.
-            parameters + defaultCommand.allHelpParams().filter(::excludeDuplicateParameters)
-        } else {
-            parameters
-        }
-    }
-
-    /**
-     * Exclude any parameters that have duplicates in this command.
-     *
-     * This is a temporary workaround.
-     */
-    private fun excludeDuplicateParameters(p: ParameterHelp): Boolean {
-        if (p is ParameterHelp.Argument) {
-            return p.name != "flags"
-        }
-        if (p is ParameterHelp.Option) {
-            return "-h" !in p.names
-        }
-
-        return true
     }
 
     /**

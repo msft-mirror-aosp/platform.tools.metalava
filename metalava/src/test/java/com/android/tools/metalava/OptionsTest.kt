@@ -17,8 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
-import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
@@ -318,11 +316,7 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
             .trimIndent()
 
-    /**
-     * The options from [com.android.tools.metalava.cli.common.CommonOptions] plus Clikt defined
-     * options from [Options].
-     */
-    private val CLIKT_OPTIONS =
+    private val COMMON_OPTIONS =
         """
 Options:
   --version                                  Show the version and exit
@@ -335,59 +329,13 @@ Options:
                                              is set)
   --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   -h, --help                                 Show this message and exit
-  --api-class-resolution [api|api:classpath]
-                                             Determines how class resolution is performed when loading API signature
-                                             files. Any classes that cannot be found will be treated as empty.",
-
-                                             api - will only look for classes in the API signature files.
-
-                                             api:classpath (default) - will look for classes in the API signature files
-                                             first and then in the classpath.
-  --suppress-compatibility-meta-annotation <meta-annotation class>
-                                             Suppress compatibility checks for any elements within the scope of an
-                                             annotation which is itself annotated with the given meta-annotation.
-  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
-                                             min_sdk_version. (default: no manifest)
-  --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
-                                             not yet released SDK extensions.
-  --typedefs-in-signatures [none|ref|inline]
-                                             Whether to include typedef annotations in signature files.
-
-                                             none (default) - will not include typedef annotations in signature.
-
-                                             ref - will include just a reference to the typedef class, which is not
-                                             itself part of the API and is not included as a class
-
-                                             inline - will include the constants themselves into each usage site
-  --add-nonessential-overrides-classes TEXT  Specifies a list of qualified class names where all visible overriding
-                                             methods are added to signature files. This is a no-op when --format does
-                                             not specify --add-additional-overrides=yes.
-
-                                             The list of qualified class names should be separated with ':'(colon).
-                                             (default: [])
-
-$REPORTING_OPTIONS_HELP
-
-Signature File Output:
-
-  Options controlling the signature file output. The format of the generated file is determined by the options in the
-  `Signature Format Output` section.
-
-  --api <file>                               Output file into which the API signature will be generated. If this is not
-                                             specified then no API signature file will be created.
-  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
-                                             generated. If this is not specified then no removed API signature file will
-                                             be created.
-
-$SIGNATURE_FORMAT_OPTIONS_HELP
-
-$STUB_GENERATION_OPTIONS_HELP
-"""
+        """
             .trimIndent()
 
     private val SUB_COMMANDS =
         """
 Sub-commands:
+  main                                       The default sub-command that is run if no sub-command is specified.
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree.
   help                                       Provides help for general metalava concepts
@@ -400,15 +348,13 @@ Sub-commands:
 
     private val MAIN_HELP_BODY =
         """
-$CLIKT_OPTIONS
+$COMMON_OPTIONS
 
 Arguments:
   flags                                      See below.
 
 $SUB_COMMANDS
 
-
-$FLAGS
         """
             .trimIndent()
 
@@ -424,29 +370,6 @@ $FLAGS
     }
 
     @Test
-    fun `Test invalid arguments`() {
-        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
-
-        val (stdout, stderr) = runTest(args)
-        assertEquals("", stdout.toString())
-        assertEquals(
-            """
-
-Aborting: Error: no such option: "--blah-blah-blah"
-
-$USAGE
-
-  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
-  annotations etc.
-
-$MAIN_HELP_BODY
-            """
-                .trimIndent(),
-            stderr.toString()
-        )
-    }
-
-    @Test
     fun `Test invalid value`() {
         val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
 
@@ -455,7 +378,7 @@ $MAIN_HELP_BODY
         assertEquals(
             """
 
-Aborting: Usage: metalava [options] [flags]... <sub-command>? ...
+Aborting: Usage: metalava main [options] [flags]...
 
 Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
 

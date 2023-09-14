@@ -937,11 +937,10 @@ private fun createMetalavaCommand(
 ): MetalavaCommand {
     val command =
         MetalavaCommand(
-            stdout,
-            stderr,
-            ::MainCommand,
-            progressTracker,
-            OptionsHelp::getUsage,
+            stdout = stdout,
+            stderr = stderr,
+            defaultCommandFactory = ::MainCommand,
+            progressTracker = progressTracker,
         )
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
@@ -965,7 +964,6 @@ class MainCommand(
     CliktCommand(
         help = "The default sub-command that is run if no sub-command is specified.",
         treatUnknownOptionsAsArgs = true,
-        hidden = true,
     ) {
 
     init {
@@ -982,7 +980,6 @@ class MainCommand(
                 LegacyHelpFormatter(
                     { terminal },
                     localization,
-                    helpListTransform = { it },
                     OptionsHelp::getUsage,
                 )
         }

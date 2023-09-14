@@ -45,6 +45,8 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
+  --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
+                                             not yet released SDK extensions.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
