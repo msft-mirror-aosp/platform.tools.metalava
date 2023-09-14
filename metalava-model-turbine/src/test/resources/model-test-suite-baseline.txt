@@ -1,5 +1,4 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  030 - check simplest class[turbine,java]
   040 - check package exists[turbine,java]
   050 - check field exists[turbine,java]
   060 - check method exists[turbine,java]

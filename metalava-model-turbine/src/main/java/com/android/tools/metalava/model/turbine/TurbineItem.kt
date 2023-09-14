@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 
-abstract class TurbineItem() : DefaultItem() {
+abstract class TurbineItem(override val codebase: Codebase, override val modifiers: ModifierList) :
+    DefaultItem() {
 
     override var deprecated: Boolean = false
 
@@ -29,8 +31,6 @@ abstract class TurbineItem() : DefaultItem() {
     override var documentation: String = ""
 
     override var hidden: Boolean = false
-
-    override val modifiers: ModifierList = TODO("b/295800205")
 
     override var originallyHidden: Boolean = false
 

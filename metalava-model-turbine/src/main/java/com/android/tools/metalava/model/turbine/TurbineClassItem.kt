@@ -18,18 +18,24 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeVisitor
 
-open class TurbineClassItem(override val codebase: TurbineBasedCodebase, val name: String) :
-    ClassItem, TurbineItem() {
+open class TurbineClassItem(
+    override val codebase: Codebase,
+    private val name: String,
+    private val qualifiedName: String,
+    override val modifiers: ModifierList
+) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
 
@@ -105,9 +111,7 @@ open class TurbineClassItem(override val codebase: TurbineBasedCodebase, val nam
 
     override fun simpleName(): String = name
 
-    override fun qualifiedName(): String {
-        TODO("b/295800205")
-    }
+    override fun qualifiedName(): String = qualifiedName
 
     override fun fullName(): String {
         TODO("b/295800205")
