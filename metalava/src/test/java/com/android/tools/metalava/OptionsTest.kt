@@ -431,6 +431,9 @@ Aborting: Error: no such option: "--blah-blah-blah"
 
 $USAGE
 
+  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+  annotations etc.
+
 $MAIN_HELP_BODY
             """
                 .trimIndent(),
