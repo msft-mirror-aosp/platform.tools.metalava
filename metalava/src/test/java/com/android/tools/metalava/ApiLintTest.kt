@@ -3893,13 +3893,7 @@ class ApiLintTest : DriverTest() {
     fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues =
-                // TODO: (b/299675771): This warning is erroneous. It appears because the
-                //  ComparisonVisitor treats Existing as added, so ApiLint visits it and all its
-                //  contained classes, even though Existing.Inner isn't new.
-                """
-                src/android/foobar/Existing.java:9: warning: New API must be flagged with @FlaggedApi: method android.foobar.Existing.Inner.existing() [UnflaggedApi]
-            """,
+            expectedIssues = "",
             apiLint =
                 """
                 package android.foobar {

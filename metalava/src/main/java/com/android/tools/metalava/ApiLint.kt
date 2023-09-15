@@ -238,6 +238,19 @@ class ApiLint(
                 .compare(
                     object : ComparisonVisitor() {
                         override fun added(new: Item) {
+                            if (
+                                new is ClassItem &&
+                                    !filterEmit.test(new) &&
+                                    oldCodebase.findClass(new.qualifiedName())?.emit == false
+                            ) {
+                                // old is implied (emit == false) in the old codebase but
+                                // wasn't emitted. new is also not eligible for emitting,
+                                // no point in checking it.
+                                // Skip here to avoid checking all of new's children even if
+                                // they're pre-existing. new's children will still be visited by
+                                // CodebaseComparator if they are truly new.
+                                return
+                            }
                             new.accept(this@ApiLint)
                         }
                     },
