@@ -37,7 +37,10 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
 
-    override val supportedInputFormats = setOf(InputFormat.JAVA)
+    override val supportedInputFormats =
+        InputFormat.values()
+            .filter { it.sourceLanguage in sourceModelProvider.supportedLanguages }
+            .toSet()
 
     override fun createCodebaseAndRun(
         tempDir: File,

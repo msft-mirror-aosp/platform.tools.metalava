@@ -14,30 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
+package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.source.SourceLanguage
-
-/** Possible input formats that will be passed to the [ModelSuiteRunner]. */
-enum class InputFormat(val sourceLanguage: SourceLanguage? = null) {
-    /**
-     * Signature text files.
-     *
-     * The files will end with `.txt`.
-     */
-    SIGNATURE,
-
-    /**
-     * Java files.
-     *
-     * The files will end with `.java`.
-     */
-    JAVA(SourceLanguage.JAVA),
-
-    /**
-     * Kotlin files.
-     *
-     * The files will end with `.kt`.
-     */
-    KOTLIN(SourceLanguage.KOTLIN),
+/** The source languages that may be supported by a [SourceModelProvider]. */
+enum class SourceLanguage {
+    JAVA,
+    KOTLIN
 }
