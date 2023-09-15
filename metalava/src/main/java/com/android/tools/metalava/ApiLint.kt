@@ -188,15 +188,17 @@ class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
-    private val manifest: Manifest = @Suppress("DEPRECATION") options.manifest,
+    private val manifest: Manifest,
+    config: ApiVisitor.Config,
 ) :
     ApiVisitor(
+        filterEmit =
+            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
+        filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
+        config = config,
         // Sort by source order such that warnings follow source line number order
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
-        ignoreShown = @Suppress("DEPRECATION") options.showUnannotated,
-        // No need to check "for stubs only APIs" (== "implicit" APIs)
-        includeApisForStubPurposes = false
     ) {
     private fun report(
         id: Issue,
@@ -223,7 +225,7 @@ class ApiLint(
         reporter.report(id, item, message, location)
     }
 
-    private fun check() {
+    fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator()
@@ -3277,10 +3279,6 @@ class ApiLint(
                         s.replace(acronym, replacement)
                     }
             }
-        }
-
-        fun check(codebase: Codebase, oldCodebase: Codebase?, reporter: Reporter) {
-            ApiLint(codebase, oldCodebase, reporter).check()
         }
     }
 }
