@@ -20,6 +20,7 @@ import com.android.tools.metalava.SignatureFileLoader;
 import com.android.tools.metalava.model.Codebase;
 import com.android.tools.metalava.SdkIdentifier;
 
+import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,11 +49,11 @@ public class ApiGenerator {
                                       @NotNull Codebase codebase,
                                       @Nullable File sdkJarRoot,
                                       @Nullable File sdkFilterFile,
+                                      @Nullable Integer skipVersionsGreaterThan,
                                       boolean removeMissingClasses) throws IOException, IllegalArgumentException {
         if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
             throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
         }
-
         int notFinalizedApiLevel = currentApiLevel + 1;
         Api api = createApiFromAndroidJars(apiLevels, firstApiLevel);
         if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
@@ -64,7 +65,13 @@ public class ApiGenerator {
 
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
         if (sdkJarRoot != null && sdkFilterFile != null) {
-            sdkIdentifiers = processExtensionSdkApis(api, notFinalizedApiLevel, sdkJarRoot, sdkFilterFile);
+            sdkIdentifiers = processExtensionSdkApis(
+                api,
+                notFinalizedApiLevel,
+                sdkJarRoot,
+                sdkFilterFile,
+                skipVersionsGreaterThan
+            );
         }
         api.inlineFromHiddenSuperClasses();
         api.removeImplicitInterfaces();
@@ -150,10 +157,11 @@ public class ApiGenerator {
             @NotNull Api api,
             int apiLevelNotInAndroidSdk,
             @NotNull File sdkJarRoot,
-            @NotNull File filterPath) throws IOException, IllegalArgumentException {
+            @NotNull File filterPath,
+            @Nullable Integer skipVersionsGreaterThan) throws IOException, IllegalArgumentException {
         String rules = new String(Files.readAllBytes(filterPath.toPath()));
 
-        Map<String, List<VersionAndPath>> map = ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles(sdkJarRoot);
+        Map<String, List<VersionAndPath>> map = ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles(sdkJarRoot, skipVersionsGreaterThan);
         if (map.isEmpty()) {
             throw new IllegalArgumentException("no extension sdk jar files found in " + sdkJarRoot);
         }

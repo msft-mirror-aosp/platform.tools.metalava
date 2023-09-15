@@ -221,6 +221,7 @@ internal fun processFlags(
             codebase,
             options.sdkJarRoot,
             options.sdkInfoFile,
+            options.latestReleasedSdkExtension,
             options.removeMissingClassesInApiLevels
         )
     }

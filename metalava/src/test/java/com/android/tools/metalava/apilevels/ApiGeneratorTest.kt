@@ -583,7 +583,6 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API for test prebuilts skip SDK extensions 3+`() {
-        // This test doesn't actually hide unreleased extensions yet. It will, in a follow-up CL.
         var testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
         if (!testPrebuiltsRoot.isDirectory) {
             fail("test prebuilts not found: $testPrebuiltsRoot")
@@ -609,6 +608,8 @@ class ApiGeneratorTest : DriverTest() {
                     "32",
                     ARG_CURRENT_CODENAME,
                     "Foo",
+                    "--hide-sdk-extensions-newer-than",
+                    "2",
                 ),
         )
 
@@ -629,23 +630,14 @@ class ApiGeneratorTest : DriverTest() {
                 <class name="android/test/ClassAddedInApi31AndExt2" module="framework-ext" since="31" sdks="30:2,31:2,0:31">
                     <extends name="java/lang/Object"/>
                     <method name="methodAddedInApi31AndExt2()V"/>
-                    <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
                     <field name="FIELD_ADDED_IN_API_31_AND_EXT_2"/>
-                    <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
                 </class>
                 <class name="android/test/ClassAddedInExt1" module="framework-ext" since="31" sdks="30:1,31:1,0:31">
                     <extends name="java/lang/Object"/>
                     <method name="methodAddedInApi31AndExt2()V" sdks="30:2,31:2,0:31"/>
                     <method name="methodAddedInExt1()V"/>
-                    <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
                     <field name="FIELD_ADDED_IN_API_31_AND_EXT_2" sdks="30:2,31:2,0:31"/>
                     <field name="FIELD_ADDED_IN_EXT_1"/>
-                    <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
-                </class>
-                <class name="android/test/ClassAddedInExt3" module="framework-ext" since="33" sdks="30:3,31:3">
-                    <extends name="java/lang/Object"/>
-                    <method name="methodAddedInExt3()V"/>
-                    <field name="FIELD_ADDED_IN_EXT_3"/>
                 </class>
                 <class name="java/lang/Object" since="30">
                     <method name="&lt;init>()V"/>
