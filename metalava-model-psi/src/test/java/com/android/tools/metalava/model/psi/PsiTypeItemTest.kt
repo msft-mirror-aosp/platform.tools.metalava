@@ -214,7 +214,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test variable types`() {
-        testCodebase(
+        testJavaAndKotlin(
             java(
                 """
                     public class Foo<C> {
