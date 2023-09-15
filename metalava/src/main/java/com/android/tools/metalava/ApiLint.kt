@@ -188,16 +188,24 @@ class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
-    private val manifest: Manifest = @Suppress("DEPRECATION") options.manifest,
+    private val manifest: Manifest,
+    config: ApiVisitor.Config,
 ) :
     ApiVisitor(
-        // Sort by source order such that warnings follow source line number order
+        // We don't use ApiType's eliding emitFilter here, because lint checks should run
+        // even when the signatures match that of a super method exactly (notably the ones checking
+        // that nullability overrides are consistent).
+        filterEmit =
+            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
+        filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
+        config = config,
+        // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
-        ignoreShown = @Suppress("DEPRECATION") options.showUnannotated,
-        // No need to check "for stubs only APIs" (== "implicit" APIs)
-        includeApisForStubPurposes = false
     ) {
+    /** Predicate that checks if the item appears in the signature file. */
+    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
+
     private fun report(
         id: Issue,
         item: Item,
@@ -223,7 +231,7 @@ class ApiLint(
         reporter.report(id, item, message, location)
     }
 
-    private fun check() {
+    fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator()
@@ -1752,6 +1760,16 @@ class ApiLint(
 
     private fun checkHasFlaggedApi(item: Item) {
         if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
+            if (!elidingFilterEmit.test(item)) {
+                // This API wouldn't appear in the signature file, so we don't know here if the API
+                // is pre-existing.
+                // Since the base API is either new and subject to flagging rules, or preexisting
+                // and therefore stable, the elided API is not required to be flagged.
+                // The only edge-case we don't handle well here is if the inheritance itself is new,
+                // because that can't be flagged.
+                // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                return
+            }
             report(
                 UNFLAGGED_API,
                 item,
@@ -3277,10 +3295,6 @@ class ApiLint(
                         s.replace(acronym, replacement)
                     }
             }
-        }
-
-        fun check(codebase: Codebase, oldCodebase: Codebase?, reporter: Reporter) {
-            ApiLint(codebase, oldCodebase, reporter).check()
         }
     }
 }
