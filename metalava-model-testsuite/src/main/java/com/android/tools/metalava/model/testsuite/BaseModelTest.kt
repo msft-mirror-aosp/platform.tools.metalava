@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -99,12 +100,13 @@ abstract class BaseModelTest(parameters: TestParameters) {
         // Run a test using signature files if required.
         if (inputFormat == InputFormat.SIGNATURE) {
             val tempDir = temporaryFolder.newFolder()
-            runner.createCodebaseAndRun(tempDir, signature, source, test)
+            val signatureFile = TestFiles.source("api.txt", signature.trimIndent())
+            runner.createCodebaseAndRun(tempDir, signatureFile, test)
         }
         // Run a test using java files if required.
         if (inputFormat == InputFormat.JAVA) {
             val tempDir = temporaryFolder.newFolder()
-            runner.createCodebaseAndRun(tempDir, signature, source, test)
+            runner.createCodebaseAndRun(tempDir, source, test)
         }
     }
 
@@ -119,7 +121,7 @@ abstract class BaseModelTest(parameters: TestParameters) {
         // Run a test using java files if required.
         if (inputFormat == InputFormat.JAVA) {
             val tempDir = temporaryFolder.newFolder()
-            runner.createCodebaseAndRun(tempDir, null, source) { test(it as SourceCodebase) }
+            runner.createCodebaseAndRun(tempDir, source) { test(it as SourceCodebase) }
         }
     }
 

@@ -41,16 +41,15 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         tempDir: File,
-        signature: String?,
-        source: TestFile,
-        test: (Codebase) -> Unit
+        input: TestFile,
+        test: (Codebase) -> Unit,
     ) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val codebase =
                 createTestCodebase(
                     environmentManager,
                     tempDir,
-                    listOf(source),
+                    listOf(input),
                     emptyList(),
                 )
             test(codebase)
