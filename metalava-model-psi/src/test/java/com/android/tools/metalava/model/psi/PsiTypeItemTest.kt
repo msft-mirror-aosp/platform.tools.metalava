@@ -314,4 +314,44 @@ class PsiTypeItemTest : BasePsiTest() {
             assertThat((mapValueType as ClassTypeItem).qualifiedName).isEqualTo("Foo")
         }
     }
+
+    @Test
+    fun `Inner types`() {
+        testJavaAndKotlin(
+            java(
+                """
+                    public class Outer<O> {
+                        public class Inner<I> {
+                        }
+
+                        public <P1, P2> Outer<P1>.Inner<P2> foo() {
+                            return new Outer<P1>.Inner<P2>();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    class Outer<O> {
+                        inner class Inner<I>
+
+                        fun <P1, P2> foo(): Outer<P1>.Inner<P2> {
+                            return Outer<P1>.Inner<P2>()
+                        }
+                    }
+                """
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("Outer").methods().single()
+            // Outer<P1>.Inner<P2>
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as PsiTypeItem).psiType.canonicalText)
+                .isEqualTo("Outer<P1>.Inner<P2>")
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("Outer.Inner")
+            assertThat(innerType.parameters).hasSize(1)
+            val innerTypeParameter = innerType.parameters.single()
+            assertThat((innerTypeParameter as VariableTypeItem).name).isEqualTo("P2")
+        }
+    }
 }
