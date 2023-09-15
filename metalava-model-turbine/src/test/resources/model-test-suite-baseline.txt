@@ -10,3 +10,11 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem type[turbine,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test array types[turbine,java]
+  Test class types[turbine,java]
+  Test inner types[turbine,java]
+  Test primitive types[turbine,java]
+  Test variable types[turbine,java]
+  Test wildcard types[turbine,java]

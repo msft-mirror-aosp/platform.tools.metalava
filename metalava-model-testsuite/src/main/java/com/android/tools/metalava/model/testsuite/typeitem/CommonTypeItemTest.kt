@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class PsiTypeItemTest : BasePsiTest() {
+@RunWith(Parameterized::class)
+class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
     @Test
     fun `Test primitive types`() {
-        testJavaAndKotlin(
+        runJavaAndKotlinTest(
             java(
                 """
                     public class Foo {
@@ -93,7 +98,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test array types`() {
-        testJavaAndKotlin(
+        runJavaAndKotlinTest(
             java(
                 """
                     public class Foo {
@@ -147,7 +152,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test wildcard types`() {
-        testJavaAndKotlin(
+        runJavaAndKotlinTest(
             java(
                 """
                     public class Foo<T> {
@@ -214,7 +219,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test variable types`() {
-        testJavaAndKotlin(
+        runJavaAndKotlinTest(
             java(
                 """
                     public class Foo<C> {
@@ -250,8 +255,8 @@ class PsiTypeItemTest : BasePsiTest() {
     }
 
     @Test
-    fun `Text class types`() {
-        testJavaAndKotlin(
+    fun `Test class types`() {
+        runJavaAndKotlinTest(
             java(
                 """
                     public class Foo {
@@ -317,7 +322,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test inner types`() {
-        testJavaAndKotlin(
+        runJavaAndKotlinTest(
             java(
                 """
                     public class Outer<O> {

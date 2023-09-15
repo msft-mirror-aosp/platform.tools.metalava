@@ -153,6 +153,20 @@ abstract class BaseModelTest(parameters: TestParameters) {
         }
     }
 
+    /** Run a test on Java and Kotlin. */
+    fun runJavaAndKotlinTest(
+        javaSource: TestFile,
+        kotlinSource: TestFile,
+        test: (SourceCodebase) -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            InputSet(InputFormat.JAVA, javaSource),
+            InputSet(InputFormat.KOTLIN, kotlinSource),
+        ) {
+            test(it as SourceCodebase)
+        }
+    }
+
     /** Get the class from the [Codebase], failing if it does not exist. */
     fun Codebase.assertClass(qualifiedName: String): ClassItem {
         val classItem = findClass(qualifiedName)
