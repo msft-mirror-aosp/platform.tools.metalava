@@ -39,16 +39,19 @@ import org.junit.runners.model.Statement
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by the runners as even though the tests are run in different projects the
- * test results are collated and reported together. Having the runner in the test name makes it
- * easier to differentiate them.
+ * This is parameterized by [TestParameters] as even though the tests are run in different projects
+ * the test results are collated and reported together. Having the parameters in the test name makes
+ * it easier to differentiate them.
  *
  * Note: In the top-level test report produced by Gradle it appears to just display whichever test
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  */
-abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
+abstract class BaseModelTest(parameters: TestParameters) {
+
+    /** The [ModelSuiteRunner] that this test must use. */
+    private val runner = parameters.runner
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
@@ -57,13 +60,13 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun runners(): Iterable<ModelSuiteRunner> {
+        fun testParameters(): Iterable<TestParameters> {
             val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
             val list = loader.toList()
             if (list.isEmpty()) {
                 fail("No runners found")
             }
-            return list
+            return list.map { runner -> TestParameters(runner = runner) }
         }
     }
 

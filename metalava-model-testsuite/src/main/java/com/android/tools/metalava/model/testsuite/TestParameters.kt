@@ -16,23 +16,11 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.testing.java
-import org.junit.Assert.assertNotNull
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-
-@RunWith(Parameterized::class)
-class CommonModelTest(parameters: TestParameters) : BaseModelTest(parameters) {
-    @Test
-    fun `empty file`() {
-        createCodebaseAndRun(
-            signature = """
-                    // Signature format: 2.0
-            """,
-            source = java("""
-                """),
-            test = { codebase -> assertNotNull(codebase) }
-        )
-    }
+/** Encapsulates all the parameters for the [BaseModelTest] */
+data class TestParameters(
+    /** The [ModelSuiteRunner] to use. */
+    val runner: ModelSuiteRunner,
+) {
+    /** Override this to return the string that will be used in the test name. */
+    override fun toString(): String = runner.toString()
 }

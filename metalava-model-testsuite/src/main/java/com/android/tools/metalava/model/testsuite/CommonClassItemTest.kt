@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
 @RunWith(Parameterized::class)
-class CommonClassItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
+class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
 
     @Test
     fun `empty class`() {
