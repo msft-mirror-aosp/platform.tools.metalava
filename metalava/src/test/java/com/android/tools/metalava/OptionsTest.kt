@@ -26,7 +26,7 @@ import org.junit.Test
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val FLAGS =
+    val FLAGS =
         """
 API sources:
 --source-files <files>

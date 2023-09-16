@@ -24,6 +24,7 @@ import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -56,7 +57,7 @@ internal open class MetalavaCommand(
      *
      * The second part is achieved by appending the list of [ParameterHelp] from the default
      * subcommand to the list from this, filtering out any which are not needed (see
-     * [excludeArgumentsWithNoHelp]).
+     * [excludeDuplicateParameters]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
     internal val progressTracker: ProgressTracker,
@@ -120,6 +121,16 @@ internal open class MetalavaCommand(
 
     /** The default command to run when no subcommand is provided on the command line. */
     private val defaultCommand: CliktCommand = defaultCommandFactory(common)
+
+    init {
+        // Temporarily add the default command to the set of sub commands if it is called `main`.
+        // Eventually, this will be added just as for any other sub-command but for now it has to
+        // be created specially so, it needs adding specially. This restricts this to `main` to
+        // avoid having to change some unrelated tests only to have to change them back.
+        if (defaultCommand.commandName == "main") {
+            subcommands(defaultCommand)
+        }
+    }
 
     /**
      * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.terminal] to
@@ -258,21 +269,23 @@ internal open class MetalavaCommand(
 
             // Get the combined parameters from this command and the default command, excluding any
             // that are not needed.
-            parameters + defaultCommand.allHelpParams().filter(::excludeArgumentsWithNoHelp)
+            parameters + defaultCommand.allHelpParams().filter(::excludeDuplicateParameters)
         } else {
             parameters
         }
     }
 
     /**
-     * Exclude any arguments that do not provide [ParameterHelp.Argument.help] from the list of
-     * arguments for which help will be displayed. That allows the [defaultCommand] to use an
-     * argument property to collate any unknown options (just like [flags] does here) without that
-     * appearing in the help, duplicating the help for [flags].
+     * Exclude any parameters that have duplicates in this command.
+     *
+     * This is a temporary workaround.
      */
-    private fun excludeArgumentsWithNoHelp(p: ParameterHelp): Boolean {
+    private fun excludeDuplicateParameters(p: ParameterHelp): Boolean {
         if (p is ParameterHelp.Argument) {
-            return p.help != ""
+            return p.name != "flags"
+        }
+        if (p is ParameterHelp.Option) {
+            return "-h" !in p.names
         }
 
         return true

@@ -24,6 +24,7 @@ import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.EarlyOptions
+import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
@@ -33,6 +34,7 @@ import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
@@ -937,7 +939,7 @@ private fun createMetalavaCommand(
         MetalavaCommand(
             stdout,
             stderr,
-            ::DriverCommand,
+            ::MainCommand,
             progressTracker,
             OptionsHelp::getUsage,
         )
@@ -957,23 +959,42 @@ private fun createMetalavaCommand(
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
  * needs to be run when no subcommand is provided.
  */
-private class DriverCommand(
+class MainCommand(
     commonOptions: CommonOptions,
-) : CliktCommand(treatUnknownOptionsAsArgs = true) {
+) :
+    CliktCommand(
+        help = "The default sub-command that is run if no sub-command is specified.",
+        treatUnknownOptionsAsArgs = true,
+        hidden = true,
+    ) {
 
     init {
         // Although, the `helpFormatter` is inherited from the parent context unless overridden the
         // same is not true for the `localization` so make sure to initialize it for this command.
-        context { localization = MetalavaLocalization() }
+        context {
+            localization = MetalavaLocalization()
+
+            // Explicitly specify help options as the parent command disables it.
+            helpOptionNames = setOf("-h", "--help")
+
+            // Override the help formatter to add in documentation for the legacy flags.
+            helpFormatter =
+                LegacyHelpFormatter(
+                    { terminal },
+                    localization,
+                    helpListTransform = { it },
+                    OptionsHelp::getUsage,
+                )
+        }
     }
 
-    /**
-     * Property into which all the arguments (and unknown options) are gathered.
-     *
-     * This does not provide any `help` so that it is excluded from the `help` by
-     * [MetalavaCommand.excludeArgumentsWithNoHelp].
-     */
-    private val flags by argument().multiple()
+    /** Property into which all the arguments (and unknown options) are gathered. */
+    private val flags by
+        argument(
+                name = "flags",
+                help = "See below.",
+            )
+            .multiple()
 
     /** Issue reporter configuration. */
     private val reporterOptions by ReporterOptions()
