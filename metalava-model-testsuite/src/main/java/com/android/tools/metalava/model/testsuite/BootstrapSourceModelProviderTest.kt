@@ -40,21 +40,20 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
 
     @Test
     fun `020 - check empty file`() {
-        runSourceCodebaseTest(source = java("")) { codebase -> assertNotNull(codebase) }
+        runSourceCodebaseTest(java("")) { codebase -> assertNotNull(codebase) }
     }
 
     @Test
     fun `030 - check simplest class`() {
         runSourceCodebaseTest(
-            source =
-                java(
-                    """
+            java(
+                """
                     package test.pkg;
 
                     class Test {
                     }
                 """
-                ),
+            ),
         ) { codebase ->
             val classItem = codebase.assertClass("test.pkg.Test")
             assertEquals("test.pkg.Test", classItem.qualifiedName())
@@ -64,15 +63,14 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     @Test
     fun `040 - check package exists`() {
         runSourceCodebaseTest(
-            source =
-                java(
-                    """
+            java(
+                """
                     package test.pkg;
 
                     class Test {
                     }
                 """
-                ),
+            ),
         ) { codebase ->
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals("test.pkg", packageItem.qualifiedName())
@@ -83,16 +81,15 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     @Test
     fun `050 - check field exists`() {
         runSourceCodebaseTest(
-            source =
-                java(
-                    """
+            java(
+                """
                     package test.pkg;
 
                     class Test {
                         int field;
                     }
                 """
-                ),
+            ),
         ) { codebase ->
             val testClass = codebase.assertClass("test.pkg.Test")
             val fieldItem = testClass.assertField("field")
@@ -103,16 +100,15 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     @Test
     fun `060 - check method exists`() {
         runSourceCodebaseTest(
-            source =
-                java(
-                    """
+            java(
+                """
                     package test.pkg;
 
                     class Test {
                         void method();
                     }
                 """
-                ),
+            ),
         ) { codebase ->
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.assertMethod("method", "")
@@ -123,16 +119,15 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     @Test
     fun `070 - check constructor exists`() {
         runSourceCodebaseTest(
-            source =
-                java(
-                    """
+            java(
+                """
                     package test.pkg;
 
                     class Test {
                         public Test() {}
                     }
                 """
-                ),
+            ),
         ) { codebase ->
             val testClass = codebase.assertClass("test.pkg.Test")
             val constructorItem = testClass.assertConstructor("")

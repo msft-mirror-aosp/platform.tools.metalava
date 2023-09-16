@@ -17,27 +17,46 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.source.SourceLanguage
+import java.io.File
 
 /** Possible input formats that will be passed to the [ModelSuiteRunner]. */
-enum class InputFormat(val sourceLanguage: SourceLanguage? = null) {
+enum class InputFormat(
+    val extension: String,
+    val sourceLanguage: SourceLanguage? = null,
+) {
     /**
      * Signature text files.
      *
      * The files will end with `.txt`.
      */
-    SIGNATURE,
+    SIGNATURE(
+        extension = "txt",
+    ),
 
     /**
      * Java files.
      *
      * The files will end with `.java`.
      */
-    JAVA(SourceLanguage.JAVA),
+    JAVA(
+        extension = "java",
+        SourceLanguage.JAVA,
+    ),
 
     /**
      * Kotlin files.
      *
      * The files will end with `.kt`.
      */
-    KOTLIN(SourceLanguage.KOTLIN),
+    KOTLIN(
+        extension = "kt",
+        SourceLanguage.KOTLIN,
+    );
+
+    companion object {
+        fun fromFilename(path: String): InputFormat {
+            val extension = File(path).extension
+            return values().filter { it.extension == extension }.single()
+        }
+    }
 }

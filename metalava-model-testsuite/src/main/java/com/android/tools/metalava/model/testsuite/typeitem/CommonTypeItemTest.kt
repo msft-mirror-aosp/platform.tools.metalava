@@ -34,7 +34,7 @@ import org.junit.runners.Parameterized
 class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
     @Test
     fun `Test primitive types`() {
-        runJavaAndKotlinTest(
+        runCodebaseTest(
             java(
                 """
                     public class Foo {
@@ -98,7 +98,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
 
     @Test
     fun `Test array types`() {
-        runJavaAndKotlinTest(
+        runCodebaseTest(
             java(
                 """
                     public class Foo {
@@ -152,7 +152,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
 
     @Test
     fun `Test wildcard types`() {
-        runJavaAndKotlinTest(
+        runCodebaseTest(
             java(
                 """
                     public class Foo<T> {
@@ -219,7 +219,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
 
     @Test
     fun `Test variable types`() {
-        runJavaAndKotlinTest(
+        runCodebaseTest(
             java(
                 """
                     public class Foo<C> {
@@ -256,7 +256,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
 
     @Test
     fun `Test class types`() {
-        runJavaAndKotlinTest(
+        runCodebaseTest(
             java(
                 """
                     public class Foo {
@@ -322,7 +322,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
 
     @Test
     fun `Test inner types`() {
-        runJavaAndKotlinTest(
+        runCodebaseTest(
             java(
                 """
                     public class Outer<O> {

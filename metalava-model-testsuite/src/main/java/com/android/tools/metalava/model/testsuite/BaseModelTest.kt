@@ -117,51 +117,42 @@ abstract class BaseModelTest(parameters: TestParameters) {
             }
     }
 
+    private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
+        return testFiles
+            .map { InputSet(InputFormat.fromFilename(it.targetRelativePath), it) }
+            .toTypedArray()
+    }
+
     /**
-     * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
-     * test on that [Codebase].
+     * Create a [Codebase] from one of the supplied [sources] and then run the [test] on that
+     * [Codebase].
      *
-     * This must be called with [signature] and [source] contents that are equivalent so that the
-     * test can have the same behavior on models that consume the different formats. Subclasses of
-     * this must implement this method consuming at least one of them to create a [Codebase] on
-     * which the test is run.
+     * The [sources] array should have at most one [TestFile] whose extension matches an
+     * [InputFormat.extension].
      */
     fun runCodebaseTest(
-        signature: TestFile,
-        source: TestFile,
+        vararg sources: TestFile,
         test: (Codebase) -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            InputSet(InputFormat.SIGNATURE, signature),
-            InputSet(InputFormat.JAVA, source),
+            *testFilesToInputSets(sources),
             test = test,
         )
     }
 
     /**
-     * Create a [SourceCodebase] from the supplied [source] file and then run a test on that
+     * Create a [SourceCodebase] from one of the supplied [sources] and then run the [test] on that
      * [SourceCodebase].
+     *
+     * The [sources] array should have at most one [TestFile] whose extension matches an
+     * [InputFormat.extension].
      */
     fun runSourceCodebaseTest(
-        source: TestFile,
+        vararg sources: TestFile,
         test: (SourceCodebase) -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            InputSet(InputFormat.JAVA, source),
-        ) {
-            test(it as SourceCodebase)
-        }
-    }
-
-    /** Run a test on Java and Kotlin. */
-    fun runJavaAndKotlinTest(
-        javaSource: TestFile,
-        kotlinSource: TestFile,
-        test: (SourceCodebase) -> Unit,
-    ) {
-        createCodebaseFromInputSetAndRun(
-            InputSet(InputFormat.JAVA, javaSource),
-            InputSet(InputFormat.KOTLIN, kotlinSource),
+            *testFilesToInputSets(sources),
         ) {
             test(it as SourceCodebase)
         }
