@@ -26,13 +26,13 @@ import org.junit.runners.Parameterized
 class CommonModelTest(parameters: TestParameters) : BaseModelTest(parameters) {
     @Test
     fun `empty file`() {
-        createCodebaseAndRun(
-            signature = """
+        runCodebaseTest(
+            signature("""
                     // Signature format: 2.0
-            """,
-            source = java("""
                 """),
-            test = { codebase -> assertNotNull(codebase) }
-        )
+            java(""),
+        ) { codebase ->
+            assertNotNull(codebase)
+        }
     }
 }

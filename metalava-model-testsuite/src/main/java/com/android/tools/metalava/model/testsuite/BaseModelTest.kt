@@ -126,13 +126,13 @@ abstract class BaseModelTest(parameters: TestParameters) {
      * this must implement this method consuming at least one of them to create a [Codebase] on
      * which the test is run.
      */
-    fun createCodebaseAndRun(
-        signature: String,
+    fun runCodebaseTest(
+        signature: TestFile,
         source: TestFile,
         test: (Codebase) -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            InputSet(InputFormat.SIGNATURE, TestFiles.source("api.txt", signature.trimIndent())),
+            InputSet(InputFormat.SIGNATURE, signature),
             InputSet(InputFormat.JAVA, source),
             test = test,
         )
@@ -165,6 +165,11 @@ abstract class BaseModelTest(parameters: TestParameters) {
         ) {
             test(it as SourceCodebase)
         }
+    }
+
+    /** Create a signature [TestFile] with the supplied [contents]. */
+    fun signature(contents: String): TestFile {
+        return TestFiles.source("api.txt", contents.trimIndent())
     }
 
     /** Get the class from the [Codebase], failing if it does not exist. */
