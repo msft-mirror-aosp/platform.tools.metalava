@@ -61,7 +61,6 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
@@ -224,10 +223,15 @@ class Options(
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
 ) : OptionGroup() {
-    /** Writer to direct output to */
-    var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
-    /** Writer to direct error messages to */
-    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err))
+    /** Execution environment; initialized in [parse]. */
+    private lateinit var executionEnvironment: ExecutionEnvironment
+
+    /** Writer to direct output to. */
+    val stdout: PrintWriter
+        get() = executionEnvironment.stdout
+    /** Writer to direct error messages to. */
+    val stderr: PrintWriter
+        get() = executionEnvironment.stderr
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
@@ -808,14 +812,10 @@ class Options(
             )
 
     fun parse(
+        executionEnvironment: ExecutionEnvironment,
         args: Array<String>,
-        /** Writer to direct output to */
-        stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-        /** Writer to direct error messages to */
-        stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     ) {
-        this.stdout = stdout
-        this.stderr = stderr
+        this.executionEnvironment = executionEnvironment
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null

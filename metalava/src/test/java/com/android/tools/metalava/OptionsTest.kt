@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -25,12 +24,10 @@ import org.junit.Test
 class OptionsTest : DriverTest() {
 
     private fun runTest(args: List<String>): Pair<StringWriter, StringWriter> {
-        val stdout = StringWriter()
-        val stderr = StringWriter()
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
         run(
+            executionEnvironment = executionEnvironment,
             originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr),
         )
         return Pair(stdout, stderr)
     }

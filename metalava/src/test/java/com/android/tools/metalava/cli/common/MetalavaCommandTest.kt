@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
 import com.github.ajalt.clikt.core.context
-import java.io.PrintWriter
-import java.io.StringWriter
 import org.junit.Assert
 import org.junit.Test
 
@@ -33,9 +32,9 @@ class MetalavaCommandTest {
     fun `Test error handling when invalid command line`() {
         val args = listOf(ARG_NO_COLOR, "@invalid.file")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        val command = TestCommand(stdout = PrintWriter(stdout), stderr = PrintWriter(stderr))
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
+
+        val command = TestCommand(executionEnvironment)
 
         try {
             command.processThrowCliException(args.toTypedArray())
@@ -68,10 +67,9 @@ class MetalavaCommandTest {
      * A special [MetalavaCommand] which enables @argfiles so that it can supply an invalid argument
      * which will cause Clikt to fail in such a way as to generate some help before initializing the
      */
-    private class TestCommand(stdout: PrintWriter, stderr: PrintWriter) :
+    private class TestCommand(executionEnvironment: ExecutionEnvironment) :
         MetalavaCommand(
-            stdout = stdout,
-            stderr = stderr,
+            executionEnvironment = executionEnvironment,
             progressTracker = ProgressTracker(),
         ) {
         init {

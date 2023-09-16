@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -41,8 +42,7 @@ const val ARG_VERSION = "--version"
  * Clikt options.
  */
 internal open class MetalavaCommand(
-    private val stdout: PrintWriter,
-    private val stderr: PrintWriter,
+    internal val executionEnvironment: ExecutionEnvironment,
 
     /**
      * The optional name of the default subcommand to run if no subcommand is provided in the
@@ -65,9 +65,13 @@ internal open class MetalavaCommand(
         """
                 .trimIndent()
     ) {
+
+    private val stdout = executionEnvironment.stdout
+    private val stderr = executionEnvironment.stderr
+
     init {
         context {
-            console = MetalavaConsole(stdout, stderr)
+            console = MetalavaConsole(executionEnvironment)
 
             localization = MetalavaLocalization()
 
@@ -248,20 +252,6 @@ internal open class MetalavaCommand(
     }
 }
 
-/** The [PrintWriter] to use for error output from the command. */
-val CliktCommand.stderr: PrintWriter
-    get() {
-        val metalavaConsole = currentContext.console as MetalavaConsole
-        return metalavaConsole.stderr
-    }
-
-/** The [PrintWriter] to use for non-error output from the command. */
-val CliktCommand.stdout: PrintWriter
-    get() {
-        val metalavaConsole = currentContext.console as MetalavaConsole
-        return metalavaConsole.stdout
-    }
-
 /**
  * Get the containing [MetalavaCommand].
  *
@@ -269,6 +259,18 @@ val CliktCommand.stdout: PrintWriter
  */
 private val CliktCommand.metalavaCommand
     get() = if (this is MetalavaCommand) this else currentContext.findObject()!!
+
+/** The [ExecutionEnvironment] within which the command is being run. */
+val CliktCommand.executionEnvironment: ExecutionEnvironment
+    get() = metalavaCommand.executionEnvironment
+
+/** The [PrintWriter] to use for error output from the command. */
+val CliktCommand.stderr: PrintWriter
+    get() = executionEnvironment.stderr
+
+/** The [PrintWriter] to use for non-error output from the command. */
+val CliktCommand.stdout: PrintWriter
+    get() = executionEnvironment.stdout
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.

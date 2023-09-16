@@ -31,6 +31,7 @@ import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
@@ -68,7 +69,6 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.base.Stopwatch
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.concurrent.TimeUnit.SECONDS
@@ -79,13 +79,11 @@ import kotlin.text.Charsets.UTF_8
 const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
-    val stdout = PrintWriter(OutputStreamWriter(System.out))
-    val stderr = PrintWriter(OutputStreamWriter(System.err))
+    val executionEnvironment = ExecutionEnvironment()
+    val exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
 
-    val exitCode = run(args, stdout, stderr)
-
-    stdout.flush()
-    stderr.flush()
+    executionEnvironment.stdout.flush()
+    executionEnvironment.stderr.flush()
 
     exitProcess(exitCode)
 }
@@ -95,10 +93,12 @@ fun main(args: Array<String>) {
  * (or existing signature files etc.). Run with --help to see more details.
  */
 fun run(
+    executionEnvironment: ExecutionEnvironment,
     originalArgs: Array<String>,
-    stdout: PrintWriter,
-    stderr: PrintWriter,
 ): Int {
+    val stdout = executionEnvironment.stdout
+    val stderr = executionEnvironment.stderr
+
     // Preprocess the arguments by adding any additional arguments specified in environment
     // variables.
     val modifiedArgs = preprocessArgv(originalArgs)
@@ -117,8 +117,7 @@ fun run(
     // Actual work begins here.
     val command =
         createMetalavaCommand(
-            stdout,
-            stderr,
+            executionEnvironment,
             progressTracker,
         )
     val exitCode = command.process(modifiedArgs)
@@ -932,14 +931,12 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(
-    stdout: PrintWriter,
-    stderr: PrintWriter,
+    executionEnvironment: ExecutionEnvironment,
     progressTracker: ProgressTracker
 ): MetalavaCommand {
     val command =
         MetalavaCommand(
-            stdout = stdout,
-            stderr = stderr,
+            executionEnvironment = executionEnvironment,
             progressTracker = progressTracker,
             defaultCommandName = "main",
         )
@@ -1047,7 +1044,7 @@ class MainCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(remainingArgs, stdout, stderr)
+        optionGroup.parse(executionEnvironment, remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")

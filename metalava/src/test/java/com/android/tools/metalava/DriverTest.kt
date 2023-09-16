@@ -115,7 +115,12 @@ abstract class DriverTest : TemporaryFolderOwner {
 
             Disposer.setDebugMode(true)
 
-            val exitCode = run(arrayOf(*args), writer, writer)
+            val executionEnvironment =
+                ExecutionEnvironment(
+                    stdout = writer,
+                    stderr = writer,
+                )
+            val exitCode = run(executionEnvironment, arrayOf(*args))
             if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
