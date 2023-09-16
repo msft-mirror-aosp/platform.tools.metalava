@@ -18,8 +18,10 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.DefaultReporter
 import com.android.tools.metalava.IssueConfiguration
+import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Rule
@@ -54,33 +56,28 @@ Issue Reporting:
  * couple of buffers and then allow the test to verify them. If there are any unverified errors then
  * the test will fail. The other issues will only be verified when requested.
  */
-class ReportCollectorRule(private val cleaner: (String) -> String) : TestRule {
+class ReportCollectorRule(
+    private val cleaner: (String) -> String,
+    private val rootFolderSupplier: () -> File,
+) : TestRule {
     private val allReportedIssues = StringBuilder()
     private val errorSeverityReportedIssues = StringBuilder()
 
     override fun apply(base: Statement, description: Description): Statement {
         return object : Statement() {
             override fun evaluate() {
-                val oldReportPrinter = DefaultReporter.reportPrinter
+                val oldReporterEnvironment = DefaultReporter.environment
                 try {
-                    DefaultReporter.reportPrinter = this@ReportCollectorRule::report
+                    DefaultReporter.environment = InterceptingReporterEnvironment()
                     // Evaluate the test.
                     base.evaluate()
                 } finally {
-                    DefaultReporter.reportPrinter = oldReportPrinter
+                    DefaultReporter.environment = oldReporterEnvironment
                 }
 
                 assertEquals("", errorSeverityReportedIssues.toString())
             }
         }
-    }
-
-    private fun report(message: String, severity: Severity) {
-        val cleanedMessage = cleaner(message)
-        if (severity == Severity.ERROR) {
-            errorSeverityReportedIssues.append(cleanedMessage).append('\n')
-        }
-        allReportedIssues.append(cleanedMessage).append('\n')
     }
 
     fun verifyAll(expected: String) {
@@ -92,12 +89,28 @@ class ReportCollectorRule(private val cleaner: (String) -> String) : TestRule {
         assertEquals(expected.trim(), errorSeverityReportedIssues.toString().trim())
         errorSeverityReportedIssues.clear()
     }
+
+    /** Intercepts calls to the [ReporterEnvironment] and collates the reports. */
+    private inner class InterceptingReporterEnvironment : ReporterEnvironment {
+
+        override val rootFolder: File
+            get() = rootFolderSupplier()
+
+        override fun printReport(message: String, severity: Severity) {
+            val cleanedMessage = cleaner(message)
+            if (severity == Severity.ERROR) {
+                errorSeverityReportedIssues.append(cleanedMessage).append('\n')
+            }
+            allReportedIssues.append(cleanedMessage).append('\n')
+        }
+    }
 }
 
 class ReporterOptionsTest :
     BaseOptionGroupTest<ReporterOptions>({ ReporterOptions() }, REPORTING_OPTIONS_HELP) {
 
-    @get:Rule val reportCollector = ReportCollectorRule(this::cleanupString)
+    @get:Rule
+    val reportCollector = ReportCollectorRule(this::cleanupString, { temporaryFolder.root })
 
     @Test
     fun `Test issue severity options`() {

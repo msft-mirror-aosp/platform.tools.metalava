@@ -485,14 +485,18 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         val allReportedIssues = StringBuilder()
         val errorSeverityReportedIssues = StringBuilder()
-        DefaultReporter.rootFolder = project
-        DefaultReporter.reportPrinter = { message, severity ->
-            val cleanedUpMessage = cleanupString(message, project).trim()
-            if (severity == Severity.ERROR) {
-                errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
+        DefaultReporter.environment =
+            object : ReporterEnvironment {
+                override val rootFolder = project
+
+                override fun printReport(message: String, severity: Severity) {
+                    val cleanedUpMessage = cleanupString(message, project).trim()
+                    if (severity == Severity.ERROR) {
+                        errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
+                    }
+                    allReportedIssues.append(cleanedUpMessage).append('\n')
+                }
             }
-            allReportedIssues.append(cleanedUpMessage).append('\n')
-        }
 
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
