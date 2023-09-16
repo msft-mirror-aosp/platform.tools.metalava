@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import java.util.function.Predicate
 
@@ -63,8 +64,29 @@ class ApiPredicate(
     private val includeDocOnly: Boolean = false,
 
     /** Whether to include "for stub purposes" APIs. See [AnnotationItem.isShowForStubPurposes] */
-    private val includeApisForStubPurposes: Boolean = true
+    private val includeApisForStubPurposes: Boolean = true,
+
+    /** Configuration that may be provided by command line options. */
+    private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
 ) : Predicate<Item> {
+
+    /**
+     * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
+     * options.
+     */
+    data class Config(
+        /**
+         * Whether overriding methods essential for compiling the stubs should be considered as APIs
+         * or not.
+         */
+        val addAdditionalOverrides: Boolean = false,
+
+        /**
+         * Set of qualified names of classes where all visible overriding methods are considered as
+         * APIs.
+         */
+        val additionalNonessentialOverridesClasses: Set<String> = emptySet(),
+    )
 
     override fun test(member: Item): Boolean {
         // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
@@ -76,12 +98,26 @@ class ApiPredicate(
             return false
         }
 
+        val isVisible = { method: MethodItem -> !method.hidden || method.hasShowAnnotation() }
+        val visibleForAdditionalOverridePurpose =
+            if (config.addAdditionalOverrides) {
+                member is MethodItem &&
+                    !member.isConstructor() &&
+                    (member.isRequiredOverridingMethodForTextStub() ||
+                        (member.containingClass().qualifiedName() in
+                            config.additionalNonessentialOverridesClasses &&
+                            isVisible(member) &&
+                            member.superMethods().all { isVisible(it) }))
+            } else {
+                false
+            }
+
         var visible =
             member.isPublic ||
                 member.isProtected ||
                 (member.isInternal &&
                     member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
-        var hidden = member.hidden
+        var hidden = member.hidden && !visibleForAdditionalOverridePurpose
         if (!visible || hidden) {
             return false
         }
