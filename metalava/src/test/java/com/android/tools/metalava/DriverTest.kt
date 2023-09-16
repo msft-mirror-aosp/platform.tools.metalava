@@ -52,9 +52,7 @@ import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
-import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
-import com.google.common.io.Files
 import com.intellij.openapi.util.Disposer
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -1072,7 +1070,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 actualText
             )
             // Make sure we can read back the files we write
-            parseDocument(apiXmlFile.readText(UTF_8), false)
+            parseDocument(apiXmlFile.readText(), false)
         }
 
         fun checkBaseline(
@@ -1197,11 +1195,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "Using $ARG_NULLABILITY_WARNINGS_TXT but $validateNullabilityTxt was not created",
                 validateNullabilityTxt.isFile
             )
-            val actualReport =
-                Files.asCharSource(validateNullabilityTxt, UTF_8)
-                    .readLines()
-                    .map(String::trim)
-                    .toSet()
+            val actualReport = validateNullabilityTxt.readLines().map(String::trim).toSet()
             assertEquals(validateNullability, actualReport)
         }
 
@@ -1332,7 +1326,7 @@ abstract class DriverTest : TemporaryFolderOwner {
             )
         val stream = url.openStream()
         try {
-            val bytes = ByteStreams.toByteArray(stream)
+            val bytes = stream.readBytes()
             assertNotNull(bytes)
             val xml = String(bytes, UTF_8).replace("\r\n", "\n")
             assertEquals(expected.trimIndent().trim(), xml.trimIndent().trim())
@@ -1364,7 +1358,7 @@ abstract class DriverTest : TemporaryFolderOwner {
     companion object {
         @JvmStatic
         protected fun readFile(file: File): String {
-            var apiLines: List<String> = Files.asCharSource(file, UTF_8).readLines()
+            var apiLines: List<String> = file.readLines()
             apiLines = apiLines.filter { it.isNotBlank() }
             return apiLines.joinToString(separator = "\n") { it }.trim()
         }

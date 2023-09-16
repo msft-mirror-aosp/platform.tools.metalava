@@ -31,7 +31,6 @@ import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
-import com.google.common.annotations.VisibleForTesting
 import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -303,7 +302,7 @@ internal class DefaultReporter(
 
     companion object {
         /** root folder, which needs to be changed for unit tests. */
-        @VisibleForTesting internal var rootFolder: File? = File("").absoluteFile
+        internal var rootFolder: File? = File("").absoluteFile
 
         /** Injection point for unit tests. */
         internal var reportPrinter: (String, Severity) -> Unit = { message, severity ->

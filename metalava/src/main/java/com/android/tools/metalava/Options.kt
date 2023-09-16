@@ -61,7 +61,6 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
-import com.google.common.io.Files
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -71,7 +70,6 @@ import java.util.Locale
 import java.util.Optional
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 /**
@@ -1480,7 +1478,7 @@ class Options(
                     if (!allowDirs && !listFile.isFile) {
                         throw MetalavaCliException("$listFile is not a file")
                     }
-                    val contents = Files.asCharSource(listFile, UTF_8).read()
+                    val contents = listFile.readText()
                     val pathList =
                         Splitter.on(CharMatcher.whitespace())
                             .trimResults()
