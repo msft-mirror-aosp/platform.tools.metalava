@@ -16,14 +16,19 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import java.util.Locale
+/** Possible input formats that will be passed to the [ModelSuiteRunner]. */
+enum class InputFormat {
+    /**
+     * Signature text files.
+     *
+     * The files will end with `.txt`.
+     */
+    SIGNATURE,
 
-/** Encapsulates all the parameters for the [BaseModelTest] */
-data class TestParameters(
-    /** The [ModelSuiteRunner] to use. */
-    val runner: ModelSuiteRunner,
-    val inputFormat: InputFormat,
-) {
-    /** Override this to return the string that will be used in the test name. */
-    override fun toString(): String = "$runner,${inputFormat.name.lowercase(Locale.US)}"
+    /**
+     * Java files.
+     *
+     * The files will end with `.java`.
+     */
+    JAVA,
 }

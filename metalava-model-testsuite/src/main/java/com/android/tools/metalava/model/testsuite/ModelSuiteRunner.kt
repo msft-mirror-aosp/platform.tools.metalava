@@ -27,6 +27,9 @@ import java.io.File
  */
 interface ModelSuiteRunner {
 
+    /** The set of supported [InputFormat]s that this runner can handle. */
+    val supportedInputFormats: Set<InputFormat>
+
     /**
      * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
      * test on that [Codebase].

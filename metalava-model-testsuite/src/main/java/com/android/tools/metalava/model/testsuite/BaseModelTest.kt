@@ -53,6 +53,12 @@ abstract class BaseModelTest(parameters: TestParameters) {
     /** The [ModelSuiteRunner] that this test must use. */
     private val runner = parameters.runner
 
+    /**
+     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
+     * other [InputFormat]s.
+     */
+    private val inputFormat = parameters.inputFormat
+
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     @get:Rule val baselineTestRule: TestRule = BaselineTestRule(runner)
@@ -62,11 +68,17 @@ abstract class BaseModelTest(parameters: TestParameters) {
         @Parameterized.Parameters(name = "{0}")
         fun testParameters(): Iterable<TestParameters> {
             val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
-            val list = loader.toList()
-            if (list.isEmpty()) {
+            val runners = loader.toList()
+            if (runners.isEmpty()) {
                 fail("No runners found")
             }
-            return list.map { runner -> TestParameters(runner = runner) }
+            val list =
+                runners.flatMap { runner ->
+                    runner.supportedInputFormats
+                        .map { inputFormat -> TestParameters(runner, inputFormat) }
+                        .toList()
+                }
+            return list
         }
     }
 
@@ -84,20 +96,31 @@ abstract class BaseModelTest(parameters: TestParameters) {
         source: TestFile,
         test: (Codebase) -> Unit,
     ) {
-        val tempDir = temporaryFolder.newFolder()
-        runner.createCodebaseAndRun(tempDir, signature, source, test)
+        // Run a test using signature files if required.
+        if (inputFormat == InputFormat.SIGNATURE) {
+            val tempDir = temporaryFolder.newFolder()
+            runner.createCodebaseAndRun(tempDir, signature, source, test)
+        }
+        // Run a test using java files if required.
+        if (inputFormat == InputFormat.JAVA) {
+            val tempDir = temporaryFolder.newFolder()
+            runner.createCodebaseAndRun(tempDir, signature, source, test)
+        }
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [signature] or [source] files and then run
-     * a test on that [SourceCodebase].
+     * Create a [SourceCodebase] from the supplied [source] file and then run a test on that
+     * [SourceCodebase].
      */
     fun runSourceCodebaseTest(
         source: TestFile,
         test: (SourceCodebase) -> Unit,
     ) {
-        val tempDir = temporaryFolder.newFolder()
-        runner.createCodebaseAndRun(tempDir, null, source) { test(it as SourceCodebase) }
+        // Run a test using java files if required.
+        if (inputFormat == InputFormat.JAVA) {
+            val tempDir = temporaryFolder.newFolder()
+            runner.createCodebaseAndRun(tempDir, null, source) { test(it as SourceCodebase) }
+        }
     }
 
     /** Get the class from the [Codebase], failing if it does not exist. */

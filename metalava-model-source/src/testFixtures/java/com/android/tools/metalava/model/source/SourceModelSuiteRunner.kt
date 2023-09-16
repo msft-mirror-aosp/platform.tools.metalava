@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
@@ -35,6 +36,8 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
+
+    override val supportedInputFormats = setOf(InputFormat.JAVA)
 
     override fun createCodebaseAndRun(
         tempDir: File,
