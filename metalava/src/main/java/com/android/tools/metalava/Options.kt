@@ -59,8 +59,6 @@ import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
-import com.google.common.base.CharMatcher
-import com.google.common.base.Splitter
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -1480,10 +1478,11 @@ class Options(
                     }
                     val contents = listFile.readText()
                     val pathList =
-                        Splitter.on(CharMatcher.whitespace())
-                            .trimResults()
-                            .omitEmptyStrings()
-                            .split(contents)
+                        contents
+                            .split("""\s""")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toList()
                     pathList
                         .asSequence()
                         .map { File(it) }
