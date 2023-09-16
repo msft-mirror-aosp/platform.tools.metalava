@@ -84,6 +84,40 @@ abstract class BaseModelTest(parameters: TestParameters) {
     }
 
     /**
+     * Set of inputs for a test.
+     *
+     * Currently, this is limited to one file but in future it may be more.
+     */
+    private data class InputSet(
+        /** The [InputFormat] of the [testFile]. */
+        val inputFormat: InputFormat,
+
+        /** The [TestFile] to process. */
+        val testFile: TestFile,
+    )
+
+    /**
+     * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
+     * [Codebase].
+     *
+     * The [InputSet] that is selected is the one whose [InputSet.inputFormat] is the same as the
+     * current [inputFormat]. There can be at most one of those.
+     */
+    private fun createCodebaseFromInputSetAndRun(
+        vararg inputSets: InputSet,
+        test: (Codebase) -> Unit,
+    ) {
+        // Run the input set that matches the current inputFormat, if there is one.
+        inputSets
+            .filter { it.inputFormat == inputFormat }
+            .singleOrNull()
+            ?.let {
+                val tempDir = temporaryFolder.newFolder()
+                runner.createCodebaseAndRun(tempDir, it.testFile, test)
+            }
+    }
+
+    /**
      * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
      * test on that [Codebase].
      *
@@ -97,17 +131,11 @@ abstract class BaseModelTest(parameters: TestParameters) {
         source: TestFile,
         test: (Codebase) -> Unit,
     ) {
-        // Run a test using signature files if required.
-        if (inputFormat == InputFormat.SIGNATURE) {
-            val tempDir = temporaryFolder.newFolder()
-            val signatureFile = TestFiles.source("api.txt", signature.trimIndent())
-            runner.createCodebaseAndRun(tempDir, signatureFile, test)
-        }
-        // Run a test using java files if required.
-        if (inputFormat == InputFormat.JAVA) {
-            val tempDir = temporaryFolder.newFolder()
-            runner.createCodebaseAndRun(tempDir, source, test)
-        }
+        createCodebaseFromInputSetAndRun(
+            InputSet(InputFormat.SIGNATURE, TestFiles.source("api.txt", signature.trimIndent())),
+            InputSet(InputFormat.JAVA, source),
+            test = test,
+        )
     }
 
     /**
@@ -118,10 +146,10 @@ abstract class BaseModelTest(parameters: TestParameters) {
         source: TestFile,
         test: (SourceCodebase) -> Unit,
     ) {
-        // Run a test using java files if required.
-        if (inputFormat == InputFormat.JAVA) {
-            val tempDir = temporaryFolder.newFolder()
-            runner.createCodebaseAndRun(tempDir, source) { test(it as SourceCodebase) }
+        createCodebaseFromInputSetAndRun(
+            InputSet(InputFormat.JAVA, source),
+        ) {
+            test(it as SourceCodebase)
         }
     }
 
