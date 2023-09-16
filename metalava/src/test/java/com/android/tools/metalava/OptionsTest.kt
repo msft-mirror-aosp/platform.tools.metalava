@@ -412,17 +412,22 @@ $FLAGS
         """
             .trimIndent()
 
-    @Test
-    fun `Test invalid arguments`() {
-        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
-
+    private fun runTest(args: List<String>): Pair<StringWriter, StringWriter> {
         val stdout = StringWriter()
         val stderr = StringWriter()
         run(
             originalArgs = args.toTypedArray(),
             stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
+            stderr = PrintWriter(stderr),
         )
+        return Pair(stdout, stderr)
+    }
+
+    @Test
+    fun `Test invalid arguments`() {
+        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
+
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stdout.toString())
         assertEquals(
             """
@@ -445,13 +450,7 @@ $MAIN_HELP_BODY
     fun `Test invalid value`() {
         val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stdout.toString())
         assertEquals(
             """
@@ -470,13 +469,7 @@ Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose 
     fun `Test help`() {
         val args = listOf(ARG_NO_COLOR, "--help")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stderr.toString())
         assertEquals(
             """
@@ -497,13 +490,7 @@ $MAIN_HELP_BODY
     fun `Test version`() {
         val args = listOf(ARG_NO_COLOR, "--version")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stderr.toString())
         assertEquals(
             """
