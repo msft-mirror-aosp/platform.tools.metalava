@@ -29,6 +29,7 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
@@ -936,12 +937,7 @@ private fun createMetalavaCommand(
         MetalavaCommand(
             stdout,
             stderr,
-            { commonOptions ->
-                DriverCommand(
-                    commonOptions,
-                    progressTracker,
-                )
-            },
+            ::DriverCommand,
             progressTracker,
             OptionsHelp::getUsage,
         )
@@ -963,7 +959,6 @@ private fun createMetalavaCommand(
  */
 private class DriverCommand(
     commonOptions: CommonOptions,
-    private val progressTracker: ProgressTracker,
 ) : CliktCommand(treatUnknownOptionsAsArgs = true) {
 
     init {
