@@ -30,6 +30,7 @@ import java.io.StringWriter
 data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+    val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
 ) {
 
     companion object {
@@ -43,6 +44,11 @@ data class ExecutionEnvironment(
                 ExecutionEnvironment(
                     stdout = stdout,
                     stderr = stderr,
+                    reporterEnvironment =
+                        DefaultReporterEnvironment(
+                            stdout = stdout,
+                            stderr = stderr,
+                        ),
                 ),
                 stdoutString,
                 stderrString,

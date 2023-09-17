@@ -98,6 +98,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         // that are passed matter, and they are not the same.
         @Suppress("SameParameterValue") vararg args: String,
         expectedFail: String = "",
+        reporterEnvironment: ReporterEnvironment,
     ): String {
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
@@ -119,6 +120,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 ExecutionEnvironment(
                     stdout = writer,
                     stderr = writer,
+                    reporterEnvironment = reporterEnvironment,
                 )
             val exitCode = run(executionEnvironment, arrayOf(*args))
             if (exitCode == 0) {
@@ -490,12 +492,12 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         val allReportedIssues = StringBuilder()
         val errorSeverityReportedIssues = StringBuilder()
-        DefaultReporter.environment =
+        val reporterEnvironment =
             object : ReporterEnvironment {
                 override val rootFolder = project
 
                 override fun printReport(message: String, severity: Severity) {
-                    val cleanedUpMessage = cleanupString(message, project).trim()
+                    val cleanedUpMessage = cleanupString(message, rootFolder).trim()
                     if (severity == Severity.ERROR) {
                         errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
                     }
@@ -1038,7 +1040,8 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
-                expectedFail = actualExpectedFail
+                expectedFail = actualExpectedFail,
+                reporterEnvironment = reporterEnvironment,
             )
 
         if (expectedIssues != null || allReportedIssues.toString() != "") {

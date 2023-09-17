@@ -23,7 +23,12 @@ import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import org.junit.Test
 
 class MainCommandTest :
-    BaseCommandTest<MainCommand>({ MainCommand(commonOptions = CommonOptions()) }) {
+    BaseCommandTest<MainCommand>({
+        MainCommand(
+            commonOptions = CommonOptions(),
+            executionEnvironment = ExecutionEnvironment(),
+        )
+    }) {
 
     private val EXPECTED_HELP =
         """

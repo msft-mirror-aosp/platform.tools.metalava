@@ -63,16 +63,17 @@ class ReportCollectorRule(
     private val allReportedIssues = StringBuilder()
     private val errorSeverityReportedIssues = StringBuilder()
 
+    internal var reporterEnvironment: ReporterEnvironment? = null
+
     override fun apply(base: Statement, description: Description): Statement {
         return object : Statement() {
             override fun evaluate() {
-                val oldReporterEnvironment = DefaultReporter.environment
                 try {
-                    DefaultReporter.environment = InterceptingReporterEnvironment()
+                    reporterEnvironment = InterceptingReporterEnvironment()
                     // Evaluate the test.
                     base.evaluate()
                 } finally {
-                    DefaultReporter.environment = oldReporterEnvironment
+                    reporterEnvironment = null
                 }
 
                 assertEquals("", errorSeverityReportedIssues.toString())
@@ -114,7 +115,8 @@ class ReporterOptionsTest :
     @get:Rule
     val reportCollector = ReportCollectorRule(this::cleanupString, { temporaryFolder.root })
 
-    override fun createOptions(): ReporterOptions = ReporterOptions()
+    override fun createOptions(): ReporterOptions =
+        ReporterOptions(reporterEnvironment = reportCollector.reporterEnvironment!!)
 
     @Test
     fun `Test issue severity options`() {

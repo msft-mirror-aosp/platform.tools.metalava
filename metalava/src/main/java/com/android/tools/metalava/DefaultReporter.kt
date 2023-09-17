@@ -32,11 +32,13 @@ import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
 import java.io.File
+import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
 
 @Suppress("DEPRECATION")
 internal class DefaultReporter(
+    private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
 
     /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
@@ -299,11 +301,6 @@ internal class DefaultReporter(
             "no baseline"
         }
     }
-
-    companion object {
-        /** Injection point for unit tests. */
-        internal var environment: ReporterEnvironment = DefaultReporterEnvironment()
-    }
 }
 
 private val SUPPRESS_ANNOTATIONS =
@@ -322,18 +319,15 @@ interface ReporterEnvironment {
     fun printReport(message: String, severity: Severity)
 }
 
-@Suppress("DEPRECATION")
-class DefaultReporterEnvironment : ReporterEnvironment {
+class DefaultReporterEnvironment(
+    val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) : ReporterEnvironment {
 
     override val rootFolder = File("").absoluteFile
 
     override fun printReport(message: String, severity: Severity) {
-        val output =
-            if (severity == ERROR) {
-                options.stderr
-            } else {
-                options.stdout
-            }
+        val output = if (severity == ERROR) stderr else stdout
         output.println()
         output.print(message.trim())
         output.flush()

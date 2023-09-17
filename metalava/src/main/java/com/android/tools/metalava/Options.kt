@@ -1228,12 +1228,14 @@ class Options(
         // Override the default reporters.
         reporterApiLint =
             DefaultReporter(
+                executionEnvironment.reporterEnvironment,
                 issueConfiguration,
                 baselineApiLint ?: baseline,
                 errorMessageApiLint,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
+                executionEnvironment.reporterEnvironment,
                 issueConfiguration,
                 baselineCompatibilityReleased ?: baseline,
                 errorMessageCompatibilityReleased,

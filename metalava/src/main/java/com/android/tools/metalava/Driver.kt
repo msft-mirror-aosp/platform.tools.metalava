@@ -941,7 +941,7 @@ private fun createMetalavaCommand(
             defaultCommandName = "main",
         )
     command.subcommands(
-        MainCommand(command.commonOptions),
+        MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
         MakeAnnotationsPackagePrivateCommand(),
@@ -959,6 +959,7 @@ private fun createMetalavaCommand(
  */
 class MainCommand(
     commonOptions: CommonOptions,
+    executionEnvironment: ExecutionEnvironment,
 ) :
     CliktCommand(
         help = "The default sub-command that is run if no sub-command is specified.",
@@ -993,7 +994,7 @@ class MainCommand(
             .multiple()
 
     /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions()
+    private val reporterOptions by ReporterOptions(executionEnvironment.reporterEnvironment)
 
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
