@@ -23,7 +23,6 @@ import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -38,23 +37,25 @@ const val ARG_VERSION = "--version"
  * Main metalava command.
  *
  * If no subcommand is specified in the arguments that are passed to [parse] then this will invoke
- * the [defaultCommand] passing in all the arguments not already consumed by Clikt options.
+ * the subcommand called [defaultCommandName] passing in all the arguments not already consumed by
+ * Clikt options.
  */
 internal open class MetalavaCommand(
     private val stdout: PrintWriter,
     private val stderr: PrintWriter,
 
     /**
-     * The factory for the default command to run when no subcommand is provided on the command
-     * line.
+     * The optional name of the default subcommand to run if no subcommand is provided in the
+     * command line arguments.
      */
-    defaultCommandFactory: (CommonOptions) -> CliktCommand,
+    private val defaultCommandName: String? = null,
     internal val progressTracker: ProgressTracker,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be handled by some
-        // non-Clikt option processor which it is assumed that the default command has.
-        treatUnknownOptionsAsArgs = true,
+        // non-Clikt option processor which it is assumed that the default command, if specified,
+        // has.
+        treatUnknownOptionsAsArgs = defaultCommandName != null,
         // Call run on this command even if no sub-command is provided.
         invokeWithoutSubcommand = true,
         help =
@@ -101,19 +102,6 @@ internal open class MetalavaCommand(
 
     /** Group of common options. */
     val common by CommonOptions()
-
-    /** The default command to run when no subcommand is provided on the command line. */
-    private val defaultCommand: CliktCommand = defaultCommandFactory(common)
-
-    init {
-        // Temporarily add the default command to the set of sub commands if it is called `main`.
-        // Eventually, this will be added just as for any other sub-command but for now it has to
-        // be created specially so, it needs adding specially. This restricts this to `main` to
-        // avoid having to change some unrelated tests only to have to change them back.
-        if (defaultCommand.commandName == "main") {
-            subcommands(defaultCommand)
-        }
-    }
 
     /**
      * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.terminal] to
@@ -229,11 +217,20 @@ internal open class MetalavaCommand(
         if (subcommand == null) {
             showHelpAndExitIfRequested()
 
-            // Get any remaining arguments/options that were not handled by Clikt.
-            val remainingArgs = flags.toTypedArray()
+            if (defaultCommandName != null) {
+                // Get any remaining arguments/options that were not handled by Clikt.
+                val remainingArgs = flags.toTypedArray()
 
-            // No sub-command was provided so use the default subcommand.
-            defaultCommand.parse(remainingArgs, currentContext)
+                // Get the default command.
+                val defaultCommand =
+                    registeredSubcommands().singleOrNull { it.commandName == defaultCommandName }
+                        ?: throw MetalavaCliException(
+                            "Invalid default command name '$defaultCommandName', expected one of '${registeredSubcommandNames().joinToString("', '")}'"
+                        )
+
+                // No sub-command was provided so use the default subcommand.
+                defaultCommand.parse(remainingArgs, currentContext)
+            }
         }
     }
 
@@ -271,7 +268,7 @@ val CliktCommand.stdout: PrintWriter
  * It will always be set.
  */
 private val CliktCommand.metalavaCommand
-    get() = currentContext.findObject<MetalavaCommand>()!!
+    get() = if (this is MetalavaCommand) this else currentContext.findObject()!!
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.

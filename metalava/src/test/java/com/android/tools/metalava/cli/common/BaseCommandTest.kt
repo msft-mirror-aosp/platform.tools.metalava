@@ -226,18 +226,11 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
             MetalavaCommand(
                 stdout = printOut,
                 stderr = printErr,
-                defaultCommandFactory = { FakeDefaultCommand() },
-                progressTracker,
+                progressTracker = progressTracker,
             )
 
         metalavaCommand.subcommands(command)
 
         metalavaCommand.process(args.toTypedArray())
-    }
-
-    private class FakeDefaultCommand : CliktCommand() {
-        override fun run() {
-            throw NotImplementedError("Should never be called")
-        }
     }
 }

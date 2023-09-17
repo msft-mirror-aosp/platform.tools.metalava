@@ -30,6 +30,7 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
@@ -939,10 +940,11 @@ private fun createMetalavaCommand(
         MetalavaCommand(
             stdout = stdout,
             stderr = stderr,
-            defaultCommandFactory = ::MainCommand,
             progressTracker = progressTracker,
+            defaultCommandName = "main",
         )
     command.subcommands(
+        MainCommand(command.commonOptions),
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
         MakeAnnotationsPackagePrivateCommand(),
