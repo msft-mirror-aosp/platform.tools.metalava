@@ -316,7 +316,7 @@ class PsiTypeItemTest : BasePsiTest() {
     }
 
     @Test
-    fun `Inner types`() {
+    fun `Test inner types`() {
         testJavaAndKotlin(
             java(
                 """
@@ -346,8 +346,7 @@ class PsiTypeItemTest : BasePsiTest() {
             // Outer<P1>.Inner<P2>
             val innerType = method.returnType()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((innerType as PsiTypeItem).psiType.canonicalText)
-                .isEqualTo("Outer<P1>.Inner<P2>")
+            assertThat(innerType.toCanonicalType()).isEqualTo("Outer<P1>.Inner<P2>")
             assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("Outer.Inner")
             assertThat(innerType.parameters).hasSize(1)
             val innerTypeParameter = innerType.parameters.single()
