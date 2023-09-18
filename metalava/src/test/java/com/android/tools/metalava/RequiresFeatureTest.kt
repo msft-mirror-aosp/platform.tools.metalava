@@ -126,7 +126,7 @@ class RequiresFeatureTest : DriverTest() {
             import = "import android.pkg.other.OtherFeatureManager;",
             enforcement = "android.pkg.other.OtherFeatureManager#hasMyFeature",
             expectedText =
-                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.pkg.other.OtherFeatureManager#hasMyFeature(String) OtherFeatureManager.hasMyFeature(String)}.",
         )
     }
 
@@ -138,6 +138,8 @@ class RequiresFeatureTest : DriverTest() {
             enforcement = "invalid enforcement value",
             expectedText =
                 "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+            expectedIssues =
+                "src/test/pkg/FeatureUser.java:6: lint: Invalid 'enforcement' value 'invalid enforcement value', must be of the form <qualified-class>#<method-name>, using default [InvalidFeatureEnforcement]",
         )
     }
 }
