@@ -23,29 +23,50 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertNotNull
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-open class BasePsiTest {
+open class BasePsiTest : TemporaryFolderOwner {
 
-    @get:Rule val temporaryFolder = TemporaryFolder()
+    @get:Rule override val temporaryFolder = TemporaryFolder()
+
+    /** Project directory; initialized by [testCodebase] */
+    protected lateinit var projectDir: File
+
+    /**
+     * Writer into which the output like error reports are written; initialized by [testCodebase]
+     */
+    private lateinit var outputWriter: StringWriter
+
+    /** The contents of [outputWriter], cleaned up to remove any references to temporary files. */
+    protected val output
+        get() = cleanupString(outputWriter.toString(), projectDir)
+
+    /** The [Reporter] that is used to intercept reports. */
+    protected lateinit var reporter: Reporter
 
     fun testCodebase(
         vararg sources: TestFile,
         classPath: List<File> = emptyList(),
         action: (Codebase) -> Unit,
     ) {
-        val tempDirectory = temporaryFolder.newFolder()
+        projectDir = temporaryFolder.newFolder()
         PsiEnvironmentManager().use { environmentManager ->
+            outputWriter = StringWriter()
+            reporter = BasicReporter(PrintWriter(outputWriter))
             val codebase =
                 createTestCodebase(
                     environmentManager,
-                    tempDirectory,
+                    projectDir,
                     sources.toList(),
                     classPath,
+                    reporter,
                 )
             action(codebase)
         }
@@ -67,8 +88,8 @@ open class BasePsiTest {
         directory: File,
         sources: List<TestFile>,
         classPath: List<File>,
+        reporter: Reporter,
     ): Codebase {
-        val reporter = BasicReporter(PrintWriter(System.err))
         return environmentManager
             .createSourceParser(reporter, noOpAnnotationManager)
             .parseSources(
