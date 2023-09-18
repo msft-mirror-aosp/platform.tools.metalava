@@ -464,36 +464,35 @@ class DocAnalyzer(
                 private fun handleRequiresFeature(annotation: AnnotationItem, item: Item) {
                     val value =
                         annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val sb = StringBuilder(100)
                     val resolved = value.resolve()
                     val field = resolved as? FieldItem
-                    sb.append("Requires the ")
-                    if (field == null) {
-                        reporter.report(
-                            Issues.MISSING_PERMISSION,
-                            item,
-                            "Cannot find feature field for $value required by $item (may be hidden or removed)"
-                        )
-                        sb.append("{@link ${value.toSource()}}")
-                    } else {
-                        if (filterReference.test(field)) {
-                            sb.append(
-                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}} "
-                            )
-                        } else {
+                    val featureField =
+                        if (field == null) {
                             reporter.report(
                                 Issues.MISSING_PERMISSION,
                                 item,
-                                "Feature field $value required by $item is hidden or removed"
+                                "Cannot find feature field for $value required by $item (may be hidden or removed)"
                             )
-                            sb.append("${field.containingClass().simpleName()}#${field.name()} ")
+                            "{@link ${value.toSource()}}"
+                        } else {
+                            if (filterReference.test(field)) {
+                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
+                            } else {
+                                reporter.report(
+                                    Issues.MISSING_PERMISSION,
+                                    item,
+                                    "Feature field $value required by $item is hidden or removed"
+                                )
+                                "${field.containingClass().simpleName()}#${field.name()}"
+                            }
                         }
-                    }
 
-                    sb.append("feature which can be detected using ")
-                    sb.append("{@link android.content.pm.PackageManager#hasSystemFeature(String) ")
-                    sb.append("PackageManager.hasSystemFeature(String)}.")
-                    appendDocumentation(sb.toString(), item, false)
+                    val linkUri = "android.content.pm.PackageManager#hasSystemFeature(String)"
+                    val linkText = "PackageManager.hasSystemFeature(String)"
+
+                    val doc =
+                        "Requires the $featureField feature which can be detected using {@link $linkUri $linkText}."
+                    appendDocumentation(doc, item, false)
                 }
 
                 private fun handleRequiresApi(annotation: AnnotationItem, item: Item) {
