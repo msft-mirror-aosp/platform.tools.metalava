@@ -21,7 +21,7 @@ import org.junit.Test
 
 class TextTypeParserTest {
     @Test
-    fun testTypeParameterStrings() {
+    fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
         assertThat(TextTypeParser.typeParameterStrings("").toString()).isEqualTo("[]")
         assertThat(TextTypeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
@@ -32,6 +32,20 @@ class TextTypeParserTest {
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
+    }
+
+    @Test
+    fun `Test type parameter strings with remainder`() {
+        assertThat(TextTypeParser.typeParameterStringsWithRemainder(null))
+            .isEqualTo(Pair(emptyList<String>(), null))
+        assertThat(TextTypeParser.typeParameterStringsWithRemainder(""))
+            .isEqualTo(Pair(emptyList<String>(), null))
+        assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X>"))
+            .isEqualTo(Pair(listOf("X"), null))
+        assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X>.Inner"))
+            .isEqualTo(Pair(listOf("X"), ".Inner"))
+        assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>"))
+            .isEqualTo(Pair(listOf("X", "Y", "Z"), ".Inner<A, B, C>"))
     }
 
     @Test
