@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
@@ -47,6 +48,8 @@ import org.xml.sax.helpers.DefaultHandler
  */
 const val ADD_API_LEVEL_TEXT = false
 const val ADD_DEPRECATED_IN_TEXT = false
+
+private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -487,8 +490,27 @@ class DocAnalyzer(
                             }
                         }
 
-                    val linkUri = "android.content.pm.PackageManager#hasSystemFeature(String)"
-                    val linkText = "PackageManager.hasSystemFeature(String)"
+                    val enforcement =
+                        annotation.getAttributeValue("enforcement") ?: DEFAULT_ENFORCEMENT
+
+                    // Compute the link uri and text from the enforcement setting.
+                    val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
+                    val match = regexp.matchEntire(enforcement)
+                    val (className, methodName, methodRef) =
+                        if (match == null) {
+                            reporter.report(
+                                Issues.INVALID_FEATURE_ENFORCEMENT,
+                                item,
+                                "Invalid 'enforcement' value '$enforcement', must be of the form <qualified-class>#<method-name>, using default"
+                            )
+                            Triple("PackageManager", "hasSystemFeature", DEFAULT_ENFORCEMENT)
+                        } else {
+                            val (className, methodName) = match.destructured
+                            Triple(className, methodName, enforcement)
+                        }
+
+                    val linkUri = "$methodRef(String)"
+                    val linkText = "$className.$methodName(String)"
 
                     val doc =
                         "Requires the $featureField feature which can be detected using {@link $linkUri $linkText}."
