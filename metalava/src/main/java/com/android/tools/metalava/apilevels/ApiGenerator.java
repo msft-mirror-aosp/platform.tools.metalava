@@ -41,19 +41,25 @@ import java.util.Set;
  * simple text files.
  */
 public class ApiGenerator {
+    public class SdkExtensionsArguments {
+        public SdkExtensionsArguments(@NotNull File sdkExtJarRoot, @NotNull File sdkExtInfoFile, @Nullable Integer skipVersionsGreaterThan) {
+            this.sdkExtJarRoot = sdkExtJarRoot;
+            this.sdkExtInfoFile = sdkExtInfoFile;
+            this.skipVersionsGreaterThan = skipVersionsGreaterThan;
+        }
+        public @NotNull File sdkExtJarRoot;
+        public @NotNull File sdkExtInfoFile;
+        public @Nullable Integer skipVersionsGreaterThan;
+    }
+
     public static boolean generateXml(@NotNull File[] apiLevels,
                                       int firstApiLevel,
                                       int currentApiLevel,
                                       boolean isDeveloperPreviewBuild,
                                       @NotNull File outputFile,
                                       @NotNull Codebase codebase,
-                                      @Nullable File sdkJarRoot,
-                                      @Nullable File sdkFilterFile,
-                                      @Nullable Integer skipVersionsGreaterThan,
+                                      @Nullable SdkExtensionsArguments sdkExtensionsArguments,
                                       boolean removeMissingClasses) throws IOException, IllegalArgumentException {
-        if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
-            throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
-        }
         int notFinalizedApiLevel = currentApiLevel + 1;
         Api api = createApiFromAndroidJars(apiLevels, firstApiLevel);
         if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
@@ -64,13 +70,13 @@ public class ApiGenerator {
         api.backfillHistoricalFixes();
 
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
-        if (sdkJarRoot != null && sdkFilterFile != null) {
+        if (sdkExtensionsArguments != null) {
             sdkIdentifiers = processExtensionSdkApis(
                 api,
                 notFinalizedApiLevel,
-                sdkJarRoot,
-                sdkFilterFile,
-                skipVersionsGreaterThan
+                sdkExtensionsArguments.sdkExtJarRoot,
+                sdkExtensionsArguments.sdkExtInfoFile,
+                sdkExtensionsArguments.skipVersionsGreaterThan
             );
         }
         api.inlineFromHiddenSuperClasses();
