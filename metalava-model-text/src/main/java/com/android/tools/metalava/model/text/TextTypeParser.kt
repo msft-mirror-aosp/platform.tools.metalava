@@ -300,10 +300,21 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
         /**
          * Breaks a string representing type parameters into a list of the type parameter strings.
+         *
          * E.g. `"<A, B, C>"` -> `["A", "B", "C"]` and `"<List<A>, B>"` -> `["List<A>", "B"]`.
          */
         fun typeParameterStrings(typeString: String?): List<String> {
-            val s = typeString ?: return emptyList()
+            return typeParameterStringsWithRemainder(typeString).first
+        }
+
+        /**
+         * Breaks a string representing type parameters into a list of the type parameter strings,
+         * and also returns the remainder of the string after the closing ">".
+         *
+         * E.g. `"<A, B, C>.Inner"` -> `Pair(["A", "B", "C"], ".Inner")`
+         */
+        fun typeParameterStringsWithRemainder(typeString: String?): Pair<List<String>, String?> {
+            val s = typeString ?: return Pair(emptyList(), null)
             val list = mutableListOf<String>()
             var balance = 0
             var expect = false
@@ -320,7 +331,11 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                         start = i + 1
                     } else if (balance == 0) {
                         add(list, s, start, i)
-                        return list
+                        return if (i == s.length - 1) {
+                            Pair(list, null)
+                        } else {
+                            Pair(list, s.substring(i + 1))
+                        }
                     }
                 } else if (c == ',') {
                     expect =
@@ -335,7 +350,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                     expect = false
                 }
             }
-            return list
+            return Pair(list, null)
         }
 
         /**
