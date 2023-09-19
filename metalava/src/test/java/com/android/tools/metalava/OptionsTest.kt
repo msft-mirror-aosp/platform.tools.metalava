@@ -495,7 +495,7 @@ $MAIN_HELP_BODY
         assertEquals(
             """
 
-                metalava version: 1.0.0-alpha09
+                metalava version: 1.0.0-alpha10
 
             """
                 .trimIndent(),
