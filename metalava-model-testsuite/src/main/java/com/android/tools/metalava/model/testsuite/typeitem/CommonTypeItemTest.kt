@@ -68,6 +68,18 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         ) = Unit
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void foo(boolean, byte, char, double, float, int, long, short);
+                      }
+                    }
+                """
+                    .trimIndent()
             )
         ) { codebase ->
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -124,6 +136,18 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         ) = Unit
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void foo(String![]!, String![]![]!, java.lang.String!...);
+                      }
+                    }
+                """
+                    .trimIndent()
             )
         ) { codebase ->
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -180,6 +204,18 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         ) = Unit
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo<T> {
+                        ctor public Foo();
+                        method public void foo(test.pkg.Foo<?>!, test.pkg.Foo<? extends java.lang.String>!, test.pkg.Foo<? super java.lang.String>!);
+                      }
+                    }
+                """
+                    .trimIndent()
             )
         ) { codebase ->
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -241,6 +277,18 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         fun <M> foo(p0: C, p1: M) = Unit
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo<C> {
+                        ctor public Foo();
+                        method public <M> void foo(C!, M!);
+                      }
+                    }
+                """
+                    .trimIndent()
             )
         ) { codebase ->
             val clz = codebase.assertClass("test.pkg.Foo")
@@ -290,6 +338,18 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         ) = Unit
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public <T> void foo(String!, java.util.List<java.lang.String!>!, java.util.List<java.lang.String![]!>!, java.util.Map<java.lang.String!,test.pkg.Foo!>!);
+                      }
+                    }
+                """
+                    .trimIndent()
             )
         ) { codebase ->
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -357,6 +417,21 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         }
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Outer<O> {
+                        ctor public Outer();
+                        method public <P1, P2> test.pkg.Outer<P1!>.Inner<P2!>! foo();
+                      }
+                      public class Outer.Inner<I> {
+                        ctor public Outer.Inner();
+                      }
+                    }
+                """
+                    .trimIndent()
             )
         ) { codebase ->
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
