@@ -18,3 +18,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test primitive types[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
+  Test field type variable types[turbine,java]
+  Test method parameter type variable types[turbine,java]
+  Test method return type variable types[turbine,java]

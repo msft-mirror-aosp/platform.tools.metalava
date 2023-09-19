@@ -188,7 +188,8 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         public void foo(
                             Foo<?> p0,
                             Foo<? extends java.lang.String> p1,
-                            Foo<? super java.lang.String> p2
+                            Foo<? super java.lang.String> p2,
+                            Foo<? extends java.lang.String[]> p3
                         ) {}
                     }
                 """
@@ -200,7 +201,8 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                         fun foo(
                             p0: Foo<*>,
                             p1: Foo<out String>,
-                            p2: Foo<in String>
+                            p2: Foo<in String>,
+                            p3: Foo<out Array<String>>
                         ) = Unit
                     }
                 """
@@ -211,7 +213,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
-                        method public void foo(test.pkg.Foo<?>!, test.pkg.Foo<? extends java.lang.String>!, test.pkg.Foo<? super java.lang.String>!);
+                        method public void foo(test.pkg.Foo<?>!, test.pkg.Foo<? extends java.lang.String>!, test.pkg.Foo<? super java.lang.String>!, test.pkg.Foo<? extends java.lang.String[]>!);
                       }
                     }
                 """
@@ -227,7 +229,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                     assertThat((paramType as ClassTypeItem).parameters).hasSize(1)
                     paramType.parameters.single()
                 }
-            assertThat(wildcardTypes).hasSize(3)
+            assertThat(wildcardTypes).hasSize(4)
 
             // Foo<?> / Foo<*>
             // Unbounded wildcards implicitly have an Object extends bound
@@ -256,6 +258,14 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             val superBound = superBoundWildcard.superBound
             assertThat(superBound).isNotNull()
             assertThat(superBound!!.isString()).isTrue()
+
+            // Foo<? extends java.lang.String[]> / Foo<in Array<String>>
+            val arrayExtendsBoundWildcard = wildcardTypes[3]
+            assertThat(arrayExtendsBoundWildcard).isInstanceOf(WildcardTypeItem::class.java)
+            val arrayExtendsBound = (arrayExtendsBoundWildcard as WildcardTypeItem).extendsBound
+            assertThat(arrayExtendsBound).isNotNull()
+            assertThat(arrayExtendsBound).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat((arrayExtendsBound as ArrayTypeItem).componentType.isString()).isTrue()
         }
     }
 
@@ -307,6 +317,215 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             assertThat(methodTypeVariable).isInstanceOf(VariableTypeItem::class.java)
             assertThat((methodTypeVariable as VariableTypeItem).name).isEqualTo("M")
             assertThat(methodTypeVariable.asTypeParameter).isEqualTo(methodTypeParam)
+        }
+    }
+
+    @Test
+    fun `Test method return type variable types`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<T> {
+                        public T bar1() {}
+                        public <A extends java.lang.String> A bar2() {}
+                        public <A extends java.lang.String> T bar3() {}
+                        public <T extends java.lang.String> T bar4() {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        fun bar1(): T {}
+                        fun <A: java.lang.String> bar2(): A {}
+                        fun <A: java.lang.String> bar3(): T {}
+                        fun <T: java.lang.String> bar4(): T {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo<T> {
+                        method public T bar1();
+                        method public <A extends java.lang.String> A bar2();
+                        method public <A extends java.lang.String> T bar3();
+                        method public <T extends java.lang.String> T bar4();
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val fooTypeParam = foo.typeParameterList().typeParameters().single()
+
+            val bar1 = foo.methods().single { it.name() == "bar1" }
+            val bar1Return = bar1.returnType()
+            assertThat(bar1Return).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar1Return as VariableTypeItem).asTypeParameter).isEqualTo(fooTypeParam)
+
+            val bar2 = foo.methods().single { it.name() == "bar2" }
+            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2Return = bar2.returnType()
+            assertThat(bar2Return).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar2Return as VariableTypeItem).asTypeParameter).isEqualTo(bar2TypeParam)
+
+            val bar3 = foo.methods().single { it.name() == "bar3" }
+            val bar3Return = bar3.returnType()
+            assertThat(bar3Return).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar3Return as VariableTypeItem).asTypeParameter).isEqualTo(fooTypeParam)
+
+            val bar4 = foo.methods().single { it.name() == "bar4" }
+            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4Return = bar4.returnType()
+            assertThat(bar4Return).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar4Return as VariableTypeItem).asTypeParameter).isEqualTo(bar4TypeParam)
+        }
+    }
+
+    @Test
+    fun `Test method parameter type variable types`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<T> {
+                        public void bar1(T p0) {}
+                        public <A extends java.lang.String> void bar2(A p0) {}
+                        public <A extends java.lang.String> void bar3(T p0) {}
+                        public <T extends java.lang.String> void bar4(T p0) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        fun bar1(p0: T) = Unit
+                        fun <A: java.lang.String> bar2(p0: A) = Unit
+                        fun <A: java.lang.String> bar3(p0: T) = Unit
+                        fun <T: java.lang.String> bar4(p0: T) = Unit
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo<T> {
+                        method public void bar1(T p);
+                        method public <A extends java.lang.String> void bar2(A p);
+                        method public <A extends java.lang.String> void bar3(T p);
+                        method public <T extends java.lang.String> void bar4(T p);
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val fooParam = foo.typeParameterList().typeParameters().single()
+
+            val bar1 = foo.methods().single { it.name() == "bar1" }
+            val bar1Param = bar1.parameters().single().type()
+            assertThat(bar1Param).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar1Param as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+
+            val bar2 = foo.methods().single { it.name() == "bar2" }
+            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2Param = bar2.parameters().single().type()
+            assertThat(bar2Param).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar2Param as VariableTypeItem).asTypeParameter).isEqualTo(bar2TypeParam)
+
+            val bar3 = foo.methods().single { it.name() == "bar3" }
+            val bar3Param = bar3.parameters().single().type()
+            assertThat(bar3Param).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar3Param as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+
+            val bar4 = foo.methods().single { it.name() == "bar4" }
+            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4Param = bar4.parameters().single().type()
+            assertThat(bar4Param).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bar4Param as VariableTypeItem).asTypeParameter).isEqualTo(bar4TypeParam)
+        }
+    }
+
+    @Test
+    fun `Test field type variable types`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<T> {
+                        public T foo;
+                    }
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        @JvmField val foo: T
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo<T> {
+                        field public T foo;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val fooParam = foo.typeParameterList().typeParameters().single()
+
+            val fieldType = foo.fields().single { it.name() == "foo" }.type()
+            assertThat(fieldType).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((fieldType as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
+        }
+    }
+
+    @Test
+    fun `Test property type variable types`() {
+        runCodebaseTest(
+            // No java equivalent
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        val foo: T
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo<T> {
+                        property public T foo;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val fooParam = foo.typeParameterList().typeParameters().single()
+
+            val propertyType = foo.properties().single { it.name() == "foo" }.type()
+            assertThat(propertyType).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((propertyType as VariableTypeItem).asTypeParameter).isEqualTo(fooParam)
         }
     }
 

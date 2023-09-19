@@ -5,3 +5,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test primitive types[text,signature]
   Test variable types[text,signature]
   Test wildcard types[text,signature]
+  Test field type variable types[text,signature]
+  Test method parameter type variable types[text,signature]
+  Test method return type variable types[text,signature]
+  Test property type variable types[text,signature]
