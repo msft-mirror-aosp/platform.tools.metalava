@@ -212,6 +212,19 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
         )
+        val sdkJarRoot = options.sdkJarRoot
+        val sdkInfoFile = options.sdkInfoFile
+        var sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
+            if (sdkJarRoot != null && sdkInfoFile != null) {
+                ApiGenerator()
+                    .SdkExtensionsArguments(
+                        sdkJarRoot,
+                        sdkInfoFile,
+                        options.latestReleasedSdkExtension
+                    )
+            } else {
+                null
+            }
         ApiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
@@ -219,8 +232,7 @@ internal fun processFlags(
             options.isDeveloperPreviewBuild(),
             androidApiLevelXml,
             codebase,
-            options.sdkJarRoot,
-            options.sdkInfoFile,
+            sdkExtArgs,
             options.removeMissingClassesInApiLevels
         )
     }
