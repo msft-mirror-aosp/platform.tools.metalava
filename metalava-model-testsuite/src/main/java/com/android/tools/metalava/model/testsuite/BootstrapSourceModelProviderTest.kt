@@ -134,4 +134,26 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals("Test", constructorItem.name())
         }
     }
+
+    @Test
+    fun `080 - check inner class`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    class Test {
+                      class InnerTestClass {}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val innerClassItem = codebase.assertClass("test.pkg.Test.InnerTestClass")
+            assertEquals("test.pkg.Test.InnerTestClass", innerClassItem.qualifiedName())
+            assertEquals("Test.InnerTestClass", innerClassItem.fullName())
+            assertEquals("InnerTestClass", innerClassItem.simpleName())
+            assertEquals(classItem, innerClassItem.containingClass())
+        }
+    }
 }
