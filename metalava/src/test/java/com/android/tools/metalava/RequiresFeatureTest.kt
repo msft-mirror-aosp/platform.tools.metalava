@@ -102,7 +102,7 @@ class RequiresFeatureTest : DriverTest() {
         checkRequiresFeatureHandling(
             feature = "PackageManager.FEATURE_UNKNOWN",
             expectedText =
-                "Requires the {@link PackageManager.FEATURE_UNKNOWN}feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+                "Requires the {@link PackageManager.FEATURE_UNKNOWN} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: lint: Cannot find feature field for PackageManager.FEATURE_UNKNOWN required by class test.pkg.FeatureUser (may be hidden or removed) [MissingPermission]",
         )
