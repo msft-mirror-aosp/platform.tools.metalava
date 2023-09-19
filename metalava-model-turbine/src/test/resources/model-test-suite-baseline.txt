@@ -11,6 +11,14 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem type[turbine,java]
 
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation with annotation values[turbine,java]
+  annotation with boolean values[turbine,java]
+  annotation with char values[turbine,java]
+  annotation with class values[turbine,java]
+  annotation with number values[turbine,java]
+  annotation with string values[turbine,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test class array types[turbine,java]
   Test class types[turbine,java]
