@@ -156,4 +156,31 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(classItem, innerClassItem.containingClass())
         }
     }
+
+    @Test
+    fun `090 - check class hierarchy`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    interface SuperInterface{}
+                    abstract class SuperClass implements SuperInterface{}
+                    interface ChildInterface {}
+
+                    class Test extends SuperClass implements ChildInterface {
+                    }
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val superClassItem = codebase.assertClass("test.pkg.SuperClass")
+            val superInterfaceItem = codebase.assertClass("test.pkg.SuperInterface")
+            val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
+            assertEquals(superClassItem, classItem.superClass())
+            assertEquals(2, classItem.allInterfaces().count(), message = "")
+            assertEquals(true, classItem.allInterfaces().contains(childInterfaceItem))
+            assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
+        }
+    }
 }
