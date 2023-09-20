@@ -86,6 +86,6 @@ class ComparisonVisitorTest {
                 old,
                 new
             )
-        assertEquals("TypeInSecond", methodType)
+        assertEquals("TypeInFirst", methodType)
     }
 }
