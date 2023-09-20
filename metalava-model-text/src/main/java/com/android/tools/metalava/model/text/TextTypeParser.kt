@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import java.util.HashMap
@@ -32,6 +33,13 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
         val params = cl.typeParameterList.typeParameters().map { it.toType() }
         return TextClassTypeItem(codebase, cl.qualifiedTypeName, cl.qualifiedName, params)
+    }
+
+    /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
+    fun obtainObjectType(): TextTypeItem {
+        return typeCache.obtain(JAVA_LANG_OBJECT) {
+            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, JAVA_LANG_OBJECT, emptyList())
+        }
     }
 
     /**
@@ -66,7 +74,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             // Try parsing as a wildcard before trying to parse as an array.
             // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
             // not as an array of wildcards, for consistency with how this would be compiled.
-            ?: asWildcard(type, trimmed)
+            ?: asWildcard(type, trimmed, typeParams)
             // Try parsing as an array.
             ?: asArray(trimmed, annotations, suffix, typeParams)
             // If it isn't anything else, parse the type as a class.
@@ -215,18 +223,50 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     }
 
     /**
-     * Try parsing [type] as a wildcard. This will return a non-null [TextTypeItem] if [type] begins
-     * with `?`.
+     * Try parsing [type] as a wildcard. This will return a non-null [TextWildcardTypeItem] if
+     * [type] begins with `?`.
+     *
+     * The context [typeParams] are needed to parse the bounds of the wildcard.
      *
      * [type] should have annotations and nullability markers stripped, with [original] as the
      * complete annotated type. Once annotations are properly handled (b/300081840), preserving
      * [original] won't be necessary.
      */
     @Throws(ApiParseException::class)
-    private fun asWildcard(original: String, type: String): TextTypeItem? {
+    private fun asWildcard(
+        original: String,
+        type: String,
+        typeParams: List<TypeParameterItem>
+    ): TextWildcardTypeItem? {
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
-        return TextTypeItem(codebase, original)
+
+        // Unbounded wildcard type: there is an implicit Object extends bound
+        if (type == "?") return TextWildcardTypeItem(codebase, type, obtainObjectType(), null)
+
+        val bound = type.substring(2)
+        return if (bound.startsWith("extends")) {
+            val extendsBound = bound.substring(8)
+            TextWildcardTypeItem(
+                codebase,
+                original,
+                obtainTypeFromString(extendsBound, typeParams),
+                null
+            )
+        } else if (bound.startsWith("super")) {
+            val superBound = bound.substring(6)
+            TextWildcardTypeItem(
+                codebase,
+                original,
+                // All wildcards have an implicit Object extends bound
+                obtainObjectType(),
+                obtainTypeFromString(superBound, typeParams)
+            )
+        } else {
+            throw ApiParseException(
+                "Type starts with \"?\" but doesn't appear to be wildcard: $type"
+            )
+        }
     }
 
     /**

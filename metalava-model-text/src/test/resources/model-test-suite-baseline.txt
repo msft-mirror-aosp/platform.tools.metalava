@@ -1,2 +1,0 @@
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test wildcard types[text,signature]
