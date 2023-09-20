@@ -57,8 +57,9 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         val (withoutNullability, _) = splitNullabilitySuffix(unannotated)
         val trimmed = withoutNullability.trim()
 
-        // Figure out what kind of type this is. Start with the simple case: primitive.
-        return asPrimitive(type, trimmed) ?: parseUnknownType(type, typeParams)
+        // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
+        return asPrimitive(type, trimmed)
+            ?: asVariable(type, trimmed, typeParams) ?: parseUnknownType(type, typeParams)
     }
 
     /** Temporary method for parsing an unknown kind of type, until [parseType] is complete. */
@@ -151,6 +152,23 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 else -> return null
             }
         return TextPrimitiveTypeItem(codebase, original, kind)
+    }
+
+    /**
+     * Try parsing [type] as a type variable. This will return a non-null [TextVariableTypeItem] if
+     * [type] matches a parameter from [typeParams].
+     *
+     * [type] should have annotations and nullability markers stripped, with [original] as the
+     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
+     * [original] won't be necessary.
+     */
+    private fun asVariable(
+        original: String,
+        type: String,
+        typeParams: List<TypeParameterItem>
+    ): TextVariableTypeItem? {
+        val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
+        return TextVariableTypeItem(codebase, original, type, param)
     }
 
     private class Cache<Key, Value> {

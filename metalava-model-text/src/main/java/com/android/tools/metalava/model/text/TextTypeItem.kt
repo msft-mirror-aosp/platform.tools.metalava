@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.VariableTypeItem
 import java.util.function.Predicate
 import kotlin.math.min
 
@@ -426,3 +427,11 @@ internal class TextPrimitiveTypeItem(
     override val type: String,
     override val kind: PrimitiveTypeItem.Primitive
 ) : PrimitiveTypeItem, TextTypeItem(codebase, type)
+
+/** A [VariableTypeItem] parsed from a signature file. */
+internal class TextVariableTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val name: String,
+    override val asTypeParameter: TypeParameterItem
+) : VariableTypeItem, TextTypeItem(codebase, type)
