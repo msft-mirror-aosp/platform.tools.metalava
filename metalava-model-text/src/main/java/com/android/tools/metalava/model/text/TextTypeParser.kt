@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import java.util.HashMap
 import kotlin.math.min
@@ -51,6 +52,17 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
     /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
     private fun parseType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
+        // TODO(b/300081840): handle annotations
+        val (unannotated, _) = trimLeadingAnnotations(type)
+        val (withoutNullability, _) = splitNullabilitySuffix(unannotated)
+        val trimmed = withoutNullability.trim()
+
+        // Figure out what kind of type this is. Start with the simple case: primitive.
+        return asPrimitive(type, trimmed) ?: parseUnknownType(type, typeParams)
+    }
+
+    /** Temporary method for parsing an unknown kind of type, until [parseType] is complete. */
+    private fun parseUnknownType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
         if (typeParams.isNotEmpty() && TextTypeItem.isLikelyTypeParameter(type)) {
             // Find the "name" part of the type (before a list of type parameters, array marking,
             // or nullability annotation), and see if it is a type parameter name.
@@ -114,6 +126,31 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         // true
         return (dotIndex == -1 || dotIndex > typeEnd) &&
             !isPrimitive(s.substring(0, typeEnd).trim())
+    }
+
+    /**
+     * Try parsing [type] as a primitive. This will return a non-null [TextPrimitiveTypeItem] if
+     * [type] exactly matches a primitive name.
+     *
+     * [type] should have annotations and nullability markers stripped, with [original] as the
+     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
+     * [original] won't be necessary.
+     */
+    private fun asPrimitive(original: String, type: String): TextPrimitiveTypeItem? {
+        val kind =
+            when (type) {
+                "byte" -> PrimitiveTypeItem.Primitive.BYTE
+                "char" -> PrimitiveTypeItem.Primitive.CHAR
+                "double" -> PrimitiveTypeItem.Primitive.DOUBLE
+                "float" -> PrimitiveTypeItem.Primitive.FLOAT
+                "int" -> PrimitiveTypeItem.Primitive.INT
+                "long" -> PrimitiveTypeItem.Primitive.LONG
+                "short" -> PrimitiveTypeItem.Primitive.SHORT
+                "boolean" -> PrimitiveTypeItem.Primitive.BOOLEAN
+                "void" -> PrimitiveTypeItem.Primitive.VOID
+                else -> return null
+            }
+        return TextPrimitiveTypeItem(codebase, original, kind)
     }
 
     private class Cache<Key, Value> {

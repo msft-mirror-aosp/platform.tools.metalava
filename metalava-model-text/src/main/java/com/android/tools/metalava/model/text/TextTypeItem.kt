@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -31,7 +32,8 @@ import kotlin.math.min
 
 const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
 
-class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
+// TODO: change from `open` to `sealed` once parsing is done and only the implementations are used
+open class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
 
     override fun toString(): String = type
 
@@ -417,3 +419,10 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         }
     }
 }
+
+/** A [PrimitiveTypeItem] parsed from a signature file. */
+internal class TextPrimitiveTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val kind: PrimitiveTypeItem.Primitive
+) : PrimitiveTypeItem, TextTypeItem(codebase, type)
