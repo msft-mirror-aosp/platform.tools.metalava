@@ -38,6 +38,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
      * the type parameters from [typeParams], if applicable.
      */
+    @Throws(ApiParseException::class)
     fun obtainTypeFromString(
         type: String,
         typeParams: List<TypeParameterItem> = emptyList()
@@ -52,6 +53,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     }
 
     /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
+    @Throws(ApiParseException::class)
     private fun parseType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
         // TODO(b/300081840): handle annotations
         val (unannotated, annotations) = trimLeadingAnnotations(type)
@@ -260,18 +262,49 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         type: String,
         typeParams: List<TypeParameterItem>
     ): TextClassTypeItem {
+        return createClassType(original, type, null, typeParams)
+    }
+
+    /**
+     * Creates a class name for the class represented by [type] with optional qualified name prefix
+     * [outerQualifiedName].
+     *
+     * For instance, `test.pkg.Outer<P1>` would be the [outerQualifiedName] when parsing `Inner<P2>`
+     * from the [original] type `test.pkg.Outer<P1>.Inner<P2>`.
+     */
+    @Throws(ApiParseException::class)
+    private fun createClassType(
+        original: String,
+        type: String,
+        outerQualifiedName: String?,
+        typeParams: List<TypeParameterItem>,
+    ): TextClassTypeItem {
         // TODO(b/300081840): handle annotations
         val (name, paramString, _) = trimClassAnnotations(type)
-        // TODO: handle the case where there's a remainder after the type parameters
-        val paramStrings = typeParameterStrings(paramString)
-        val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+        val (qualifiedName, fullName) =
+            if (outerQualifiedName != null) {
+                // This is an inner type, add the prefix of the outer name
+                Pair("$outerQualifiedName.$name", original)
+            } else if (!name.contains('.')) {
+                // Reverse the effect of [TypeItem.stripJavaLangPrefix].
+                Pair("java.lang.$name", "java.lang.$original")
+            } else {
+                Pair(name, original)
+            }
+        val (paramStrings, remainder) = typeParameterStringsWithRemainder(paramString)
 
-        return if (!name.contains('.')) {
-            // Reverse the effect of [TypeItem.stripJavaLangPrefix].
-            TextClassTypeItem(codebase, "java.lang.$original", "java.lang.$name", params)
-        } else {
-            TextClassTypeItem(codebase, original, name, params)
+        if (remainder != null) {
+            if (!remainder.startsWith('.')) {
+                throw ApiParseException(
+                    "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
+                )
+            }
+            // This is an inner class type, recur with the new outer qualified name
+            // TODO(b/301076671): This loses information about the outer type parameters
+            return createClassType(fullName, remainder.substring(1), qualifiedName, typeParams)
         }
+        val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+        return TextClassTypeItem(codebase, fullName, qualifiedName, params)
     }
 
     private class Cache<Key, Value> {
