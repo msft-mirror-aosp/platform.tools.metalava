@@ -700,14 +700,20 @@ class Options(
     /** [Reporter] for general use. */
     val reporter: Reporter by reporterOptions::reporter
 
-    /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
+    /**
+     * [Reporter] for "api-lint".
+     *
+     * Initialized in [parse].
+     */
+    lateinit var reporterApiLint: Reporter
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
-     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED]).
+     *
+     * Initialized in [parse].
      */
-    var reporterCompatibilityReleased: Reporter = DefaultReporter(issueConfiguration)
+    lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
