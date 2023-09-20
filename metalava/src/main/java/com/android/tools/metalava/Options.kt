@@ -36,6 +36,7 @@ import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 // Copied from tools/base/layoutlib-api
-package com.android.resources
+package com.android.tools.metalava.lint
 
 /**
  * Enum representing a type of compiled resource.

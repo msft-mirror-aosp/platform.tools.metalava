@@ -41,6 +41,7 @@ import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateComm
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
+import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
