@@ -21,12 +21,32 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import org.junit.Assert.assertTrue
+import org.junit.AssumptionViolatedException
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class CompatibilityCheckAndroidApisTest : DriverTest() {
+@RunWith(Parameterized::class)
+abstract class CompatibilityCheckAndroidApisTest(
+    private val apiLevelCheck: ApiLevelCheck,
+) : DriverTest() {
+
+    data class ApiLevelCheck(
+        val apiLevel: Int,
+        val expectedIssues: String,
+        val issueArgs: List<String>,
+        // Temporarily restrict this to just running the test for 27. This ensures that any
+        // follow-up refactorings do not break the test while minimizing the changes needed
+        // before the refactorings clean this up.
+        val disabled: Boolean = apiLevel != 27,
+    ) {
+        val extraArgs = listOf("--omit-locations") + issueArgs
+
+        override fun toString(): String = "${apiLevel - 1} to $apiLevel"
+    }
 
     companion object {
-        private val DEFAULT_SUPPRESSED_ISSUES =
+        private val DEFAULT_HIDDEN_ISSUES =
             listOf(
                 "AddedClass",
                 "AddedField",
@@ -38,19 +58,17 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 "RemovedDeprecatedClass",
                 "RemovedField",
             )
-        private val DEFAULT_SUPPRESSED_ISSUES_STRING = DEFAULT_SUPPRESSED_ISSUES.joinToString(",")
+        private val DEFAULT_HIDDEN_ISSUES_STRING = DEFAULT_HIDDEN_ISSUES.joinToString(",")
 
         private fun joinIssues(vararg issues: String): String = issues.joinToString(",")
-    }
 
-    @Test
-    fun `Test All Android API levels`() {
-        // Checks API across Android SDK versions and makes sure the results are
-        // intentional (to help shake out bugs in the API compatibility checker)
+        fun hide(issues: String): List<String> {
+            return listOf(ARG_HIDE, issues)
+        }
 
         // Expected migration warnings (the map value) when migrating to the target key level from
         // the previous level
-        val expected =
+        private val expected =
             mapOf(
                 5 to
                     "warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]",
@@ -130,7 +148,7 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 27 to ""
             )
 
-        val suppressLevels =
+        private val suppressLevels =
             mapOf(
                 1 to
                     "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated",
@@ -155,26 +173,37 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                     ),
             )
 
-        for ((apiLevel, issues) in expected.entries) {
-            // Temporarily restrict this to just running the test for 27. This ensures that any
-            // follow-up refactorings do not break the test while minimizing the changes needed
-            // before the refactorings clean this up.
-            if (apiLevel != 27) {
-                continue
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun testParameters() =
+            expected
+                .map { entry ->
+                    val (apiLevel, expectedIssues) = entry
+                    val issueArgs = suppressLevels[apiLevel] ?: DEFAULT_HIDDEN_ISSUES_STRING
+                    ApiLevelCheck(apiLevel, expectedIssues, hide(issueArgs))
+                }
+                .toList()
+    }
+
+    @Test
+    fun `Test All Android API levels`() {
+        // Checks API across Android SDK versions and makes sure the results are
+        // intentional (to help shake out bugs in the API compatibility checker)
+
+        // Temporary let block to keep the same indent as before when this was looping over the data
+        // itself.
+        let {
+            if (apiLevelCheck.disabled) {
+                throw AssumptionViolatedException("Test disabled")
             }
 
-            val expectedIssues = issues.trimIndent()
+            val apiLevel = apiLevelCheck.apiLevel
+            val expectedIssues = apiLevelCheck.expectedIssues
             val expectedFail =
                 if (expectedIssues.contains("error: ")) "Aborting: Found compatibility problems"
                 else ""
-            val extraArgs =
-                arrayOf(
-                    "--omit-locations",
-                    ARG_HIDE,
-                    suppressLevels[apiLevel] ?: DEFAULT_SUPPRESSED_ISSUES_STRING,
-                )
+            val extraArgs = apiLevelCheck.extraArgs.toTypedArray()
 
-            println("Checking compatibility from API level ${apiLevel - 1} to $apiLevel...")
             val current = getAndroidJar(apiLevel)
             val previous = getAndroidJar(apiLevel - 1)
             val previousApi = previous.path
