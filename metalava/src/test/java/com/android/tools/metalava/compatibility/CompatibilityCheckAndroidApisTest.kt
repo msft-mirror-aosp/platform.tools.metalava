@@ -26,6 +26,20 @@ import org.junit.Test
 class CompatibilityCheckAndroidApisTest : DriverTest() {
 
     companion object {
+        private val DEFAULT_SUPPRESSED_ISSUES =
+            listOf(
+                "AddedClass",
+                "AddedField",
+                "AddedInterface",
+                "AddedMethod",
+                "AddedPackage",
+                "ChangedDeprecated",
+                "RemovedClass",
+                "RemovedDeprecatedClass",
+                "RemovedField",
+            )
+        private val DEFAULT_SUPPRESSED_ISSUES_STRING = DEFAULT_SUPPRESSED_ISSUES.joinToString(",")
+
         private fun joinIssues(vararg issues: String): String = issues.joinToString(",")
     }
 
@@ -141,15 +155,25 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                     ),
             )
 
-        val loadPrevAsSignature = false
-
-        // Temporarily restrict this to just running the test for 27. This ensures that any
-        // follow-up refactorings do not break the test while minimizing the changes needed before
-        // the refactorings clean this up.
-        for (apiLevel in 27..27) {
-            if (!expected.containsKey(apiLevel)) {
+        for ((apiLevel, issues) in expected.entries) {
+            // Temporarily restrict this to just running the test for 27. This ensures that any
+            // follow-up refactorings do not break the test while minimizing the changes needed
+            // before the refactorings clean this up.
+            if (apiLevel != 27) {
                 continue
             }
+
+            val expectedIssues = issues.trimIndent()
+            val expectedFail =
+                if (expectedIssues.contains("error: ")) "Aborting: Found compatibility problems"
+                else ""
+            val extraArgs =
+                arrayOf(
+                    "--omit-locations",
+                    ARG_HIDE,
+                    suppressLevels[apiLevel] ?: DEFAULT_SUPPRESSED_ISSUES_STRING,
+                )
+
             println("Checking compatibility from API level ${apiLevel - 1} to $apiLevel...")
             val current = getAndroidJar(apiLevel)
             val previous = getAndroidJar(apiLevel - 1)
@@ -158,17 +182,9 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
             // PSI based check
 
             check(
-                extraArguments =
-                    arrayOf(
-                        "--omit-locations",
-                        ARG_HIDE,
-                        suppressLevels[apiLevel]
-                            ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass" +
-                                (if ((apiLevel == 19 || apiLevel == 20) && loadPrevAsSignature)
-                                    ",ChangedType"
-                                else "")
-                    ),
-                expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
+                extraArguments = extraArgs,
+                expectedIssues = expectedIssues,
+                expectedFail = expectedFail,
                 checkCompatibilityApiReleased = previousApi,
                 apiJar = current,
                 skipEmitPackages = emptyList(),
@@ -189,14 +205,9 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 )
 
                 check(
-                    extraArguments =
-                        arrayOf(
-                            "--omit-locations",
-                            ARG_HIDE,
-                            suppressLevels[apiLevel]
-                                ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass"
-                        ),
-                    expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
+                    extraArguments = extraArgs,
+                    expectedIssues = expectedIssues,
+                    expectedFail = expectedFail,
                     checkCompatibilityApiReleased = signatureFile.path,
                     apiJar = current,
                     skipEmitPackages = emptyList(),
