@@ -18,6 +18,7 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import org.junit.Assert.assertTrue
@@ -63,6 +64,10 @@ abstract class CompatibilityCheckAndroidApisTest(
             return listOf(ARG_HIDE, joinIssues(issues))
         }
 
+        fun warning(vararg issues: String): List<String> {
+            return listOf(ARG_WARNING, issues.joinToString(","))
+        }
+
         /** Data for each api version to check. */
         private val data =
             listOf(
@@ -71,8 +76,10 @@ abstract class CompatibilityCheckAndroidApisTest(
                     """
                 warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
                 """,
-                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
-                    disabled = true,
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) + warning("ChangedThrows"),
                 ),
                 ApiLevelCheck(
                     6,
@@ -81,8 +88,13 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
                 warning: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
                 """,
-                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
-                    disabled = true,
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                    ) +
+                        warning(
+                            "ChangedThrows",
+                            "ChangedValue",
+                        ),
                 ),
                 ApiLevelCheck(
                     7,
@@ -97,16 +109,17 @@ abstract class CompatibilityCheckAndroidApisTest(
                         "AddedPackage",
                         "ChangedDeprecated",
                     ),
-                    disabled = true,
                 ),
                 ApiLevelCheck(
                     8,
-                    // setOption getting removed here is wrong! Seems to be a PSI loading bug.
                     """
+                error: Method android.content.ComponentName.clone has changed return type from Object to android.content.ComponentName [ChangedType]
+                warning: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                warning: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                warning: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                warning: Method android.gesture.GestureStroke.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
                 warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
                 warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
-                error: Removed method java.net.DatagramSocketImpl.getOption(int) [RemovedMethod]
-                error: Removed method java.net.DatagramSocketImpl.setOption(int,Object) [RemovedMethod]
                 warning: Constructor java.nio.charset.Charset no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
                 warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
                 warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.UnsupportedCharsetException [ChangedThrows]
@@ -114,7 +127,7 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Method java.util.regex.Matcher.appendReplacement no longer throws exception java.lang.IllegalStateException [ChangedThrows]
                 warning: Method java.util.regex.Matcher.start no longer throws exception java.lang.IllegalStateException [ChangedThrows]
                 warning: Method java.util.regex.Pattern.compile no longer throws exception java.util.regex.PatternSyntaxException [ChangedThrows]
-                warning: Class javax.xml.XMLConstants added final qualifier [AddedFinal]
+                warning: Class javax.xml.XMLConstants added 'final' qualifier [AddedFinal]
                 error: Removed constructor javax.xml.XMLConstants() [RemovedMethod]
                 warning: Method javax.xml.parsers.DocumentBuilder.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
                 warning: Method javax.xml.parsers.DocumentBuilderFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
@@ -126,17 +139,23 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                 warning: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                 """,
-                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
-                    disabled = true,
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) +
+                        warning(
+                            "AddedFinal",
+                            "ChangedThrows",
+                        ),
                 ),
                 ApiLevelCheck(
                     18,
                     """
-                warning: Class android.os.Looper added final qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
-                warning: Class android.os.MessageQueue added final qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                error: Added method android.content.pm.PackageManager.getPackagesHoldingPermissions(String[],int) [AddedAbstractMethod]
                 error: Removed field android.os.Process.BLUETOOTH_GID [RemovedField]
                 error: Removed class android.renderscript.Program [RemovedClass]
                 error: Removed class android.renderscript.ProgramStore [RemovedClass]
+                error: Added method android.widget.MediaController.MediaPlayerControl.getAudioSessionId() [AddedAbstractMethod]
                 """,
                     hide(
                         "AddedClass",
@@ -151,12 +170,10 @@ abstract class CompatibilityCheckAndroidApisTest(
                         "RemovedDeprecatedClass",
                         "RemovedMethod",
                     ),
-                    disabled = true,
                 ),
                 ApiLevelCheck(
                     19,
                     """
-                warning: Method android.app.Notification.Style.build has changed 'abstract' qualifier [ChangedAbstract]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherPrivateDirty(int) [RemovedMethod]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherPss(int) [RemovedMethod]
@@ -173,18 +190,30 @@ abstract class CompatibilityCheckAndroidApisTest(
                 """,
                     // The last warning above is not right; seems to be a PSI jar loading bug. It
                     // returns the wrong return type!
-                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
-                    disabled = true,
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) +
+                        warning(
+                            "AddedFinal",
+                            "ChangedType",
+                            "ChangedValue",
+                        ),
                 ),
                 ApiLevelCheck(
                     20,
                     """
                 error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
                 warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
-                warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String, java.lang.Boolean> [ChangedType]
+                warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String,java.lang.Boolean> [ChangedType]
                 """,
-                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
-                    disabled = true,
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) +
+                        warning(
+                            "ChangedType",
+                        ),
                 ),
                 ApiLevelCheck(
                     26,
@@ -193,19 +222,24 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
                 """,
                     hide(
+                        "AddedAbstractMethod",
                         "AddedClass",
                         "AddedField",
                         "AddedFinal",
                         "AddedInterface",
                         "AddedMethod",
                         "AddedPackage",
+                        "ChangedAbstract",
                         "ChangedDeprecated",
                         "ChangedThrows",
+                        "ChangedType",
                         "RemovedClass",
                         "RemovedDeprecatedClass",
                         "RemovedMethod",
-                    ),
-                    disabled = true,
+                    ) +
+                        warning(
+                            "ChangedValue",
+                        ),
                 ),
                 ApiLevelCheck(
                     27,
