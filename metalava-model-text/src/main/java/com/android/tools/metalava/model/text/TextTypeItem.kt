@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
@@ -427,6 +428,14 @@ internal class TextPrimitiveTypeItem(
     override val type: String,
     override val kind: PrimitiveTypeItem.Primitive
 ) : PrimitiveTypeItem, TextTypeItem(codebase, type)
+
+/** An [ArrayTypeItem] parsed from a signature file. */
+internal class TextArrayTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val componentType: TypeItem,
+    override val isVarargs: Boolean
+) : ArrayTypeItem, TextTypeItem(codebase, type)
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(

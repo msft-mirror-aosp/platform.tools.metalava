@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -316,6 +317,44 @@ class TextTypeParserTest {
             expectedClassName = "java.util.List",
             expectedParams = "<java.lang.@test.pkg.B(v = \"@\") String>",
             expectedAnnotations = listOf("@test.pkg.A(a = \"hi@\", b = 0)", "@test.pkg.B(v = \"\")")
+        )
+    }
+
+    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+
+    private fun parseType(type: String) = typeParser.obtainTypeFromString(type)
+
+    /**
+     * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
+     * [expectedInnerType] and vararg iff [expectedVarargs] is true.
+     */
+    private fun testArrayType(
+        inputType: String,
+        expectedInnerType: TextTypeItem,
+        expectedVarargs: Boolean
+    ) {
+        val type = parseType(inputType)
+        assertThat(type).isInstanceOf(ArrayTypeItem::class.java)
+        assertThat((type as ArrayTypeItem).componentType).isEqualTo(expectedInnerType)
+        assertThat((type as ArrayTypeItem).isVarargs).isEqualTo(expectedVarargs)
+    }
+
+    @Test
+    fun `Test parsing of array types with annotations`() {
+        testArrayType(
+            inputType = "test.pkg.@A @B Foo @B @C []",
+            expectedInnerType = parseType("test.pkg.@A @B Foo"),
+            expectedVarargs = false
+        )
+        testArrayType(
+            inputType = "java.lang.annotation.@NonNull Annotation @NonNull []",
+            expectedInnerType = parseType("java.lang.annotation.@NonNull Annotation"),
+            expectedVarargs = false
+        )
+        testArrayType(
+            inputType = "char @NonNull []",
+            expectedInnerType = parseType("char"),
+            expectedVarargs = false
         )
     }
 }

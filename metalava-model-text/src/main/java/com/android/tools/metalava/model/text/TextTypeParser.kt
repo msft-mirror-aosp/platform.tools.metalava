@@ -53,13 +53,16 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
     private fun parseType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
         // TODO(b/300081840): handle annotations
-        val (unannotated, _) = trimLeadingAnnotations(type)
-        val (withoutNullability, _) = splitNullabilitySuffix(unannotated)
+        val (unannotated, annotations) = trimLeadingAnnotations(type)
+        val (withoutNullability, suffix) = splitNullabilitySuffix(unannotated)
         val trimmed = withoutNullability.trim()
 
         // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
         return asPrimitive(type, trimmed)
-            ?: asVariable(type, trimmed, typeParams) ?: parseUnknownType(type, typeParams)
+            ?: asVariable(type, trimmed, typeParams)
+            // Try parsing as an array.
+            ?: asArray(trimmed, annotations, suffix, typeParams)
+                ?: parseUnknownType(type, typeParams)
     }
 
     /** Temporary method for parsing an unknown kind of type, until [parseType] is complete. */
@@ -152,6 +155,55 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 else -> return null
             }
         return TextPrimitiveTypeItem(codebase, original, kind)
+    }
+
+    /**
+     * Try parsing [type] as an array. This will return a non-null [TextArrayTypeItem] if [type]
+     * ends with `[]` or `...`.
+     *
+     * The context [typeParams] are used to parse the component type of the array.
+     */
+    private fun asArray(
+        type: String,
+        componentAnnotations: List<String>,
+        nullability: String,
+        typeParams: List<TypeParameterItem>
+    ): TextArrayTypeItem? {
+        // Check if this is a regular array or varargs.
+        val (inner, varargs) =
+            if (type.endsWith("...")) {
+                Pair(type.dropLast(3), true)
+            } else if (type.endsWith("[]")) {
+                Pair(type.dropLast(2), false)
+            } else {
+                return null
+            }
+
+        // TODO(b/300081840): handle annotations
+        val (component, arrayAnnotations) = trimTrailingAnnotations(inner)
+        val componentType = obtainTypeFromString(component, typeParams)
+
+        // Reassemble the full text of the array. The reason this is needed instead of simply using
+        // the original type like the other constructors do is that the component type might be an
+        // implicit `java.lang` type. If that's true, we need to add the `java.lang` prefix to the
+        // array type too. Once annotations are properly handled (b/300081840), this shouldn't be
+        // necessary.
+        // This isn't the case for any other complex types, because java.lang is only stripped from
+        // the beginning of a type string and wildcard bounds and class parameters are at the end.
+        val leadingAnnotations =
+            if (componentAnnotations.isEmpty()) ""
+            else {
+                componentAnnotations.joinToString(" ") + " "
+            }
+        val trailingAnnotations =
+            if (arrayAnnotations.isEmpty()) ""
+            else {
+                " " + arrayAnnotations.joinToString(" ") + " "
+            }
+        val suffix = (if (varargs) "..." else "[]") + nullability
+        val reassembledTypeString = "$leadingAnnotations$componentType$trailingAnnotations$suffix"
+
+        return TextArrayTypeItem(codebase, reassembledTypeString, componentType, varargs)
     }
 
     /**
