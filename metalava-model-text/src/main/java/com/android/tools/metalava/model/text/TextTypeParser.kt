@@ -30,7 +30,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * type, the steps in [obtainTypeFromString] aren't needed.
      */
     fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
-        return TextTypeItem(codebase, cl.qualifiedTypeName)
+        val params = cl.typeParameterList.typeParameters().map { it.toType() }
+        return TextClassTypeItem(codebase, cl.qualifiedTypeName, cl.qualifiedName, params)
     }
 
     /**
@@ -66,7 +67,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             ?: asWildcard(type, trimmed)
             // Try parsing as an array.
             ?: asArray(trimmed, annotations, suffix, typeParams)
-                ?: parseUnknownType(type, typeParams)
+            // If it isn't anything else, parse the type as a class.
+            ?: asClass(type, trimmed, typeParams)
     }
 
     /** Temporary method for parsing an unknown kind of type, until [parseType] is complete. */
@@ -240,6 +242,36 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     ): TextVariableTypeItem? {
         val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
         return TextVariableTypeItem(codebase, original, type, param)
+    }
+
+    /**
+     * Parse the [type] as a class. This function will always return a non-null [TextClassTypeItem],
+     * so it should only be used when it is certain that [type] is not a different kind of type.
+     *
+     * The context [typeParams] are used to parse the parameters of the class type.
+     *
+     * [type] should have annotations and nullability markers stripped, with [original] as the
+     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
+     * [original] won't be necessary.
+     */
+    @Throws(ApiParseException::class)
+    private fun asClass(
+        original: String,
+        type: String,
+        typeParams: List<TypeParameterItem>
+    ): TextClassTypeItem {
+        // TODO(b/300081840): handle annotations
+        val (name, paramString, _) = trimClassAnnotations(type)
+        // TODO: handle the case where there's a remainder after the type parameters
+        val paramStrings = typeParameterStrings(paramString)
+        val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+
+        return if (!name.contains('.')) {
+            // Reverse the effect of [TypeItem.stripJavaLangPrefix].
+            TextClassTypeItem(codebase, "java.lang.$original", "java.lang.$name", params)
+        } else {
+            TextClassTypeItem(codebase, original, name, params)
+        }
     }
 
     private class Cache<Key, Value> {

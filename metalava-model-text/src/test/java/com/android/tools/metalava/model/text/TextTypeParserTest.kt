@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -355,6 +357,69 @@ class TextTypeParserTest {
             inputType = "char @NonNull []",
             expectedInnerType = parseType("char"),
             expectedVarargs = false
+        )
+    }
+
+    /**
+     * Tests that [inputType] is parsed as a [ClassTypeItem] with qualified name equal to
+     * [expectedQualifiedName] and parameters equal to [expectedParameterTypes].
+     */
+    private fun testClassType(
+        inputType: String,
+        expectedQualifiedName: String,
+        expectedParameterTypes: List<TypeItem>
+    ) {
+        val type = parseType(inputType)
+        assertThat(type).isInstanceOf(ClassTypeItem::class.java)
+        assertThat((type as ClassTypeItem).qualifiedName).isEqualTo(expectedQualifiedName)
+        assertThat((type as ClassTypeItem).parameters).isEqualTo(expectedParameterTypes)
+    }
+
+    @Test
+    fun `Test parsing of abbreviated java lang types`() {
+        testClassType(
+            inputType = "String",
+            expectedQualifiedName = "java.lang.String",
+            expectedParameterTypes = emptyList()
+        )
+        testArrayType(
+            inputType = "String[]",
+            expectedInnerType = parseType("java.lang.String"),
+            expectedVarargs = false
+        )
+        testArrayType(
+            inputType = "String...",
+            expectedInnerType = parseType("java.lang.String"),
+            expectedVarargs = true
+        )
+    }
+
+    @Test
+    fun `Test parsing of class types with annotations`() {
+        testClassType(
+            inputType = "@A @B test.pkg.Foo",
+            expectedQualifiedName = "test.pkg.Foo",
+            expectedParameterTypes = emptyList()
+        )
+        testClassType(
+            inputType = "@A @B test.pkg.Foo",
+            expectedQualifiedName = "test.pkg.Foo",
+            expectedParameterTypes = emptyList()
+        )
+        testClassType(
+            inputType = "java.lang.annotation.@NonNull Annotation",
+            expectedQualifiedName = "java.lang.annotation.Annotation",
+            expectedParameterTypes = emptyList()
+        )
+        testClassType(
+            inputType = "java.util.Map.@NonNull Entry<a.A,b.B>",
+            expectedQualifiedName = "java.util.Map.Entry",
+            expectedParameterTypes = listOf(parseType("a.A"), parseType("b.B"))
+        )
+        testClassType(
+            inputType = "java.util.@NonNull Set<java.util.Map.@NonNull Entry<a.A,b.B>>",
+            expectedQualifiedName = "java.util.Set",
+            expectedParameterTypes = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
         )
     }
 }

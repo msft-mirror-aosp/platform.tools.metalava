@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -436,6 +437,14 @@ internal class TextArrayTypeItem(
     override val componentType: TypeItem,
     override val isVarargs: Boolean
 ) : ArrayTypeItem, TextTypeItem(codebase, type)
+
+/** A [ClassTypeItem] parsed from a signature file. */
+internal class TextClassTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val qualifiedName: String,
+    override val parameters: List<TypeItem>
+) : ClassTypeItem, TextTypeItem(codebase, type)
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(
