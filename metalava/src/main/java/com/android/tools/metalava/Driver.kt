@@ -218,14 +218,13 @@ internal fun processFlags(
         )
         val sdkJarRoot = options.sdkJarRoot
         val sdkInfoFile = options.sdkInfoFile
-        var sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
+        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
             if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator()
-                    .SdkExtensionsArguments(
-                        sdkJarRoot,
-                        sdkInfoFile,
-                        options.latestReleasedSdkExtension
-                    )
+                ApiGenerator.SdkExtensionsArguments(
+                    sdkJarRoot,
+                    sdkInfoFile,
+                    options.latestReleasedSdkExtension
+                )
             } else {
                 null
             }
