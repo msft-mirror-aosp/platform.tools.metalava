@@ -16,17 +16,7 @@
 // Copied from tools/base/layoutlib-api
 package com.android.resources
 
-import com.android.SdkConstants
-import com.google.common.base.MoreObjects
-import com.google.common.base.Strings
 import com.google.common.collect.ImmutableMap
-import com.google.common.collect.ImmutableSet
-import com.google.common.collect.Sets
-import java.util.Arrays
-import java.util.function.BiFunction
-import java.util.function.Function
-import org.w3c.dom.Element
-import org.w3c.dom.Node
 
 /**
  * Enum representing a type of compiled resource.
@@ -136,36 +126,15 @@ enum class ResourceType {
         mAlternateXmlNames = emptyArray()
     }
 
-    val hasInnerClass: Boolean
-        /**
-         * Returns true if the generated R class contains an inner class for this [ResourceType].
-         */
-        get() = mKind != Kind.SYNTHETIC
-
-    val canBeReferenced: Boolean
-        /**
-         * Returns true if this [ResourceType] can be referenced using the [ResourceUrl] syntax:
-         * `@typeName/resourceName`.
-         */
-        get() = mKind == Kind.REAL && this != ATTR
-
     override fun toString(): String {
         // Unfortunately we still have code that relies on toString() returning the aapt name.
         return xmlName
     }
 
     companion object {
-        /** The set of all types of resources that can be referenced by other resources. */
-        val REFERENCEABLE_TYPES: ImmutableSet<ResourceType>
-        private val TAG_NAMES: ImmutableMap<String, ResourceType>
         private val CLASS_NAMES: ImmutableMap<String, ResourceType>
 
         init {
-            val tagNames = ImmutableMap.builder<String, ResourceType>()
-            tagNames.put(SdkConstants.TAG_DECLARE_STYLEABLE, STYLEABLE)
-            tagNames.put(SdkConstants.TAG_PUBLIC, PUBLIC)
-            tagNames.put(OVERLAYABLE.xmlName, OVERLAYABLE)
-            tagNames.put(MACRO.xmlName, MACRO)
             val classNames = ImmutableMap.builder<String, ResourceType>()
             classNames.put(STYLEABLE.xmlName, STYLEABLE)
             classNames.put(AAPT.xmlName, AAPT)
@@ -174,17 +143,8 @@ enum class ResourceType {
                     continue
                 }
                 classNames.put(type.xmlName, type)
-                tagNames.put(type.xmlName, type)
-                for (alternateName in type.mAlternateXmlNames) {
-                    tagNames.put(alternateName, type)
-                }
             }
-            TAG_NAMES = tagNames.build()
             CLASS_NAMES = classNames.build()
-            REFERENCEABLE_TYPES =
-                Arrays.stream(values())
-                    .filter { obj: ResourceType -> obj.canBeReferenced }
-                    .collect(Sets.toImmutableEnumSet())
         }
 
         /**
@@ -194,84 +154,6 @@ enum class ResourceType {
          */
         fun fromClassName(className: String): ResourceType? {
             return CLASS_NAMES[className]
-        }
-
-        /**
-         * Returns the enum by its name as it appears as a folder name under `res/`.
-         *
-         * @param folderName name of the inner class of the R class, e.g. "drawable" or "color".
-         */
-        fun fromFolderName(folderName: String): ResourceType? {
-            return CLASS_NAMES[folderName]
-        }
-
-        /**
-         * Returns the enum by its name as it appears in XML as a tag name.
-         *
-         * @param tagName name of the XML tag, e.g. "string" or "declare-styleable".
-         */
-        fun fromXmlTagName(tagName: String): ResourceType? {
-            return TAG_NAMES[tagName]
-        }
-
-        /**
-         * Returns the enum by its name as it appears in a [ResourceUrl] string.
-         *
-         * @param xmlValue value of the type attribute or the prefix of a [ResourceUrl], e.g.
-         *   "string" or "array".
-         */
-        fun fromXmlValue(xmlValue: String): ResourceType? {
-            if (xmlValue == SdkConstants.TAG_DECLARE_STYLEABLE || xmlValue == STYLEABLE.xmlName) {
-                return null
-            }
-            if (xmlValue == SAMPLE_DATA.xmlName) {
-                return SAMPLE_DATA
-            }
-            if (xmlValue == OVERLAYABLE.xmlName) {
-                return OVERLAYABLE
-            }
-            return if (xmlValue == MACRO.xmlName) {
-                MACRO
-            } else CLASS_NAMES[xmlValue]
-        }
-
-        fun <T> fromXmlTag(
-            tag: T,
-            nameFunction: Function<T, String>,
-            attributeFunction: BiFunction<T, String, String>
-        ): ResourceType? {
-            val tagName = nameFunction.apply(tag)
-            return when (tagName) {
-                SdkConstants.TAG_EAT_COMMENT -> null
-                SdkConstants.TAG_ITEM -> {
-                    val typeAttribute = attributeFunction.apply(tag, SdkConstants.ATTR_TYPE)
-                    if (!Strings.isNullOrEmpty(typeAttribute)) {
-                        fromClassName(typeAttribute)
-                    } else {
-                        null
-                    }
-                }
-                else -> fromXmlTagName(tagName)
-            }
-        }
-
-        fun fromXmlTag(domNode: Node): ResourceType? {
-            if (domNode !is Element) {
-                return null
-            }
-            return fromXmlTag(
-                domNode,
-                { element: Element -> MoreObjects.firstNonNull(element.localName, element.tagName) }
-            ) { obj: Element, name: String? ->
-                obj.getAttribute(name)
-            }
-        }
-
-        @Deprecated(
-            "Use other static methods in this class. Kept for layoutlib binary compatibility."
-        )
-        fun getEnum(className: String): ResourceType? {
-            return fromClassName(className)
         }
     }
 }
