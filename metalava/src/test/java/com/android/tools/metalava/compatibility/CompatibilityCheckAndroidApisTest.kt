@@ -35,10 +35,7 @@ abstract class CompatibilityCheckAndroidApisTest(
         val apiLevel: Int,
         val expectedIssues: String,
         val issueArgs: List<String>,
-        // Temporarily restrict this to just running the test for 27. This ensures that any
-        // follow-up refactorings do not break the test while minimizing the changes needed
-        // before the refactorings clean this up.
-        val disabled: Boolean = apiLevel != 27,
+        val disabled: Boolean = false,
     ) {
         val extraArgs = listOf("--omit-locations") + issueArgs
 
@@ -60,31 +57,51 @@ abstract class CompatibilityCheckAndroidApisTest(
             )
         private val DEFAULT_HIDDEN_ISSUES_STRING = DEFAULT_HIDDEN_ISSUES.joinToString(",")
 
-        private fun joinIssues(vararg issues: String): String = issues.joinToString(",")
+        private fun joinIssues(issues: Array<out String>): String = issues.joinToString(",")
 
-        fun hide(issues: String): List<String> {
-            return listOf(ARG_HIDE, issues)
+        fun hide(vararg issues: String): List<String> {
+            return listOf(ARG_HIDE, joinIssues(issues))
         }
 
-        // Expected migration warnings (the map value) when migrating to the target key level from
-        // the previous level
-        private val expected =
-            mapOf(
-                5 to
-                    "warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]",
-                6 to
+        /** Data for each api version to check. */
+        private val data =
+            listOf(
+                ApiLevelCheck(
+                    5,
+                    """
+                warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
+                """,
+                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    6,
                     """
                 warning: Method android.accounts.AbstractAccountAuthenticator.confirmCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
                 warning: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
                 warning: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
                 """,
-                7 to
+                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    7,
                     """
                 error: Removed field android.view.ViewGroup.FLAG_USE_CHILD_DRAWING_ORDER [RemovedField]
                 """,
-
-                // setOption getting removed here is wrong! Seems to be a PSI loading bug.
-                8 to
+                    hide(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedDeprecated",
+                    ),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    8,
+                    // setOption getting removed here is wrong! Seems to be a PSI loading bug.
                     """
                 warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
                 warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
@@ -109,7 +126,11 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                 warning: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                 """,
-                18 to
+                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    18,
                     """
                 warning: Class android.os.Looper added final qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
                 warning: Class android.os.MessageQueue added final qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
@@ -117,7 +138,23 @@ abstract class CompatibilityCheckAndroidApisTest(
                 error: Removed class android.renderscript.Program [RemovedClass]
                 error: Removed class android.renderscript.ProgramStore [RemovedClass]
                 """,
-                19 to
+                    hide(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedFinal",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedDeprecated",
+                        "ChangedThrows",
+                        "ChangedType",
+                        "RemovedDeprecatedClass",
+                        "RemovedMethod",
+                    ),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    19,
                     """
                 warning: Method android.app.Notification.Style.build has changed 'abstract' qualifier [ChangedAbstract]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
@@ -133,33 +170,47 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
                 warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
                 warning: Method java.nio.CharBuffer.subSequence has changed return type from CharSequence to java.nio.CharBuffer [ChangedType]
-                """, // The last warning above is not right; seems to be a PSI jar loading bug. It returns the wrong return type!
-                20 to
+                """,
+                    // The last warning above is not right; seems to be a PSI jar loading bug. It
+                    // returns the wrong return type!
+                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    20,
                     """
                 error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
                 warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
                 warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String, java.lang.Boolean> [ChangedType]
                 """,
-                26 to
+                    hide(DEFAULT_HIDDEN_ISSUES_STRING),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    26,
                     """
                 warning: Field android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE has changed value from 130 to 230 [ChangedValue]
                 warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
                 """,
-                27 to ""
-            )
-
-        private val suppressLevels =
-            mapOf(
-                1 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated",
-                7 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated",
-                18 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal,ChangedType,RemovedDeprecatedClass",
-                26 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal,RemovedClass,RemovedDeprecatedClass",
-                27 to
-                    joinIssues(
+                    hide(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedFinal",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedDeprecated",
+                        "ChangedThrows",
+                        "RemovedClass",
+                        "RemovedDeprecatedClass",
+                        "RemovedMethod",
+                    ),
+                    disabled = true,
+                ),
+                ApiLevelCheck(
+                    27,
+                    "",
+                    hide(
                         "AddedClass",
                         "AddedField",
                         "AddedFinal",
@@ -171,18 +222,10 @@ abstract class CompatibilityCheckAndroidApisTest(
                         "ChangedThrows",
                         "RemovedMethod",
                     ),
+                ),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun testParameters() =
-            expected
-                .map { entry ->
-                    val (apiLevel, expectedIssues) = entry
-                    val issueArgs = suppressLevels[apiLevel] ?: DEFAULT_HIDDEN_ISSUES_STRING
-                    ApiLevelCheck(apiLevel, expectedIssues, hide(issueArgs))
-                }
-                .toList()
+        @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParameters() = data
     }
 
     @Test
