@@ -3,7 +3,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   050 - check field exists[turbine,java]
   060 - check method exists[turbine,java]
   070 - check constructor exists[turbine,java]
-  080 - check inner class[turbine,java]
   090 - check class hierarchy[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
