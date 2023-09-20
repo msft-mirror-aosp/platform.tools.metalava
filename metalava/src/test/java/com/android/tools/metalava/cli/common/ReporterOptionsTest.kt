@@ -107,10 +107,14 @@ class ReportCollectorRule(
 }
 
 class ReporterOptionsTest :
-    BaseOptionGroupTest<ReporterOptions>({ ReporterOptions() }, REPORTING_OPTIONS_HELP) {
+    BaseOptionGroupTest<ReporterOptions>(
+        REPORTING_OPTIONS_HELP,
+    ) {
 
     @get:Rule
     val reportCollector = ReportCollectorRule(this::cleanupString, { temporaryFolder.root })
+
+    override fun createOptions(): ReporterOptions = ReporterOptions()
 
     @Test
     fun `Test issue severity options`() {
