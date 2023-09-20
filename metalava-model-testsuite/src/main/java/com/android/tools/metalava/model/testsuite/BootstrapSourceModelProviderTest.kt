@@ -154,6 +154,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals("Test.InnerTestClass", innerClassItem.fullName())
             assertEquals("InnerTestClass", innerClassItem.simpleName())
             assertEquals(classItem, innerClassItem.containingClass())
+            assertEquals(1, classItem.innerClasses().count(), message = "")
         }
     }
 
