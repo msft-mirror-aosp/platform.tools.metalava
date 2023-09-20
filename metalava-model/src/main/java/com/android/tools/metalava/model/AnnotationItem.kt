@@ -295,9 +295,9 @@ private constructor(
             ?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
-    override fun isShowAnnotation(): Boolean = info.showability.show
+    override fun isShowAnnotation(): Boolean = info.showability.show()
 
-    override fun isShowForStubPurposes(): Boolean = info.showability.forStubsOnly
+    override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
 
     override fun isHideAnnotation(): Boolean = info.hide
 

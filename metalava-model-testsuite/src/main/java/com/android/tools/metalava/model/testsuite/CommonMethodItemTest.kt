@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -55,8 +54,7 @@ class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
                 """
                 ),
             test = { codebase ->
-                val testClass = codebase.findClass("test.pkg.Test")
-                assertNotNull(testClass)
+                val testClass = codebase.assertClass("test.pkg.Test")
 
                 val actual = buildString {
                     testClass.methods().forEach {

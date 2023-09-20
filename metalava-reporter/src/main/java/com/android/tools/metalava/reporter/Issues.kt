@@ -20,6 +20,10 @@ import kotlin.reflect.full.declaredMemberProperties
 
 object Issues {
     private val allIssues: MutableList<Issue> = ArrayList(300)
+
+    /** A list of all the issues. */
+    val all: List<Issue> by this::allIssues
+
     private val nameToIssue: MutableMap<String, Issue> = HashMap(300)
 
     val PARSE_ERROR = Issue(Severity.ERROR)
@@ -220,6 +224,7 @@ object Issues {
     val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS = Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_DEFAULT_PARAMETER_ORDER = Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC)
+    val UNFLAGGED_API = Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
