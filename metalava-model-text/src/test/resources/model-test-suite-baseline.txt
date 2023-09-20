@@ -1,8 +1,11 @@
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test array types[text,signature]
+  Test class array types[text,signature]
   Test class types[text,signature]
   Test inner types[text,signature]
+  Test multidimensional primitive array types[text,signature]
+  Test primitive array types[text,signature]
   Test primitive types[text,signature]
+  Test primitive vararg types[text,signature]
   Test variable types[text,signature]
   Test wildcard types[text,signature]
   Test field type variable types[text,signature]

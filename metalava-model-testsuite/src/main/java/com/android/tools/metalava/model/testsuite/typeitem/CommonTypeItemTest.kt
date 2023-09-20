@@ -111,7 +111,167 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
     }
 
     @Test
-    fun `Test array types`() {
+    fun `Test primitive array types`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public void foo(
+                            int[] p0,
+                            char[] p1
+                        ) {}
+                    }
+                """
+            ),
+            // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void foo(int[], char[]);
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            val paramTypes = method.parameters().map { it.type() }
+            assertThat(paramTypes).hasSize(2)
+
+            // int[]
+            val intArray = paramTypes[0]
+            assertThat(intArray).isInstanceOf(ArrayTypeItem::class.java)
+            val int = (intArray as ArrayTypeItem).componentType
+            assertThat(int).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat((int as PrimitiveTypeItem).kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            assertThat(intArray.isVarargs).isFalse()
+
+            // char[]
+            val charArray = paramTypes[1]
+            assertThat(charArray).isInstanceOf(ArrayTypeItem::class.java)
+            val char = (charArray as ArrayTypeItem).componentType
+            assertThat(char).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat((char as PrimitiveTypeItem).kind).isEqualTo(PrimitiveTypeItem.Primitive.CHAR)
+            assertThat(charArray.isVarargs).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test primitive vararg types`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public void foo(int... p0) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun foo(vararg p0: Int
+                        ) = Unit
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void foo(int...);
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            val paramTypes = method.parameters().map { it.type() }
+            assertThat(paramTypes).hasSize(1)
+
+            // int... / vararg int
+            val intArray = paramTypes[0]
+            assertThat(intArray).isInstanceOf(ArrayTypeItem::class.java)
+            val int = (intArray as ArrayTypeItem).componentType
+            assertThat(int).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat((int as PrimitiveTypeItem).kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            assertThat(intArray.isVarargs).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test multidimensional primitive array types`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public void foo(
+                            int[][] p0,
+                            char[]... p1
+                        ) {}
+                    }
+                """
+            ),
+            // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void foo(int[][], char[]...);
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            val paramTypes = method.parameters().map { it.type() }
+            assertThat(paramTypes).hasSize(2)
+
+            // int[][]
+            val intArrayArray = paramTypes[0]
+            assertThat(intArrayArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat((intArrayArray as ArrayTypeItem).isVarargs).isFalse()
+
+            val intArray = intArrayArray.componentType
+            assertThat(intArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat((intArray as ArrayTypeItem).isVarargs).isFalse()
+
+            val int = intArray.componentType
+            assertThat(int).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat((int as PrimitiveTypeItem).kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+
+            // char[]...
+            val charArrayArray = paramTypes[1]
+            assertThat(charArrayArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat((charArrayArray as ArrayTypeItem).isVarargs).isTrue()
+
+            val charArray = charArrayArray.componentType
+            assertThat(charArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat((charArray as ArrayTypeItem).isVarargs).isFalse()
+
+            val char = charArray.componentType
+            assertThat(char).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat((char as PrimitiveTypeItem).kind).isEqualTo(PrimitiveTypeItem.Primitive.CHAR)
+        }
+    }
+
+    @Test
+    fun `Test class array types`() {
         runCodebaseTest(
             java(
                 """
