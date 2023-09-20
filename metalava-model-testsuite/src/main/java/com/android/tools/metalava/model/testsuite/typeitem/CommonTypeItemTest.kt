@@ -37,6 +37,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
         runCodebaseTest(
             java(
                 """
+                    package test.pkg;
                     public class Foo {
                         public void foo(
                             boolean p0,
@@ -53,6 +54,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             ),
             kotlin(
                 """
+                    package test.pkg
                     class Foo {
                         fun foo(
                             p0: Boolean,
@@ -68,7 +70,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                 """
             )
         ) { codebase ->
-            val method = codebase.assertClass("Foo").methods().single()
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val returnType = method.returnType()
             assertThat(returnType).isInstanceOf(PrimitiveTypeItem::class.java)
@@ -101,6 +103,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
         runCodebaseTest(
             java(
                 """
+                    package test.pkg;
                     public class Foo {
                         public void foo(
                             java.lang.String[] p0,
@@ -112,6 +115,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             ),
             kotlin(
                 """
+                    package test.pkg
                     class Foo {
                         fun foo(
                             p0: Array<String>,
@@ -122,7 +126,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                 """
             )
         ) { codebase ->
-            val method = codebase.assertClass("Foo").methods().single()
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
             assertThat(paramTypes).hasSize(3)
@@ -155,6 +159,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
         runCodebaseTest(
             java(
                 """
+                    package test.pkg;
                     public class Foo<T> {
                         public void foo(
                             Foo<?> p0,
@@ -166,6 +171,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             ),
             kotlin(
                 """
+                    package test.pkg
                     class Foo<T> {
                         fun foo(
                             p0: Foo<*>,
@@ -176,7 +182,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                 """
             )
         ) { codebase ->
-            val method = codebase.assertClass("Foo").methods().single()
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val wildcardTypes =
                 method.parameters().map {
@@ -222,6 +228,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
         runCodebaseTest(
             java(
                 """
+                    package test.pkg;
                     public class Foo<C> {
                         public <M> void foo(C p0, M p1) {}
                     }
@@ -229,13 +236,14 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             ),
             kotlin(
                 """
+                    package test.pkg
                     class Foo<C> {
                         fun <M> foo(p0: C, p1: M) = Unit
                     }
                 """
             )
         ) { codebase ->
-            val clz = codebase.assertClass("Foo")
+            val clz = codebase.assertClass("test.pkg.Foo")
             val classTypeParam = clz.typeParameterList().typeParameters().single()
             val method = clz.methods().single()
             val methodTypeParam = method.typeParameterList().typeParameters().single()
@@ -259,6 +267,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
         runCodebaseTest(
             java(
                 """
+                    package test.pkg;
                     public class Foo {
                         public <T> void foo(
                             java.lang.String p0,
@@ -271,6 +280,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             ),
             kotlin(
                 """
+                    package test.pkg
                     class Foo {
                         fun <T> foo(
                             p0: String,
@@ -282,7 +292,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                 """
             )
         ) { codebase ->
-            val method = codebase.assertClass("Foo").methods().single()
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val paramTypes = method.parameters().map { it.type() }
 
             val stringType = paramTypes[0]
@@ -316,7 +326,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             assertThat((mapKeyType as ClassTypeItem).isString()).isTrue()
             val mapValueType = mapType.parameters.last()
             assertThat(mapValueType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((mapValueType as ClassTypeItem).qualifiedName).isEqualTo("Foo")
+            assertThat((mapValueType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Foo")
         }
     }
 
@@ -325,6 +335,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
         runCodebaseTest(
             java(
                 """
+                    package test.pkg;
                     public class Outer<O> {
                         public class Inner<I> {
                         }
@@ -337,6 +348,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             ),
             kotlin(
                 """
+                    package test.pkg
                     class Outer<O> {
                         inner class Inner<I>
 
@@ -347,12 +359,12 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
                 """
             )
         ) { codebase ->
-            val method = codebase.assertClass("Outer").methods().single()
+            val method = codebase.assertClass("test.pkg.Outer").methods().single()
             // Outer<P1>.Inner<P2>
             val innerType = method.returnType()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat(innerType.toCanonicalType()).isEqualTo("Outer<P1>.Inner<P2>")
-            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("Outer.Inner")
+            assertThat(innerType.toCanonicalType()).isEqualTo("test.pkg.Outer<P1>.Inner<P2>")
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
             assertThat(innerType.parameters).hasSize(1)
             val innerTypeParameter = innerType.parameters.single()
             assertThat((innerTypeParameter as VariableTypeItem).name).isEqualTo("P2")
