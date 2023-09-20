@@ -60,6 +60,10 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
         return asPrimitive(type, trimmed)
             ?: asVariable(type, trimmed, typeParams)
+            // Try parsing as a wildcard before trying to parse as an array.
+            // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
+            // not as an array of wildcards, for consistency with how this would be compiled.
+            ?: asWildcard(type, trimmed)
             // Try parsing as an array.
             ?: asArray(trimmed, annotations, suffix, typeParams)
                 ?: parseUnknownType(type, typeParams)
@@ -204,6 +208,21 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         val reassembledTypeString = "$leadingAnnotations$componentType$trailingAnnotations$suffix"
 
         return TextArrayTypeItem(codebase, reassembledTypeString, componentType, varargs)
+    }
+
+    /**
+     * Try parsing [type] as a wildcard. This will return a non-null [TextTypeItem] if [type] begins
+     * with `?`.
+     *
+     * [type] should have annotations and nullability markers stripped, with [original] as the
+     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
+     * [original] won't be necessary.
+     */
+    @Throws(ApiParseException::class)
+    private fun asWildcard(original: String, type: String): TextTypeItem? {
+        // See if this is a wildcard
+        if (!type.startsWith("?")) return null
+        return TextTypeItem(codebase, original)
     }
 
     /**
