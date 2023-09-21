@@ -23,7 +23,7 @@ import java.io.File
 
 /** Loads signature files, caching them for reuse where appropriate. */
 @Suppress("DEPRECATION")
-object SignatureFileCache {
+class SignatureFileCache {
     private val map = mutableMapOf<File, TextCodebase>()
 
     fun load(

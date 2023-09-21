@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Reporter
 
@@ -30,4 +31,5 @@ data class ActionContext(
     val progressTracker: ProgressTracker,
     val reporter: Reporter,
     val sourceParser: SourceParser,
+    val signatureFileCache: SignatureFileCache = SignatureFileCache(),
 )
