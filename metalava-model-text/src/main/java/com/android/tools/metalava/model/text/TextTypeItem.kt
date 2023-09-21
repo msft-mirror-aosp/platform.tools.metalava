@@ -344,10 +344,9 @@ internal class TextClassTypeItem(
     override val codebase: TextCodebase,
     override val type: String,
     override val qualifiedName: String,
-    override val parameters: List<TypeItem>
-) : ClassTypeItem, TextTypeItem(codebase, type) {
-    override val outerClassType: ClassTypeItem? = null
-}
+    override val parameters: List<TypeItem>,
+    override val outerClassType: ClassTypeItem?
+) : ClassTypeItem, TextTypeItem(codebase, type)
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(
