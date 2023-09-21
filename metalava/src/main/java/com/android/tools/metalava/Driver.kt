@@ -386,7 +386,7 @@ internal fun processFlags(
             if (previousApiFile.path.endsWith(DOT_JAR)) {
                 actionContext.loadFromJarFile(previousApiFile)
             } else {
-                SignatureFileLoader.load(file = previousApiFile)
+                SignatureFileCache.load(file = previousApiFile)
             }
 
         // If configured, checks for newly added nullness information compared
@@ -562,7 +562,7 @@ private fun ActionContext.subtractApi(
     val path = subtractApiFile.path
     val oldCodebase =
         when {
-            path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
+            path.endsWith(DOT_TXT) -> SignatureFileCache.load(subtractApiFile)
             path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
@@ -618,7 +618,7 @@ private fun ActionContext.checkCompatibility(
             loadFromJarFile(signatureFile)
         } else {
             val classResolver = getClassResolver(sourceParser)
-            SignatureFileLoader.load(signatureFile, classResolver)
+            SignatureFileCache.load(signatureFile, classResolver)
         }
 
     var baseApi: Codebase? = null
@@ -633,7 +633,7 @@ private fun ActionContext.checkCompatibility(
         }
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
-            baseApi = SignatureFileLoader.load(file = baseApiFile)
+            baseApi = SignatureFileCache.load(file = baseApiFile)
         }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
@@ -724,7 +724,7 @@ private fun ActionContext.loadFromSources(): Codebase {
             when {
                 previousApiFile == null -> null
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
-                else -> SignatureFileLoader.load(file = previousApiFile)
+                else -> SignatureFileCache.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
         ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)

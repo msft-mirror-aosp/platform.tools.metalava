@@ -16,7 +16,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.SdkIdentifier
-import com.android.tools.metalava.SignatureFileLoader.load
+import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.Codebase
@@ -84,7 +84,7 @@ class ApiGenerator {
         var apiLevel = 1
         val api = Api(apiLevel)
         for (apiFile in previousApiFiles) {
-            val codebase: Codebase = load(apiFile)
+            val codebase: Codebase = SignatureFileCache.load(apiFile)
             addApisFromCodebase(api, apiLevel, codebase, false)
             apiLevel += 1
         }
