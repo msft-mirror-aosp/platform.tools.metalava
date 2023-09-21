@@ -1487,7 +1487,7 @@ class Options(
                     val contents = listFile.readText()
                     val pathList =
                         contents
-                            .split("""\s""")
+                            .split("""\s""".toRegex())
                             .map { it.trim() }
                             .filter { it.isNotEmpty() }
                             .toList()
