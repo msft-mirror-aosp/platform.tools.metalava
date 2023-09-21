@@ -29,7 +29,7 @@ import java.nio.charset.StandardCharsets
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
  * simple text files.
  */
-object ApiGenerator {
+class ApiGenerator {
     @Throws(IOException::class, IllegalArgumentException::class)
     fun generateXml(
         apiLevels: Array<File>,

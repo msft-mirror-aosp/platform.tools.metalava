@@ -217,6 +217,7 @@ internal fun processFlags(
 
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
+    val apiGenerator = ApiGenerator()
     if (androidApiLevelXml != null && apiLevelJars != null) {
         assert(options.currentApiLevel != -1)
 
@@ -235,7 +236,7 @@ internal fun processFlags(
             } else {
                 null
             }
-        ApiGenerator.generateXml(
+        apiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
@@ -267,7 +268,7 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API version history JSON file, ${apiVersionsJson.name}: "
         )
-        ApiGenerator.generateJson(
+        apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
