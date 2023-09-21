@@ -22,6 +22,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.LegacyHelpFormatter
@@ -57,7 +58,6 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -165,6 +165,13 @@ internal fun processFlags(
             jdkHome = options.jdkHome,
         )
 
+    val actionContext =
+        ActionContext(
+            progressTracker = progressTracker,
+            reporter = reporter,
+            sourceParser = sourceParser,
+        )
+
     val sources = options.sources
     val codebase =
         if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
@@ -186,11 +193,11 @@ internal fun processFlags(
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, options.apiJar!!)
+            actionContext.loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, sources[0])
+            actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources(progressTracker, reporter, sourceParser)
+            actionContext.loadFromSources()
         } else {
             return
         }
@@ -201,7 +208,7 @@ internal fun processFlags(
 
     options.subtractApi?.let {
         progressTracker.progress("Subtracting API: ")
-        subtractApi(progressTracker, reporter, sourceParser, codebase, it)
+        actionContext.subtractApi(codebase, it)
     }
 
     if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
@@ -369,14 +376,14 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(progressTracker, reporter, sourceParser, codebase, check)
+        actionContext.checkCompatibility(codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
+                actionContext.loadFromJarFile(previousApiFile)
             } else {
                 SignatureFileLoader.load(file = previousApiFile)
             }
@@ -547,10 +554,7 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
     }
 }
 
-fun subtractApi(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.subtractApi(
     codebase: Codebase,
     subtractApiFile: File,
 ) {
@@ -558,8 +562,7 @@ fun subtractApi(
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
-            path.endsWith(DOT_JAR) ->
-                loadFromJarFile(progressTracker, reporter, sourceParser, subtractApiFile)
+            path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -602,10 +605,7 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 @Suppress("DEPRECATION")
-fun checkCompatibility(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.checkCompatibility(
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -614,7 +614,7 @@ fun checkCompatibility(
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, signatureFile)
+            loadFromJarFile(signatureFile)
         } else {
             val classResolver = getClassResolver(sourceParser)
             SignatureFileLoader.load(signatureFile, classResolver)
@@ -665,11 +665,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 }
 
 @Suppress("DEPRECATION")
-private fun loadFromSources(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
-): Codebase {
+private fun ActionContext.loadFromSources(): Codebase {
     progressTracker.progress("Processing sources: ")
 
     val sources =
@@ -726,8 +722,7 @@ private fun loadFromSources(
         val previous =
             when {
                 previousApiFile == null -> null
-                previousApiFile.path.endsWith(DOT_JAR) ->
-                    loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
+                previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
@@ -764,10 +759,7 @@ private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
 }
 
 @Suppress("DEPRECATION")
-fun loadFromJarFile(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+fun ActionContext.loadFromJarFile(
     apiJar: File,
     preFiltered: Boolean = false,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
