@@ -1,0 +1,3 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test inner parameterized types[text,signature]
+  Test inner types[text,signature]
