@@ -3998,12 +3998,9 @@ class ApiLintTest : DriverTest() {
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
-                // TODO(b/297362755) The issues in Ok2 are erroneous since the field exists already.
                 """
                 src/android/foobar/BadHiddenSuperClass.java:7: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
                 src/android/foobar/BadHiddenSuperClass.java:6: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
-                src/android/foobar/ExistingPublicInterface.java:6: warning: New API must be flagged with @FlaggedApi: field android.foobar.Ok2.EXISTING_PUBLIC_INTERFACE_FIELD [UnflaggedApi]
-                src/android/foobar/ExistingPublicSuperClass.java:6: warning: New API must be flagged with @FlaggedApi: field android.foobar.Ok2.EXISTING_PUBLIC_SUPER_FIELD [UnflaggedApi]
             """,
             apiLint =
                 """
