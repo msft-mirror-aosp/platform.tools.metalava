@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -161,7 +162,7 @@ class NullabilityAnnotationsValidator(
     ) {
         when {
             // Primitive (may not have nullability):
-            type.primitive -> {
+            type is PrimitiveTypeItem -> {
                 if (nullability != null) {
                     errors.add(Error(method, label, ErrorType.ON_PRIMITIVE))
                 }

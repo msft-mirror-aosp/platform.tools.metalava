@@ -60,7 +60,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
     ): String {
         val typeString = toTypeString(type, outerAnnotations, innerAnnotations, erased, context)
 
-        if (innerAnnotations && kotlinStyleNulls && !primitive && context != null) {
+        if (innerAnnotations && kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
             var nullable: Boolean? = context.implicitNullness()
 
             if (nullable == null) {
@@ -84,7 +84,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
     }
 
     override fun asClass(): ClassItem? {
-        if (primitive) {
+        if (this is PrimitiveTypeItem) {
             return null
         }
         val cls = run {
@@ -205,9 +205,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
             null
         }
     }
-
-    override val primitive: Boolean
-        get() = TextTypeParser.isPrimitive(type)
 
     override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
