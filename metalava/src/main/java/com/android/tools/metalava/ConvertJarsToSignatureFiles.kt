@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Reporter
-import com.google.common.io.ByteStreams
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -215,8 +214,8 @@ class ConvertJarsToSignatureFiles(
                             val entry = enumeration.nextElement()
                             if (entry.name.endsWith(SdkConstants.DOT_CLASS)) {
                                 try {
-                                    jar.getInputStream(entry).use { `is` ->
-                                        val bytes = ByteStreams.toByteArray(`is`)
+                                    jar.getInputStream(entry).use { inputStream ->
+                                        val bytes = inputStream.readBytes()
                                         markDeprecated(codebase, bytes, path + ":" + entry.name)
                                     }
                                 } catch (e: Exception) {
