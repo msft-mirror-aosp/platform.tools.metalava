@@ -72,10 +72,10 @@ import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
-import kotlin.text.Charsets.UTF_8
 
 const val PROGRAM_NAME = "metalava"
 
@@ -644,9 +644,15 @@ private fun ActionContext.checkCompatibility(
 
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
         // Fast path: if we've already generated a signature file, and it's identical, we're good!
+        // Some things to watch out for:
+        // * There is no guarantee that the signature file is actually a txt file, it could also be
+        //   a `jar` file, so double check that first.
+        // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
+        //   check the lengths first and then compare contents byte for byte so that it exits
+        //   quickly if they're different and does not do all the UTF-8 conversions.
         options.apiFile?.let { apiFile ->
             val compatibilityCheckCanBeSkipped =
-                apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)
+                signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
             // TODO(b/301282006): Remove global variable use when this can be tested properly
             fastPathCheckResult = compatibilityCheckCanBeSkipped
             if (compatibilityCheckCanBeSkipped) return
@@ -674,6 +680,35 @@ private fun ActionContext.checkCompatibility(
         options.reporterCompatibilityReleased,
         options.issueConfiguration,
     )
+}
+
+/** Compare two files to see if they are byte for byte identical. */
+private fun compareFileContents(file1: File, file2: File): Boolean {
+    // First check the lengths, if they are different they cannot be identical.
+    if (file1.length() == file2.length()) {
+        // Then load the contents in chunks to see if they differ.
+        file1.inputStream().buffered().use { stream1 ->
+            file2.inputStream().buffered().use { stream2 ->
+                val buffer1 = ByteArray(DEFAULT_BUFFER_SIZE)
+                val buffer2 = ByteArray(DEFAULT_BUFFER_SIZE)
+                do {
+                    val c1 = stream1.read(buffer1)
+                    val c2 = stream2.read(buffer2)
+                    if (c1 != c2) {
+                        // This should never happen as the files are the same length.
+                        break
+                    }
+                    if (c1 == -1) {
+                        // They have both reached the end of file.
+                        return true
+                    }
+                    // Check the buffer contents, if they differ exit the loop otherwise, continue
+                    // on to read the next chunks.
+                } while (Arrays.equals(buffer1, 0, c1, buffer2, 0, c2))
+            }
+        }
+    }
+    return false
 }
 
 /**
