@@ -644,10 +644,14 @@ private fun ActionContext.checkCompatibility(
 
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
         // Fast path: if we've already generated a signature file, and it's identical, we're good!
-        val apiFile = options.apiFile
-        if (apiFile != null && apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
-            return
+        options.apiFile?.let { apiFile ->
+            val compatibilityCheckCanBeSkipped =
+                apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)
+            // TODO(b/301282006): Remove global variable use when this can be tested properly
+            fastPathCheckResult = compatibilityCheckCanBeSkipped
+            if (compatibilityCheckCanBeSkipped) return
         }
+
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
             baseApi = signatureFileCache.load(file = baseApiFile)
@@ -671,6 +675,26 @@ private fun ActionContext.checkCompatibility(
         options.issueConfiguration,
     )
 }
+
+/**
+ * Used to store whether the fast path check in the previous method succeeded or not that can be
+ * checked by tests.
+ *
+ * The test must initialize it to `null`. Then if the fast path check is run it will set it a
+ * non-null to indicate whether the fast path was taken or not. The test can then differentiate
+ * between the following states:
+ * * `null` - the fast path check was not performed.
+ * * `false` - the fast path check was performed and the fast path was not taken.
+ * * `true` - the fast path check was performed and the fast path was taken.
+ *
+ * This is used because there is no nice way to test this code in isolation but the code needs to be
+ * updated to deal with some test failures. This is a hack to avoid a catch-22 where this code needs
+ * to be refactored to allow it to be tested but it needs to be tested before it can be safely
+ * refactored.
+ *
+ * TODO(b/301282006): Remove this variable when the fast path this can be tested properly
+ */
+internal var fastPathCheckResult: Boolean? = null
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
     if (filter != null) {
