@@ -1364,7 +1364,9 @@ class ApiAnalyzer(
                 )
             }
             for (parameter in method.parameters()) {
-                for (parameterTypeClass in parameter.type().typeArgumentClasses()) {
+                val parameterType = parameter.type()
+                val parameterTypeClass = parameterType.asClass()
+                if (parameterTypeClass != null) {
                     cantStripThis(
                         parameterTypeClass,
                         filter,
@@ -1373,28 +1375,17 @@ class ApiAnalyzer(
                         parameter,
                         "as parameter type"
                     )
-                    for (tcl in parameter.type().typeArgumentClasses()) {
-                        if (tcl == parameterTypeClass) {
-                            continue
-                        }
-                        if (tcl.isHiddenOrRemoved()) {
-                            reporter.report(
-                                Issues.UNAVAILABLE_SYMBOL,
-                                method,
-                                "Parameter of hidden type ${tcl.fullName()} " +
-                                    "in ${method.containingClass().qualifiedName()}.${method.name()}()"
-                            )
-                        } else {
-                            cantStripThis(
-                                tcl,
-                                filter,
-                                notStrippable,
-                                stubImportPackages,
-                                parameter,
-                                "as type parameter"
-                            )
-                        }
-                    }
+                }
+                for (typeClass in parameter.type().typeArgumentClasses()) {
+                    if (typeClass == parameterTypeClass) continue
+                    cantStripThis(
+                        typeClass,
+                        filter,
+                        notStrippable,
+                        stubImportPackages,
+                        parameter,
+                        "as parameter type argument class"
+                    )
                 }
             }
             for (thrown in method.throwsTypes()) {
