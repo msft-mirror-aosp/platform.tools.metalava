@@ -1782,7 +1782,20 @@ class ApiLint(
 
     private fun checkHasFlaggedApi(item: Item) {
         if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
-            if (!elidingFilterEmit.test(item)) {
+            val elidedField =
+                if (item is FieldItem) {
+                    val inheritedFrom = item.inheritedFrom
+                    // The field gets elided if we're able to reference the original class, but not
+                    // emit it; this happens e.g. when inheriting from a public API interface into
+                    // an @SystemApi class.
+                    // The only edge-case we don't handle well here is if the inheritance itself is
+                    // new, because that can't be flagged.
+                    // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                    inheritedFrom != null && filterReference.test(inheritedFrom)
+                } else {
+                    false
+                }
+            if (!elidingFilterEmit.test(item) || elidedField) {
                 // This API wouldn't appear in the signature file, so we don't know here if the API
                 // is pre-existing.
                 // Since the base API is either new and subject to flagging rules, or preexisting
