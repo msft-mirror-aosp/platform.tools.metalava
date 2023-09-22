@@ -14,13 +14,25 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.compatibility
 
+import com.android.tools.metalava.ANDROID_SYSTEM_API
+import com.android.tools.metalava.ARG_HIDE_PACKAGE
+import com.android.tools.metalava.ARG_SHOW_ANNOTATION
+import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.supportParameterName
+import com.android.tools.metalava.suppressLintSource
+import com.android.tools.metalava.systemApiSource
+import com.android.tools.metalava.testApiSource
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
