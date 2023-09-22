@@ -176,6 +176,13 @@ internal fun processFlags(
             sourceParser = sourceParser,
         )
 
+    val classResolverProvider =
+        ClassResolverProvider(
+            sourceParser = sourceParser,
+            apiClassResolution = options.apiClassResolution,
+            classpath = options.classpath,
+        )
+
     val sources = options.sources
     val codebase =
         if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
@@ -187,11 +194,10 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val classResolver = getClassResolver(sourceParser)
             val textCodebase =
                 SignatureFileLoader.loadFiles(
                     sources,
-                    classResolver,
+                    classResolverProvider.classResolver,
                     annotationManager,
                 )
 
@@ -386,7 +392,7 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(signatureFileCache, codebase, check)
+        actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
@@ -618,6 +624,7 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 @Suppress("DEPRECATION")
 private fun ActionContext.checkCompatibility(
     signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -628,8 +635,7 @@ private fun ActionContext.checkCompatibility(
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            val classResolver = getClassResolver(sourceParser)
-            signatureFileCache.load(signatureFile, classResolver)
+            signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
         }
 
     var baseApi: Codebase? = null
@@ -761,14 +767,21 @@ private fun ActionContext.loadFromSources(
     return codebase
 }
 
-@Suppress("DEPRECATION")
-private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
-    val apiClassResolution = options.apiClassResolution
-    val classpath = options.classpath
-    return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        sourceParser.getClassResolver(classpath)
-    } else {
-        null
+/**
+ * Avoids creating a [ClassResolver] unnecessarily as it is expensive to create but once created
+ * allows it to be reused for the same reason.
+ */
+private class ClassResolverProvider(
+    private val sourceParser: SourceParser,
+    private val apiClassResolution: ApiClassResolution,
+    private val classpath: List<File>
+) {
+    val classResolver: ClassResolver? by lazy {
+        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+            sourceParser.getClassResolver(classpath)
+        } else {
+            null
+        }
     }
 }
 
