@@ -24,20 +24,25 @@ import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.EarlyOptions
+import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
+import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -64,7 +69,6 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.base.Stopwatch
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.concurrent.TimeUnit.SECONDS
@@ -75,13 +79,11 @@ import kotlin.text.Charsets.UTF_8
 const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
-    val stdout = PrintWriter(OutputStreamWriter(System.out))
-    val stderr = PrintWriter(OutputStreamWriter(System.err))
+    val executionEnvironment = ExecutionEnvironment()
+    val exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
 
-    val exitCode = run(args, stdout, stderr)
-
-    stdout.flush()
-    stderr.flush()
+    executionEnvironment.stdout.flush()
+    executionEnvironment.stderr.flush()
 
     exitProcess(exitCode)
 }
@@ -91,10 +93,12 @@ fun main(args: Array<String>) {
  * (or existing signature files etc.). Run with --help to see more details.
  */
 fun run(
+    executionEnvironment: ExecutionEnvironment,
     originalArgs: Array<String>,
-    stdout: PrintWriter,
-    stderr: PrintWriter,
 ): Int {
+    val stdout = executionEnvironment.stdout
+    val stderr = executionEnvironment.stderr
+
     // Preprocess the arguments by adding any additional arguments specified in environment
     // variables.
     val modifiedArgs = preprocessArgv(originalArgs)
@@ -113,8 +117,7 @@ fun run(
     // Actual work begins here.
     val command =
         createMetalavaCommand(
-            stdout,
-            stderr,
+            executionEnvironment,
             progressTracker,
         )
     val exitCode = command.process(modifiedArgs)
@@ -215,14 +218,13 @@ internal fun processFlags(
         )
         val sdkJarRoot = options.sdkJarRoot
         val sdkInfoFile = options.sdkInfoFile
-        var sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
+        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
             if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator()
-                    .SdkExtensionsArguments(
-                        sdkJarRoot,
-                        sdkInfoFile,
-                        options.latestReleasedSdkExtension
-                    )
+                ApiGenerator.SdkExtensionsArguments(
+                    sdkJarRoot,
+                    sdkInfoFile,
+                    options.latestReleasedSdkExtension
+                )
             } else {
                 null
             }
@@ -929,19 +931,17 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(
-    stdout: PrintWriter,
-    stderr: PrintWriter,
+    executionEnvironment: ExecutionEnvironment,
     progressTracker: ProgressTracker
 ): MetalavaCommand {
     val command =
         MetalavaCommand(
-            stdout,
-            stderr,
-            ::DriverCommand,
-            progressTracker,
-            OptionsHelp::getUsage,
+            executionEnvironment = executionEnvironment,
+            progressTracker = progressTracker,
+            defaultCommandName = "main",
         )
     command.subcommands(
+        MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
         MakeAnnotationsPackagePrivateCommand(),
@@ -957,26 +957,44 @@ private fun createMetalavaCommand(
  * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
  * needs to be run when no subcommand is provided.
  */
-private class DriverCommand(
+class MainCommand(
     commonOptions: CommonOptions,
-) : CliktCommand(treatUnknownOptionsAsArgs = true) {
+    executionEnvironment: ExecutionEnvironment,
+) :
+    CliktCommand(
+        help = "The default sub-command that is run if no sub-command is specified.",
+        treatUnknownOptionsAsArgs = true,
+    ) {
 
     init {
         // Although, the `helpFormatter` is inherited from the parent context unless overridden the
         // same is not true for the `localization` so make sure to initialize it for this command.
-        context { localization = MetalavaLocalization() }
+        context {
+            localization = MetalavaLocalization()
+
+            // Explicitly specify help options as the parent command disables it.
+            helpOptionNames = setOf("-h", "--help")
+
+            // Override the help formatter to add in documentation for the legacy flags.
+            helpFormatter =
+                LegacyHelpFormatter(
+                    { terminal },
+                    localization,
+                    OptionsHelp::getUsage,
+                )
+        }
     }
 
-    /**
-     * Property into which all the arguments (and unknown options) are gathered.
-     *
-     * This does not provide any `help` so that it is excluded from the `help` by
-     * [MetalavaCommand.excludeArgumentsWithNoHelp].
-     */
-    private val flags by argument().multiple()
+    /** Property into which all the arguments (and unknown options) are gathered. */
+    private val flags by
+        argument(
+                name = "flags",
+                help = "See below.",
+            )
+            .multiple()
 
     /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions()
+    private val reporterOptions by ReporterOptions(executionEnvironment.reporterEnvironment)
 
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
@@ -1027,7 +1045,7 @@ private class DriverCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(remainingArgs, stdout, stderr)
+        optionGroup.parse(executionEnvironment, remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")
