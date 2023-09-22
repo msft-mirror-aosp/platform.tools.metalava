@@ -3453,7 +3453,11 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
-            expectedIssues = "",
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
+            """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
