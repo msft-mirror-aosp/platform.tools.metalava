@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
@@ -81,11 +82,14 @@ class ConvertJarsToSignatureFiles(
                     reporter,
                     annotationManager,
                 )
+            val actionContext =
+                ActionContext(
+                    progressTracker = progressTracker,
+                    reporter = reporter,
+                    sourceParser = sourceParser,
+                )
             val jarCodebase =
-                loadFromJarFile(
-                    progressTracker,
-                    reporter,
-                    sourceParser,
+                actionContext.loadFromJarFile(
                     apiJar,
                     preFiltered = false,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
