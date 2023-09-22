@@ -20,14 +20,15 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
-import kotlin.text.Charsets.UTF_8
-import org.junit.Ignore
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CompatibilityCheckAndroidApisTest : DriverTest() {
-    @Ignore(
-        "Not currently working: we're getting the wrong PSI results; I suspect caching across the two codebases"
-    )
+
+    companion object {
+        private fun joinIssues(vararg issues: String): String = issues.joinToString(",")
+    }
+
     @Test
     fun `Test All Android API levels`() {
         // Checks API across Android SDK versions and makes sure the results are
@@ -126,12 +127,26 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 26 to
                     "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal,RemovedClass,RemovedDeprecatedClass",
                 27 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal"
+                    joinIssues(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedFinal",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedAbstract",
+                        "ChangedDeprecated",
+                        "ChangedThrows",
+                        "RemovedMethod",
+                    ),
             )
 
         val loadPrevAsSignature = false
 
-        for (apiLevel in 5..27) {
+        // Temporarily restrict this to just running the test for 27. This ensures that any
+        // follow-up refactorings do not break the test while minimizing the changes needed before
+        // the refactorings clean this up.
+        for (apiLevel in 27..27) {
             if (!expected.containsKey(apiLevel)) {
                 continue
             }
@@ -155,7 +170,8 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                     ),
                 expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
                 checkCompatibilityApiReleased = previousApi,
-                apiJar = current
+                apiJar = current,
+                skipEmitPackages = emptyList(),
             )
 
             // Signature based check
@@ -166,14 +182,11 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 // missing type variables in class declarations, missing generics in method
                 // signatures, etc.
                 val signatureFile =
-                    File("../../prebuilts/sdk/${apiLevel - 1}/public/api/android.txt")
-                if (!(signatureFile.isFile)) {
-                    println(
-                        "Couldn't find $signatureFile: Check that pwd for test is correct. Skipping this test."
-                    )
-                    return
-                }
-                val previousSignatureApi = signatureFile.readText(UTF_8)
+                    File("../../../prebuilts/sdk/${apiLevel - 1}/public/api/android.txt")
+                assertTrue(
+                    "Couldn't find $signatureFile: Check that pwd (${File("").absolutePath}) for test is correct",
+                    signatureFile.isFile
+                )
 
                 check(
                     extraArguments =
@@ -184,8 +197,9 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                                 ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass"
                         ),
                     expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
-                    checkCompatibilityApiReleased = previousSignatureApi,
-                    apiJar = current
+                    checkCompatibilityApiReleased = signatureFile.path,
+                    apiJar = current,
+                    skipEmitPackages = emptyList(),
                 )
             }
         }
