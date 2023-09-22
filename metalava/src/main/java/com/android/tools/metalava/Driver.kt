@@ -156,24 +156,24 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
+    val annotationManager = options.annotationManager
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
-            annotationManager = options.annotationManager,
+            annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             useK2Uast = options.useK2Uast,
             jdkHome = options.jdkHome,
         )
 
-    val signatureFileCache = SignatureFileCache()
+    val signatureFileCache = SignatureFileCache(annotationManager)
 
     val actionContext =
         ActionContext(
             progressTracker = progressTracker,
             reporter = reporter,
             sourceParser = sourceParser,
-            signatureFileCache = signatureFileCache,
         )
 
     val sources = options.sources
@@ -201,7 +201,7 @@ internal fun processFlags(
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            actionContext.loadFromSources()
+            actionContext.loadFromSources(signatureFileCache)
         } else {
             return
         }
@@ -212,7 +212,7 @@ internal fun processFlags(
 
     options.subtractApi?.let {
         progressTracker.progress("Subtracting API: ")
-        actionContext.subtractApi(codebase, it)
+        actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
     if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
@@ -381,7 +381,7 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(codebase, check)
+        actionContext.checkCompatibility(signatureFileCache, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
@@ -560,6 +560,7 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
 }
 
 private fun ActionContext.subtractApi(
+    signatureFileCache: SignatureFileCache,
     codebase: Codebase,
     subtractApiFile: File,
 ) {
@@ -611,6 +612,7 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 @Suppress("DEPRECATION")
 private fun ActionContext.checkCompatibility(
+    signatureFileCache: SignatureFileCache,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -670,7 +672,9 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 }
 
 @Suppress("DEPRECATION")
-private fun ActionContext.loadFromSources(): Codebase {
+private fun ActionContext.loadFromSources(
+    signatureFileCache: SignatureFileCache,
+): Codebase {
     progressTracker.progress("Processing sources: ")
 
     val sources =
