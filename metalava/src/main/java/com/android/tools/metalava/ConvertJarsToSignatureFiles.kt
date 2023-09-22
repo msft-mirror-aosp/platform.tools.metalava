@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
@@ -81,11 +82,14 @@ class ConvertJarsToSignatureFiles(
                     reporter,
                     annotationManager,
                 )
+            val actionContext =
+                ActionContext(
+                    progressTracker = progressTracker,
+                    reporter = reporter,
+                    sourceParser = sourceParser,
+                )
             val jarCodebase =
-                loadFromJarFile(
-                    progressTracker,
-                    reporter,
-                    sourceParser,
+                actionContext.loadFromJarFile(
                     apiJar,
                     preFiltered = false,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
@@ -135,7 +139,11 @@ class ConvertJarsToSignatureFiles(
 
             val oldRemovedFile = File(root, "prebuilts/sdk/$api/public/api/removed.txt")
             if (oldRemovedFile.isFile) {
-                val oldCodebase = SignatureFileLoader.load(oldRemovedFile)
+                val oldCodebase =
+                    SignatureFileLoader.load(
+                        oldRemovedFile,
+                        annotationManager = annotationManager,
+                    )
                 val visitor =
                     object : ComparisonVisitor() {
                         override fun compare(old: MethodItem, new: MethodItem) {

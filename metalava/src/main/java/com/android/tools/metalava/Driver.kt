@@ -20,8 +20,8 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
-import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.LegacyHelpFormatter
@@ -42,6 +42,8 @@ import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateComm
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
+import com.android.tools.metalava.compatibility.CompatibilityCheck
+import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
@@ -57,7 +59,6 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -155,14 +156,31 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
+    val annotationManager = options.annotationManager
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
-            annotationManager = options.annotationManager,
+            annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             useK2Uast = options.useK2Uast,
             jdkHome = options.jdkHome,
+        )
+
+    val signatureFileCache = SignatureFileCache(annotationManager)
+
+    val actionContext =
+        ActionContext(
+            progressTracker = progressTracker,
+            reporter = reporter,
+            sourceParser = sourceParser,
+        )
+
+    val classResolverProvider =
+        ClassResolverProvider(
+            sourceParser = sourceParser,
+            apiClassResolution = options.apiClassResolution,
+            classpath = options.classpath,
         )
 
     val sources = options.sources
@@ -176,8 +194,12 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val classResolver = getClassResolver(sourceParser)
-            val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
+            val textCodebase =
+                SignatureFileLoader.loadFiles(
+                    sources,
+                    classResolverProvider.classResolver,
+                    annotationManager,
+                )
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
@@ -186,11 +208,11 @@ internal fun processFlags(
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, options.apiJar!!)
+            actionContext.loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, sources[0])
+            actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources(progressTracker, reporter, sourceParser)
+            actionContext.loadFromSources(signatureFileCache)
         } else {
             return
         }
@@ -201,7 +223,7 @@ internal fun processFlags(
 
     options.subtractApi?.let {
         progressTracker.progress("Subtracting API: ")
-        subtractApi(progressTracker, reporter, sourceParser, codebase, it)
+        actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
     if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
@@ -210,6 +232,7 @@ internal fun processFlags(
 
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
+    val apiGenerator = ApiGenerator(signatureFileCache)
     if (androidApiLevelXml != null && apiLevelJars != null) {
         assert(options.currentApiLevel != -1)
 
@@ -228,7 +251,7 @@ internal fun processFlags(
             } else {
                 null
             }
-        ApiGenerator.generateXml(
+        apiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
@@ -260,7 +283,7 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API version history JSON file, ${apiVersionsJson.name}: "
         )
-        ApiGenerator.generateJson(
+        apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
@@ -369,16 +392,16 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(progressTracker, reporter, sourceParser, codebase, check)
+        actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
+                actionContext.loadFromJarFile(previousApiFile)
             } else {
-                SignatureFileLoader.load(file = previousApiFile)
+                signatureFileCache.load(file = previousApiFile)
             }
 
         // If configured, checks for newly added nullness information compared
@@ -547,19 +570,16 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
     }
 }
 
-fun subtractApi(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.subtractApi(
+    signatureFileCache: SignatureFileCache,
     codebase: Codebase,
     subtractApiFile: File,
 ) {
     val path = subtractApiFile.path
     val oldCodebase =
         when {
-            path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
-            path.endsWith(DOT_JAR) ->
-                loadFromJarFile(progressTracker, reporter, sourceParser, subtractApiFile)
+            path.endsWith(DOT_TXT) -> signatureFileCache.load(subtractApiFile)
+            path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -602,10 +622,9 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 @Suppress("DEPRECATION")
-fun checkCompatibility(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.checkCompatibility(
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -614,10 +633,9 @@ fun checkCompatibility(
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, signatureFile)
+            loadFromJarFile(signatureFile)
         } else {
-            val classResolver = getClassResolver(sourceParser)
-            SignatureFileLoader.load(signatureFile, classResolver)
+            signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
         }
 
     var baseApi: Codebase? = null
@@ -632,7 +650,7 @@ fun checkCompatibility(
         }
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
-            baseApi = SignatureFileLoader.load(file = baseApiFile)
+            baseApi = signatureFileCache.load(file = baseApiFile)
         }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
@@ -665,10 +683,8 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 }
 
 @Suppress("DEPRECATION")
-private fun loadFromSources(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.loadFromSources(
+    signatureFileCache: SignatureFileCache,
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
@@ -726,9 +742,8 @@ private fun loadFromSources(
         val previous =
             when {
                 previousApiFile == null -> null
-                previousApiFile.path.endsWith(DOT_JAR) ->
-                    loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
-                else -> SignatureFileLoader.load(file = previousApiFile)
+                previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
+                else -> signatureFileCache.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
         ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
@@ -752,22 +767,26 @@ private fun loadFromSources(
     return codebase
 }
 
-@Suppress("DEPRECATION")
-private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
-    val apiClassResolution = options.apiClassResolution
-    val classpath = options.classpath
-    return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        sourceParser.getClassResolver(classpath)
-    } else {
-        null
+/**
+ * Avoids creating a [ClassResolver] unnecessarily as it is expensive to create but once created
+ * allows it to be reused for the same reason.
+ */
+private class ClassResolverProvider(
+    private val sourceParser: SourceParser,
+    private val apiClassResolution: ApiClassResolution,
+    private val classpath: List<File>
+) {
+    val classResolver: ClassResolver? by lazy {
+        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+            sourceParser.getClassResolver(classpath)
+        } else {
+            null
+        }
     }
 }
 
 @Suppress("DEPRECATION")
-fun loadFromJarFile(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+fun ActionContext.loadFromJarFile(
     apiJar: File,
     preFiltered: Boolean = false,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
