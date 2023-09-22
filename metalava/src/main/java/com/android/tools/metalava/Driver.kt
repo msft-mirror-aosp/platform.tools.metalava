@@ -188,7 +188,12 @@ internal fun processFlags(
                     )
                 }
             val classResolver = getClassResolver(sourceParser)
-            val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
+            val textCodebase =
+                SignatureFileLoader.loadFiles(
+                    sources,
+                    classResolver,
+                    annotationManager,
+                )
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
