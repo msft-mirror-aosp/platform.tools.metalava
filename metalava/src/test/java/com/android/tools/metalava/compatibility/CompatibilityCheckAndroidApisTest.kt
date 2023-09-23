@@ -35,11 +35,9 @@ abstract class CompatibilityCheckAndroidApisTest(
     data class ApiLevelCheck(
         val apiLevel: Int,
         val expectedIssues: String,
-        val issueArgs: List<String>,
+        val extraArgs: List<String>,
         val disabled: Boolean = false,
     ) {
-        val extraArgs = listOf("--omit-locations") + issueArgs
-
         override fun toString(): String = "${apiLevel - 1} to $apiLevel"
     }
 

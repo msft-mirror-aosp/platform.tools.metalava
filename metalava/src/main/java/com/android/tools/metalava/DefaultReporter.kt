@@ -218,8 +218,7 @@ internal class DefaultReporter(
             }
 
         val terminal: Terminal = options.terminal
-        val formattedMessage =
-            format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
+        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
         if (effectiveSeverity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
@@ -236,14 +235,11 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
         terminal: Terminal,
-        omitLocations: Boolean
     ): String {
         val sb = StringBuilder(100)
 
         sb.append(terminal.attributes(bold = true))
-        if (!omitLocations) {
-            location?.let { sb.append(it).append(": ") }
-        }
+        location?.let { sb.append(it).append(": ") }
         when (severity) {
             LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
@@ -268,7 +264,7 @@ internal class DefaultReporter(
         id: Issues.Issue
     ): Boolean {
         options.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, terminal = plainTerminal, omitLocations = false)
+            format(severity, location, message, id, terminal = plainTerminal)
         )
         return true
     }

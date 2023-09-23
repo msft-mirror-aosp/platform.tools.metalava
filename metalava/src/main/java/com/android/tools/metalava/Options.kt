@@ -733,13 +733,6 @@ class Options(
     private var reportEvenIfSuppressed: File? = null
     var reportEvenIfSuppressedWriter: PrintWriter? = null
 
-    /**
-     * Whether to omit locations for warnings and errors. This is not a flag exposed to users or
-     * listed in help; this is intended for the unit test suite, used for example for the test which
-     * checks compatibility between signature and API files where the paths vary.
-     */
-    var omitLocations = false
-
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
 
@@ -945,10 +938,6 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
-
-                // Flag used by test suite to avoid including locations in
-                // the output when diffing against golden files
-                "--omit-locations" -> omitLocations = true
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES,
