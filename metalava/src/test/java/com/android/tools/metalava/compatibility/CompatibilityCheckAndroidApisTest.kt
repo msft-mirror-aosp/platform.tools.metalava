@@ -225,7 +225,9 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ),
             )
 
-        @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParameters() = data
+        @JvmStatic
+        protected fun shardTestParameters(apiLevelRange: IntRange) =
+            data.filter { it.apiLevel in apiLevelRange }
     }
 
     @Test
