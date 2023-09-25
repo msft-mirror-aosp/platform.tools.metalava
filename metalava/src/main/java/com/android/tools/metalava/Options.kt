@@ -200,7 +200,6 @@ const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
 const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
     "--update-baseline:compatibility:released"
-const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
@@ -827,8 +826,7 @@ class Options(
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder =
             when (flag) {
                 ARG_BASELINE,
-                ARG_UPDATE_BASELINE,
-                ARG_MERGE_BASELINE -> baselineBuilder
+                ARG_UPDATE_BASELINE -> baselineBuilder
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT -> baselineApiLintBuilder
                 ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
@@ -983,12 +981,10 @@ class Options(
                     reportEvenIfSuppressed = stringToNewOrExistingFile(relative)
                     reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
-                ARG_MERGE_BASELINE,
                 ARG_UPDATE_BASELINE,
                 ARG_UPDATE_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
                     val builder = getBaselineBuilderForArg(arg)
-                    builder.merge = (arg == ARG_MERGE_BASELINE)
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
                         if (!nextArg.startsWith("-")) {
@@ -1696,11 +1692,6 @@ object OptionsHelp {
                 "Same as $ARG_BASELINE and " +
                     "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
                     "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-                "$ARG_MERGE_BASELINE [file]",
-                "Like $ARG_UPDATE_BASELINE, but instead of always replacing entries " +
-                    "in the baseline, it will merge the existing baseline with the new baseline. This is useful " +
-                    "if $PROGRAM_NAME runs multiple times on the same source tree with different flags at different " +
-                    "times, such as occasionally with $ARG_API_LINT.",
                 ARG_PASS_BASELINE_UPDATES,
                 "Normally, encountering error will fail the build, even when updating " +
                     "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +

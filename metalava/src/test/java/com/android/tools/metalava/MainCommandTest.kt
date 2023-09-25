@@ -257,11 +257,6 @@ Diffs and Checks:
                                              specifically for API compatibility issues performed by
                                              --check-compatibility:api:released and
                                              --check-compatibility:removed:released.
---merge-baseline [file]
-                                             Like --update-baseline, but instead of always replacing entries in the
-                                             baseline, it will merge the existing baseline with the new baseline. This
-                                             is useful if metalava runs multiple times on the same source tree with
-                                             different flags at different times, such as occasionally with --api-lint.
 --pass-baseline-updates
                                              Normally, encountering error will fail the build, even when updating
                                              baselines. This flag allows you to tell metalava to continue without

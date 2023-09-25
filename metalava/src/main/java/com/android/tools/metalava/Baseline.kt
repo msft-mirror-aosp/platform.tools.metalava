@@ -34,9 +34,6 @@ class Baseline(
     val description: String,
     val file: File?,
     var updateFile: File?,
-    // TODO(roosa): unless file == updateFile, existing baselines will be merged into the updateFile
-    // regardless of this value
-    var merge: Boolean = false,
     private var headerComment: String = "",
     /**
      * Whether, when updating the baseline, we allow the metalava run to pass even if the baseline
@@ -49,7 +46,7 @@ class Baseline(
     private val map = HashMap<Issues.Issue, MutableMap<String, String>>()
 
     init {
-        if (file?.isFile == true && (!silentUpdate || merge)) {
+        if (file?.isFile == true && !silentUpdate) {
             // We've set a baseline for a nonexistent file: read it
             read()
         }
@@ -251,8 +248,6 @@ class Baseline(
                 field = value
             }
 
-        var merge: Boolean = false
-
         var updateFile: File? = null
             set(value) {
                 if (field != null) {
@@ -273,7 +268,12 @@ class Baseline(
             if (description.isEmpty()) {
                 throw MetalavaCliException("Baseline description must be set")
             }
-            return Baseline(description, file, updateFile, merge, headerComment)
+            return Baseline(
+                description = description,
+                file = file,
+                updateFile = updateFile,
+                headerComment = headerComment,
+            )
         }
     }
 }
