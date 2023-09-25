@@ -1250,33 +1250,14 @@ class ApiAnalyzer(
             if (!filter.test(field)) {
                 continue
             }
-            val fieldType = field.type()
-            if (fieldType !is PrimitiveTypeItem) {
-                val typeClass = fieldType.asClass()
-                if (typeClass != null) {
-                    cantStripThis(
-                        typeClass,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        field,
-                        "as field type"
-                    )
-                }
-                for (cls in fieldType.typeArgumentClasses()) {
-                    if (cls == typeClass) {
-                        continue
-                    }
-                    cantStripThis(
-                        cls,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        field,
-                        "as field type argument class"
-                    )
-                }
-            }
+            cantStripThis(
+                field.type(),
+                field,
+                filter,
+                notStrippable,
+                stubImportPackages,
+                "in field type"
+            )
         }
         // cant strip any of the type's generics
         for (cls in cl.typeArgumentClasses()) {
@@ -1364,29 +1345,14 @@ class ApiAnalyzer(
                 )
             }
             for (parameter in method.parameters()) {
-                val parameterType = parameter.type()
-                val parameterTypeClass = parameterType.asClass()
-                if (parameterTypeClass != null) {
-                    cantStripThis(
-                        parameterTypeClass,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        parameter,
-                        "as parameter type"
-                    )
-                }
-                for (typeClass in parameter.type().typeArgumentClasses()) {
-                    if (typeClass == parameterTypeClass) continue
-                    cantStripThis(
-                        typeClass,
-                        filter,
-                        notStrippable,
-                        stubImportPackages,
-                        parameter,
-                        "as parameter type argument class"
-                    )
-                }
+                cantStripThis(
+                    parameter.type(),
+                    parameter,
+                    filter,
+                    notStrippable,
+                    stubImportPackages,
+                    "in parameter type"
+                )
             }
             for (thrown in method.throwsTypes()) {
                 cantStripThis(
@@ -1398,34 +1364,40 @@ class ApiAnalyzer(
                     "as exception"
                 )
             }
-            val returnType = method.returnType()
-            if (returnType !is PrimitiveTypeItem) {
-                val returnTypeClass = returnType.asClass()
-                if (returnTypeClass != null) {
+            cantStripThis(
+                method.returnType(),
+                method,
+                filter,
+                notStrippable,
+                stubImportPackages,
+                "in return type"
+            )
+        }
+    }
+
+    private fun cantStripThis(
+        type: TypeItem,
+        context: Item,
+        filter: Predicate<Item>,
+        notStrippable: MutableSet<ClassItem>,
+        stubImportPackages: Set<String>?,
+        usage: String,
+    ) {
+        type.accept(
+            object : BaseTypeVisitor() {
+                override fun visitClassType(classType: ClassTypeItem) {
+                    val asClass = classType.asClass() ?: return
                     cantStripThis(
-                        returnTypeClass,
+                        asClass,
                         filter,
                         notStrippable,
                         stubImportPackages,
-                        method,
-                        "as return type"
+                        context,
+                        usage
                     )
-                    for (tyItem in returnType.typeArgumentClasses()) {
-                        if (tyItem == returnTypeClass) {
-                            continue
-                        }
-                        cantStripThis(
-                            tyItem,
-                            filter,
-                            notStrippable,
-                            stubImportPackages,
-                            method,
-                            "as return type parameter"
-                        )
-                    }
                 }
             }
-        }
+        )
     }
 
     /**
