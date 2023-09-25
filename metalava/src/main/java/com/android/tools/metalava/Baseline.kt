@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
@@ -272,7 +271,7 @@ private constructor(
         var file: File? = null
             set(value) {
                 if (field != null) {
-                    throw MetalavaCliException(
+                    throw IllegalStateException(
                         "Only one baseline is allowed; found both $field and $value"
                     )
                 }
@@ -282,7 +281,7 @@ private constructor(
         var updateFile: File? = null
             set(value) {
                 if (field != null) {
-                    throw MetalavaCliException(
+                    throw IllegalStateException(
                         "Only one update-baseline is allowed; found both $field and $value"
                     )
                 }
@@ -297,7 +296,7 @@ private constructor(
                 return null
             }
             if (description.isEmpty()) {
-                throw MetalavaCliException("Baseline description must be set")
+                throw IllegalStateException("Baseline description must be set")
             }
             return Baseline(
                 description = description,
