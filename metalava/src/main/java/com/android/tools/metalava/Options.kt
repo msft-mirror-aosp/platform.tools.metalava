@@ -1206,9 +1206,16 @@ class Options(
             }
         }
 
-        baseline = baselineBuilder.build()
-        baselineApiLint = baselineApiLintBuilder.build()
-        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
+        val baselineConfig =
+            Baseline.Config(
+                issueConfiguration = issueConfiguration,
+                baselineErrorsOnly = baselineErrorsOnly,
+                deleteEmptyBaselines = deleteEmptyBaselines,
+                sourcePath = sourcePath,
+            )
+        baseline = baselineBuilder.build(baselineConfig)
+        baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
+        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build(baselineConfig)
 
         // Override the default reporters.
         reporterApiLint =

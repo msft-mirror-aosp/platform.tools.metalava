@@ -28,7 +28,6 @@ const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
 private const val BASELINE_FILE_HEADER = "// Baseline format: 1.0\n"
 
-@Suppress("DEPRECATION")
 class Baseline
 private constructor(
     /** Description of this baseline. e.g. "api-lint", which is written into the file. */
@@ -51,7 +50,27 @@ private constructor(
      * file.
      */
     private val headerComment: String,
+    /** Configuration common to all [Baseline] instances. */
+    private val config: Config,
 ) {
+    data class Config(
+
+        /** Configuration for the issues that will be stored in the baseline file. */
+        val issueConfiguration: IssueConfiguration,
+
+        /** True if this should only store errors in the baseline, false otherwise. */
+        val baselineErrorsOnly: Boolean,
+
+        /** True if this should delete empty baseline files, false otherwise. */
+        val deleteEmptyBaselines: Boolean,
+
+        /**
+         * The source directory roots, used to convert location information to be relative to a
+         * source directory.
+         */
+        val sourcePath: List<File>,
+    )
+
     /**
      * Whether, when updating the baseline, we allow the metalava run to pass even if the baseline
      * does not contain all issues that would normally fail the run (by default ERROR level).
@@ -81,8 +100,8 @@ private constructor(
                 ?: run {
                     if (updateFile != null) {
                         if (
-                            options.baselineErrorsOnly &&
-                                options.issueConfiguration.getSeverity(issue) != Severity.ERROR
+                            config.baselineErrorsOnly &&
+                                config.issueConfiguration.getSeverity(issue) != Severity.ERROR
                         ) {
                             return true
                         }
@@ -119,7 +138,7 @@ private constructor(
      * platform independent.
      */
     private fun transformBaselinePath(path: String): String {
-        for (sourcePath in options.sourcePath) {
+        for (sourcePath in config.sourcePath) {
             if (path.startsWith(sourcePath.path)) {
                 return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")
             }
@@ -177,7 +196,7 @@ private constructor(
 
     private fun write(): Boolean {
         val updateFile = this.updateFile ?: return false
-        if (map.isNotEmpty() || !options.deleteEmptyBaselines) {
+        if (map.isNotEmpty() || !config.deleteEmptyBaselines) {
             val sb = StringBuilder()
             sb.append(BASELINE_FILE_HEADER)
             sb.append(headerComment)
@@ -226,7 +245,7 @@ private constructor(
         val list = counts.entries.toMutableList()
         list.sortWith(compareBy({ -it.value }, { it.key.name }))
         var total = 0
-        val issueConfiguration = options.issueConfiguration
+        val issueConfiguration = config.issueConfiguration
         for (entry in list) {
             val count = entry.value
             val issue = entry.key
@@ -272,7 +291,7 @@ private constructor(
 
         var headerComment: String = ""
 
-        fun build(): Baseline? {
+        fun build(config: Config): Baseline? {
             // If neither file nor updateFile is set, don't return an instance.
             if (file == null && updateFile == null) {
                 return null
@@ -285,6 +304,7 @@ private constructor(
                 file = file,
                 updateFile = updateFile,
                 headerComment = headerComment,
+                config = config,
             )
         }
     }
