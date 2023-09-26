@@ -346,11 +346,12 @@ private constructor(
                 "extends" == token ||
                 isInterface && ext != null && token != "{"
         ) {
-            if (token != "implements" && token != "extends") {
-                mapClassToInterface(cl, token)
+            // If this is part of a list of interface supertypes, token is already a supertype.
+            // Otherwise, skip to the next token to get the supertype.
+            if (token == "implements" || token == "extends") {
+                token = tokenizer.requireToken()
             }
             while (true) {
-                token = tokenizer.requireToken()
                 if ("{" == token) {
                     break
                 } else {
@@ -359,6 +360,7 @@ private constructor(
                         mapClassToInterface(cl, token)
                     }
                 }
+                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
