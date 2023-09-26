@@ -18,7 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
-import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.reporter.Issues
 import java.util.Locale
@@ -72,7 +72,7 @@ Options:
                                              (default: [])
   -h, --help                                 Show this message and exit
 
-$REPORTING_OPTIONS_HELP
+$ISSUE_REPORTING_OPTIONS_HELP
 
 Signature File Output:
 

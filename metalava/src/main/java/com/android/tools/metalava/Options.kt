@@ -22,8 +22,8 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
@@ -218,7 +218,7 @@ const val ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES = "--add-nonessential-overrides
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
-    private val reporterOptions: ReporterOptions = ReporterOptions(),
+    private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
@@ -701,7 +701,7 @@ class Options(
     private var errorMessageCompatibilityReleased: String? = null
 
     /** [IssueConfiguration] used by all reporters. */
-    val issueConfiguration by reporterOptions::issueConfiguration
+    val issueConfiguration by issueReportingOptions::issueConfiguration
 
     /** [Reporter] for general use. */
     lateinit var reporter: Reporter
@@ -1254,7 +1254,7 @@ class Options(
         // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
-                    reporterOptions.bootstrapReporter,
+                    issueReportingOptions.bootstrapReporter,
                     reporter,
                     reporterApiLint,
                     reporterCompatibilityReleased,

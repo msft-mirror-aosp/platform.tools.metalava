@@ -42,7 +42,9 @@ const val ARG_HIDE_CATEGORY = "--hide-category"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
-class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()) :
+class IssueReportingOptions(
+    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()
+) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
         help =

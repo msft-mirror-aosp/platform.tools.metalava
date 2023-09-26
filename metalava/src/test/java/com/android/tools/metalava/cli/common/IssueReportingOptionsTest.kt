@@ -29,7 +29,7 @@ import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
-val REPORTING_OPTIONS_HELP =
+val ISSUE_REPORTING_OPTIONS_HELP =
     """
 Issue Reporting:
 
@@ -106,16 +106,16 @@ class ReportCollectorRule(
     }
 }
 
-class ReporterOptionsTest :
-    BaseOptionGroupTest<ReporterOptions>(
-        REPORTING_OPTIONS_HELP,
+class IssueReportingOptionsTest :
+    BaseOptionGroupTest<IssueReportingOptions>(
+        ISSUE_REPORTING_OPTIONS_HELP,
     ) {
 
     @get:Rule
     val reportCollector = ReportCollectorRule(this::cleanupString, { temporaryFolder.root })
 
-    override fun createOptions(): ReporterOptions =
-        ReporterOptions(reporterEnvironment = reportCollector.reporterEnvironment!!)
+    override fun createOptions(): IssueReportingOptions =
+        IssueReportingOptions(reporterEnvironment = reportCollector.reporterEnvironment!!)
 
     @Test
     fun `Test issue severity options`() {

@@ -17,10 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
-import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
@@ -77,7 +77,8 @@ class MainCommand(
             .multiple()
 
     /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions(executionEnvironment.reporterEnvironment)
+    private val issueReportingOptions by
+        IssueReportingOptions(executionEnvironment.reporterEnvironment)
 
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
@@ -95,7 +96,7 @@ class MainCommand(
     private val optionGroup by
         Options(
             commonOptions = commonOptions,
-            reporterOptions = reporterOptions,
+            issueReportingOptions = issueReportingOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,
@@ -142,8 +143,12 @@ class MainCommand(
 
         if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
-            if (reporterOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, optionGroup.allReporters, reporterOptions.repeatErrorsMax)
+            if (issueReportingOptions.repeatErrorsMax > 0) {
+                repeatErrors(
+                    stderr,
+                    optionGroup.allReporters,
+                    issueReportingOptions.repeatErrorsMax
+                )
             }
 
             // Make sure that the process exits with an error code.
