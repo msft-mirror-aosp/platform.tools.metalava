@@ -51,7 +51,6 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -551,19 +550,25 @@ class Options(
      */
     var externalAnnotations: File? = null
 
-    /** A [Manifest] object to look up available permissions and min_sdk_version. */
-    val manifest by
+    /** An optional manifest [File]. */
+    private val manifestFile by
         option(
                 ARG_MANIFEST,
                 help =
                     """
         A manifest file, used to check permissions to cross check APIs and retrieve min_sdk_version.
-    """
+        (default: no manifest)
+                    """
                         .trimIndent()
             )
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
-            .convert("<file>") { Manifest(it, reporter) }
-            .default(emptyManifest, defaultForHelp = "no manifest")
+
+    /**
+     * A [Manifest] object to look up available permissions and min_sdk_version.
+     *
+     * Created lazily to make sure that the [reporter] has been initialized.
+     */
+    val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
 
     /** Whether output should be colorized */
     val terminal by commonOptions::terminal
