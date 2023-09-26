@@ -23,7 +23,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestRule
@@ -176,11 +175,9 @@ class ReporterOptionsTest :
 
     @Test
     fun `Test issue severity options with non-existing issue`() {
-        val e =
-            assertThrows(MetalavaCliException::class.java) {
-                runTest("--hide", "ThisIssueDoesNotExist") {}
-            }
-        assertEquals("Unknown issue id: '--hide' 'ThisIssueDoesNotExist'", e.message)
+        runTest("--hide", "ThisIssueDoesNotExist") {
+            assertEquals("Unknown issue id: '--hide' 'ThisIssueDoesNotExist'", stderr)
+        }
     }
 
     @Test
