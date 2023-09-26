@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
+import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import org.junit.Assert
@@ -49,7 +52,10 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
     ) {
         val testFactory = { optionGroup ?: createOptions() }
         val command = MockCommand(testFactory)
-        command.parse(args.toList())
+        val (executionEnvironment, _, _) = ExecutionEnvironment.forTest()
+        val rootCommand = MetalavaCommand(executionEnvironment, null, ProgressTracker())
+        rootCommand.subcommands(command)
+        rootCommand.parse(arrayOf("mock") + args)
         val result = Result(command.options)
         result.test()
     }
@@ -67,10 +73,7 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
                 .getFormattedHelp()
                 .removePrefix(
                     """
-Usage: mock [options]
-
-Options:
-  -h, --help                                 Show this message and exit
+Usage: metalava mock [options]
 
         """
                         .trimIndent()
