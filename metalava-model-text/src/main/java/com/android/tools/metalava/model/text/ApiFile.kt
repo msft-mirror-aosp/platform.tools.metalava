@@ -337,8 +337,15 @@ private constructor(
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token) {
             token = tokenizer.requireToken()
-            assertIdent(tokenizer, token)
-            ext = token
+            var superClassName = token
+            // Make sure full super class name is found if there are type use annotations.
+            if (token.contains('@')) {
+                while (token.contains('@')) {
+                    token = tokenizer.requireToken()
+                    superClassName += " $token"
+                }
+            }
+            ext = superClassName
             token = tokenizer.requireToken()
         }
         if (
@@ -352,13 +359,18 @@ private constructor(
                 token = tokenizer.requireToken()
             }
             while (true) {
+                var interfaceName = token
                 if ("{" == token) {
                     break
-                } else {
-                    // / TODO
-                    if ("," != token) {
-                        mapClassToInterface(cl, token)
+                } else if ("," != token) {
+                    // Make sure full interface name is found if there are type use annotations.
+                    if (token.contains('@')) {
+                        while (token.contains('@')) {
+                            token = tokenizer.requireToken()
+                            interfaceName += " $token"
+                        }
                     }
+                    mapClassToInterface(cl, interfaceName)
                 }
                 token = tokenizer.requireToken()
             }
