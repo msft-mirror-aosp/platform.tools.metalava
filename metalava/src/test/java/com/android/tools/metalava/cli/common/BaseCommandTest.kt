@@ -120,6 +120,10 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     lateinit var command: C
 
+    /** The exit code of the command. */
+    var exitCode: Int? = null
+        private set
+
     /** The list of lambdas that are invoked after the command has been run. */
     val verifiers = mutableListOf<() -> Unit>()
 
@@ -202,7 +206,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
 
         // Runs the command
         command = test.commandFactory(executionEnvironment)
-        runCommand(executionEnvironment, command)
+        exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
         verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
@@ -215,7 +219,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         }
     }
 
-    private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C) {
+    private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
         val progressTracker = ProgressTracker(stdout = executionEnvironment.stdout)
 
         val metalavaCommand =
@@ -226,6 +230,6 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
 
         metalavaCommand.subcommands(command)
 
-        metalavaCommand.process(args.toTypedArray())
+        return metalavaCommand.process(args.toTypedArray())
     }
 }

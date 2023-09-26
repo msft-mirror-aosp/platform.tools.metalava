@@ -20,6 +20,9 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
+import com.android.tools.metalava.reporter.Issues
+import java.util.Locale
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class MainCommandTest :
@@ -387,6 +390,33 @@ Aborting: Error: no such option: "--blah-blah-blah"
 $EXPECTED_HELP
                 """
                     .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test deprecated lowercase matching in issue configuration options`() {
+        // Temporarily set [options] as it is needed by the [ReporterOptions.reporter] when
+        // reporting [Issues.DEPRECATED_OPTION].
+        @Suppress("DEPRECATION")
+        options = Options()
+
+        commandTest {
+            args +=
+                listOf(
+                    "main",
+                    "--error",
+                    Issues.DEPRECATED_OPTION.name,
+                    "--hide",
+                    Issues.ADDED_FINAL.name.lowercase(Locale.US),
+                )
+
+            expectedStderr =
+                """
+error: Case-insensitive issue matching is deprecated, use --hide AddedFinal instead of --hide addedfinal [DeprecatedOption]
+                """
+                    .trimIndent()
+
+            verify { assertEquals(-1, exitCode, message = "exitCode") }
         }
     }
 }
