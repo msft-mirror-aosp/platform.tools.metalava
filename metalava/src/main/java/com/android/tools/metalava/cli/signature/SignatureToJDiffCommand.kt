@@ -85,7 +85,13 @@ class SignatureToJDiffCommand :
         // property.
         OptionsDelegate.disallowAccess()
 
-        val convertFile = ConvertFile(apiFile, xmlFile, baseApiFile, strip)
+        val convertFile =
+            ConvertFile(
+                apiFile = apiFile,
+                xmlFile = xmlFile,
+                baseApiFile = baseApiFile,
+                strip = strip,
+            )
         convertFile.process(progressTracker)
     }
 }

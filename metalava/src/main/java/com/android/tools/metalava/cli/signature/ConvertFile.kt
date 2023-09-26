@@ -48,8 +48,8 @@ import java.io.File
 
 /** File conversion tasks */
 internal data class ConvertFile(
-    val fromApiFile: File,
-    val outputFile: File,
+    val apiFile: File,
+    val xmlFile: File,
     val baseApiFile: File? = null,
     val strip: Boolean = false
 )
@@ -57,7 +57,7 @@ internal data class ConvertFile(
 /** Perform the file conversion described by the [ConvertFile] on which this is called. */
 internal fun ConvertFile.process(progressTracker: ProgressTracker) {
     val annotationManager = DefaultAnnotationManager()
-    val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
+    val signatureApi = SignatureFileLoader.load(apiFile, annotationManager = annotationManager)
 
     val apiVisitorConfig = ApiVisitor.Config()
     val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
@@ -79,8 +79,8 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
         }
 
     // See JDiff's XMLToAPI#nameAPI
-    val apiName = outputFile.nameWithoutExtension.replace(' ', '_')
-    createReportFile(progressTracker, outputApi, outputFile, "JDiff File") { printWriter ->
+    val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
+    createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
         JDiffXmlWriter(
             printWriter,
             apiEmit,
