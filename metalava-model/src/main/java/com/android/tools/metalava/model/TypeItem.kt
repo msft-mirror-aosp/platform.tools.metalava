@@ -111,33 +111,9 @@ interface TypeItem {
         return toTypeString() == JAVA_LANG_STRING
     }
 
-    fun defaultValue(): Any? {
-        return when (toTypeString()) {
-            "boolean" -> false
-            "byte" -> 0.toByte()
-            "char" -> 0.toChar()
-            "double" -> 0.0
-            "float" -> 0F
-            "int" -> 0
-            "long" -> 0L
-            "short" -> 0.toShort()
-            else -> null
-        }
-    }
+    fun defaultValue(): Any? = null
 
-    fun defaultValueString(): String {
-        return when (toTypeString()) {
-            "boolean" -> "false"
-            "byte",
-            "char",
-            "double",
-            "float",
-            "int",
-            "long",
-            "short" -> "0"
-            else -> "null"
-        }
-    }
+    fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
 
@@ -436,17 +412,25 @@ interface PrimitiveTypeItem : TypeItem {
     val kind: Primitive
 
     /** The possible kinds of primitives. */
-    enum class Primitive(val primitiveName: String) {
-        BOOLEAN("boolean"),
-        BYTE("byte"),
-        CHAR("char"),
-        DOUBLE("double"),
-        FLOAT("float"),
-        INT("int"),
-        LONG("long"),
-        SHORT("short"),
-        VOID("void")
+    enum class Primitive(
+        val primitiveName: String,
+        val defaultValue: Any?,
+        val defaultValueString: String
+    ) {
+        BOOLEAN("boolean", false, "false"),
+        BYTE("byte", 0.toByte(), "0"),
+        CHAR("char", 0.toChar(), "0"),
+        DOUBLE("double", 0.0, "0"),
+        FLOAT("float", 0F, "0"),
+        INT("int", 0, "0"),
+        LONG("long", 0L, "0"),
+        SHORT("short", 0.toShort(), "0"),
+        VOID("void", null, "null")
     }
+
+    override fun defaultValue(): Any? = kind.defaultValue
+
+    override fun defaultValueString(): String = kind.defaultValueString
 }
 
 /** Represents an array type, including vararg types. */
