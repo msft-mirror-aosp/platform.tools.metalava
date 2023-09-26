@@ -22,8 +22,8 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.DefaultAnnotationManager
 import com.android.tools.metalava.JDiffXmlWriter
 import com.android.tools.metalava.OptionsDelegate
-import com.android.tools.metalava.SignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker

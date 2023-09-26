@@ -25,6 +25,7 @@ import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.help.HelpCommand
