@@ -22,6 +22,8 @@ import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -31,13 +33,14 @@ import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
-import com.google.common.annotations.VisibleForTesting
 import java.io.File
+import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
 
 @Suppress("DEPRECATION")
 internal class DefaultReporter(
+    private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
 
     /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
@@ -175,7 +178,7 @@ internal class DefaultReporter(
     }
 
     /**
-     * Relativize the [absolutePath] against the [rootFolder] if specified.
+     * Relativize the [absolutePath] against the [ReporterEnvironment.rootFolder] if specified.
      *
      * Tests will set [rootFolder] to the temporary directory so that this can remove that from any
      * paths that are reported to avoid the test having to be aware of the temporary directory.
@@ -183,7 +186,7 @@ internal class DefaultReporter(
     private fun relativizeLocationPath(absolutePath: Path): String {
         // b/255575766: Note that [relativize] requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = rootFolder?.toPath()?.relativize(absolutePath) ?: absolutePath
+        val path = environment.rootFolder.toPath().relativize(absolutePath) ?: absolutePath
         return path.toString()
     }
 
@@ -217,15 +220,14 @@ internal class DefaultReporter(
             }
 
         val terminal: Terminal = options.terminal
-        val formattedMessage =
-            format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
+        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
         if (effectiveSeverity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
             warningCount++
         }
 
-        reportPrinter(formattedMessage, effectiveSeverity)
+        environment.printReport(formattedMessage, effectiveSeverity)
         return true
     }
 
@@ -235,14 +237,11 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
         terminal: Terminal,
-        omitLocations: Boolean
     ): String {
         val sb = StringBuilder(100)
 
         sb.append(terminal.attributes(bold = true))
-        if (!omitLocations) {
-            location?.let { sb.append(it).append(": ") }
-        }
+        location?.let { sb.append(it).append(": ") }
         when (severity) {
             LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
@@ -267,7 +266,7 @@ internal class DefaultReporter(
         id: Issues.Issue
     ): Boolean {
         options.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, terminal = plainTerminal, omitLocations = false)
+            format(severity, location, message, id, terminal = plainTerminal)
         )
         return true
     }
@@ -300,25 +299,35 @@ internal class DefaultReporter(
             "no baseline"
         }
     }
-
-    companion object {
-        /** root folder, which needs to be changed for unit tests. */
-        @VisibleForTesting internal var rootFolder: File? = File("").absoluteFile
-
-        /** Injection point for unit tests. */
-        internal var reportPrinter: (String, Severity) -> Unit = { message, severity ->
-            val output =
-                if (severity == ERROR) {
-                    options.stderr
-                } else {
-                    options.stdout
-                }
-            output.println()
-            output.print(message.trim())
-            output.flush()
-        }
-    }
 }
 
 private val SUPPRESS_ANNOTATIONS =
     listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)
+
+/**
+ * Provides access to information about the environment within which the [Reporter] will be being
+ * used.
+ */
+interface ReporterEnvironment {
+
+    /** Root folder, against which location paths will be relativized to simplify the output. */
+    val rootFolder: File
+
+    /** Print the report. */
+    fun printReport(message: String, severity: Severity)
+}
+
+class DefaultReporterEnvironment(
+    val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) : ReporterEnvironment {
+
+    override val rootFolder = File("").absoluteFile
+
+    override fun printReport(message: String, severity: Severity) {
+        val output = if (severity == ERROR) stderr else stdout
+        output.println()
+        output.print(message.trim())
+        output.flush()
+    }
+}

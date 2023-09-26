@@ -52,9 +52,7 @@ import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
-import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
-import com.google.common.io.Files
 import com.intellij.openapi.util.Disposer
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -100,6 +98,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         // that are passed matter, and they are not the same.
         @Suppress("SameParameterValue") vararg args: String,
         expectedFail: String = "",
+        reporterEnvironment: ReporterEnvironment,
     ): String {
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
@@ -117,7 +116,13 @@ abstract class DriverTest : TemporaryFolderOwner {
 
             Disposer.setDebugMode(true)
 
-            val exitCode = run(arrayOf(*args), writer, writer)
+            val executionEnvironment =
+                ExecutionEnvironment(
+                    stdout = writer,
+                    stderr = writer,
+                    reporterEnvironment = reporterEnvironment,
+                )
+            val exitCode = run(executionEnvironment, arrayOf(*args))
             if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
@@ -365,8 +370,6 @@ abstract class DriverTest : TemporaryFolderOwner {
          * set.
          */
         updateBaseline: String? = null,
-        /** Merge instead of replacing the baseline */
-        mergeBaseline: String? = null,
 
         /** [ARG_BASELINE_API_LINT] */
         baselineApiLint: String? = null,
@@ -487,14 +490,18 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         val allReportedIssues = StringBuilder()
         val errorSeverityReportedIssues = StringBuilder()
-        DefaultReporter.rootFolder = project
-        DefaultReporter.reportPrinter = { message, severity ->
-            val cleanedUpMessage = cleanupString(message, project).trim()
-            if (severity == Severity.ERROR) {
-                errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
+        val reporterEnvironment =
+            object : ReporterEnvironment {
+                override val rootFolder = project
+
+                override fun printReport(message: String, severity: Severity) {
+                    val cleanedUpMessage = cleanupString(message, rootFolder).trim()
+                    if (severity == Severity.ERROR) {
+                        errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')
+                    }
+                    allReportedIssues.append(cleanedUpMessage).append('\n')
+                }
             }
-            allReportedIssues.append(cleanedUpMessage).append('\n')
-        }
 
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
@@ -824,23 +831,21 @@ abstract class DriverTest : TemporaryFolderOwner {
         fun buildBaselineArgs(
             argBaseline: String,
             argUpdateBaseline: String,
-            argMergeBaseline: String,
             filename: String,
             baselineContent: String?,
             updateContent: String?,
-            merge: Boolean
         ): Pair<Array<String>, File?> {
             if (baselineContent != null) {
                 val baselineFile = temporaryFolder.newFile(filename)
                 baselineFile?.writeText(baselineContent.trimIndent())
-                return if (!(updateContent != null || merge)) {
+                return if (updateContent == null) {
                     Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
                 } else {
                     Pair(
                         arrayOf(
                             argBaseline,
                             baselineFile.path,
-                            if (mergeBaseline != null) argMergeBaseline else argUpdateBaseline,
+                            argUpdateBaseline,
                             baselineFile.path
                         ),
                         baselineFile
@@ -855,31 +860,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             buildBaselineArgs(
                 ARG_BASELINE,
                 ARG_UPDATE_BASELINE,
-                ARG_MERGE_BASELINE,
                 "baseline.txt",
                 baseline,
-                updateBaseline,
-                mergeBaseline != null
+                updateBaseline
             )
         val (baselineApiLintArgs, baselineApiLintFile) =
             buildBaselineArgs(
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT,
-                "",
                 "baseline-api-lint.txt",
                 baselineApiLint,
-                updateBaselineApiLint,
-                false
+                updateBaselineApiLint
             )
         val (baselineCheckCompatibilityReleasedArgs, baselineCheckCompatibilityReleasedFile) =
             buildBaselineArgs(
                 ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
                 ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
-                "",
                 "baseline-check-released.txt",
                 baselineCheckCompatibilityReleased,
-                updateBaselineCheckCompatibilityReleased,
-                false
+                updateBaselineCheckCompatibilityReleased
             )
 
         val importedPackageArgs = mutableListOf<String>()
@@ -1031,7 +1030,8 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
-                expectedFail = actualExpectedFail
+                expectedFail = actualExpectedFail,
+                reporterEnvironment = reporterEnvironment,
             )
 
         if (expectedIssues != null || allReportedIssues.toString() != "") {
@@ -1072,14 +1072,13 @@ abstract class DriverTest : TemporaryFolderOwner {
                 actualText
             )
             // Make sure we can read back the files we write
-            parseDocument(apiXmlFile.readText(UTF_8), false)
+            parseDocument(apiXmlFile.readText(), false)
         }
 
         fun checkBaseline(
             arg: String,
             baselineContent: String?,
             updateBaselineContent: String?,
-            mergeBaselineContent: String?,
             file: File?
         ) {
             if (file == null) {
@@ -1089,28 +1088,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             val actualText = readFile(file)
 
             // Compare against:
-            // If "merged baseline" is set, use it.
             // If "update baseline" is set, use it.
             // Otherwise, the original baseline.
-            val sourceFile = mergeBaselineContent ?: updateBaselineContent ?: baselineContent ?: ""
+            val sourceFile = updateBaselineContent ?: baselineContent ?: ""
             assertEquals(
                 stripComments(sourceFile, DOT_XML, stripLineComments = false).trimIndent(),
                 actualText
             )
         }
-        checkBaseline(ARG_BASELINE, baseline, updateBaseline, mergeBaseline, baselineFile)
+        checkBaseline(ARG_BASELINE, baseline, updateBaseline, baselineFile)
         checkBaseline(
             ARG_BASELINE_API_LINT,
             baselineApiLint,
             updateBaselineApiLint,
-            null,
             baselineApiLintFile
         )
         checkBaseline(
             ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             baselineCheckCompatibilityReleased,
             updateBaselineCheckCompatibilityReleased,
-            null,
             baselineCheckCompatibilityReleasedFile
         )
 
@@ -1197,11 +1193,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "Using $ARG_NULLABILITY_WARNINGS_TXT but $validateNullabilityTxt was not created",
                 validateNullabilityTxt.isFile
             )
-            val actualReport =
-                Files.asCharSource(validateNullabilityTxt, UTF_8)
-                    .readLines()
-                    .map(String::trim)
-                    .toSet()
+            val actualReport = validateNullabilityTxt.readLines().map(String::trim).toSet()
             assertEquals(validateNullability, actualReport)
         }
 
@@ -1332,7 +1324,7 @@ abstract class DriverTest : TemporaryFolderOwner {
             )
         val stream = url.openStream()
         try {
-            val bytes = ByteStreams.toByteArray(stream)
+            val bytes = stream.readBytes()
             assertNotNull(bytes)
             val xml = String(bytes, UTF_8).replace("\r\n", "\n")
             assertEquals(expected.trimIndent().trim(), xml.trimIndent().trim())
@@ -1364,7 +1356,7 @@ abstract class DriverTest : TemporaryFolderOwner {
     companion object {
         @JvmStatic
         protected fun readFile(file: File): String {
-            var apiLines: List<String> = Files.asCharSource(file, UTF_8).readLines()
+            var apiLines: List<String> = file.readLines()
             apiLines = apiLines.filter { it.isNotBlank() }
             return apiLines.joinToString(separator = "\n") { it }.trim()
         }

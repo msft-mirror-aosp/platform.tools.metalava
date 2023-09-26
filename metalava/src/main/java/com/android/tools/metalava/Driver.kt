@@ -20,30 +20,26 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
-import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.MetalavaLocalization
-import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
-import com.android.tools.metalava.cli.common.registerPostCommandAction
-import com.android.tools.metalava.cli.common.stderr
-import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
+import com.android.tools.metalava.compatibility.CompatibilityCheck
+import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
@@ -51,36 +47,26 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
-import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
-import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.base.Stopwatch
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
-import kotlin.text.Charsets.UTF_8
 
 const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
-    val stdout = PrintWriter(OutputStreamWriter(System.out))
-    val stderr = PrintWriter(OutputStreamWriter(System.err))
+    val executionEnvironment = ExecutionEnvironment()
+    val exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
 
-    val exitCode = run(args, stdout, stderr)
-
-    stdout.flush()
-    stderr.flush()
+    executionEnvironment.stdout.flush()
+    executionEnvironment.stderr.flush()
 
     exitProcess(exitCode)
 }
@@ -90,10 +76,12 @@ fun main(args: Array<String>) {
  * (or existing signature files etc.). Run with --help to see more details.
  */
 fun run(
+    executionEnvironment: ExecutionEnvironment,
     originalArgs: Array<String>,
-    stdout: PrintWriter,
-    stderr: PrintWriter,
 ): Int {
+    val stdout = executionEnvironment.stdout
+    val stderr = executionEnvironment.stderr
+
     // Preprocess the arguments by adding any additional arguments specified in environment
     // variables.
     val modifiedArgs = preprocessArgv(originalArgs)
@@ -112,8 +100,7 @@ fun run(
     // Actual work begins here.
     val command =
         createMetalavaCommand(
-            stdout,
-            stderr,
+            executionEnvironment,
             progressTracker,
         )
     val exitCode = command.process(modifiedArgs)
@@ -126,23 +113,6 @@ fun run(
     return exitCode
 }
 
-private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
-    writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumOf { it.errorCount }
-    var remainingCap = max
-    var totalShown = 0
-    reporters.forEach {
-        val numShown = it.printErrors(writer, remainingCap)
-        remainingCap -= numShown
-        totalShown += numShown
-    }
-    if (totalShown < totalErrors) {
-        writer.println(
-            "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-        )
-    }
-}
-
 @Suppress("DEPRECATION")
 internal fun processFlags(
     environmentManager: EnvironmentManager,
@@ -151,14 +121,31 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
+    val annotationManager = options.annotationManager
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
-            annotationManager = options.annotationManager,
+            annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             useK2Uast = options.useK2Uast,
             jdkHome = options.jdkHome,
+        )
+
+    val signatureFileCache = SignatureFileCache(annotationManager)
+
+    val actionContext =
+        ActionContext(
+            progressTracker = progressTracker,
+            reporter = reporter,
+            sourceParser = sourceParser,
+        )
+
+    val classResolverProvider =
+        ClassResolverProvider(
+            sourceParser = sourceParser,
+            apiClassResolution = options.apiClassResolution,
+            classpath = options.classpath,
         )
 
     val sources = options.sources
@@ -172,8 +159,12 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val classResolver = getClassResolver(sourceParser)
-            val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
+            val textCodebase =
+                SignatureFileLoader.loadFiles(
+                    sources,
+                    classResolverProvider.classResolver,
+                    annotationManager,
+                )
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
@@ -182,11 +173,11 @@ internal fun processFlags(
             }
             textCodebase
         } else if (options.apiJar != null) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, options.apiJar!!)
+            actionContext.loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, sources[0])
+            actionContext.loadFromJarFile(sources[0])
         } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            loadFromSources(progressTracker, reporter, sourceParser)
+            actionContext.loadFromSources(signatureFileCache)
         } else {
             return
         }
@@ -197,7 +188,7 @@ internal fun processFlags(
 
     options.subtractApi?.let {
         progressTracker.progress("Subtracting API: ")
-        subtractApi(progressTracker, reporter, sourceParser, codebase, it)
+        actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
     if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
@@ -206,21 +197,33 @@ internal fun processFlags(
 
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
+    val apiGenerator = ApiGenerator(signatureFileCache)
     if (androidApiLevelXml != null && apiLevelJars != null) {
         assert(options.currentApiLevel != -1)
 
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
         )
-        ApiGenerator.generateXml(
+        val sdkJarRoot = options.sdkJarRoot
+        val sdkInfoFile = options.sdkInfoFile
+        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
+            if (sdkJarRoot != null && sdkInfoFile != null) {
+                ApiGenerator.SdkExtensionsArguments(
+                    sdkJarRoot,
+                    sdkInfoFile,
+                    options.latestReleasedSdkExtension
+                )
+            } else {
+                null
+            }
+        apiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
             options.isDeveloperPreviewBuild(),
             androidApiLevelXml,
             codebase,
-            options.sdkJarRoot,
-            options.sdkInfoFile,
+            sdkExtArgs,
             options.removeMissingClassesInApiLevels
         )
     }
@@ -245,7 +248,7 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API version history JSON file, ${apiVersionsJson.name}: "
         )
-        ApiGenerator.generateJson(
+        apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
@@ -354,16 +357,16 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(progressTracker, reporter, sourceParser, codebase, check)
+        actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
     val previousApiFile = options.migrateNullsFrom
     if (previousApiFile != null) {
         val previous =
             if (previousApiFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
+                actionContext.loadFromJarFile(previousApiFile)
             } else {
-                SignatureFileLoader.load(file = previousApiFile)
+                signatureFileCache.load(file = previousApiFile)
             }
 
         // If configured, checks for newly added nullness information compared
@@ -532,19 +535,16 @@ fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
     }
 }
 
-fun subtractApi(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.subtractApi(
+    signatureFileCache: SignatureFileCache,
     codebase: Codebase,
     subtractApiFile: File,
 ) {
     val path = subtractApiFile.path
     val oldCodebase =
         when {
-            path.endsWith(DOT_TXT) -> SignatureFileLoader.load(subtractApiFile)
-            path.endsWith(DOT_JAR) ->
-                loadFromJarFile(progressTracker, reporter, sourceParser, subtractApiFile)
+            path.endsWith(DOT_TXT) -> signatureFileCache.load(subtractApiFile)
+            path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
@@ -587,10 +587,9 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 @Suppress("DEPRECATION")
-fun checkCompatibility(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.checkCompatibility(
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -599,10 +598,9 @@ fun checkCompatibility(
 
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(progressTracker, reporter, sourceParser, signatureFile)
+            loadFromJarFile(signatureFile)
         } else {
-            val classResolver = getClassResolver(sourceParser)
-            SignatureFileLoader.load(signatureFile, classResolver)
+            signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
         }
 
     var baseApi: Codebase? = null
@@ -611,13 +609,23 @@ fun checkCompatibility(
 
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
         // Fast path: if we've already generated a signature file, and it's identical, we're good!
-        val apiFile = options.apiFile
-        if (apiFile != null && apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
-            return
+        // Some things to watch out for:
+        // * There is no guarantee that the signature file is actually a txt file, it could also be
+        //   a `jar` file, so double check that first.
+        // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
+        //   check the lengths first and then compare contents byte for byte so that it exits
+        //   quickly if they're different and does not do all the UTF-8 conversions.
+        options.apiFile?.let { apiFile ->
+            val compatibilityCheckCanBeSkipped =
+                signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
+            // TODO(b/301282006): Remove global variable use when this can be tested properly
+            fastPathCheckResult = compatibilityCheckCanBeSkipped
+            if (compatibilityCheckCanBeSkipped) return
         }
+
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
-            baseApi = SignatureFileLoader.load(file = baseApiFile)
+            baseApi = signatureFileCache.load(file = baseApiFile)
         }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
@@ -639,6 +647,55 @@ fun checkCompatibility(
     )
 }
 
+/** Compare two files to see if they are byte for byte identical. */
+private fun compareFileContents(file1: File, file2: File): Boolean {
+    // First check the lengths, if they are different they cannot be identical.
+    if (file1.length() == file2.length()) {
+        // Then load the contents in chunks to see if they differ.
+        file1.inputStream().buffered().use { stream1 ->
+            file2.inputStream().buffered().use { stream2 ->
+                val buffer1 = ByteArray(DEFAULT_BUFFER_SIZE)
+                val buffer2 = ByteArray(DEFAULT_BUFFER_SIZE)
+                do {
+                    val c1 = stream1.read(buffer1)
+                    val c2 = stream2.read(buffer2)
+                    if (c1 != c2) {
+                        // This should never happen as the files are the same length.
+                        break
+                    }
+                    if (c1 == -1) {
+                        // They have both reached the end of file.
+                        return true
+                    }
+                    // Check the buffer contents, if they differ exit the loop otherwise, continue
+                    // on to read the next chunks.
+                } while (Arrays.equals(buffer1, 0, c1, buffer2, 0, c2))
+            }
+        }
+    }
+    return false
+}
+
+/**
+ * Used to store whether the fast path check in the previous method succeeded or not that can be
+ * checked by tests.
+ *
+ * The test must initialize it to `null`. Then if the fast path check is run it will set it a
+ * non-null to indicate whether the fast path was taken or not. The test can then differentiate
+ * between the following states:
+ * * `null` - the fast path check was not performed.
+ * * `false` - the fast path check was performed and the fast path was not taken.
+ * * `true` - the fast path check was performed and the fast path was taken.
+ *
+ * This is used because there is no nice way to test this code in isolation but the code needs to be
+ * updated to deal with some test failures. This is a hack to avoid a catch-22 where this code needs
+ * to be refactored to allow it to be tested but it needs to be tested before it can be safely
+ * refactored.
+ *
+ * TODO(b/301282006): Remove this variable when the fast path this can be tested properly
+ */
+internal var fastPathCheckResult: Boolean? = null
+
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
     if (filter != null) {
         // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
@@ -650,10 +707,8 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
 }
 
 @Suppress("DEPRECATION")
-private fun loadFromSources(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+private fun ActionContext.loadFromSources(
+    signatureFileCache: SignatureFileCache,
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
@@ -711,9 +766,8 @@ private fun loadFromSources(
         val previous =
             when {
                 previousApiFile == null -> null
-                previousApiFile.path.endsWith(DOT_JAR) ->
-                    loadFromJarFile(progressTracker, reporter, sourceParser, previousApiFile)
-                else -> SignatureFileLoader.load(file = previousApiFile)
+                previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
+                else -> signatureFileCache.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
         ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
@@ -737,22 +791,26 @@ private fun loadFromSources(
     return codebase
 }
 
-@Suppress("DEPRECATION")
-private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
-    val apiClassResolution = options.apiClassResolution
-    val classpath = options.classpath
-    return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        sourceParser.getClassResolver(classpath)
-    } else {
-        null
+/**
+ * Avoids creating a [ClassResolver] unnecessarily as it is expensive to create but once created
+ * allows it to be reused for the same reason.
+ */
+private class ClassResolverProvider(
+    private val sourceParser: SourceParser,
+    private val apiClassResolution: ApiClassResolution,
+    private val classpath: List<File>
+) {
+    val classResolver: ClassResolver? by lazy {
+        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+            sourceParser.getClassResolver(classpath)
+        } else {
+            null
+        }
     }
 }
 
 @Suppress("DEPRECATION")
-fun loadFromJarFile(
-    progressTracker: ProgressTracker,
-    reporter: Reporter,
-    sourceParser: SourceParser,
+fun ActionContext.loadFromJarFile(
     apiJar: File,
     preFiltered: Boolean = false,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
@@ -916,24 +974,17 @@ fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
 fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(
-    stdout: PrintWriter,
-    stderr: PrintWriter,
+    executionEnvironment: ExecutionEnvironment,
     progressTracker: ProgressTracker
 ): MetalavaCommand {
     val command =
         MetalavaCommand(
-            stdout,
-            stderr,
-            { commonOptions ->
-                DriverCommand(
-                    commonOptions,
-                    progressTracker,
-                )
-            },
-            progressTracker,
-            OptionsHelp::getUsage,
+            executionEnvironment = executionEnvironment,
+            progressTracker = progressTracker,
+            defaultCommandName = "main",
         )
     command.subcommands(
+        MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
         HelpCommand(),
         MakeAnnotationsPackagePrivateCommand(),
@@ -943,103 +994,4 @@ private fun createMetalavaCommand(
         VersionCommand(),
     )
     return command
-}
-
-/**
- * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
- * needs to be run when no subcommand is provided.
- */
-private class DriverCommand(
-    commonOptions: CommonOptions,
-    private val progressTracker: ProgressTracker,
-) : CliktCommand(treatUnknownOptionsAsArgs = true) {
-
-    init {
-        // Although, the `helpFormatter` is inherited from the parent context unless overridden the
-        // same is not true for the `localization` so make sure to initialize it for this command.
-        context { localization = MetalavaLocalization() }
-    }
-
-    /**
-     * Property into which all the arguments (and unknown options) are gathered.
-     *
-     * This does not provide any `help` so that it is excluded from the `help` by
-     * [MetalavaCommand.excludeArgumentsWithNoHelp].
-     */
-    private val flags by argument().multiple()
-
-    /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions()
-
-    /** Signature file options. */
-    private val signatureFileOptions by SignatureFileOptions()
-
-    /** Signature format options. */
-    private val signatureFormatOptions by SignatureFormatOptions()
-
-    /** Stub generation options. */
-    private val stubGenerationOptions by StubGenerationOptions()
-
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    private val optionGroup by
-        Options(
-            commonOptions = commonOptions,
-            reporterOptions = reporterOptions,
-            signatureFileOptions = signatureFileOptions,
-            signatureFormatOptions = signatureFormatOptions,
-            stubGenerationOptions = stubGenerationOptions,
-        )
-
-    override fun run() {
-        // Make sure to flush out the baseline files, close files and write any final messages.
-        registerPostCommandAction {
-            // Update and close all baseline files.
-            optionGroup.allBaselines.forEach { baseline ->
-                if (optionGroup.verbose) {
-                    baseline.dumpStats(optionGroup.stdout)
-                }
-                if (baseline.close()) {
-                    if (!optionGroup.quiet) {
-                        stdout.println(
-                            "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
-                        )
-                    }
-                }
-            }
-
-            optionGroup.reportEvenIfSuppressedWriter?.close()
-
-            // Show failure messages, if any.
-            optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
-        }
-
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(remainingArgs, stdout, stderr)
-
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
-
-        val sourceModelProvider =
-            SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
-        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            processFlags(it, progressTracker)
-        }
-
-        if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
-            // Repeat the errors at the end to make it easy to find the actual problems.
-            if (reporterOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, optionGroup.allReporters, reporterOptions.repeatErrorsMax)
-            }
-
-            // Make sure that the process exits with an error code.
-            throw MetalavaCliException(exitCode = -1)
-        }
-    }
 }

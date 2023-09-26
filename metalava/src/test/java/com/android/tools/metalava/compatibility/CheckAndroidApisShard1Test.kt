@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-/**
- * Contains support for fixing issues with Clikt and providing support to ease the migration when
- * upgrading from the current version to the next major version.
- */
-package com.android.tools.metalava.cli.clikt;
+package com.android.tools.metalava.compatibility
 
+import org.junit.runners.Parameterized
+
+class CheckAndroidApisShard1Test(apiLevelCheck: ApiLevelCheck) :
+    CompatibilityCheckAndroidApisTest(apiLevelCheck) {
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun testParameters() = shardTestParameters((5..16))
+    }
+}

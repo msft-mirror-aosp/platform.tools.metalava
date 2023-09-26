@@ -193,10 +193,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         )
     }
 
-    override fun arrayDimensions(): Int {
-        return psiType.arrayDimensions
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 
@@ -207,7 +203,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     }
 
     override fun asClass(): PsiClassItem? {
-        if (primitive) {
+        if (this is PrimitiveTypeItem) {
             return null
         }
         if (asClass == null) {
@@ -225,11 +221,8 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         return psiType.hashCode()
     }
 
-    override val primitive: Boolean
-        get() = psiType is PsiPrimitiveType
-
     override fun typeArgumentClasses(): List<ClassItem> {
-        if (primitive) {
+        if (this is PrimitiveTypeItem) {
             return emptyList()
         }
 
@@ -336,7 +329,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
-        if (this.primitive && !other.primitive) {
+        if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {
             return false
         }
         return TypeConversionUtil.isAssignable(psiType, other.psiType)

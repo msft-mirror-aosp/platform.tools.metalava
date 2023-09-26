@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
@@ -36,6 +35,8 @@ import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -44,6 +45,8 @@ import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -57,19 +60,15 @@ import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
-import com.google.common.base.CharMatcher
-import com.google.common.base.Splitter
-import com.google.common.io.Files
+import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
 import java.util.Optional
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 /**
@@ -203,7 +202,6 @@ const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
 const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
     "--update-baseline:compatibility:released"
-const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
@@ -226,10 +224,15 @@ class Options(
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
 ) : OptionGroup() {
-    /** Writer to direct output to */
-    var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
-    /** Writer to direct error messages to */
-    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err))
+    /** Execution environment; initialized in [parse]. */
+    private lateinit var executionEnvironment: ExecutionEnvironment
+
+    /** Writer to direct output to. */
+    val stdout: PrintWriter
+        get() = executionEnvironment.stdout
+    /** Writer to direct error messages to. */
+    val stderr: PrintWriter
+        get() = executionEnvironment.stderr
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
@@ -631,6 +634,21 @@ class Options(
      */
     var sdkInfoFile: File? = null
 
+    /**
+     * The latest publicly released SDK extension version. When generating docs for d.android.com,
+     * the SDK extensions that have been finalized but not yet publicly released should be excluded
+     * from the docs.
+     *
+     * If null, the docs will include all SDK extensions.
+     */
+    val latestReleasedSdkExtension by
+        option(
+                "--hide-sdk-extensions-newer-than",
+                help =
+                    "Ignore SDK extensions version INT and above. Used to exclude finalized but not yet released SDK extensions."
+            )
+            .int()
+
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
 
@@ -683,14 +701,20 @@ class Options(
     /** [Reporter] for general use. */
     val reporter: Reporter by reporterOptions::reporter
 
-    /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
+    /**
+     * [Reporter] for "api-lint".
+     *
+     * Initialized in [parse].
+     */
+    lateinit var reporterApiLint: Reporter
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
-     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED]).
+     *
+     * Initialized in [parse].
      */
-    var reporterCompatibilityReleased: Reporter = DefaultReporter(issueConfiguration)
+    lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -709,13 +733,6 @@ class Options(
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     private var reportEvenIfSuppressed: File? = null
     var reportEvenIfSuppressedWriter: PrintWriter? = null
-
-    /**
-     * Whether to omit locations for warnings and errors. This is not a flag exposed to users or
-     * listed in help; this is intended for the unit test suite, used for example for the test which
-     * checks compatibility between signature and API files where the paths vary.
-     */
-    var omitLocations = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
@@ -795,14 +812,10 @@ class Options(
             )
 
     fun parse(
+        executionEnvironment: ExecutionEnvironment,
         args: Array<String>,
-        /** Writer to direct output to */
-        stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-        /** Writer to direct error messages to */
-        stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     ) {
-        this.stdout = stdout
-        this.stderr = stderr
+        this.executionEnvironment = executionEnvironment
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
@@ -815,8 +828,7 @@ class Options(
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder =
             when (flag) {
                 ARG_BASELINE,
-                ARG_UPDATE_BASELINE,
-                ARG_MERGE_BASELINE -> baselineBuilder
+                ARG_UPDATE_BASELINE -> baselineBuilder
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT -> baselineApiLintBuilder
                 ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
@@ -926,10 +938,6 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
-
-                // Flag used by test suite to avoid including locations in
-                // the output when diffing against golden files
-                "--omit-locations" -> omitLocations = true
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES,
@@ -975,12 +983,10 @@ class Options(
                     reportEvenIfSuppressed = stringToNewOrExistingFile(relative)
                     reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
-                ARG_MERGE_BASELINE,
                 ARG_UPDATE_BASELINE,
                 ARG_UPDATE_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
                     val builder = getBaselineBuilderForArg(arg)
-                    builder.merge = (arg == ARG_MERGE_BASELINE)
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
                         if (!nextArg.startsWith("-")) {
@@ -1202,19 +1208,28 @@ class Options(
             }
         }
 
-        baseline = baselineBuilder.build()
-        baselineApiLint = baselineApiLintBuilder.build()
-        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
+        val baselineConfig =
+            Baseline.Config(
+                issueConfiguration = issueConfiguration,
+                baselineErrorsOnly = baselineErrorsOnly,
+                deleteEmptyBaselines = deleteEmptyBaselines,
+                sourcePath = sourcePath,
+            )
+        baseline = baselineBuilder.build(baselineConfig)
+        baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
+        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build(baselineConfig)
 
         // Override the default reporters.
         reporterApiLint =
             DefaultReporter(
+                executionEnvironment.reporterEnvironment,
                 issueConfiguration,
                 baselineApiLint ?: baseline,
                 errorMessageApiLint,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
+                executionEnvironment.reporterEnvironment,
                 issueConfiguration,
                 baselineCompatibilityReleased ?: baseline,
                 errorMessageCompatibilityReleased,
@@ -1463,12 +1478,13 @@ class Options(
                     if (!allowDirs && !listFile.isFile) {
                         throw MetalavaCliException("$listFile is not a file")
                     }
-                    val contents = Files.asCharSource(listFile, UTF_8).read()
+                    val contents = listFile.readText()
                     val pathList =
-                        Splitter.on(CharMatcher.whitespace())
-                            .trimResults()
-                            .omitEmptyStrings()
-                            .split(contents)
+                        contents
+                            .split("""\s""".toRegex())
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toList()
                     pathList
                         .asSequence()
                         .map { File(it) }
@@ -1685,11 +1701,6 @@ object OptionsHelp {
                 "Same as $ARG_BASELINE and " +
                     "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
                     "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-                "$ARG_MERGE_BASELINE [file]",
-                "Like $ARG_UPDATE_BASELINE, but instead of always replacing entries " +
-                    "in the baseline, it will merge the existing baseline with the new baseline. This is useful " +
-                    "if $PROGRAM_NAME runs multiple times on the same source tree with different flags at different " +
-                    "times, such as occasionally with $ARG_API_LINT.",
                 ARG_PASS_BASELINE_UPDATES,
                 "Normally, encountering error will fail the build, even when updating " +
                     "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +

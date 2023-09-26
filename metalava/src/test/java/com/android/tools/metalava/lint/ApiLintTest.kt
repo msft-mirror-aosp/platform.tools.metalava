@@ -14,10 +14,17 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.ARG_API_LINT
+import com.android.tools.metalava.ARG_API_LINT_IGNORE_PREFIX
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -2748,7 +2755,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyErrorClass1.java:8: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+                src/android/pkg/MyErrorClass1.java:8: warning: Type `java.text.NumberFormat` should be replaced with richer ICU type `android.icu.text.NumberFormat` [UseIcu]
             """,
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -2764,12 +2771,12 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import android.annotation.NonNull;
-                    import java.util.TimeZone;
+                    import java.text.NumberFormat;
 
                     public abstract class MyErrorClass1 {
                         @NonNull
-                        public TimeZone getDefaultTimeZone() {
-                            return TimeZone.getDefault();
+                        public NumberFormat getDefaultNumberFormat() {
+                           return NumberFormat.getInstance();
                         }
                     }
                     """
@@ -2798,12 +2805,12 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import android.annotation.NonNull;
-                    import java.util.TimeZone;
+                    import java.text.NumberFormat;
 
                     public abstract class MyErrorClass1 {
                         @NonNull
-                        public TimeZone getDefaultTimeZone() {
-                            return TimeZone.getDefault();
+                        public NumberFormat getDefaultNumberFormat() {
+                            return NumberFormat.getInstance();
                         }
                     }
                     """
@@ -3103,7 +3110,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/IcuTest.java:6: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+                src/android/pkg/IcuTest.java:6: warning: Type `java.text.NumberFormat` should be replaced with richer ICU type `android.icu.text.NumberFormat` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.BreakIterator` should be replaced with richer ICU type `android.icu.text.BreakIterator` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.Collator` should be replaced with richer ICU type `android.icu.text.Collator` [UseIcu]
                 """,
@@ -3116,7 +3123,7 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     public abstract class IcuTest {
-                        public IcuTest(@Nullable java.util.TimeZone timeZone) { }
+                        public IcuTest(@Nullable java.text.NumberFormat nf) { }
                         @Nullable
                         public abstract java.text.BreakIterator foo(@Nullable java.text.Collator collator);
                     }
@@ -3439,6 +3446,32 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Test type variable array requires nullability`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Foo<T> {
+                            public T goodTypeVarReturn() { return null; }
+                            public T[] badTypeVarArrayReturn() { return null; }
+                        }
+                    """
+                            .trimIndent()
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Test equals, toString, non-null constants, enums and annotation members don't require nullability`() {
         check(
             apiLint = "", // enabled
@@ -3738,191 +3771,6 @@ class ApiLintTest : DriverTest() {
                     )
                 ),
             extraArguments = arrayOf("--error", "NoSettingsProvider")
-        )
-    }
-
-    @Test
-    fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
-        check(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues = "",
-            apiLint =
-                """
-                package android.foobar {
-                  public class ExistingSystemApi {
-                      ctor public ExistingSystemApi();
-                  }
-                  public class Existing {
-                      method public int existingSystemApi();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.foobar;
-
-                        import android.annotation.SystemApi;
-                        import android.annotation.FlaggedApi;
-
-                        /** @hide */
-                        @SystemApi
-                        public class ExistingSystemApi extends Existing {
-                            /** exactly matches Object.hashCode, not emitted */
-                            @Override
-                            public int hashCode() { return 0; }
-                            /** exactly matches ExistingPublicApi.existingPublicApi, not emitted */
-                            @Override
-                            public int existingPublicApi() { return 0; }
-                            @Override
-                            public int existingSystemApi() { return 0; }
-                        }
-                    """
-                    ),
-                    java(
-                        """
-                        package android.foobar;
-
-                        import android.annotation.SystemApi;
-                        import android.annotation.FlaggedApi;
-
-                        public class Existing {
-                            public int existingPublicApi() { return 0; }
-                            /** @hide */
-                            @SystemApi
-                            public int existingSystemApi() { return 0; }
-                        }
-                    """
-                    ),
-                    flaggedApiSource,
-                    systemApiSource,
-                ),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
-        )
-    }
-
-    @Test
-    fun `Require @FlaggedApi on new APIs`() {
-        check(
-            expectedIssues =
-                """
-                src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad [UnflaggedApi]
-                src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: constructor android.foobar.Bad() [UnflaggedApi]
-                src/android/foobar/Bad.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.bad() [UnflaggedApi]
-                src/android/foobar/Bad.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD [UnflaggedApi]
-                src/android/foobar/Bad.java:7: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadAnnotation [UnflaggedApi]
-                src/android/foobar/Bad.java:6: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadInterface [UnflaggedApi]
-                src/android/foobar/ExistingClass.java:10: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.bad() [UnflaggedApi]
-                src/android/foobar/ExistingClass.java:9: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.BAD [UnflaggedApi]
-                """
-                    .trimIndent(),
-            apiLint =
-                """
-                package android.foobar {
-                  public class ExistingClass {
-                      ctor ExistingClass();
-                      field public static final String EXISTING_FIELD = "foo";
-                      method public void existingMethod();
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.foobar;
-
-                        import android.annotation.FlaggedApi;
-
-                        public class ExistingClass {
-                            public static final String EXISTING_FIELD = "foo";
-                            public void existingMethod() {}
-
-                            public static final String BAD = "bar";
-                            public void bad() {}
-
-                            @FlaggedApi("foo/bar")
-                            public static final String OK = "baz";
-
-                            @FlaggedApi("foo/bar")
-                            public void ok() {}
-                        }
-                    """
-                    ),
-                    java(
-                        """
-                        package android.foobar;
-
-                        public class Bad {
-                            public static final String BAD = "bar";
-                            public void bad() {}
-                            public interface BadInterface {}
-                            public @interface BadAnnotation {}
-                        }
-                    """
-                    ),
-                    java(
-                        """
-                        package android.foobar;
-
-                        import android.annotation.FlaggedApi;
-
-                        @FlaggedApi("foo/bar")
-                        public class Ok {
-                            @FlaggedApi("foo/bar")
-                            Ok() {}
-                            @FlaggedApi("foo/bar")
-                            public static final String OK = "bar";
-                            @FlaggedApi("foo/bar")
-                            public void ok() {}
-                            @FlaggedApi("foo/bar")
-                            public interface OkInterface {}
-                            @FlaggedApi("foo/bar")
-                            public @interface OkAnnotation {}
-                        }
-                    """
-                    ),
-                    flaggedApiSource
-                ),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
-        )
-    }
-
-    @Test
-    fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
-        check(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues = "",
-            apiLint =
-                """
-                package android.foobar {
-                  public class Existing.Inner {
-                      method int existing();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.foobar;
-
-                        import android.annotation.SystemApi;
-
-                        public class Existing {
-                            public class Inner {
-                                /** @hide */
-                                @SystemApi
-                                public int existing() {}
-                            }
-                        }
-                    """
-                    ),
-                    flaggedApiSource,
-                    systemApiSource,
-                ),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
         )
     }
 

@@ -53,9 +53,6 @@ interface TypeItem {
     /** Alias for [toTypeString] with erased=true */
     fun toErasedTypeString(context: Item? = null): String
 
-    /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
-    fun arrayDimensions(): Int
-
     fun asClass(): ClassItem?
 
     fun toSimpleType(): String {
@@ -86,8 +83,6 @@ interface TypeItem {
     fun toElementType(): String {
         return toTypeString().replace("...", "").replace("[]", "")
     }
-
-    val primitive: Boolean
 
     fun typeArgumentClasses(): List<ClassItem>
 
@@ -201,18 +196,12 @@ interface TypeItem {
      */
     fun asTypeParameter(context: MemberItem? = null): TypeParameterItem?
 
-    /** Whether this type is a type parameter. */
-    fun isTypeParameter(context: MemberItem? = null): Boolean = asTypeParameter(context) != null
-
     /**
      * Mark nullness annotations in the type as recent.
      *
      * TODO: This isn't very clean; we should model individual annotations.
      */
     fun markRecent()
-
-    /** Returns true if this type represents an array of one or more dimensions */
-    fun isArray(): Boolean = arrayDimensions() > 0
 
     /** Ensure that we don't include any annotations in the type strings for this type. */
     fun scrubAnnotations()

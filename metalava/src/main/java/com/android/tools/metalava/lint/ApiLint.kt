@@ -14,42 +14,47 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
-import com.android.resources.ResourceType
-import com.android.resources.ResourceType.AAPT
-import com.android.resources.ResourceType.ANIM
-import com.android.resources.ResourceType.ANIMATOR
-import com.android.resources.ResourceType.ARRAY
-import com.android.resources.ResourceType.ATTR
-import com.android.resources.ResourceType.BOOL
-import com.android.resources.ResourceType.COLOR
-import com.android.resources.ResourceType.DIMEN
-import com.android.resources.ResourceType.DRAWABLE
-import com.android.resources.ResourceType.FONT
-import com.android.resources.ResourceType.FRACTION
-import com.android.resources.ResourceType.ID
-import com.android.resources.ResourceType.INTEGER
-import com.android.resources.ResourceType.INTERPOLATOR
-import com.android.resources.ResourceType.LAYOUT
-import com.android.resources.ResourceType.MACRO
-import com.android.resources.ResourceType.MENU
-import com.android.resources.ResourceType.MIPMAP
-import com.android.resources.ResourceType.NAVIGATION
-import com.android.resources.ResourceType.OVERLAYABLE
-import com.android.resources.ResourceType.PLURALS
-import com.android.resources.ResourceType.PUBLIC
-import com.android.resources.ResourceType.RAW
-import com.android.resources.ResourceType.SAMPLE_DATA
-import com.android.resources.ResourceType.STRING
-import com.android.resources.ResourceType.STYLE
-import com.android.resources.ResourceType.STYLEABLE
-import com.android.resources.ResourceType.STYLE_ITEM
-import com.android.resources.ResourceType.TRANSITION
-import com.android.resources.ResourceType.XML
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.KotlinInteropChecks
+import com.android.tools.metalava.lint.ResourceType.AAPT
+import com.android.tools.metalava.lint.ResourceType.ANIM
+import com.android.tools.metalava.lint.ResourceType.ANIMATOR
+import com.android.tools.metalava.lint.ResourceType.ARRAY
+import com.android.tools.metalava.lint.ResourceType.ATTR
+import com.android.tools.metalava.lint.ResourceType.BOOL
+import com.android.tools.metalava.lint.ResourceType.COLOR
+import com.android.tools.metalava.lint.ResourceType.DIMEN
+import com.android.tools.metalava.lint.ResourceType.DRAWABLE
+import com.android.tools.metalava.lint.ResourceType.FONT
+import com.android.tools.metalava.lint.ResourceType.FRACTION
+import com.android.tools.metalava.lint.ResourceType.ID
+import com.android.tools.metalava.lint.ResourceType.INTEGER
+import com.android.tools.metalava.lint.ResourceType.INTERPOLATOR
+import com.android.tools.metalava.lint.ResourceType.LAYOUT
+import com.android.tools.metalava.lint.ResourceType.MACRO
+import com.android.tools.metalava.lint.ResourceType.MENU
+import com.android.tools.metalava.lint.ResourceType.MIPMAP
+import com.android.tools.metalava.lint.ResourceType.NAVIGATION
+import com.android.tools.metalava.lint.ResourceType.OVERLAYABLE
+import com.android.tools.metalava.lint.ResourceType.PLURALS
+import com.android.tools.metalava.lint.ResourceType.PUBLIC
+import com.android.tools.metalava.lint.ResourceType.RAW
+import com.android.tools.metalava.lint.ResourceType.SAMPLE_DATA
+import com.android.tools.metalava.lint.ResourceType.STRING
+import com.android.tools.metalava.lint.ResourceType.STYLE
+import com.android.tools.metalava.lint.ResourceType.STYLEABLE
+import com.android.tools.metalava.lint.ResourceType.STYLE_ITEM
+import com.android.tools.metalava.lint.ResourceType.TRANSITION
+import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -61,14 +66,17 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -434,9 +442,11 @@ class ApiLint(
                 report(
                     ACRONYM_NAME,
                     method,
-                    "Acronyms should not be capitalized in method names: was `$name`, should this be `${decapitalizeAcronyms(
+                    "Acronyms should not be capitalized in method names: was `$name`, should this be `${
+                        decapitalizeAcronyms(
                         name
-                    )}`?"
+                    )
+                    }`?"
                 )
             }
         }
@@ -464,9 +474,11 @@ class ApiLint(
                 report(
                     ACRONYM_NAME,
                     cls,
-                    "Acronyms should not be capitalized in class names: was `$name`, should this be `${decapitalizeAcronyms(
+                    "Acronyms should not be capitalized in class names: was `$name`, should this be `${
+                        decapitalizeAcronyms(
                         name
-                    )}`?"
+                    )
+                    }`?"
                 )
             }
             name.endsWith("Impl") -> {
@@ -514,7 +526,8 @@ class ApiLint(
                 "If min/max could change in future, make them dynamic methods: $qualified#$name"
             )
         } else if (
-            (field.type().primitive || field.type().isString()) && field.initialValue(true) == null
+            (field.type() is PrimitiveTypeItem || field.type().isString()) &&
+                field.initialValue(true) == null
         ) {
             report(
                 COMPILE_TIME_CONSTANT,
@@ -634,7 +647,7 @@ class ApiLint(
         fun isSingleParamCallbackMethod(method: MethodItem) =
             method.parameters().size == 1 &&
                 method.name().startsWith("on") &&
-                !method.parameters().first().type().primitive &&
+                method.parameters().first().type() !is PrimitiveTypeItem &&
                 method.returnType().toTypeString() == Void.TYPE.name
 
         if (!methods.all(::isSingleParamCallbackMethod)) return
@@ -1335,7 +1348,7 @@ class ApiLint(
         }
 
         fun getTypePackage(type: TypeItem?): PackageItem? {
-            return if (type == null || type.primitive) {
+            return if (type == null || type is PrimitiveTypeItem) {
                 null
             } else {
                 type.asClass()?.containingPackage()
@@ -1498,7 +1511,7 @@ class ApiLint(
         fun isGetter(method: MethodItem): Boolean {
             val returnType = method.returnType()
             return method.parameters().isEmpty() &&
-                returnType.primitive &&
+                returnType is PrimitiveTypeItem &&
                 returnType.toTypeString() == "boolean"
         }
 
@@ -1549,7 +1562,7 @@ class ApiLint(
     }
 
     private fun checkCollections(type: TypeItem, item: Item) {
-        if (type.primitive) {
+        if (type is PrimitiveTypeItem) {
             return
         }
 
@@ -1591,7 +1604,7 @@ class ApiLint(
     }
 
     private fun checkNullableCollections(type: TypeItem, item: Item) {
-        if (type.primitive) return
+        if (type is PrimitiveTypeItem) return
         if (!item.modifiers.isNullable()) return
         val typeAsClass = type.asClass() ?: return
 
@@ -1612,7 +1625,7 @@ class ApiLint(
         }
 
         if (
-            type.isArray() ||
+            type is ArrayTypeItem ||
                 typeAsClass.extendsOrImplements("java.util.Collection") ||
                 typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
                 typeAsClass.extendsOrImplements("java.util.Map") ||
@@ -1773,7 +1786,20 @@ class ApiLint(
 
     private fun checkHasFlaggedApi(item: Item) {
         if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
-            if (!elidingFilterEmit.test(item)) {
+            val elidedField =
+                if (item is FieldItem) {
+                    val inheritedFrom = item.inheritedFrom
+                    // The field gets elided if we're able to reference the original class, but not
+                    // emit it; this happens e.g. when inheriting from a public API interface into
+                    // an @SystemApi class.
+                    // The only edge-case we don't handle well here is if the inheritance itself is
+                    // new, because that can't be flagged.
+                    // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                    inheritedFrom != null && filterReference.test(inheritedFrom)
+                } else {
+                    false
+                }
+            if (!elidingFilterEmit.test(item) || elidedField) {
                 // This API wouldn't appear in the signature file, so we don't know here if the API
                 // is pre-existing.
                 // Since the base API is either new and subject to flagging rules, or preexisting
@@ -1805,7 +1831,7 @@ class ApiLint(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type != null && type.isTypeParameter()) {
+            if (type != null && type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.
@@ -1840,7 +1866,7 @@ class ApiLint(
                         // parameters and return,
                         // only warn about non-annotated returns here as parameters will get visited
                         // individually.
-                        if (item.isConstructor() || item.returnType().primitive) return
+                        if (item.isConstructor() || item.returnType() is PrimitiveTypeItem) return
                         if (item.modifiers.hasNullnessInfo()) return
                         "method `${item.name()}` return"
                     }
@@ -1894,7 +1920,7 @@ class ApiLint(
     private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            superMethod.modifiers.isNonNull() && !superMethod.returnType().isTypeParameter()
+            superMethod.modifiers.isNonNull() && superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1902,7 +1928,7 @@ class ApiLint(
         val supers = parameter.containingMethod().superMethods()
         return supers.all { superMethod ->
             // Disable check for generics
-            superMethod.parameters().none { it.type().isTypeParameter() }
+            superMethod.parameters().none { it.type() is VariableTypeItem }
         } &&
             supers.any { superMethod ->
                 superMethod
@@ -1917,7 +1943,7 @@ class ApiLint(
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            !superMethod.hasNullnessInfo() && !superMethod.returnType().isTypeParameter()
+            !superMethod.hasNullnessInfo() && superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1925,7 +1951,7 @@ class ApiLint(
         val supers = parameter.containingMethod().superMethods()
         return supers.all { superMethod ->
             // Disable check for generics
-            superMethod.parameters().none { it.type().isTypeParameter() }
+            superMethod.parameters().none { it.type() is VariableTypeItem }
         } &&
             supers.any { superMethod ->
                 !(superMethod
@@ -2423,11 +2449,11 @@ class ApiLint(
         }
         for (method in methods) {
             val returnType = method.returnType()
-            if (returnType.primitive) {
+            if (returnType is PrimitiveTypeItem) {
                 return
             }
             val type = returnType.toTypeString()
-            if (type.startsWith("android.") && returnType.isArray()) {
+            if (type.startsWith("android.") && returnType is ArrayTypeItem) {
                 report(
                     PARCELABLE_LIST,
                     method,
@@ -2685,7 +2711,7 @@ class ApiLint(
     }
 
     private fun checkCollectionsOverArrays(type: TypeItem, typeString: String, item: Item) {
-        if (!type.isArray() || (item is ParameterItem && item.isVarArgs())) {
+        if (type !is ArrayTypeItem || (item is ParameterItem && item.isVarArgs())) {
             return
         }
 
@@ -2862,7 +2888,7 @@ class ApiLint(
     }
 
     private fun checkIcu(type: TypeItem, typeString: String, item: Item) {
-        if (type.primitive) {
+        if (type is PrimitiveTypeItem) {
             return
         }
         // ICU types have been added in API 24, so libraries with minSdkVersion <24 cannot use them.
@@ -2873,14 +2899,8 @@ class ApiLint(
         }
         val better =
             when (typeString) {
-                "java.util.TimeZone" -> "android.icu.util.TimeZone"
                 "java.util.Calendar" -> "android.icu.util.Calendar"
-                "java.util.Locale" -> "android.icu.util.ULocale"
-                "java.util.ResourceBundle" -> "android.icu.util.UResourceBundle"
-                "java.util.SimpleTimeZone" -> "android.icu.util.SimpleTimeZone"
-                "java.util.StringTokenizer" -> "android.icu.util.StringTokenizer"
                 "java.util.GregorianCalendar" -> "android.icu.util.GregorianCalendar"
-                "java.lang.Character" -> "android.icu.lang.UCharacter"
                 "java.text.BreakIterator" -> "android.icu.text.BreakIterator"
                 "java.text.Collator" -> "android.icu.text.Collator"
                 "java.text.DecimalFormatSymbols" -> "android.icu.text.DecimalFormatSymbols"
