@@ -60,12 +60,12 @@ class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporter
     val issueConfiguration = IssueConfiguration()
 
     /**
-     * The [Reporter] that is configured by these options.
+     * The [Reporter] that is used to report issues encountered while parsing these options.
      *
      * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
      * and used during the process of processing the options.
      */
-    val reporter: Reporter =
+    internal val bootstrapReporter: Reporter =
         DefaultReporter(
             reporterEnvironment,
             issueConfiguration,
@@ -112,7 +112,7 @@ class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporter
 
                         // Update the configuration immediately
                         values.forEach {
-                            label.setAspectForId(reporter, issueConfiguration, it.trim())
+                            label.setAspectForId(bootstrapReporter, issueConfiguration, it.trim())
                         }
                     }
                 }

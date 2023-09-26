@@ -218,7 +218,7 @@ const val ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES = "--add-nonessential-overrides
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
-    reporterOptions: ReporterOptions = ReporterOptions(),
+    private val reporterOptions: ReporterOptions = ReporterOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
@@ -704,7 +704,7 @@ class Options(
     val issueConfiguration by reporterOptions::issueConfiguration
 
     /** [Reporter] for general use. */
-    val reporter: Reporter by reporterOptions::reporter
+    lateinit var reporter: Reporter
 
     /**
      * [Reporter] for "api-lint".
@@ -1224,7 +1224,12 @@ class Options(
         baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
         baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build(baselineConfig)
 
-        // Override the default reporters.
+        // Initialize the reporters.
+        reporter =
+            DefaultReporter(
+                executionEnvironment.reporterEnvironment,
+                issueConfiguration,
+            )
         reporterApiLint =
             DefaultReporter(
                 executionEnvironment.reporterEnvironment,
@@ -1249,6 +1254,7 @@ class Options(
         // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
+                    reporterOptions.bootstrapReporter,
                     reporter,
                     reporterApiLint,
                     reporterCompatibilityReleased,
