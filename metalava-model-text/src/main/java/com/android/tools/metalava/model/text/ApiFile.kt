@@ -337,15 +337,8 @@ private constructor(
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token) {
             token = tokenizer.requireToken()
-            var superClassName = token
-            // Make sure full super class name is found if there are type use annotations.
-            if (token.contains('@')) {
-                while (token.contains('@')) {
-                    token = tokenizer.requireToken()
-                    superClassName += " $token"
-                }
-            }
-            ext = superClassName
+            assertIdent(tokenizer, token)
+            ext = token
             token = tokenizer.requireToken()
         }
         if (
@@ -353,26 +346,19 @@ private constructor(
                 "extends" == token ||
                 isInterface && ext != null && token != "{"
         ) {
-            // If this is part of a list of interface supertypes, token is already a supertype.
-            // Otherwise, skip to the next token to get the supertype.
-            if (token == "implements" || token == "extends") {
-                token = tokenizer.requireToken()
+            if (token != "implements" && token != "extends") {
+                mapClassToInterface(cl, token)
             }
             while (true) {
-                var interfaceName = token
+                token = tokenizer.requireToken()
                 if ("{" == token) {
                     break
-                } else if ("," != token) {
-                    // Make sure full interface name is found if there are type use annotations.
-                    if (token.contains('@')) {
-                        while (token.contains('@')) {
-                            token = tokenizer.requireToken()
-                            interfaceName += " $token"
-                        }
+                } else {
+                    // / TODO
+                    if ("," != token) {
+                        mapClassToInterface(cl, token)
                     }
-                    mapClassToInterface(cl, interfaceName)
                 }
-                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
