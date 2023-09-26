@@ -14,8 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.DefaultAnnotationManager
+import com.android.tools.metalava.JDiffXmlWriter
+import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.SignatureFileLoader
+import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
