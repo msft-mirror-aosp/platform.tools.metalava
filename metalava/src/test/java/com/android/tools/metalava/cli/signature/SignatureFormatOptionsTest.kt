@@ -113,7 +113,7 @@ class SignatureFormatOptionsTest :
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
         val path = source("api.txt", "// Signature format: 3.0\n").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
-            assertThat(it.fileFormat).isEqualTo(FileFormat.V3)
+            assertThat(options.fileFormat).isEqualTo(FileFormat.V3)
         }
     }
 
@@ -121,7 +121,7 @@ class SignatureFormatOptionsTest :
     fun `--use-same-format-as ignores empty file and falls back to format`() {
         val path = source("api.txt", "").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
-            assertThat(it.fileFormat).isEqualTo(FileFormat.V4)
+            assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
 
@@ -134,7 +134,7 @@ class SignatureFormatOptionsTest :
             "--format-defaults",
             "overloaded-method-order=source"
         ) {
-            assertThat(it.fileFormat.overloadedMethodOrder)
+            assertThat(options.fileFormat.overloadedMethodOrder)
                 .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
@@ -157,7 +157,7 @@ class SignatureFormatOptionsTest :
             assertThrows(ApiParseException::class.java) {
                 runTest("--use-same-format-as", path) {
                     // Get the file format as the file is only read when needed.
-                    it.fileFormat
+                    options.fileFormat
                 }
             }
         assertEquals(
@@ -168,7 +168,7 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--format with no properties`() {
-        runTest("--format", "2.0") { assertEquals(FileFormat.V2, it.fileFormat) }
+        runTest("--format", "2.0") { assertEquals(FileFormat.V2, options.fileFormat) }
     }
 
     @Test
@@ -176,7 +176,7 @@ class SignatureFormatOptionsTest :
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SOURCE,
-                it.fileFormat.overloadedMethodOrder
+                options.fileFormat.overloadedMethodOrder
             )
         }
     }
@@ -184,7 +184,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
         runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
-            assertEquals(true, it.fileFormat.addAdditionalOverrides)
+            assertEquals(true, options.fileFormat.addAdditionalOverrides)
         }
     }
 
@@ -195,7 +195,7 @@ class SignatureFormatOptionsTest :
                 FileFormat.V2.copy(
                     specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -210,7 +210,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
-                it.fileFormat.overloadedMethodOrder
+                options.fileFormat.overloadedMethodOrder
             )
         }
     }
@@ -227,7 +227,7 @@ class SignatureFormatOptionsTest :
                     kotlinStyleNulls = true,
                     conciseDefaultValues = true,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -242,7 +242,7 @@ class SignatureFormatOptionsTest :
                 FileFormat.V2.copy(
                     specifiedAddAdditionalOverrides = true,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -334,7 +334,7 @@ class SignatureFormatOptionsTest :
                     conciseDefaultValues = true,
                     migrating = "See b/295577788"
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -367,7 +367,7 @@ class SignatureFormatOptionsTest :
                     kotlinStyleNulls = false,
                     conciseDefaultValues = false,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -385,7 +385,7 @@ class SignatureFormatOptionsTest :
                     conciseDefaultValues = false,
                     migrating = "See b/295577788",
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }

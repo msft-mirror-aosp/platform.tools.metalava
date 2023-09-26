@@ -130,7 +130,7 @@ class ReporterOptionsTest :
             "--error",
             "ArrayReturn"
         ) {
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
 
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
             assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -143,7 +143,7 @@ class ReporterOptionsTest :
     fun `Test multiple issue severity options`() {
         // Purposely includes some whitespace as that is something callers of metalava do.
         runTest("--hide", "StartWithLower ,StartWithUpper, ArrayReturn") {
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -153,7 +153,7 @@ class ReporterOptionsTest :
     @Test
     fun `Test issue severity options with inheriting issues`() {
         runTest("--error", "RemovedClass") {
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
             assertEquals(
                 Severity.ERROR,
@@ -169,7 +169,7 @@ class ReporterOptionsTest :
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
             )
 
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
         }
     }
@@ -204,7 +204,7 @@ class ReporterOptionsTest :
             assertEquals(Severity.WARNING, baseConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
 
             // Now make sure the issues fine.
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
         }
@@ -217,7 +217,7 @@ class ReporterOptionsTest :
                 "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]\n"
             )
 
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
         }

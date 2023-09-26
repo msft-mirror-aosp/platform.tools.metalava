@@ -45,12 +45,18 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
     protected fun runTest(
         vararg args: String,
         optionGroup: O? = null,
-        test: (O) -> Unit,
+        test: Result<O>.() -> Unit,
     ) {
         val testFactory = { optionGroup ?: createOptions() }
-        val command = MockCommand(testFactory, test)
+        val command = MockCommand(testFactory)
         command.parse(args.toList())
+        val result = Result(command.options)
+        result.test()
     }
+
+    data class Result<O : OptionGroup>(
+        val options: O,
+    )
 
     @Test
     fun `Test help`() {
@@ -74,7 +80,7 @@ Options:
     }
 }
 
-private class MockCommand<O : OptionGroup>(factory: () -> O, val test: (O) -> Unit) :
+private class MockCommand<O : OptionGroup>(factory: () -> O) :
     CliktCommand(printHelpOnEmptyArgs = true) {
     val options by factory()
 
@@ -85,7 +91,5 @@ private class MockCommand<O : OptionGroup>(factory: () -> O, val test: (O) -> Un
         }
     }
 
-    override fun run() {
-        test(options)
-    }
+    override fun run() {}
 }
