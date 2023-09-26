@@ -53,9 +53,6 @@ interface TypeItem {
     /** Alias for [toTypeString] with erased=true */
     fun toErasedTypeString(context: Item? = null): String
 
-    /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
-    fun arrayDimensions(): Int
-
     fun asClass(): ClassItem?
 
     fun toSimpleType(): String {

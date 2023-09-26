@@ -135,17 +135,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return qualifiedTypeName().hashCode()
     }
 
-    override fun arrayDimensions(): Int {
-        val type = toErasedTypeString()
-        var dimensions = 0
-        for (c in type) {
-            if (c == '[') {
-                dimensions++
-            }
-        }
-        return dimensions
-    }
-
     private fun findTypeVariableBounds(
         typeParameterList: TypeParameterList,
         name: String
