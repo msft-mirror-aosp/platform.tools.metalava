@@ -206,9 +206,6 @@ interface TypeItem {
      */
     fun markRecent()
 
-    /** Returns true if this type represents an array of one or more dimensions */
-    fun isArray(): Boolean = arrayDimensions() > 0
-
     /** Ensure that we don't include any annotations in the type strings for this type. */
     fun scrubAnnotations()
 

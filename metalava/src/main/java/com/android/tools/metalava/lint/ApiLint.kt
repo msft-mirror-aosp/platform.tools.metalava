@@ -54,6 +54,7 @@ import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -1624,7 +1625,7 @@ class ApiLint(
         }
 
         if (
-            type.isArray() ||
+            type is ArrayTypeItem ||
                 typeAsClass.extendsOrImplements("java.util.Collection") ||
                 typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
                 typeAsClass.extendsOrImplements("java.util.Map") ||
@@ -2452,7 +2453,7 @@ class ApiLint(
                 return
             }
             val type = returnType.toTypeString()
-            if (type.startsWith("android.") && returnType.isArray()) {
+            if (type.startsWith("android.") && returnType is ArrayTypeItem) {
                 report(
                     PARCELABLE_LIST,
                     method,
@@ -2710,7 +2711,7 @@ class ApiLint(
     }
 
     private fun checkCollectionsOverArrays(type: TypeItem, typeString: String, item: Item) {
-        if (!type.isArray() || (item is ParameterItem && item.isVarArgs())) {
+        if (type !is ArrayTypeItem || (item is ParameterItem && item.isVarArgs())) {
             return
         }
 
