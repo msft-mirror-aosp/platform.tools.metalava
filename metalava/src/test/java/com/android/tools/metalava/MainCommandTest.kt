@@ -23,10 +23,10 @@ import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import org.junit.Test
 
 class MainCommandTest :
-    BaseCommandTest<MainCommand>({
+    BaseCommandTest<MainCommand>({ executionEnvironment ->
         MainCommand(
             commonOptions = CommonOptions(),
-            executionEnvironment = ExecutionEnvironment(),
+            executionEnvironment = executionEnvironment,
         )
     }) {
 

@@ -37,8 +37,9 @@ import org.junit.rules.TemporaryFolder
  * Tests that need to run command tests must extend this and call [commandTest] to configure the
  * test.
  */
-abstract class BaseCommandTest<C : CliktCommand>(internal val commandFactory: () -> C) :
-    TemporaryFolderOwner {
+abstract class BaseCommandTest<C : CliktCommand>(
+    internal val commandFactory: (ExecutionEnvironment) -> C
+) : TemporaryFolderOwner {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -200,7 +201,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
 
         // Runs the command
-        command = test.commandFactory()
+        command = test.commandFactory(executionEnvironment)
         runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
