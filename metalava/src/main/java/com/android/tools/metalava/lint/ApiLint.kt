@@ -65,6 +65,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -524,7 +525,8 @@ class ApiLint(
                 "If min/max could change in future, make them dynamic methods: $qualified#$name"
             )
         } else if (
-            (field.type().primitive || field.type().isString()) && field.initialValue(true) == null
+            (field.type() is PrimitiveTypeItem || field.type().isString()) &&
+                field.initialValue(true) == null
         ) {
             report(
                 COMPILE_TIME_CONSTANT,
@@ -644,7 +646,7 @@ class ApiLint(
         fun isSingleParamCallbackMethod(method: MethodItem) =
             method.parameters().size == 1 &&
                 method.name().startsWith("on") &&
-                !method.parameters().first().type().primitive &&
+                method.parameters().first().type() !is PrimitiveTypeItem &&
                 method.returnType().toTypeString() == Void.TYPE.name
 
         if (!methods.all(::isSingleParamCallbackMethod)) return
@@ -1345,7 +1347,7 @@ class ApiLint(
         }
 
         fun getTypePackage(type: TypeItem?): PackageItem? {
-            return if (type == null || type.primitive) {
+            return if (type == null || type is PrimitiveTypeItem) {
                 null
             } else {
                 type.asClass()?.containingPackage()
@@ -1508,7 +1510,7 @@ class ApiLint(
         fun isGetter(method: MethodItem): Boolean {
             val returnType = method.returnType()
             return method.parameters().isEmpty() &&
-                returnType.primitive &&
+                returnType is PrimitiveTypeItem &&
                 returnType.toTypeString() == "boolean"
         }
 
@@ -1559,7 +1561,7 @@ class ApiLint(
     }
 
     private fun checkCollections(type: TypeItem, item: Item) {
-        if (type.primitive) {
+        if (type is PrimitiveTypeItem) {
             return
         }
 
@@ -1601,7 +1603,7 @@ class ApiLint(
     }
 
     private fun checkNullableCollections(type: TypeItem, item: Item) {
-        if (type.primitive) return
+        if (type is PrimitiveTypeItem) return
         if (!item.modifiers.isNullable()) return
         val typeAsClass = type.asClass() ?: return
 
@@ -1863,7 +1865,7 @@ class ApiLint(
                         // parameters and return,
                         // only warn about non-annotated returns here as parameters will get visited
                         // individually.
-                        if (item.isConstructor() || item.returnType().primitive) return
+                        if (item.isConstructor() || item.returnType() is PrimitiveTypeItem) return
                         if (item.modifiers.hasNullnessInfo()) return
                         "method `${item.name()}` return"
                     }
@@ -2446,7 +2448,7 @@ class ApiLint(
         }
         for (method in methods) {
             val returnType = method.returnType()
-            if (returnType.primitive) {
+            if (returnType is PrimitiveTypeItem) {
                 return
             }
             val type = returnType.toTypeString()
@@ -2885,7 +2887,7 @@ class ApiLint(
     }
 
     private fun checkIcu(type: TypeItem, typeString: String, item: Item) {
-        if (type.primitive) {
+        if (type is PrimitiveTypeItem) {
             return
         }
         // ICU types have been added in API 24, so libraries with minSdkVersion <24 cannot use them.

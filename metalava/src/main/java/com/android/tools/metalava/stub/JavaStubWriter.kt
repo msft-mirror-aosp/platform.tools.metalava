@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.options
 import java.io.PrintWriter
@@ -271,7 +272,7 @@ class JavaStubWriter(
                         writer.write(", ")
                     }
                     val type = parameter.type()
-                    if (!type.primitive) {
+                    if (type !is PrimitiveTypeItem) {
                         if (includeCasts) {
                             // Types with varargs can't appear as varargs when used as an argument
                             val typeString = type.toErasedTypeString(it).replace("...", "[]")

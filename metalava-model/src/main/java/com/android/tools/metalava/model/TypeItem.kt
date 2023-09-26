@@ -87,8 +87,6 @@ interface TypeItem {
         return toTypeString().replace("...", "").replace("[]", "")
     }
 
-    val primitive: Boolean
-
     fun typeArgumentClasses(): List<ClassItem>
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {

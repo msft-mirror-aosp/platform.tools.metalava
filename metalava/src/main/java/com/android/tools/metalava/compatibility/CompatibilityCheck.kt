@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
@@ -116,7 +117,7 @@ class CompatibilityCheck(
                     return
                 }
                 val name = AnnotationItem.simpleName(oldNullnessAnnotation)
-                if (old.type()?.primitive == true) {
+                if (old.type() is PrimitiveTypeItem) {
                     return
                 }
                 report(
