@@ -1,0 +1,5 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test inner parameterized types[psi,java]
+  Test inner parameterized types[psi,kotlin]
+  Test inner types[psi,java]
+  Test inner types[psi,kotlin]

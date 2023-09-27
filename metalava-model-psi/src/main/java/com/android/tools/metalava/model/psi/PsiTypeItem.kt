@@ -875,6 +875,7 @@ class PsiClassTypeItem(
     override val qualifiedName: String =
         PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
     override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
+    override val outerClassType: ClassTypeItem? = null
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */

@@ -441,6 +441,9 @@ interface ClassTypeItem : TypeItem {
 
     /** The class's parameter types, empty if it has none. */
     val parameters: List<TypeItem>
+
+    /** The outer class type of this class, if it is an inner type. */
+    val outerClassType: ClassTypeItem?
 }
 
 /** Represents a type variable type. */
