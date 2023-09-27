@@ -1,4 +1,20 @@
-package com.android.tools.metalava
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.doc
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.LintCliClient
@@ -6,7 +22,10 @@ import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
+import com.android.tools.metalava.PROGRAM_NAME
+import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
+import com.android.tools.metalava.isUnderTest
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -26,6 +45,7 @@ import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.PsiClass
@@ -50,6 +70,8 @@ const val ADD_API_LEVEL_TEXT = false
 const val ADD_DEPRECATED_IN_TEXT = false
 
 private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
+
+private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
