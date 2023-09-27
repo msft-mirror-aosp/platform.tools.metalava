@@ -51,6 +51,9 @@ internal class DefaultReporter(
      * metalava finishes with errors.
      */
     private val errorMessage: String? = null,
+
+    /** Filter to hide issues reported in packages which are not part of the API. */
+    private val packageFilter: PackageFilter? = null,
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
@@ -95,7 +98,6 @@ internal class DefaultReporter(
         // If we are only emitting some packages (--stub-packages), don't report
         // issues from other packages
         if (item != null) {
-            val packageFilter = options.stubPackages
             if (packageFilter != null) {
                 val pkg = item.containingPackage(false)
                 if (pkg != null && !packageFilter.matches(pkg)) {
