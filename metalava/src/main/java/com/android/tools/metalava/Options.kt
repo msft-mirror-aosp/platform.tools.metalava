@@ -675,18 +675,6 @@ class Options(
                 EmitFileHeader.ALWAYS
             }
 
-    /** A baseline to check against */
-    var baseline: Baseline? = null
-
-    /** A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT]) */
-    private var baselineApiLint: Baseline? = null
-
-    /**
-     * A baseline to check against, specifically used for "check-compatibility:*:released" (i.e.
-     * [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
-     */
-    private var baselineCompatibilityReleased: Baseline? = null
-
     var allBaselines: List<Baseline> = emptyList()
 
     /**
@@ -1220,29 +1208,37 @@ class Options(
                 deleteEmptyBaselines = deleteEmptyBaselines,
                 sourcePath = sourcePath,
             )
-        baseline = baselineBuilder.build(baselineConfig)
-        baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
-        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build(baselineConfig)
+        // A baseline to check against
+        val baseline = baselineBuilder.build(baselineConfig)
+
+        // A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT])
+        val baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
+
+        // A baseline to check against, specifically used for "check-compatibility:*:released" (i.e.
+        // [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+        val baselineCompatibilityReleased =
+            baselineCompatibilityReleasedBuilder.build(baselineConfig)
 
         // Initialize the reporters.
         reporter =
             DefaultReporter(
-                executionEnvironment.reporterEnvironment,
-                issueConfiguration,
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baseline,
             )
         reporterApiLint =
             DefaultReporter(
-                executionEnvironment.reporterEnvironment,
-                issueConfiguration,
-                baselineApiLint ?: baseline,
-                errorMessageApiLint,
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baselineApiLint ?: baseline,
+                errorMessage = errorMessageApiLint,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
-                executionEnvironment.reporterEnvironment,
-                issueConfiguration,
-                baselineCompatibilityReleased ?: baseline,
-                errorMessageCompatibilityReleased,
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baselineCompatibilityReleased ?: baseline,
+                errorMessage = errorMessageCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
