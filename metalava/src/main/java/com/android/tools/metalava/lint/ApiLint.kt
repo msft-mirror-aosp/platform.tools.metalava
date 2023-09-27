@@ -1178,7 +1178,7 @@ class ApiLint(
                     } else {
                         // fallback to a limited text based check
                         val returnTypeBounds =
-                            returnType.asTypeParameter(context = method)?.typeBounds()?.map {
+                            (returnType as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map {
                                 it.toTypeString()
                             }
                                 ?: emptyList()

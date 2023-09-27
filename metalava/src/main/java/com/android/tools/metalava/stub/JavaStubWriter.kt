@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate
@@ -277,7 +278,7 @@ class JavaStubWriter(
                             // Types with varargs can't appear as varargs when used as an argument
                             val typeString = type.toErasedTypeString(it).replace("...", "[]")
                             writer.write("(")
-                            if (type.asTypeParameter(superConstructor) != null) {
+                            if (type is VariableTypeItem) {
                                 // It's a type parameter: see if we should map the type back to the
                                 // concrete
                                 // type in this class

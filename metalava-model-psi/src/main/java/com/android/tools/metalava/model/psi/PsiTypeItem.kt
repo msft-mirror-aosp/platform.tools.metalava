@@ -212,11 +212,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         return asClass
     }
 
-    override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
-        val cls = asClass() ?: return null
-        return cls as? PsiTypeParameterItem
-    }
-
     override fun hashCode(): Int {
         return psiType.hashCode()
     }
