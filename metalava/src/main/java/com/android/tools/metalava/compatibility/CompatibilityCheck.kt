@@ -417,45 +417,52 @@ class CompatibilityCheck(
             val oldTypeParameter = oldReturnType.asTypeParameter(old)
             val newTypeParameter = newReturnType.asTypeParameter(new)
             var compatible = true
-            if (oldTypeParameter == null && newTypeParameter == null) {
-                if (oldReturnType != newReturnType) {
-                    compatible = false
-                }
-            } else if (oldTypeParameter == null && newTypeParameter != null) {
-                val constraints = newTypeParameter.typeBounds()
-                for (constraint in constraints) {
-                    val oldClass = oldReturnType.asClass()
-                    val newClass = constraint.asClass()
-                    if (
-                        oldClass == null ||
-                            newClass == null ||
-                            !oldClass.extendsOrImplements(newClass.qualifiedName())
-                    ) {
+            if (oldTypeParameter == null) {
+                if (newTypeParameter == null) {
+                    if (oldReturnType != newReturnType) {
                         compatible = false
                     }
+                } else {
+                    // If the old return type was not parameterized but the new return type is,
+                    // the new type parameter must have the old return type in its bounds
+                    // (e.g. changing return type from `String` to `T extends String` is valid).
+                    val constraints = newTypeParameter.typeBounds()
+                    val oldClass = oldReturnType.asClass()
+                    for (constraint in constraints) {
+                        val newClass = constraint.asClass()
+                        if (
+                            oldClass == null ||
+                                newClass == null ||
+                                !oldClass.extendsOrImplements(newClass.qualifiedName())
+                        ) {
+                            compatible = false
+                        }
+                    }
                 }
-            } else if (oldTypeParameter != null && newTypeParameter == null) {
-                // It's never valid to go from being a parameterized type to not being one.
-                // This would drop the implicit cast breaking backwards compatibility.
-                compatible = false
             } else {
-                // If both return types are parameterized then the constraints must be
-                // exactly the same.
-                val oldConstraints = oldTypeParameter?.typeBounds() ?: emptyList()
-                val newConstraints = newTypeParameter?.typeBounds() ?: emptyList()
-                if (
-                    oldConstraints.size != newConstraints.size || newConstraints != oldConstraints
-                ) {
-                    val oldTypeString = describeBounds(oldReturnType, oldConstraints)
-                    val newTypeString = describeBounds(newReturnType, newConstraints)
-                    val message =
-                        "${describe(
-                            new,
-                            capitalize = true
-                        )} has changed return type from $oldTypeString to $newTypeString"
+                if (newTypeParameter == null) {
+                    // It's never valid to go from being a parameterized type to not being one.
+                    // This would drop the implicit cast breaking backwards compatibility.
+                    compatible = false
+                } else {
+                    // If both return types are parameterized then the constraints must be
+                    // exactly the same.
+                    val oldConstraints = oldTypeParameter.typeBounds()
+                    val newConstraints = newTypeParameter.typeBounds()
+                    if (newConstraints != oldConstraints) {
+                        val oldTypeString = describeBounds(oldReturnType, oldConstraints)
+                        val newTypeString = describeBounds(newReturnType, newConstraints)
+                        val message =
+                            "${
+                                describe(
+                                    new,
+                                    capitalize = true
+                                )
+                            } has changed return type from $oldTypeString to $newTypeString"
 
-                    report(Issues.CHANGED_TYPE, new, message)
-                    return
+                        report(Issues.CHANGED_TYPE, new, message)
+                        return
+                    }
                 }
             }
 
