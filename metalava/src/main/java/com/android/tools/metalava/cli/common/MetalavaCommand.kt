@@ -27,9 +27,9 @@ import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.eagerOption
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.versionOption
 import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
@@ -95,12 +95,11 @@ internal open class MetalavaCommand(
         }
 
         // Print the version number if requested.
-        versionOption(
-            // Use a fake version here to avoid loading the `/version.properties` file unless
-            // needed.
-            "fake-version",
+        eagerOption(
+            help = "Show the version and exit",
             names = setOf(ARG_VERSION),
-            message = { "$commandName version: ${Version.VERSION}" },
+            // Abort the processing of options immediately to display the version and exit.
+            action = { throw PrintVersionException() }
         )
     }
 
@@ -136,6 +135,9 @@ internal open class MetalavaCommand(
         var exitCode = 0
         try {
             processThrowCliException(args)
+        } catch (e: PrintVersionException) {
+            // Print the version and exit.
+            stdout.println("\n$commandName version: ${Version.VERSION}")
         } catch (e: MetalavaCliException) {
             stdout.flush()
             stderr.flush()
@@ -250,6 +252,12 @@ internal open class MetalavaCommand(
             throw PrintHelpMessage(this)
         }
     }
+
+    /**
+     * Exception to use for the --version option to use for aborting the processing of options
+     * immediately and allow the exception handling code to treat it specially.
+     */
+    private class PrintVersionException : RuntimeException()
 }
 
 /**
