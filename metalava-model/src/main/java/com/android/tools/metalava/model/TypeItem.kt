@@ -53,6 +53,9 @@ interface TypeItem {
     /** Alias for [toTypeString] with erased=true */
     fun toErasedTypeString(context: Item? = null): String
 
+    /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
+    @MetalavaApi fun arrayDimensions(): Int = 0
+
     fun asClass(): ClassItem?
 
     fun toSimpleType(): String {
@@ -432,6 +435,8 @@ interface ArrayTypeItem : TypeItem {
 
     /** Whether this array type represents a varargs parameter. */
     val isVarargs: Boolean
+
+    override fun arrayDimensions(): Int = 1 + componentType.arrayDimensions()
 }
 
 /** Represents a class type. */
