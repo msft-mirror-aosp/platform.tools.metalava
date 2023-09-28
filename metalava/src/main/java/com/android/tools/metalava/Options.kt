@@ -402,7 +402,7 @@ class Options(
     var stubPackages: PackageFilter? = null
 
     /** Packages to import (if empty, include all) */
-    var stubImportPackages: Set<String> = mutableStubImportPackages
+    private var stubImportPackages: Set<String> = mutableStubImportPackages
 
     /** Packages to exclude/hide */
     var hidePackages: List<String> = mutableHidePackages
@@ -455,7 +455,7 @@ class Options(
      * Once all APIs are either self-contained or imported all the required references this will be
      * removed and no classes will be allowed from the classpath JARs.
      */
-    var allowClassesFromClasspath = true
+    private var allowClassesFromClasspath = true
 
     /** The configuration options for the [ApiVisitor] class. */
     val apiVisitorConfig by lazy {
@@ -489,7 +489,7 @@ class Options(
     }
 
     /** This is set directly by [preprocessArgv]. */
-    internal var verbosity: Verbosity = Verbosity.NORMAL
+    private var verbosity: Verbosity = Verbosity.NORMAL
 
     /** Whether to report warnings and other diagnostics along the way */
     val quiet: Boolean
@@ -592,8 +592,8 @@ class Options(
     var baseApiForCompatCheck: File? = null
 
     /** Existing external annotation files to merge in */
-    var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
-    var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
+    private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
+    private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
     /**
      * An optional <b>jar</b> file to load classes from instead of from source. This is similar to
@@ -715,13 +715,13 @@ class Options(
     var passBaselineUpdates = false
 
     /** If updating baselines and the baseline is empty, delete the file */
-    var deleteEmptyBaselines = false
+    private var deleteEmptyBaselines = false
 
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
     /** Whether the baseline should only contain errors */
-    var baselineErrorsOnly = false
+    private var baselineErrorsOnly = false
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     private var reportEvenIfSuppressed: File? = null
@@ -768,7 +768,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    val additionalNonessentialOverridesClasses by
+    private val additionalNonessentialOverridesClasses by
         option(
                 ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES,
                 help =
