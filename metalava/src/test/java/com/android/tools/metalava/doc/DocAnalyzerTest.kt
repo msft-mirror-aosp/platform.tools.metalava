@@ -21,6 +21,7 @@ import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.columnSource
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
@@ -413,6 +414,7 @@ class DocAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
