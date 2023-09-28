@@ -399,7 +399,7 @@ class Options(
     var checkApiBaselineApiFile: File? = null
 
     /** Packages to include (if null, include all) */
-    var stubPackages: PackageFilter? = null
+    private var stubPackages: PackageFilter? = null
 
     /** Packages to import (if empty, include all) */
     private var stubImportPackages: Set<String> = mutableStubImportPackages
@@ -1225,6 +1225,7 @@ class Options(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
                 baseline = baseline,
+                packageFilter = stubPackages,
             )
         reporterApiLint =
             DefaultReporter(
@@ -1232,6 +1233,7 @@ class Options(
                 issueConfiguration = issueConfiguration,
                 baseline = baselineApiLint ?: baseline,
                 errorMessage = errorMessageApiLint,
+                packageFilter = stubPackages,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
@@ -1239,6 +1241,7 @@ class Options(
                 issueConfiguration = issueConfiguration,
                 baseline = baselineCompatibilityReleased ?: baseline,
                 errorMessage = errorMessageCompatibilityReleased,
+                packageFilter = stubPackages,
             )
 
         // Build "all baselines" and "all reporters"
