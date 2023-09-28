@@ -24,6 +24,7 @@ import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnota
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -408,25 +409,32 @@ class CompatibilityCheck(
             !modifiers.isSealed() &&
             constructors().any { it.isPublic || it.isProtected }
 
-    override fun compare(old: MethodItem, new: MethodItem) {
-        val oldModifiers = old.modifiers
-        val newModifiers = new.modifiers
-
-        val oldReturnType = old.returnType()
-        val newReturnType = new.returnType()
-        if (!new.isConstructor()) {
-            var compatible = true
-            if (oldReturnType !is VariableTypeItem) {
-                if (newReturnType !is VariableTypeItem) {
-                    if (oldReturnType != newReturnType) {
-                        compatible = false
-                    }
+    /**
+     * Check if the return types are compatible, which is true when:
+     * - they're equal
+     * - both are arrays, and the component types are compatible
+     * - both are variable types, and they have equal bounds
+     * - the new return type is a variable and has the old return type in its bounds
+     *
+     * TODO(b/111253910): could this also allow changes like List<T> to List<A> where A and T have
+     *   equal bounds?
+     */
+    private fun compatibleReturnTypes(old: TypeItem, new: TypeItem): Boolean {
+        when (new) {
+            is ArrayTypeItem ->
+                return old is ArrayTypeItem &&
+                    compatibleReturnTypes(old.componentType, new.componentType)
+            is VariableTypeItem -> {
+                if (old is VariableTypeItem) {
+                    // If both return types are parameterized then the constraints must be
+                    // exactly the same.
+                    return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
                 } else {
                     // If the old return type was not parameterized but the new return type is,
                     // the new type parameter must have the old return type in its bounds
                     // (e.g. changing return type from `String` to `T extends String` is valid).
-                    val constraints = newReturnType.asTypeParameter.typeBounds()
-                    val oldClass = oldReturnType.asClass()
+                    val constraints = new.asTypeParameter.typeBounds()
+                    val oldClass = old.asClass()
                     for (constraint in constraints) {
                         val newClass = constraint.asClass()
                         if (
@@ -434,49 +442,27 @@ class CompatibilityCheck(
                                 newClass == null ||
                                 !oldClass.extendsOrImplements(newClass.qualifiedName())
                         ) {
-                            compatible = false
+                            return false
                         }
                     }
-                }
-            } else {
-                if (newReturnType !is VariableTypeItem) {
-                    // It's never valid to go from being a parameterized type to not being one.
-                    // This would drop the implicit cast breaking backwards compatibility.
-                    compatible = false
-                } else {
-                    // If both return types are parameterized then the constraints must be
-                    // exactly the same.
-                    val oldConstraints = oldReturnType.asTypeParameter.typeBounds()
-                    val newConstraints = newReturnType.asTypeParameter.typeBounds()
-                    if (newConstraints != oldConstraints) {
-                        val oldTypeString = describeBounds(oldReturnType, oldConstraints)
-                        val newTypeString = describeBounds(newReturnType, newConstraints)
-                        val message =
-                            "${
-                                describe(
-                                    new,
-                                    capitalize = true
-                                )
-                            } has changed return type from $oldTypeString to $newTypeString"
-
-                        report(Issues.CHANGED_TYPE, new, message)
-                        return
-                    }
+                    return true
                 }
             }
+            else -> return old == new
+        }
+    }
 
-            if (!compatible) {
-                var oldTypeString = oldReturnType.toSimpleType()
-                var newTypeString = newReturnType.toSimpleType()
-                // Typically, show short type names like "String" if they're distinct (instead of
-                // long type names like
-                // "java.util.Set<T!>")
-                if (oldTypeString == newTypeString) {
-                    // If the short names aren't unique, then show full type names like
-                    // "java.util.Set<T!>"
-                    oldTypeString = oldReturnType.toString()
-                    newTypeString = newReturnType.toString()
-                }
+    override fun compare(old: MethodItem, new: MethodItem) {
+        val oldModifiers = old.modifiers
+        val newModifiers = new.modifiers
+
+        val oldReturnType = old.returnType()
+        val newReturnType = new.returnType()
+        if (!new.isConstructor()) {
+            if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
+                // For incompatible type variable changes, include the type bounds in the string.
+                val oldTypeString = describeBounds(oldReturnType)
+                val newTypeString = describeBounds(newReturnType)
                 val message =
                     "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
                 report(Issues.CHANGED_TYPE, new, message)
@@ -683,13 +669,25 @@ class CompatibilityCheck(
         }
     }
 
-    private fun describeBounds(type: TypeItem, constraints: List<TypeItem>): String {
-        return type.toSimpleType() +
-            if (constraints.isEmpty()) {
-                " (extends java.lang.Object)"
-            } else {
-                " (extends ${constraints.joinToString(separator = " & ") { it.toTypeString() }})"
+    /**
+     * Returns a string representation of the type, including the bounds for a variable type or
+     * array of variable types.
+     *
+     * TODO(b/111253910): combine into [TypeItem.toTypeString]
+     */
+    private fun describeBounds(type: TypeItem): String {
+        return when (type) {
+            is ArrayTypeItem -> describeBounds(type.componentType) + "[]"
+            is VariableTypeItem -> {
+                type.name +
+                    if (type.asTypeParameter.typeBounds().isEmpty()) {
+                        " (extends java.lang.Object)"
+                    } else {
+                        " (extends ${type.asTypeParameter.typeBounds().joinToString(separator = " & ") { it.toTypeString() }})"
+                    }
             }
+            else -> type.toTypeString()
+        }
     }
 
     override fun compare(old: FieldItem, new: FieldItem) {

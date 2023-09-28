@@ -111,7 +111,7 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     8,
                     """
-                error: Method android.content.ComponentName.clone has changed return type from Object to android.content.ComponentName [ChangedType]
+                error: Method android.content.ComponentName.clone has changed return type from java.lang.Object to android.content.ComponentName [ChangedType]
                 warning: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
                 warning: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
                 warning: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
@@ -184,7 +184,7 @@ abstract class CompatibilityCheckAndroidApisTest(
                 warning: Field android.view.animation.Transformation.TYPE_IDENTITY has added 'final' qualifier [AddedFinal]
                 warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
                 warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
-                warning: Method java.nio.CharBuffer.subSequence has changed return type from CharSequence to java.nio.CharBuffer [ChangedType]
+                warning: Method java.nio.CharBuffer.subSequence has changed return type from java.lang.CharSequence to java.nio.CharBuffer [ChangedType]
                 """,
                     // The last warning above is not right; seems to be a PSI jar loading bug. It
                     // returns the wrong return type!
