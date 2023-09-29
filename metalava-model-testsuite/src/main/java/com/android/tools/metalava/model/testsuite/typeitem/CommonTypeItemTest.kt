@@ -1042,14 +1042,14 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             java(
                 """
                     package test.pkg;
-                    public interface Foo extends test.pkg.@test.pkg.A Bar, test.pkg.@test.pkg.A Baz, test.pkg.Biz {}
+                    public interface Foo extends test.pkg.@test.pkg.A Bar, test.pkg.@test.pkg.A Baz<@test.pkg.A String>, test.pkg.Biz {}
                 """
             ),
             signature(
                 """
                     // Signature format: 4.0
                     package test.pkg {
-                      public interface Foo extends test.pkg.@test.pkg.A Bar test.pkg.@test.pkg.A Baz test.pkg.Biz {
+                      public interface Foo extends test.pkg.@test.pkg.A Bar test.pkg.@test.pkg.A Baz<@test.pkg.A String> test.pkg.Biz {
                       }
                     }
                 """
@@ -1069,6 +1069,9 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             val baz = interfaces[0]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
             assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(baz.parameters).hasSize(1)
+            val bazParam = baz.parameters.single()
+            assertThat(bazParam.isString()).isTrue()
 
             val biz = interfaces[1]
             assertThat(biz).isInstanceOf(ClassTypeItem::class.java)

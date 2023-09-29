@@ -346,11 +346,9 @@ private constructor(
             // `extends` instead of `implements`).
             // However, this type cannot be an array, so unlike [parseType] this does not need to
             // check if the next token has annotations.
-            if (token.contains('@')) {
-                while (token.contains('@')) {
-                    token = tokenizer.requireToken()
-                    superClassName += " $token"
-                }
+            while (isIncompleteTypeToken(token)) {
+                token = tokenizer.requireToken()
+                superClassName += " $token"
             }
             ext = superClassName
             token = tokenizer.requireToken()
@@ -374,11 +372,9 @@ private constructor(
                     // This can't use [parseType] because the next token might be a separate type.
                     // However, this type cannot be an array, so unlike [parseType] this does not
                     // need to check if the next token has annotations.
-                    if (token.contains('@')) {
-                        while (token.contains('@')) {
-                            token = tokenizer.requireToken()
-                            interfaceName += " $token"
-                        }
+                    while (isIncompleteTypeToken(token)) {
+                        token = tokenizer.requireToken()
+                        interfaceName += " $token"
                     }
                     mapClassToInterface(cl, interfaceName)
                 }
@@ -1113,7 +1109,7 @@ private constructor(
         // next token is also part of the type.
         // If the next token has annotations, this is an array type like "Foo @A []", so the next
         // token is part of the type.
-        while (brokenType(prev) || brokenType(token)) {
+        while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
             type += " $token"
             prev = token
             token = tokenizer.requireToken()
@@ -1130,7 +1126,7 @@ private constructor(
      * the case when there's an annotation that isn't contained within a parameter list (because
      * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
      */
-    private fun brokenType(type: String): Boolean {
+    private fun isIncompleteTypeToken(type: String): Boolean {
         val firstAnnotationIndex = type.indexOf('@')
         val paramStartIndex = type.indexOf('<')
         val lastAnnotationIndex = type.lastIndexOf('@')
