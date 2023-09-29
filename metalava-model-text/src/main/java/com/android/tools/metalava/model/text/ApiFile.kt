@@ -812,40 +812,7 @@ private constructor(
     private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
-                when (type.kind) {
-                    Primitive.BOOLEAN ->
-                        if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-                    Primitive.BYTE,
-                    Primitive.SHORT,
-                    Primitive.INT -> Integer.valueOf(value)
-                    Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-                    Primitive.FLOAT ->
-                        when (value) {
-                            "(1.0f/0.0f)",
-                            "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                            "(-1.0f/0.0f)",
-                            "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                            "(0.0f/0.0f)",
-                            "(0.0f / 0.0f)" -> Float.NaN
-                            else -> java.lang.Float.valueOf(value)
-                        }
-                    Primitive.DOUBLE ->
-                        when (value) {
-                            "(1.0/0.0)",
-                            "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                            "(-1.0/0.0)",
-                            "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                            "(0.0/0.0)",
-                            "(0.0 / 0.0)" -> Double.NaN
-                            else -> java.lang.Double.valueOf(value)
-                        }
-                    Primitive.CHAR -> value.toInt().toChar()
-                    Primitive.VOID ->
-                        throw ApiParseException(
-                            "Found value $value assigned to void type",
-                            tokenizer
-                        )
-                }
+                parsePrimitiveValue(type, value, tokenizer)
             } else if (type.isString()) {
                 if ("null" == value) {
                     null
@@ -856,6 +823,44 @@ private constructor(
                 value
             }
         } else null
+    }
+
+    private fun parsePrimitiveValue(
+        type: PrimitiveTypeItem,
+        value: String,
+        tokenizer: Tokenizer
+    ): Any {
+        return when (type.kind) {
+            Primitive.BOOLEAN ->
+                if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+            Primitive.BYTE,
+            Primitive.SHORT,
+            Primitive.INT -> Integer.valueOf(value)
+            Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
+            Primitive.FLOAT ->
+                when (value) {
+                    "(1.0f/0.0f)",
+                    "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
+                    "(-1.0f/0.0f)",
+                    "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
+                    "(0.0f/0.0f)",
+                    "(0.0f / 0.0f)" -> Float.NaN
+                    else -> java.lang.Float.valueOf(value)
+                }
+            Primitive.DOUBLE ->
+                when (value) {
+                    "(1.0/0.0)",
+                    "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
+                    "(-1.0/0.0)",
+                    "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
+                    "(0.0/0.0)",
+                    "(0.0 / 0.0)" -> Double.NaN
+                    else -> java.lang.Double.valueOf(value)
+                }
+            Primitive.CHAR -> value.toInt().toChar()
+            Primitive.VOID ->
+                throw ApiParseException("Found value $value assigned to void type", tokenizer)
+        }
     }
 
     @Throws(ApiParseException::class)
