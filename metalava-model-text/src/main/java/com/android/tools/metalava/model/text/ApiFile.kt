@@ -461,7 +461,7 @@ private constructor(
     private fun processKotlinTypeSuffix(
         startingType: String,
         annotations: MutableList<String>
-    ): Pair<String, MutableList<String>> {
+    ): String {
         var type = startingType
         var varArgs = false
         if (type.endsWith("...")) {
@@ -489,7 +489,7 @@ private constructor(
         if (varArgs) {
             type = "$type..."
         }
-        return Pair(type, annotations)
+        return type
     }
 
     @Throws(ApiParseException::class)
@@ -593,7 +593,7 @@ private constructor(
         var typeParameterList = NONE
 
         // Metalava: including annotations in file now
-        var annotations = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
@@ -602,9 +602,7 @@ private constructor(
             token = tokenizer.requireToken()
         }
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(token, annotations)
-        token = first
-        annotations = second
+        token = processKotlinTypeSuffix(token, annotations)
         modifiers.addAnnotations(annotations)
         var returnTypeString = token
         token = tokenizer.requireToken()
@@ -688,14 +686,12 @@ private constructor(
         isEnum: Boolean
     ) {
         var token = startingToken
-        var annotations = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(token, annotations)
-        token = first
-        annotations = second
+        token = processKotlinTypeSuffix(token, annotations)
         modifiers.addAnnotations(annotations)
         val type = token
         val typeInfo =
@@ -894,14 +890,12 @@ private constructor(
         var token = startingToken
 
         // Metalava: including annotations in file now
-        var annotations = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(token, annotations)
-        token = first
-        annotations = second
+        token = processKotlinTypeSuffix(token, annotations)
         modifiers.addAnnotations(annotations)
         val type: String = token
         val typeInfo =
@@ -968,7 +962,7 @@ private constructor(
             }
 
             // Metalava: including annotations in file now
-            var annotations = getAnnotations(tokenizer, token)
+            val annotations = getAnnotations(tokenizer, token)
             token = tokenizer.current
             val modifiers = parseModifiers(api, tokenizer, token, null)
             token = tokenizer.current
@@ -988,8 +982,7 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
-            val (typeString, second) = processKotlinTypeSuffix(type, annotations)
-            annotations = second
+            val typeString = processKotlinTypeSuffix(type, annotations)
             modifiers.addAnnotations(annotations)
             if (typeString.endsWith("...")) {
                 modifiers.setVarArg(true)
