@@ -19,6 +19,7 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
@@ -984,10 +985,10 @@ private constructor(
             }
             val typeString = processKotlinTypeSuffix(type, annotations)
             modifiers.addAnnotations(annotations)
-            if (typeString.endsWith("...")) {
+            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
+            if (typeInfo is ArrayTypeItem && typeInfo.isVarargs) {
                 modifiers.setVarArg(true)
             }
-            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
             var name: String
             var publicName: String?
             if (isIdent(token) && token != "=") {
