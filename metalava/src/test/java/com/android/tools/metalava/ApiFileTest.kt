@@ -752,7 +752,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class ArraySetKt {
                     method public static inline <T> androidx.collection.ArraySet<T> arraySetOf();
-                    method public static <T> androidx.collection.ArraySet<T> arraySetOf(T?... values);
+                    method public static <T> androidx.collection.ArraySet<T> arraySetOf(T... values);
                     method public static <T> androidx.collection.ArraySet<T>? arraySetOfNullable(T?... values);
                   }
                 }
@@ -893,6 +893,10 @@ class ApiFileTest : DriverTest() {
                         class CircularArray<E> {
                             val first: E
                                 get() = TODO()
+
+                            var last: E
+                                get() = TODO()
+                                set(value) = TODO()
                         }
                     """
                     )
@@ -903,7 +907,10 @@ class ApiFileTest : DriverTest() {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
                     method public E getFirst();
+                    method public E getLast();
+                    method public void setLast(E);
                     property public final E first;
+                    property public final E last;
                   }
                 }
             """

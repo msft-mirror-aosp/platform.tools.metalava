@@ -749,8 +749,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `boxed type argument as method return type`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57579 nullity missed...
-        val n = if (isK2) "!" else ""
+        // https://youtrack.jetbrains.com/issue/KT-57579
         uastCheck(
             isK2,
             sourceFiles =
@@ -783,7 +782,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class StartActivityForResult extends test.pkg.ActivityResultContract<test.pkg.Intent,java.lang.Boolean> {
                     ctor public StartActivityForResult();
-                    method public Boolean$n parseResult(int resultCode, test.pkg.Intent? intent);
+                    method public Boolean parseResult(int resultCode, test.pkg.Intent? intent);
                   }
                 }
             """
