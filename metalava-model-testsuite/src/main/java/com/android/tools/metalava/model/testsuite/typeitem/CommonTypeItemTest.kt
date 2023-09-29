@@ -914,6 +914,67 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
     }
 
     @Test
+    fun `Test inner parameterized types with annotations`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Outer<O> {
+                        public class Inner<I> {
+                        }
+
+                        public <P1, P2> @test.pkg.A Outer<@test.pkg.B P1>.@test.pkg.C Inner<@test.pkg.D P2> foo() {
+                            return new Outer<P1>.Inner<P2>();
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Outer<O> {
+                        ctor public Outer();
+                        method public <P1, P2> test.pkg.@test.pkg.A Outer<@test.pkg.B P1!>.@test.pkg.C Inner<@test.pkg.D P2!>! foo();
+                      }
+                      public class Outer.Inner<I> {
+                        ctor public Outer.Inner();
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Outer").methods().single()
+            val methodTypeParameters = method.typeParameterList().typeParameters()
+            assertThat(methodTypeParameters).hasSize(2)
+            val p1 = methodTypeParameters[0]
+            val p2 = methodTypeParameters[1]
+
+            // TODO: test the annotations
+            // Outer<P1>.Inner<P2>
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
+            assertThat(innerType.parameters).hasSize(1)
+            val innerTypeParameter = innerType.parameters.single()
+            assertThat(innerTypeParameter).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((innerTypeParameter as VariableTypeItem).name).isEqualTo("P2")
+            assertThat(innerTypeParameter.asTypeParameter).isEqualTo(p2)
+
+            val outerType = innerType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
+            assertThat(outerType.outerClassType).isNull()
+            assertThat(outerType.parameters).hasSize(1)
+            val outerClassParameter = outerType.parameters.single()
+            assertThat(outerClassParameter).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((outerClassParameter as VariableTypeItem).name).isEqualTo("P1")
+            assertThat(outerClassParameter.asTypeParameter).isEqualTo(p1)
+        }
+    }
+
+    @Test
     fun `Test interface types`() {
         runCodebaseTest(
             java(
@@ -1012,6 +1073,55 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             val biz = interfaces[1]
             assertThat(biz).isInstanceOf(ClassTypeItem::class.java)
             assertThat((biz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
+        }
+    }
+
+    @Test
+    fun `Test annotated array types in multiple contexts`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public test.pkg.Foo @test.pkg.A [] method(test.pkg.Foo @test.pkg.A [] arg) {}
+                        public test.pkg.Foo @test.pkg.A [] field;
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Foo {
+                        method public test.pkg.Foo @test.pkg.A [] method(test.pkg.Foo @test.pkg.A []);
+                        field public test.pkg.Foo @test.pkg.A [] field;
+                        property public test.pkg.Foo @test.pkg.A [] prop;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
+            val returnType = method.returnType()
+            val paramType = method.parameters().single().type()
+            val fieldType = foo.fields().single().type()
+            // Properties can't be defined in java, this is only present for signature type
+            val propertyType = foo.properties().singleOrNull()?.type()
+
+            // Do full check for one type, then verify the others are equal
+            assertThat(returnType).isInstanceOf(ArrayTypeItem::class.java)
+            val componentType = (returnType as ArrayTypeItem).componentType
+            assertThat(componentType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((componentType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Foo")
+            // TODO: test the annotations
+
+            assertThat(returnType).isEqualTo(paramType)
+            assertThat(returnType).isEqualTo(fieldType)
+            if (propertyType != null) {
+                assertThat(returnType).isEqualTo(propertyType)
+            }
         }
     }
 }

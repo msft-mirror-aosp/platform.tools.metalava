@@ -341,6 +341,11 @@ private constructor(
             token = tokenizer.requireToken()
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
+            // This can't use [parseType] because the next token might be a separate type (classes
+            // only have a single `extends` type, but all interface supertypes are listed as
+            // `extends` instead of `implements`).
+            // However, this type cannot be an array, so unlike [parseType] this does not need to
+            // check if the next token has annotations.
             if (token.contains('@')) {
                 while (token.contains('@')) {
                     token = tokenizer.requireToken()
@@ -366,6 +371,9 @@ private constructor(
                     break
                 } else if ("," != token) {
                     // Make sure full interface name is found if there are type use annotations.
+                    // This can't use [parseType] because the next token might be a separate type.
+                    // However, this type cannot be an array, so unlike [parseType] this does not
+                    // need to check if the next token has annotations.
                     if (token.contains('@')) {
                         while (token.contains('@')) {
                             token = tokenizer.requireToken()
@@ -589,7 +597,6 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val returnType: TextTypeItem
         val method: TextMethodItem
         var typeParameterList = NONE
 
@@ -603,39 +610,11 @@ private constructor(
             token = tokenizer.requireToken()
         }
         assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
-        modifiers.addAnnotations(annotations)
-        var returnTypeString = token
-        token = tokenizer.requireToken()
-        if (
-            returnTypeString.contains("@") &&
-                (returnTypeString.indexOf('<') == -1 ||
-                    returnTypeString.indexOf('@') < returnTypeString.indexOf('<'))
-        ) {
-            returnTypeString += " $token"
-            token = tokenizer.requireToken()
-        }
-        while (true) {
-            if (
-                token.contains("@") &&
-                    (token.indexOf('<') == -1 || token.indexOf('@') < token.indexOf('<'))
-            ) {
-                // Type-use annotations in type; keep accumulating
-                returnTypeString += " $token"
-                token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
-                    returnTypeString += " $token"
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                break
-            }
-        }
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        returnType = api.typeResolver.obtainTypeFromString(returnTypeString, typeParams)
+        val returnType = parseType(api, tokenizer, token, typeParams, annotations)
+        modifiers.addAnnotations(annotations)
+        token = tokenizer.current
         assertIdent(tokenizer, token)
         val name: String = token
         method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
@@ -692,25 +671,23 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
+        val type =
+            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
         modifiers.addAnnotations(annotations)
-        val type = token
-        val typeInfo =
-            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
-        token = tokenizer.requireToken()
+        token = tokenizer.current
         assertIdent(tokenizer, token)
         val name = token
         token = tokenizer.requireToken()
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)
-            value = parseValue(typeInfo, token, tokenizer)
+            value = parseValue(type, token, tokenizer)
             token = tokenizer.requireToken()
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val field = TextFieldItem(api, name, cl, modifiers, typeInfo, value, tokenizer.pos())
+        val field = TextFieldItem(api, name, cl, modifiers, type, value, tokenizer.pos())
         field.deprecated = modifiers.isDeprecated()
         if (isEnum) {
             cl.addEnumConstant(field)
@@ -896,19 +873,17 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
+        val type =
+            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
         modifiers.addAnnotations(annotations)
-        val type: String = token
-        val typeInfo =
-            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
-        token = tokenizer.requireToken()
+        token = tokenizer.current
         assertIdent(tokenizer, token)
         val name: String = token
         token = tokenizer.requireToken()
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val property = TextPropertyItem(api, name, cl, modifiers, typeInfo, tokenizer.pos())
+        val property = TextPropertyItem(api, name, cl, modifiers, type, tokenizer.pos())
         property.deprecated = modifiers.isDeprecated()
         cl.addProperty(property)
     }
@@ -969,24 +944,10 @@ private constructor(
             token = tokenizer.current
 
             // Token should now represent the type
-            var type = token
-            token = tokenizer.requireToken()
-            if (token.startsWith("@")) {
-                // Type use annotations within the type, which broke up the tokenizer;
-                // put it back together
-                type += " $token"
-                token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
-                    type += " $token"
-                    token = tokenizer.requireToken()
-                }
-            }
-            val typeString = processKotlinTypeSuffix(type, annotations)
+            val type = parseType(api, tokenizer, token, typeParameters, annotations)
             modifiers.addAnnotations(annotations)
-            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
-            if (typeInfo is ArrayTypeItem && typeInfo.isVarargs) {
+            token = tokenizer.current
+            if (type is ArrayTypeItem && type.isVarargs) {
                 modifiers.setVarArg(true)
             }
             var name: String
@@ -1062,7 +1023,7 @@ private constructor(
                     hasDefaultValue,
                     defaultValue,
                     index,
-                    typeInfo,
+                    type,
                     modifiers,
                     tokenizer.pos()
                 )
@@ -1113,6 +1074,67 @@ private constructor(
             }
             token = tokenizer.requireToken()
         }
+    }
+
+    /**
+     * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
+     * that the full type string is gathered, even when there are type-use annotations. Once the
+     * full type string is found, this parses the type in the context of the [typeParameters].
+     *
+     * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
+     * that nullability to [annotations].
+     *
+     * After this method is called, `tokenizer.current` will point to the token after the type.
+     *
+     * Note: this **should not** be used when the token after the type could contain annotations,
+     * such as when multiple types appear as consecutive tokens. (This happens in the `implements`
+     * list of a class definition, e.g. `class Foo implements test.pkg.Bar test.pkg.@A Baz`.)
+     *
+     * To handle arrays with type-use annotations, this looks forward at the next token and includes
+     * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
+     */
+    private fun parseType(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        startingToken: String,
+        typeParameters: List<TypeParameterItem>,
+        annotations: MutableList<String>
+    ): TextTypeItem {
+        var type = startingToken
+        var prev = type
+        var token = tokenizer.requireToken()
+        // Look both at the last used token and the next one:
+        // If the last token has annotations, the type string was broken up by annotations, and the
+        // next token is also part of the type.
+        // If the next token has annotations, this is an array type like "Foo @A []", so the next
+        // token is part of the type.
+        while (brokenType(prev) || brokenType(token)) {
+            type += " $token"
+            prev = token
+            token = tokenizer.requireToken()
+        }
+
+        // TODO: this should be handled by [obtainTypeFromString]
+        type = processKotlinTypeSuffix(type, annotations)
+
+        return api.typeResolver.obtainTypeFromString(type, typeParameters)
+    }
+
+    /**
+     * Determines whether the [type] is an incomplete type string broken up by annotations. This is
+     * the case when there's an annotation that isn't contained within a parameter list (because
+     * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
+     */
+    private fun brokenType(type: String): Boolean {
+        val firstAnnotationIndex = type.indexOf('@')
+        val paramStartIndex = type.indexOf('<')
+        val lastAnnotationIndex = type.lastIndexOf('@')
+        val paramEndIndex = type.lastIndexOf('>')
+        return firstAnnotationIndex != -1 &&
+            (paramStartIndex == -1 ||
+                firstAnnotationIndex < paramStartIndex ||
+                paramEndIndex == -1 ||
+                paramEndIndex < lastAnnotationIndex)
     }
 
     private fun qualifiedName(pkg: String, className: String): String {
