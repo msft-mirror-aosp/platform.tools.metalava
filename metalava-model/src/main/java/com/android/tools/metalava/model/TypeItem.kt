@@ -28,6 +28,7 @@ const val SUPPORT_TYPE_USE_ANNOTATIONS = false
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Type.html Type}
  */
+@MetalavaApi
 interface TypeItem {
     /**
      * Generates a string for this type.
@@ -51,7 +52,7 @@ interface TypeItem {
     ): String
 
     /** Alias for [toTypeString] with erased=true */
-    fun toErasedTypeString(context: Item? = null): String
+    @MetalavaApi fun toErasedTypeString(context: Item? = null): String
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     @MetalavaApi fun arrayDimensions(): Int = 0

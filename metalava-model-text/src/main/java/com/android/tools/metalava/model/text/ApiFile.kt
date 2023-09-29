@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -44,6 +45,7 @@ import java.io.IOException
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
+@MetalavaApi
 class ApiFile
 private constructor(
     /** Implements [ResolverContext] interface */
