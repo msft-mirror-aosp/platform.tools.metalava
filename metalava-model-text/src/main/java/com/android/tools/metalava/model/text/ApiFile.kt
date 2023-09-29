@@ -26,9 +26,10 @@ import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
@@ -706,7 +707,7 @@ private constructor(
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)
-            value = parseValue(type, token)
+            value = parseValue(typeInfo, token, tokenizer)
             token = tokenizer.requireToken()
         }
         if (";" != token) {
@@ -834,45 +835,51 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(type: String?, value: String?): Any? {
+    private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
-            when (type) {
-                "boolean" ->
-                    if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-                "byte" -> Integer.valueOf(value)
-                "short" -> Integer.valueOf(value)
-                "int" -> Integer.valueOf(value)
-                "long" -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-                "float" ->
-                    when (value) {
-                        "(1.0f/0.0f)",
-                        "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                        "(-1.0f/0.0f)",
-                        "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                        "(0.0f/0.0f)",
-                        "(0.0f / 0.0f)" -> Float.NaN
-                        else -> java.lang.Float.valueOf(value)
-                    }
-                "double" ->
-                    when (value) {
-                        "(1.0/0.0)",
-                        "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                        "(-1.0/0.0)",
-                        "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                        "(0.0/0.0)",
-                        "(0.0 / 0.0)" -> Double.NaN
-                        else -> java.lang.Double.valueOf(value)
-                    }
-                "char" -> value.toInt().toChar()
-                JAVA_LANG_STRING,
-                "String" ->
-                    if ("null" == value) {
-                        null
-                    } else {
-                        javaUnescapeString(value.substring(1, value.length - 1))
-                    }
-                "null" -> null
-                else -> value
+            if (type is PrimitiveTypeItem) {
+                when (type.kind) {
+                    Primitive.BOOLEAN ->
+                        if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+                    Primitive.BYTE,
+                    Primitive.SHORT,
+                    Primitive.INT -> Integer.valueOf(value)
+                    Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
+                    Primitive.FLOAT ->
+                        when (value) {
+                            "(1.0f/0.0f)",
+                            "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
+                            "(-1.0f/0.0f)",
+                            "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
+                            "(0.0f/0.0f)",
+                            "(0.0f / 0.0f)" -> Float.NaN
+                            else -> java.lang.Float.valueOf(value)
+                        }
+                    Primitive.DOUBLE ->
+                        when (value) {
+                            "(1.0/0.0)",
+                            "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
+                            "(-1.0/0.0)",
+                            "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
+                            "(0.0/0.0)",
+                            "(0.0 / 0.0)" -> Double.NaN
+                            else -> java.lang.Double.valueOf(value)
+                        }
+                    Primitive.CHAR -> value.toInt().toChar()
+                    Primitive.VOID ->
+                        throw ApiParseException(
+                            "Found value $value assigned to void type",
+                            tokenizer
+                        )
+                }
+            } else if (type.isString()) {
+                if ("null" == value) {
+                    null
+                } else {
+                    javaUnescapeString(value.substring(1, value.length - 1))
+                }
+            } else {
+                value
             }
         } else null
     }
