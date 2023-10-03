@@ -31,29 +31,48 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      */
     fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
         val params = cl.typeParameterList.typeParameters().map { it.toType() }
-        return TextClassTypeItem(codebase, cl.qualifiedTypeName, cl.qualifiedName, params, null)
+        return TextClassTypeItem(
+            codebase,
+            cl.qualifiedTypeName,
+            cl.qualifiedName,
+            params,
+            null,
+            modifiers(emptyList())
+        )
     }
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
     fun obtainObjectType(): TextTypeItem {
         return typeCache.obtain(JAVA_LANG_OBJECT) {
-            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, JAVA_LANG_OBJECT, emptyList(), null)
+            TextClassTypeItem(
+                codebase,
+                JAVA_LANG_OBJECT,
+                JAVA_LANG_OBJECT,
+                emptyList(),
+                null,
+                modifiers(emptyList())
+            )
         }
     }
 
     /**
      * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
      * the type parameters from [typeParams], if applicable.
+     *
+     * The [annotations] are optional leading type-use annotations that have already been removed
+     * from the type string.
      */
     @Throws(ApiParseException::class)
     fun obtainTypeFromString(
         type: String,
-        typeParams: List<TypeParameterItem> = emptyList()
+        typeParams: List<TypeParameterItem> = emptyList(),
+        annotations: List<String> = emptyList()
     ): TextTypeItem {
         // Only use the cache if there are no type parameters to prevent identically named type
         // variables from different contexts being parsed as the same type.
-        return if (typeParams.isEmpty()) {
-            typeCache.obtain(type) { parseType(it, typeParams) }
+        // Also don't use the cache when there are type-use annotations not contained in the string.
+        return if (typeParams.isEmpty() && annotations.isEmpty()) {
+            typeCache.obtain(type) { parseType(it, typeParams, annotations) }
         } else {
             parseType(type, typeParams)
         }
@@ -61,23 +80,27 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
     /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
     @Throws(ApiParseException::class)
-    private fun parseType(type: String, typeParams: List<TypeParameterItem>): TextTypeItem {
-        // TODO(b/300081840): handle annotations
-        val (unannotated, annotations) = trimLeadingAnnotations(type)
+    private fun parseType(
+        type: String,
+        typeParams: List<TypeParameterItem>,
+        annotations: List<String> = emptyList()
+    ): TextTypeItem {
+        val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
+        val allAnnotations = annotations + annotationsFromString
         val (withoutNullability, suffix) = splitNullabilitySuffix(unannotated)
         val trimmed = withoutNullability.trim()
 
         // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
-        return asPrimitive(type, trimmed)
-            ?: asVariable(type, trimmed, typeParams)
+        return asPrimitive(type, trimmed, allAnnotations)
+            ?: asVariable(type, trimmed, typeParams, allAnnotations)
             // Try parsing as a wildcard before trying to parse as an array.
             // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
             // not as an array of wildcards, for consistency with how this would be compiled.
-            ?: asWildcard(type, trimmed, typeParams)
+            ?: asWildcard(type, trimmed, typeParams, allAnnotations)
             // Try parsing as an array.
             ?: asArray(trimmed, annotations, suffix, typeParams)
             // If it isn't anything else, parse the type as a class.
-            ?: asClass(type, trimmed, typeParams)
+            ?: asClass(type, trimmed, typeParams, allAnnotations)
     }
 
     /**
@@ -88,7 +111,11 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * complete annotated type. Once annotations are properly handled (b/300081840), preserving
      * [original] won't be necessary.
      */
-    private fun asPrimitive(original: String, type: String): TextPrimitiveTypeItem? {
+    private fun asPrimitive(
+        original: String,
+        type: String,
+        annotations: List<String>
+    ): TextPrimitiveTypeItem? {
         val kind =
             when (type) {
                 "byte" -> PrimitiveTypeItem.Primitive.BYTE
@@ -102,7 +129,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 "void" -> PrimitiveTypeItem.Primitive.VOID
                 else -> return null
             }
-        return TextPrimitiveTypeItem(codebase, original, kind)
+        return TextPrimitiveTypeItem(codebase, original, kind, modifiers(annotations))
     }
 
     /**
@@ -169,21 +196,27 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             componentNullability = nullabilityResult.second
         }
 
-        // Re-add the component's nullability suffix when parsing the component type.
+        // Re-add the component's nullability suffix when parsing the component type, and include
+        // the leading annotations already removed from the type string.
         componentString += componentNullability
-        val deepComponentType = obtainTypeFromString(componentString, typeParams)
+        val deepComponentType =
+            obtainTypeFromString(componentString, typeParams, componentAnnotations)
 
         // Join the annotations and nullability markers -- as described in the comment above, these
         // appear in the string in reverse order of each other. The modifiers list will be ordered
         // from innermost array modifiers to outermost array modifiers.
-        val allModifiers = allAnnotations.zip(allNullability.reversed())
+        val allModifiers =
+            allAnnotations.zip(allNullability.reversed()).map { (annotations, _) ->
+                // TODO: use the nullability
+                modifiers(annotations)
+            }
         // The final modifiers are in the list apply to the outermost array.
         val componentModifiers = allModifiers.dropLast(1)
+        val arrayModifiers = allModifiers.last()
         // Create the component type of the outermost array by building up the inner component type.
-        // TODO: use the modifiers
         val componentType =
-            componentModifiers.fold(deepComponentType) { component, _ ->
-                TextArrayTypeItem(codebase, "$component[]", component, false)
+            componentModifiers.fold(deepComponentType) { component, modifiers ->
+                TextArrayTypeItem(codebase, "$component[]", component, false, modifiers)
             }
 
         // Create the outer array.
@@ -195,7 +228,13 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 allNullability,
                 varargs
             )
-        return TextArrayTypeItem(codebase, reassembledTypeString, componentType, varargs)
+        return TextArrayTypeItem(
+            codebase,
+            reassembledTypeString,
+            componentType,
+            varargs,
+            arrayModifiers
+        )
     }
 
     /**
@@ -260,13 +299,21 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun asWildcard(
         original: String,
         type: String,
-        typeParams: List<TypeParameterItem>
+        typeParams: List<TypeParameterItem>,
+        annotations: List<String>
     ): TextWildcardTypeItem? {
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?") return TextWildcardTypeItem(codebase, type, obtainObjectType(), null)
+        if (type == "?")
+            return TextWildcardTypeItem(
+                codebase,
+                type,
+                obtainObjectType(),
+                null,
+                modifiers(annotations)
+            )
 
         val bound = type.substring(2)
         return if (bound.startsWith("extends")) {
@@ -275,7 +322,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 codebase,
                 original,
                 obtainTypeFromString(extendsBound, typeParams),
-                null
+                null,
+                modifiers(annotations)
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
@@ -284,7 +332,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 original,
                 // All wildcards have an implicit Object extends bound
                 obtainObjectType(),
-                obtainTypeFromString(superBound, typeParams)
+                obtainTypeFromString(superBound, typeParams),
+                modifiers(annotations)
             )
         } else {
             throw ApiParseException(
@@ -304,10 +353,11 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun asVariable(
         original: String,
         type: String,
-        typeParams: List<TypeParameterItem>
+        typeParams: List<TypeParameterItem>,
+        annotations: List<String>
     ): TextVariableTypeItem? {
         val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
-        return TextVariableTypeItem(codebase, original, type, param)
+        return TextVariableTypeItem(codebase, original, type, param, modifiers(annotations))
     }
 
     /**
@@ -324,9 +374,10 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun asClass(
         original: String,
         type: String,
-        typeParams: List<TypeParameterItem>
+        typeParams: List<TypeParameterItem>,
+        annotations: List<String>
     ): TextClassTypeItem {
-        return createClassType(original, type, null, typeParams)
+        return createClassType(original, type, null, typeParams, annotations)
     }
 
     /**
@@ -342,9 +393,11 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         type: String,
         outerClassType: TextClassTypeItem?,
         typeParams: List<TypeParameterItem>,
+        annotations: List<String>
     ): TextClassTypeItem {
-        // TODO(b/300081840): handle annotations
-        val (name, afterName, _) = splitClassType(type)
+        val (name, afterName, classAnnotations) = splitClassType(type)
+        val allAnnotations = annotations + classAnnotations
+
         val (qualifiedName, fullName) =
             if (outerClassType != null) {
                 // This is an inner type, add the prefix of the outer name
@@ -358,7 +411,15 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
         val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
-        val classType = TextClassTypeItem(codebase, fullName, qualifiedName, params, outerClassType)
+        val classType =
+            TextClassTypeItem(
+                codebase,
+                fullName,
+                qualifiedName,
+                params,
+                outerClassType,
+                modifiers(allAnnotations)
+            )
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
@@ -367,10 +428,20 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 )
             }
             // This is an inner class type, recur with the new outer class
-            return createClassType(fullName, remainder.substring(1), classType, typeParams)
+            return createClassType(
+                fullName,
+                remainder.substring(1),
+                classType,
+                typeParams,
+                emptyList()
+            )
         }
 
         return classType
+    }
+
+    private fun modifiers(annotations: List<String>): TextTypeModifiers {
+        return TextTypeModifiers.create(codebase, annotations)
     }
 
     private class Cache<Key, Value> {
