@@ -1,12 +1,2 @@
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test annotated array types in multiple contexts[psi,java]
-  Test annotation on basic types[psi,java]
-  Test annotations on array type and component type[psi,java]
-  Test annotations on class type parameters[psi,java]
-  Test annotations on multidimensional array[psi,java]
-  Test annotations on multidimensional vararg array[psi,java]
-  Test annotations on qualified class type[psi,java]
   Test inner parameterized types with annotations[psi,java]
-  Test interface types[psi,java]
-  Test super class type[psi,java]
-  Test super class and interface types of interface[psi,java]
