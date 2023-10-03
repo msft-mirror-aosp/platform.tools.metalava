@@ -127,16 +127,72 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 return null
             }
 
-        // TODO(b/300081840): handle annotations
-        val (component, arrayAnnotations) = trimTrailingAnnotations(inner)
-        val componentType = obtainTypeFromString(component, typeParams)
+        // Create lists of the annotations and nullability markers for each dimension of the array.
+        // These are in separate lists because annotations appear in the type string in order from
+        // outermost array annotations to innermost array annotations (for `T @A [] @B [] @ C[]`,
+        // `@A` applies to the three-dimensional array, `@B` applies to the inner two-dimensional
+        // arrays, and `@C` applies to the inner one-dimensional arrays), while nullability markers
+        // appear in order from the innermost array nullability to the outermost array nullability
+        // (for `T[]![]?[]`, the three-dimensional array has no nullability marker, the inner
+        // two-dimensional arrays have `?` as the nullability marker, and the innermost arrays have
+        // `!` as a nullability marker.
+        val allAnnotations = mutableListOf<List<String>>()
+        // The nullability marker for the outer array is already known, include it in the list.
+        val allNullability = mutableListOf(nullability)
 
+        // Remove annotations from the end of the string, add them to the list.
+        var annotationsResult = trimTrailingAnnotations(inner)
+        var componentString = annotationsResult.first
+        allAnnotations.add(annotationsResult.second)
+
+        // Remove nullability marker from the component type, but don't add it to the list yet, as
+        // it might not be an array.
+        var nullabilityResult = splitNullabilitySuffix(componentString)
+        componentString = nullabilityResult.first
+        var componentNullability = nullabilityResult.second
+
+        // Work through all layers of arrays to get to the inner component type.
+        // Inner arrays can't be varargs.
+        while (componentString.endsWith("[]")) {
+            // The component is an array, add the nullability to the list.
+            allNullability.add(componentNullability)
+
+            // Remove annotations from the end of the string, add them to the list.
+            annotationsResult = trimTrailingAnnotations(componentString.removeSuffix("[]"))
+            componentString = annotationsResult.first
+            allAnnotations.add(annotationsResult.second)
+
+            // Remove nullability marker from the new component type, but don't add it to the list
+            // yet, as the next component type might not be an array.
+            nullabilityResult = splitNullabilitySuffix(componentString)
+            componentString = nullabilityResult.first
+            componentNullability = nullabilityResult.second
+        }
+
+        // Re-add the component's nullability suffix when parsing the component type.
+        componentString += componentNullability
+        val deepComponentType = obtainTypeFromString(componentString, typeParams)
+
+        // Join the annotations and nullability markers -- as described in the comment above, these
+        // appear in the string in reverse order of each other. The modifiers list will be ordered
+        // from innermost array modifiers to outermost array modifiers.
+        val allModifiers = allAnnotations.zip(allNullability.reversed())
+        // The final modifiers are in the list apply to the outermost array.
+        val componentModifiers = allModifiers.dropLast(1)
+        // Create the component type of the outermost array by building up the inner component type.
+        // TODO: use the modifiers
+        val componentType =
+            componentModifiers.fold(deepComponentType) { component, _ ->
+                TextArrayTypeItem(codebase, "$component[]", component, false)
+            }
+
+        // Create the outer array.
         val reassembledTypeString =
             reassembleArrayTypeString(
-                componentType,
+                deepComponentType,
                 componentAnnotations,
-                arrayAnnotations,
-                nullability,
+                allAnnotations,
+                allNullability,
                 varargs
             )
         return TextArrayTypeItem(codebase, reassembledTypeString, componentType, varargs)
@@ -153,24 +209,41 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * beginning of a type string and wildcard bounds and class parameters are at the end.
      */
     private fun reassembleArrayTypeString(
-        componentType: TextTypeItem,
-        componentAnnotations: List<String>,
-        arrayAnnotations: List<String>,
-        nullability: String,
+        deepComponentType: TextTypeItem,
+        deepComponentAnnotations: List<String>,
+        allArrayAnnotations: List<List<String>>,
+        allNullability: List<String>,
         varargs: Boolean
     ): String {
-        val leadingAnnotations =
-            if (componentAnnotations.isEmpty()) ""
-            else {
-                componentAnnotations.joinToString(" ") + " "
-            }
-        val trailingAnnotations =
-            if (arrayAnnotations.isEmpty()) ""
-            else {
-                " " + arrayAnnotations.joinToString(" ") + " "
-            }
-        val suffix = (if (varargs) "..." else "[]") + nullability
-        return "$leadingAnnotations$componentType$trailingAnnotations$suffix"
+        if (allArrayAnnotations.isNotEmpty()) {
+            // This is an array type -- make the component string, then add modifiers.
+            val component =
+                reassembleArrayTypeString(
+                    deepComponentType = deepComponentType,
+                    deepComponentAnnotations = deepComponentAnnotations,
+                    // Drop the modifiers for the outermost level of the string.
+                    allArrayAnnotations = allArrayAnnotations.drop(1),
+                    allNullability = allNullability.drop(1),
+                    // Inner array types can't be varargs
+                    varargs = false
+                )
+            val outerArrayAnnotations = allArrayAnnotations.first()
+            val trailingAnnotations =
+                if (outerArrayAnnotations.isEmpty()) ""
+                else {
+                    " " + outerArrayAnnotations.joinToString(" ") + " "
+                }
+            val suffix = (if (varargs) "..." else "[]") + allNullability.first()
+            return "$component$trailingAnnotations$suffix"
+        } else {
+            // End of the recursion, create a string for the non-array component type.
+            val leadingAnnotations =
+                if (deepComponentAnnotations.isEmpty()) ""
+                else {
+                    deepComponentAnnotations.joinToString(" ") + " "
+                }
+            return "$leadingAnnotations$deepComponentType"
+        }
     }
 
     /**
