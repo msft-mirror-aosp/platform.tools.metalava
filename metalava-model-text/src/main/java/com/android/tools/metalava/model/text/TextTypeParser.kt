@@ -131,13 +131,34 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         val (component, arrayAnnotations) = trimTrailingAnnotations(inner)
         val componentType = obtainTypeFromString(component, typeParams)
 
-        // Reassemble the full text of the array. The reason this is needed instead of simply using
-        // the original type like the other constructors do is that the component type might be an
-        // implicit `java.lang` type. If that's true, we need to add the `java.lang` prefix to the
-        // array type too. Once annotations are properly handled (b/300081840), this shouldn't be
-        // necessary.
-        // This isn't the case for any other complex types, because java.lang is only stripped from
-        // the beginning of a type string and wildcard bounds and class parameters are at the end.
+        val reassembledTypeString =
+            reassembleArrayTypeString(
+                componentType,
+                componentAnnotations,
+                arrayAnnotations,
+                nullability,
+                varargs
+            )
+        return TextArrayTypeItem(codebase, reassembledTypeString, componentType, varargs)
+    }
+
+    /**
+     * Reassemble the full text of the array. The reason this is needed instead of simply using the
+     * original type like the other constructors do is that the component type might be an implicit
+     * `java.lang` type. If that's true, we need to add the `java.lang` prefix to the array type
+     * too. Once annotations and nullability are properly handled (b/300081840), this shouldn't be
+     * necessary.
+     *
+     * This isn't the case for any other complex types, because java.lang is only stripped from the
+     * beginning of a type string and wildcard bounds and class parameters are at the end.
+     */
+    private fun reassembleArrayTypeString(
+        componentType: TextTypeItem,
+        componentAnnotations: List<String>,
+        arrayAnnotations: List<String>,
+        nullability: String,
+        varargs: Boolean
+    ): String {
         val leadingAnnotations =
             if (componentAnnotations.isEmpty()) ""
             else {
@@ -149,9 +170,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 " " + arrayAnnotations.joinToString(" ") + " "
             }
         val suffix = (if (varargs) "..." else "[]") + nullability
-        val reassembledTypeString = "$leadingAnnotations$componentType$trailingAnnotations$suffix"
-
-        return TextArrayTypeItem(codebase, reassembledTypeString, componentType, varargs)
+        return "$leadingAnnotations$componentType$trailingAnnotations$suffix"
     }
 
     /**
