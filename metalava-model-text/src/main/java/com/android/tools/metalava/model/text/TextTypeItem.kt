@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.VariableTypeItem
@@ -34,6 +35,8 @@ import kotlin.math.min
 const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
 
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
+    override val modifiers: TypeModifiers
+        get() = TODO("b/300081840")
 
     override fun toString(): String = type
 

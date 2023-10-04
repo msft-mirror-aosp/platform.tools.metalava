@@ -30,6 +30,9 @@ const val SUPPORT_TYPE_USE_ANNOTATIONS = false
  */
 @MetalavaApi
 interface TypeItem {
+    /** Modifiers for the type. Contains type-use annotation information. */
+    val modifiers: TypeModifiers
+
     /**
      * Generates a string for this type.
      *

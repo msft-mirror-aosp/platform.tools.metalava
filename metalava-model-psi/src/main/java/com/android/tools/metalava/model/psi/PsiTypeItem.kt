@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -63,6 +64,9 @@ import java.util.function.Predicate
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
     TypeItem {
+    override val modifiers: TypeModifiers
+        get() = TODO("b/300081840")
+
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var toInnerAnnotatedString: String? = null
