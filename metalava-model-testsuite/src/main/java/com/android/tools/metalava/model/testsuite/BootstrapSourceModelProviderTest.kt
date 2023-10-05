@@ -167,10 +167,11 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
 
                     interface SuperInterface{}
                     abstract class SuperClass implements SuperInterface{}
-                    interface ChildInterface {}
 
-                    class Test extends SuperClass implements ChildInterface {
-                    }
+                    interface SuperChildInterface{}
+                    interface ChildInterface extends SuperChildInterface,SuperInterface{}
+
+                    class Test extends SuperClass implements ChildInterface{}
                 """
             ),
         ) { codebase ->
@@ -178,9 +179,15 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val superClassItem = codebase.assertClass("test.pkg.SuperClass")
             val superInterfaceItem = codebase.assertClass("test.pkg.SuperInterface")
             val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
+            val superChildInterfaceItem = codebase.assertClass("test.pkg.SuperChildInterface")
             assertEquals(superClassItem, classItem.superClass())
-            assertEquals(2, classItem.allInterfaces().count(), message = "")
+            assertEquals(3, classItem.allInterfaces().count(), message = "")
             assertEquals(true, classItem.allInterfaces().contains(childInterfaceItem))
+            assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
+            assertEquals(true, classItem.allInterfaces().contains(superChildInterfaceItem))
+            assertEquals(3, childInterfaceItem.allInterfaces().count(), message = "")
+            assertEquals(true, childInterfaceItem.allInterfaces().contains(superChildInterfaceItem))
+            assertEquals(true, childInterfaceItem.allInterfaces().contains(childInterfaceItem))
             assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
         }
     }
