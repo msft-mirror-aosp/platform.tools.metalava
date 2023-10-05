@@ -184,4 +184,26 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
         }
     }
+
+    @Test
+    fun `100 - check class types`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                  package test.pkg;
+
+                  interface TestInterface{}
+                  enum TestEnum {}
+                  @interface TestAnnotation {}
+                """
+            ),
+        ) { codebase ->
+            val interfaceItem = codebase.assertClass("test.pkg.TestInterface")
+            val enumItem = codebase.assertClass("test.pkg.TestEnum")
+            val annotationItem = codebase.assertClass("test.pkg.TestAnnotation")
+            assertEquals(true, interfaceItem.isInterface())
+            assertEquals(true, enumItem.isEnum())
+            assertEquals(true, annotationItem.isAnnotationType())
+        }
+    }
 }
