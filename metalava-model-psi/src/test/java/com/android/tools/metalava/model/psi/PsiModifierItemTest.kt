@@ -96,12 +96,7 @@ class PsiModifierItemTest : BasePsiTest() {
             val primitive = primitiveMethod.returnType()
             assertThat(primitive).isInstanceOf(PrimitiveTypeItem::class.java)
             assertThat(primitive.annotationNames()).containsExactly("test.pkg.A")
-            if (isKotlin((primitiveMethod as PsiMethodItem).psiMethod)) {
-                assertThat(primitiveMethod.annotationNames()).isEmpty()
-            } else {
-                // The Java psi incorrectly attaches the annotation to both the type and method
-                assertThat(primitiveMethod.annotationNames()).containsExactly("test.pkg.A")
-            }
+            assertThat(primitiveMethod.annotationNames()).isEmpty()
 
             // @test.pkg.A String
             val stringMethod = methods[1]
@@ -114,8 +109,7 @@ class PsiModifierItemTest : BasePsiTest() {
                 assertThat(stringMethodAnnotations)
                     .containsExactly("org.jetbrains.annotations.NotNull")
             } else {
-                // The Java psi incorrectly attaches the annotation to both the type and method
-                assertThat(stringMethodAnnotations).containsExactly("test.pkg.A")
+                assertThat(stringMethodAnnotations).isEmpty()
             }
 
             // @test.pkg.A T
@@ -125,14 +119,7 @@ class PsiModifierItemTest : BasePsiTest() {
             assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
             assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
-            if (isKotlin((variableMethod as PsiMethodItem).psiMethod)) {
-                assertThat(variableMethod.annotationNames()).isEmpty()
-            } else {
-                // The Java psi incorrectly attaches the annotation to both the type and method
-                assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
-            }
-            // Explicit Unit return is required by compiler
-            Unit
+            assertThat(variableMethod.annotationNames()).isEmpty()
         }
 
         testCodebase(javaUsageSource, javaAnnotationSource, action = codebaseTest)

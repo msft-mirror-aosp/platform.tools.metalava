@@ -252,10 +252,9 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
         ) { codebase ->
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            // @A is TYPE_USE and PARAMETER, so it should not appear on the method - fixed in
-            // followup
+            // @A is TYPE_USE and PARAMETER, so it should not appear on the method
             val method = fooClass.methods().single()
-            assertThat(method.annotationNames()).containsExactly("test.pkg.A")
+            assertThat(method.annotationNames()).isEmpty()
             val methodReturn = method.returnType()
             assertThat(methodReturn.annotationNames()).containsExactly("test.pkg.A")
 
@@ -265,10 +264,9 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             val methodParamType = methodParam.type()
             assertThat(methodParamType.annotationNames()).containsExactly("test.pkg.A")
 
-            // @A is TYPE_USE and PARAMETER, so it should not appear on the field -- fixed in
-            // followup
+            // @A is TYPE_USE and PARAMETER, so it should not appear on the field
             val field = fooClass.fields().single()
-            assertThat(field.annotationNames()).containsExactly("test.pkg.A")
+            assertThat(field.annotationNames()).isEmpty()
             val fieldType = field.type()
             assertThat(fieldType.annotationNames()).containsExactly("test.pkg.A")
         }
