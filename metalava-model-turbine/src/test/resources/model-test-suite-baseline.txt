@@ -8,6 +8,8 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
+  MethodItem superMethods() on constructor[turbine,java]
+  MethodItem superMethods() on simple method[turbine,java]
   MethodItem type[turbine,java]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
