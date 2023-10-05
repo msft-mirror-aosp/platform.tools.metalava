@@ -656,6 +656,20 @@ class ApiFileTest : DriverTest() {
                     ),
                     java(
                         """
+                    package androidx.collection;
+
+                    import java.util.Collection;
+                    import java.util.HashSet;
+                    import java.util.Set;
+
+                    public class ArraySet<E> extends HashSet<E> implements Set<E> {
+                        public ArraySet() {
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
                     package androidx.core.app;
 
                     import java.util.ArrayList;
@@ -698,6 +712,26 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
+                    kotlin(
+                        "src/main/java/androidx/collection/ArraySet.kt",
+                        """
+                    package androidx.collection
+
+                    inline fun <T> arraySetOf(): ArraySet<T> = ArraySet()
+
+                    fun <T> arraySetOf(vararg values: T): ArraySet<T> {
+                        val set = ArraySet<T>(values.size)
+                        for (value in values) {
+                            set.add(value)
+                        }
+                        return set
+                    }
+
+                    fun <T> arraySetOfNullable(vararg values: T?): ArraySet<T>? {
+                        return null
+                    }
+                    """
+                    ),
                     androidxNonNullSource,
                     androidxNullableSource
                 ),
@@ -712,6 +746,14 @@ class ApiFileTest : DriverTest() {
                     method public static inline <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf();
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
+                  }
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
+                    ctor public ArraySet();
+                  }
+                  public final class ArraySetKt {
+                    method public static inline <T> androidx.collection.ArraySet<T> arraySetOf();
+                    method public static <T> androidx.collection.ArraySet<T> arraySetOf(T... values);
+                    method public static <T> androidx.collection.ArraySet<T>? arraySetOfNullable(T?... values);
                   }
                 }
                 package androidx.core.app {
@@ -851,6 +893,10 @@ class ApiFileTest : DriverTest() {
                         class CircularArray<E> {
                             val first: E
                                 get() = TODO()
+
+                            var last: E
+                                get() = TODO()
+                                set(value) = TODO()
                         }
                     """
                     )
@@ -861,7 +907,10 @@ class ApiFileTest : DriverTest() {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
                     method public E getFirst();
+                    method public E getLast();
+                    method public void setLast(E);
                     property public final E first;
+                    property public final E last;
                   }
                 }
             """
