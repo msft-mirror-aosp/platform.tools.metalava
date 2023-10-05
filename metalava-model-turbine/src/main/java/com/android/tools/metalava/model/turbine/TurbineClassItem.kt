@@ -50,8 +50,35 @@ open class TurbineClassItem(
 
     internal lateinit var innerClasses: List<TurbineClassItem>
 
-    override fun allInterfaces(): Sequence<ClassItem> {
-        TODO("b/295800205")
+    private var superClass: TurbineClassItem? = null
+
+    private var superClassType: TypeItem? = null
+
+    internal lateinit var directInterfaces: List<TurbineClassItem>
+
+    private var allInterfaces: List<TurbineClassItem>? = null
+
+    override fun allInterfaces(): Sequence<TurbineClassItem> {
+        if (allInterfaces == null) {
+            val interfaces = mutableSetOf<TurbineClassItem>()
+
+            // Add self as interface if applicable
+            if (isInterface()) {
+                interfaces.add(this)
+            }
+
+            // Add all the interfaces of super class
+            superClass()?.let { supClass ->
+                supClass.allInterfaces().forEach { interfaces.add(it) }
+            }
+
+            // Add all the interfaces of direct interfaces
+            directInterfaces.map { itf -> itf.allInterfaces().forEach { interfaces.add(it) } }
+
+            allInterfaces = interfaces.toList()
+        }
+
+        return allInterfaces!!.asSequence()
     }
 
     override fun constructors(): List<ConstructorItem> {
@@ -115,16 +142,13 @@ open class TurbineClassItem(
     }
 
     override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        TODO("b/295800205")
+        this.superClass = superClass as? TurbineClassItem
+        this.superClassType = superClassType
     }
 
-    override fun superClass(): ClassItem? {
-        TODO("b/295800205")
-    }
+    override fun superClass(): TurbineClassItem? = superClass
 
-    override fun superClassType(): TypeItem? {
-        TODO("b/295800205")
-    }
+    override fun superClassType(): TypeItem? = superClassType
 
     override fun toType(): TypeItem {
         TODO("b/295800205")
@@ -142,9 +166,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun hashCode(): Int {
-        TODO("b/295800205")
-    }
+    override fun hashCode(): Int = qualifiedName.hashCode()
 
     override fun equals(other: Any?): Boolean {
         return other is ClassItem && qualifiedName() == other.qualifiedName()
