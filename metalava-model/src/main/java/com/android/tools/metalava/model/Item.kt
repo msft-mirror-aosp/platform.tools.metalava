@@ -33,7 +33,7 @@ interface Item {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
-    val modifiers: ModifierList
+    @MetalavaApi val modifiers: ModifierList
 
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
