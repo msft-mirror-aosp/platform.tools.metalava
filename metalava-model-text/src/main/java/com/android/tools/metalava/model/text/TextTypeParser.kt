@@ -62,7 +62,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * The [annotations] are optional leading type-use annotations that have already been removed
      * from the type string.
      */
-    @Throws(ApiParseException::class)
     fun obtainTypeFromString(
         type: String,
         typeParams: List<TypeParameterItem> = emptyList(),
@@ -79,7 +78,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     }
 
     /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
-    @Throws(ApiParseException::class)
     private fun parseType(
         type: String,
         typeParams: List<TypeParameterItem>,
@@ -295,7 +293,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * complete annotated type. Once annotations are properly handled (b/300081840), preserving
      * [original] won't be necessary.
      */
-    @Throws(ApiParseException::class)
     private fun asWildcard(
         original: String,
         type: String,
@@ -370,7 +367,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * complete annotated type. Once annotations are properly handled (b/300081840), preserving
      * [original] won't be necessary.
      */
-    @Throws(ApiParseException::class)
     private fun asClass(
         original: String,
         type: String,
@@ -387,7 +383,6 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      * For instance, `test.pkg.Outer<P1>` would be the [outerQualifiedName] when parsing `Inner<P2>`
      * from the [original] type `test.pkg.Outer<P1>.Inner<P2>`.
      */
-    @Throws(ApiParseException::class)
     private fun createClassType(
         original: String,
         type: String,

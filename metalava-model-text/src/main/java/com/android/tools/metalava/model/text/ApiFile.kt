@@ -72,7 +72,6 @@ private constructor(
          *
          * @param file input signature file
          */
-        @Throws(ApiParseException::class)
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
@@ -87,7 +86,6 @@ private constructor(
          *
          * @param files input signature files
          */
-        @Throws(ApiParseException::class)
         fun parseApi(
             files: List<File>,
             classResolver: ClassResolver? = null,
@@ -124,6 +122,7 @@ private constructor(
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
         @Deprecated("Exists only for external callers. ")
         @JvmStatic
+        @MetalavaApi
         @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
@@ -137,7 +136,6 @@ private constructor(
         }
 
         /** Entry point for testing. Take a filename and content separately. */
-        @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
             apiText: String,
@@ -160,7 +158,6 @@ private constructor(
         ReferenceResolver.resolveReferences(this, api)
     }
 
-    @Throws(ApiParseException::class)
     private fun parseApiSingleFile(
         api: TextCodebase,
         appending: Boolean,
@@ -190,7 +187,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parsePackage(api: TextCodebase, tokenizer: Tokenizer) {
         var pkg: TextPackageItem
         var token: String = tokenizer.requireToken()
@@ -270,7 +266,6 @@ private constructor(
     /** Implements [ResolverContext] interface */
     override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
 
-    @Throws(ApiParseException::class)
     private fun parseClass(
         api: TextCodebase,
         pkg: TextPackageItem,
@@ -464,7 +459,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun processKotlinTypeSuffix(
         startingType: String,
         annotations: MutableList<String>
@@ -499,7 +493,6 @@ private constructor(
         return type
     }
 
-    @Throws(ApiParseException::class)
     private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
         var token = startingToken
         val annotations: MutableList<String> = mutableListOf()
@@ -537,7 +530,6 @@ private constructor(
         return annotations
     }
 
-    @Throws(ApiParseException::class)
     private fun parseConstructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -587,7 +579,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseMethod(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -655,7 +646,6 @@ private constructor(
         return annotations
     }
 
-    @Throws(ApiParseException::class)
     private fun parseField(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -694,7 +684,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseModifiers(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -861,7 +850,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseProperty(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -891,7 +879,6 @@ private constructor(
         cl.addProperty(property)
     }
 
-    @Throws(ApiParseException::class)
     private fun parseTypeParameterList(
         codebase: TextCodebase,
         tokenizer: Tokenizer
@@ -915,7 +902,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -1038,7 +1024,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
         val sb = StringBuilder()
         while (true) {
@@ -1052,7 +1037,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseThrows(tokenizer: Tokenizer, method: TextMethodItem): String {
         var token = tokenizer.requireToken()
         var comma = true
@@ -1148,7 +1132,6 @@ private constructor(
         return isIdent(token[0])
     }
 
-    @Throws(ApiParseException::class)
     private fun assertIdent(tokenizer: Tokenizer, token: String) {
         if (!isIdent(token[0])) {
             throw ApiParseException("Expected identifier: $token", tokenizer)
@@ -1215,7 +1198,6 @@ private constructor(
             }
         }
 
-        @Throws(ApiParseException::class)
         fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
             val token = getToken(parenIsSep, eatWhitespace)
             return token ?: throw ApiParseException("Unexpected end of file", this)
@@ -1231,7 +1213,6 @@ private constructor(
 
         lateinit var current: String
 
-        @Throws(ApiParseException::class)
         fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
             if (eatWhitespace) {
                 eatWhitespaceAndComments()
