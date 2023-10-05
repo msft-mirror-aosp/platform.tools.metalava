@@ -37,6 +37,7 @@ open class TurbineClassItem(
     private val qualifiedName: String,
     private val containingClass: TurbineClassItem?,
     override val modifiers: ModifierList,
+    private val classType: TurbineClassType,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
@@ -85,21 +86,15 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun isAnnotationType(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
 
     override fun isDefined(): Boolean {
         TODO("b/295800205")
     }
 
-    override fun isEnum(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isEnum(): Boolean = classType == TurbineClassType.ENUM
 
-    override fun isInterface(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isInterface(): Boolean = classType == TurbineClassType.INTERFACE
 
     override fun methods(): List<MethodItem> {
         TODO("b/295800205")

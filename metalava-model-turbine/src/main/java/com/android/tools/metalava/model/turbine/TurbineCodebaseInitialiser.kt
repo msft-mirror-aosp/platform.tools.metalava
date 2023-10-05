@@ -84,6 +84,7 @@ open class TurbineCodebaseInitialiser(
                 qualifiedName,
                 containingClass,
                 modifers,
+                TurbineClassType.getClassType(typeDecl.tykind()),
             )
 
         val members = typeDecl.members()
