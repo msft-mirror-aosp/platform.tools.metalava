@@ -102,7 +102,7 @@ class TextClassItemTest {
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, T, T")!!
+                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
         val evaluate2 =
             codebase
                 .getOrCreateClass("android.animation.FloatEvaluator")
@@ -246,7 +246,9 @@ class TextClassItemTest {
             )
 
         val compareTo1 =
-            codebase.getOrCreateClass("java.lang.Comparable").findMethod("compareTo", "T")!!
+            codebase
+                .getOrCreateClass("java.lang.Comparable")
+                .findMethod("compareTo", "java.lang.Object")!!
         val compareTo2 =
             codebase
                 .getOrCreateClass("java.lang.String")
@@ -265,7 +267,7 @@ class TextClassItemTest {
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, T, T")!!
+                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
         val evaluate2 =
             codebase
                 .getOrCreateClass("android.animation.ArgbEvaluator")
