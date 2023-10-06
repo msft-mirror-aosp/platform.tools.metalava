@@ -89,12 +89,19 @@ abstract class BaseModelTest(parameters: TestParameters) {
      * Currently, this is limited to one file but in future it may be more.
      */
     private data class InputSet(
-        /** The [InputFormat] of the [testFile]. */
+        /** The [InputFormat] of the [testFiles]. */
         val inputFormat: InputFormat,
 
-        /** The [TestFile] to process. */
-        val testFile: TestFile,
+        /** The [TestFile]s to process. */
+        val testFiles: List<TestFile>,
     )
+
+    /** Create an [InputSet]. */
+    private fun inputSet(testFile: TestFile): InputSet {
+        val inputFormat = InputFormat.fromFilename(testFile.targetRelativePath)
+        val files = listOf(testFile)
+        return InputSet(inputFormat, files)
+    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -109,18 +116,15 @@ abstract class BaseModelTest(parameters: TestParameters) {
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
-            .filter { it.inputFormat == inputFormat }
-            .singleOrNull()
+            .singleOrNull { it.inputFormat == inputFormat }
             ?.let {
                 val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFile, test)
+                runner.createCodebaseAndRun(tempDir, it.testFiles, test)
             }
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
-        return testFiles
-            .map { InputSet(InputFormat.fromFilename(it.targetRelativePath), it) }
-            .toTypedArray()
+        return testFiles.map { inputSet(it) }.toTypedArray()
     }
 
     /**
