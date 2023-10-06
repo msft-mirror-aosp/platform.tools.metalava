@@ -91,8 +91,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     ),
                     TypeStringParameters(
                         name = "int varargs",
-                        // This is inconsistent with how varargs are handled for generic types.
-                        parameters = "int...",
+                        parameters = "int[]",
                     ),
                     TypeStringParameters(
                         parameters = "long",
@@ -112,8 +111,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     TypeStringParameters(
                         name = "string varargs",
                         parameters = "String...",
-                        // This is inconsistent with how varargs are handled for generic types.
-                        expectedErasedType = "java.lang.String...",
+                        expectedErasedType = "java.lang.String[]",
                     ),
                     TypeStringParameters(
                         parameters = "T",
