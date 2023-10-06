@@ -213,4 +213,34 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(true, annotationItem.isAnnotationType())
         }
     }
+
+    @Test
+    fun `110 - advanced package test`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        class Test {
+                            class Inner {}
+                        }
+                    """
+                ),
+                java("""
+                        package test;
+                     """),
+            ),
+        ) { codebase ->
+            val packageItem = codebase.assertPackage("test.pkg")
+            val parentPackageItem = codebase.assertPackage("test")
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
+            assertEquals(1, packageItem.topLevelClasses().count())
+            assertEquals(0, parentPackageItem.topLevelClasses().count())
+            assertEquals(parentPackageItem, packageItem.containingPackage())
+            assertEquals(packageItem, classItem.containingPackage())
+            assertEquals(packageItem, innerClassItem.containingPackage())
+        }
+    }
 }
