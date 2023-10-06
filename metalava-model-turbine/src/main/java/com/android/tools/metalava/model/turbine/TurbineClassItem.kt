@@ -58,6 +58,8 @@ open class TurbineClassItem(
 
     private var allInterfaces: List<TurbineClassItem>? = null
 
+    internal lateinit var containingPackage: TurbinePackageItem
+
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
             val interfaces = mutableSetOf<TurbineClassItem>()
@@ -87,9 +89,8 @@ open class TurbineClassItem(
 
     override fun containingClass(): ClassItem? = containingClass
 
-    override fun containingPackage(): PackageItem {
-        TODO("b/295800205")
-    }
+    override fun containingPackage(): PackageItem =
+        containingClass?.containingPackage() ?: containingPackage
 
     override fun fields(): List<FieldItem> {
         TODO("b/295800205")

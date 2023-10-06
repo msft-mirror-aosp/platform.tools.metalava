@@ -62,6 +62,8 @@ open class TurbineCodebaseInitialiser(
         for (unit in units) {
             createItems(unit)
         }
+        // Create root package
+        findOrCreatePackage("")
 
         // This method sets up hierarchy using only parsed source files
         setInnerClassHierarchy(units)
@@ -81,7 +83,7 @@ open class TurbineCodebaseInitialiser(
     }
 
     /** Extracts data from the compilation units. A unit corresponds to one parsed source file. */
-    fun createItems(unit: CompUnit) {
+    private fun createItems(unit: CompUnit) {
         val optPkg = unit.pkg()
         val pkg = if (optPkg.isPresent()) optPkg.get() else null
         var pkgName = ""
@@ -89,22 +91,40 @@ open class TurbineCodebaseInitialiser(
             val pkgNameList = pkg.name().map { it.value() }
             pkgName = pkgNameList.joinToString(separator = ".")
         }
+        val pkgItem = findOrCreatePackage(pkgName)
+
         val typeDecls = unit.decls()
         for (typeDecl in typeDecls) {
-            populateClass(typeDecl, pkgName, null, true)
+            populateClass(typeDecl, pkgItem, null, true)
+        }
+    }
+
+    /**
+     * Searches for the package with supplied name in the codebase's package map and if not found
+     * creates the corresponding TurbinePackageItem and adds it to the package map.
+     */
+    private fun findOrCreatePackage(name: String): TurbinePackageItem {
+        val pkgItem = codebase.findPackage(name)
+        if (pkgItem != null) {
+            return pkgItem as TurbinePackageItem
+        } else {
+            val modifers = DefaultModifierList(codebase)
+            val turbinePkgItem = TurbinePackageItem(codebase, name, modifers)
+            codebase.addPackage(turbinePkgItem)
+            return turbinePkgItem
         }
     }
 
     /** Creates a TurbineClassItem and adds the classitem to the various maps in codebase. */
-    fun populateClass(
+    private fun populateClass(
         typeDecl: TyDecl,
-        pkgName: String,
+        pkgItem: TurbinePackageItem,
         containingClass: TurbineClassItem?,
         isTopClass: Boolean,
     ) {
         val className = typeDecl.name().value()
         val fullName = if (isTopClass) className else containingClass?.fullName() + "." + className
-        val qualifiedName = pkgName + "." + fullName
+        val qualifiedName = pkgItem.qualifiedName() + "." + fullName
         val modifers = DefaultModifierList(codebase)
         val classItem =
             TurbineClassItem(
@@ -122,7 +142,7 @@ open class TurbineCodebaseInitialiser(
             when (member.kind()) {
                 // A class or an interface declaration
                 TY_DECL -> {
-                    populateClass(member as TyDecl, pkgName, classItem, false)
+                    populateClass(member as TyDecl, pkgItem, classItem, false)
                 }
                 else -> {
                     // Do nothing for now
@@ -131,10 +151,15 @@ open class TurbineCodebaseInitialiser(
         }
         codebase.addClass(classItem, isTopClass)
         itemMap.put(typeDecl, qualifiedName)
+
+        if (isTopClass) {
+            classItem.containingPackage = pkgItem
+            pkgItem.addTopClass(classItem)
+        }
     }
 
     /** This method sets up inner class hierarchy without using binder. */
-    fun setInnerClassHierarchy(units: List<CompUnit>) {
+    private fun setInnerClassHierarchy(units: List<CompUnit>) {
         for (unit in units) {
             val typeDecls = unit.decls()
             for (typeDecl in typeDecls) {
@@ -144,7 +169,7 @@ open class TurbineCodebaseInitialiser(
     }
 
     /** Method to setup innerclasses for a single class */
-    fun setInnerClasses(typeDecl: TyDecl) {
+    private fun setInnerClasses(typeDecl: TyDecl) {
         val className = itemMap[typeDecl]!!
         val classItem = codebase.findClass(className)!!
         val innerClasses =
@@ -159,7 +184,7 @@ open class TurbineCodebaseInitialiser(
     }
 
     /** This method uses output from binder to setup superclass and implemented interfaces */
-    fun setSuperClassHierarchy(units: ImmutableMap<ClassSymbol, SourceTypeBoundClass>) {
+    private fun setSuperClassHierarchy(units: ImmutableMap<ClassSymbol, SourceTypeBoundClass>) {
         for ((sym, cls) in units) {
             val classItem = codebase.findClass(sym.toString())
             if (classItem != null) {
