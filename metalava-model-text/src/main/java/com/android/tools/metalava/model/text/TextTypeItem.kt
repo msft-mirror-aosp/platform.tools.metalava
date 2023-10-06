@@ -152,7 +152,8 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         ): String {
             return if (erased) {
                 val raw = eraseTypeArguments(type)
-                val concrete = eraseTypeArguments(substituteTypeParameters(raw, context))
+                val rawNoEllipsis = raw.replace("...", "[]")
+                val concrete = eraseTypeArguments(substituteTypeParameters(rawNoEllipsis, context))
                 if (outerAnnotations && innerAnnotations) {
                     concrete
                 } else {

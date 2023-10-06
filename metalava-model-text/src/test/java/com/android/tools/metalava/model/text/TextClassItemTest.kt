@@ -254,11 +254,14 @@ class TextClassItemTest {
         val insertParameterTypes1 =
             codebase
                 .getOrCreateClass("java.lang.invoke.MethodType")
-                .findMethod("insertParameterTypes", "int, java.lang.Class...")!!
+                .findMethod("insertParameterTypes", "int, java.lang.Class[]")!!
         val insertParameterTypes2 =
             codebase
                 .getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod")
-                .findMethod("insertParameterTypes", "int, F...")!!
+                .findMethod(
+                    "insertParameterTypes",
+                    "int, java.lang.invoke.TypeDescriptor.OfField[]"
+                )!!
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
