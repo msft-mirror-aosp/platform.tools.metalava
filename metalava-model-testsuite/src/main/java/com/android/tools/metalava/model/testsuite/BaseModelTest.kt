@@ -88,7 +88,7 @@ abstract class BaseModelTest(parameters: TestParameters) {
      *
      * Currently, this is limited to one file but in future it may be more.
      */
-    private data class InputSet(
+    data class InputSet(
         /** The [InputFormat] of the [testFiles]. */
         val inputFormat: InputFormat,
 
@@ -96,10 +96,35 @@ abstract class BaseModelTest(parameters: TestParameters) {
         val testFiles: List<TestFile>,
     )
 
-    /** Create an [InputSet]. */
-    private fun inputSet(testFile: TestFile): InputSet {
-        val inputFormat = InputFormat.fromFilename(testFile.targetRelativePath)
-        val files = listOf(testFile)
+    /**
+     * Create an [InputSet].
+     *
+     * It is an error if [testFiles] is empty or if [testFiles] have different [InputFormat]. That
+     * means that it is not currently possible to mix Kotlin and Java files.
+     */
+    fun inputSet(vararg testFiles: TestFile): InputSet {
+        if (testFiles.isEmpty()) {
+            throw IllegalStateException("Must provide at least one source file")
+        }
+
+        // Make sure that all the test files are the same InputFormat.
+        val byInputFormat = testFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
+        val inputFormatCount = byInputFormat.size
+        if (inputFormatCount != 1) {
+            throw IllegalStateException(
+                buildString {
+                    append(
+                        "All files in the list must be the same input format, but found $inputFormatCount different input formats:\n"
+                    )
+                    byInputFormat.forEach { (format, files) ->
+                        append("    $format\n")
+                        files.forEach { append("        $it") }
+                    }
+                }
+            )
+        }
+
+        val (inputFormat, files) = byInputFormat.entries.single()
         return InputSet(inputFormat, files)
     }
 
@@ -138,8 +163,24 @@ abstract class BaseModelTest(parameters: TestParameters) {
         vararg sources: TestFile,
         test: (Codebase) -> Unit,
     ) {
+        runCodebaseTest(
+            sources = testFilesToInputSets(sources),
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
+     * that [Codebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    fun runCodebaseTest(
+        vararg sources: InputSet,
+        test: (Codebase) -> Unit,
+    ) {
         createCodebaseFromInputSetAndRun(
-            *testFilesToInputSets(sources),
+            *sources,
             test = test,
         )
     }
@@ -155,8 +196,24 @@ abstract class BaseModelTest(parameters: TestParameters) {
         vararg sources: TestFile,
         test: (SourceCodebase) -> Unit,
     ) {
+        runSourceCodebaseTest(
+            sources = testFilesToInputSets(sources),
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
+     * [test] on that [SourceCodebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    fun runSourceCodebaseTest(
+        vararg sources: InputSet,
+        test: (SourceCodebase) -> Unit,
+    ) {
         createCodebaseFromInputSetAndRun(
-            *testFilesToInputSets(sources),
+            *sources,
         ) {
             test(it as SourceCodebase)
         }
