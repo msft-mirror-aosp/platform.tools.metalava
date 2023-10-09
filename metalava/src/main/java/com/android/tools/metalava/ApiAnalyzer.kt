@@ -234,20 +234,10 @@ class ApiAnalyzer(
         val superClass = cls.filteredSuperclass(filter)
         superClass?.let { addConstructors(it, filter, visited) }
 
-        if (superClass != null) {
-            val superDefaultConstructor = superClass.stubConstructor
-            if (superDefaultConstructor != null) {
-                val constructors = cls.constructors()
-                for (constructor in constructors) {
-                    val superConstructor = constructor.superConstructor
-                    if (
-                        superConstructor == null ||
-                            (superConstructor.containingClass() != superClass &&
-                                superConstructor.containingClass() != cls)
-                    ) {
-                        constructor.superConstructor = superDefaultConstructor
-                    }
-                }
+        val superDefaultConstructor = superClass?.stubConstructor
+        if (superDefaultConstructor != null) {
+            cls.constructors().forEach { constructor ->
+                constructor.superConstructor = superDefaultConstructor
             }
         }
 
@@ -273,7 +263,7 @@ class ApiAnalyzer(
                 cls.createDefaultConstructor().also {
                     it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
                     it.hidden = false
-                    it.superConstructor = superClass?.stubConstructor
+                    it.superConstructor = superDefaultConstructor
                 }
             } else {
                 null
