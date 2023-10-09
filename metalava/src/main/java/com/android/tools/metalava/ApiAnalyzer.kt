@@ -252,27 +252,32 @@ class ApiAnalyzer(
         }
 
         // Find default constructor, if one doesn't exist
-        val constructors = cls.filteredConstructors(filter).toList()
-        if (constructors.isNotEmpty()) {
-            // Try to pick the constructor, select first by fewest throwables,
-            // then fewest parameters, then based on order in listFilter.test(cls)
-            cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
-            return
-        }
+        val filteredConstructors = cls.filteredConstructors(filter).toList()
+        cls.stubConstructor =
+            if (filteredConstructors.isNotEmpty()) {
+                // Try to pick the constructor, select first by fewest throwables,
+                // then fewest parameters, then based on order in listFilter.test(cls)
+                filteredConstructors.reduce { first, second -> pickBest(first, second) }
+            } else if (
+                cls.constructors().isNotEmpty() ||
+                    // For text based codebase, stub constructor needs to be generated even if
+                    // cls.constructors() is empty, so that public default constructor is not
+                    // created.
+                    cls.codebase.preFiltered
+            ) {
 
-        // For text based codebase, stub constructor needs to be generated even if
-        // cls.constructors() is empty, so that public default constructor is not created.
-        if (cls.constructors().isNotEmpty() || cls.codebase.preFiltered) {
-            // No accessible constructors are available so a package private constructor is created.
-            // Technically, the stub now has a constructor that isn't available at runtime,
-            // but apps creating subclasses inside the android.* package is not supported.
-            cls.stubConstructor =
+                // No accessible constructors are available so a package private constructor is
+                // created. Technically, the stub now has a constructor that isn't available at
+                // runtime, but apps creating subclasses inside the android.* package is not
+                // supported.
                 cls.createDefaultConstructor().also {
                     it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
                     it.hidden = false
                     it.superConstructor = superClass?.stubConstructor
                 }
-        }
+            } else {
+                null
+            }
     }
 
     // TODO: Annotation test: @ParameterName, if present, must be supplied on *all* the arguments!
