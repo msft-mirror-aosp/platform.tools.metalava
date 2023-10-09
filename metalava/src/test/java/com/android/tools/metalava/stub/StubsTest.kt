@@ -1668,14 +1668,11 @@ class StubsTest : AbstractStubsTest() {
             stubFiles =
                 arrayOf(
                     // class java.text.AttributedCharacterIterator.Attribute is included in
-                    // android.jar,
-                    // which is passed as classpath in DriverTest.
-                    // The class does not have a default constructor
-                    // but has a constructor that takes a String argument as an input.
-                    // Therefore, the constructor in the class java.text.Format.Field
-                    // must call the super constructor with a String argument to avoid
-                    // compile error. However, the signature is currently missing in the
-                    // stub generated from the signature files.
+                    // android.jar, which is passed as classpath in DriverTest. The class does not
+                    // have a default constructor but has a constructor that takes a String argument
+                    // as an input. Therefore, the constructor in the class java.text.Format.Field
+                    // must call the super constructor with a String argument to avoid compile
+                    // error.
                     java(
                         """
                     package java.text;
@@ -1684,7 +1681,7 @@ class StubsTest : AbstractStubsTest() {
                     protected Format() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Field extends java.text.AttributedCharacterIterator.Attribute {
-                    protected Field(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                    protected Field(java.lang.String arg1) { super(null); throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
