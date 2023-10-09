@@ -1597,6 +1597,58 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
+    fun `Ensure that when generating stubs from signature files the constructors are setup correctly`() {
+        check(
+            format = FileFormat.V2,
+            signatureSources =
+                arrayOf(
+                    """
+            // Signature format: 2.0
+            package test.pkg {
+              public abstract class Parent {
+                ctor protected Parent(String);
+              }
+              public static class Child extends test.pkg.Parent {
+                ctor protected Child(String);
+              }
+            }
+            """,
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Parent {
+                    protected Parent(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    // class test.pkg.Parent does not have a default constructor but has a
+                    // constructor that takes a String argument as an input. Therefore, the
+                    // constructor in the class test.pkg.Child must call the super constructor with
+                    // a String argument to avoid a compiler error. However, the call to super is
+                    // currently missing in the stub generated from the signature file.
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public static class Child extends test.pkg.Parent {
+                    protected Child(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_API_CLASS_RESOLUTION,
+                    "api:classpath",
+                ),
+        )
+    }
+
+    @Test
     fun `Compilable stubs are not generated when inheriting class exists in jar passed via classpath`() {
         check(
             format = FileFormat.V2,
