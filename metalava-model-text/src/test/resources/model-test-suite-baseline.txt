@@ -1,3 +1,0 @@
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
-  Erased type string[text,signature,extends Object and Comparable]
-  Find method[text,signature,extends Object and Comparable]
