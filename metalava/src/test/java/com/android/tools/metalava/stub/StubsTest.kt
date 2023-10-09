@@ -1628,14 +1628,13 @@ class StubsTest : AbstractStubsTest() {
                     // class test.pkg.Parent does not have a default constructor but has a
                     // constructor that takes a String argument as an input. Therefore, the
                     // constructor in the class test.pkg.Child must call the super constructor with
-                    // a String argument to avoid a compiler error. However, the call to super is
-                    // currently missing in the stub generated from the signature file.
+                    // a String argument to avoid a compiler error.
                     java(
                         """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Child extends test.pkg.Parent {
-                    protected Child(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                    protected Child(java.lang.String arg1) { super(null); throw new RuntimeException("Stub!"); }
                     }
                     """
                     ),

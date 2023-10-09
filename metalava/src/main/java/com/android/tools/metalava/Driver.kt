@@ -439,17 +439,18 @@ private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
     textCodebase: TextCodebase,
 ) {
-    // Only add constructors if the codebase does not fall back to loading classes from the
-    // classpath. This is needed because only the TextCodebase supports adding constructors
-    // in this way.
-    if (options.apiClassResolution == ApiClassResolution.API) {
-        // Reuse the existing ApiAnalyzer support for adding constructors that is used in
-        // [loadFromSources], to make sure that the constructors are correct when generating stubs
-        // from source files.
-        val analyzer =
-            ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.apiAnalyzerConfig)
-        analyzer.addConstructors { _ -> true }
+    // Reuse the existing ApiAnalyzer support for adding constructors that is used in
+    // [loadFromSources], to make sure that the constructors are correct when generating stubs
+    // from source files.
+    val analyzer =
+        ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.apiAnalyzerConfig)
+    analyzer.addConstructors { _ -> true }
 
+    // Only add missing concrete overrides if the codebase does not fall back to loading classes
+    // from the classpath. This is needed because addMissingConcreteMethods assumes that all class
+    // items in the hierarchy are TextClassItem which will not be true if some of those classes have
+    // been loaded from the classpath; in that case some will be PsiClassItems.
+    if (options.apiClassResolution == ApiClassResolution.API) {
         addMissingConcreteMethods(
             textCodebase.getPackages().allClasses().map { it as TextClassItem }.toList()
         )
