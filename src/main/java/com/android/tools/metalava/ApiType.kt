@@ -16,91 +16,95 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.DOT_TXT
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import java.io.File
 import java.util.function.Predicate
 
-/** Types of APIs emitted (or parsed etc) */
+/** Types of APIs emitted (or parsed etc.) */
 enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
     PUBLIC_API("api", "public") {
-        override fun getOptionFile(): File? {
-            return options.apiFile
+
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            // This filter is for API signature files, where we don't need the "for stub purposes"
+            // APIs.
+            val apiFilter =
+                FilterPredicate(
+                    ApiPredicate(
+                        includeApisForStubPurposes = false,
+                        config = apiPredicateConfig,
+                    )
+                )
+            val apiReference = ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
+            return apiFilter.and(elidingPredicate(apiReference, apiPredicateConfig))
         }
 
-        override fun getEmitFilter(): Predicate<Item> {
-            // This filter is for API signature files, where we don't need the "for stub purposes" APIs.
-            val apiFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false))
-            val apiReference = ApiPredicate(ignoreShown = true)
-            return apiFilter.and(ElidingPredicate(apiReference))
-        }
-
-        override fun getReferenceFilter(): Predicate<Item> {
-            return ApiPredicate(ignoreShown = true)
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            return ApiPredicate(ignoreShown = true, config = apiPredicateConfig)
         }
     },
 
     /** The API that has been removed */
     REMOVED("removed", "removed") {
-        override fun getOptionFile(): File? {
-            return options.removedApiFile
+
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            // This filter is for API signature files, where we don't need the "for stub purposes"
+            // APIs.
+            val removedFilter =
+                FilterPredicate(
+                    ApiPredicate(
+                        includeApisForStubPurposes = false,
+                        matchRemoved = true,
+                        config = apiPredicateConfig,
+                    )
+                )
+            val removedReference =
+                ApiPredicate(
+                    ignoreShown = true,
+                    ignoreRemoved = true,
+                    config = apiPredicateConfig,
+                )
+            return removedFilter.and(elidingPredicate(removedReference, apiPredicateConfig))
         }
 
-        override fun getEmitFilter(): Predicate<Item> {
-            // This filter is for API signature files, where we don't need the "for stub purposes" APIs.
-            val removedFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false, matchRemoved = true))
-            val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
-            return removedFilter.and(ElidingPredicate(removedReference))
-        }
-
-        override fun getReferenceFilter(): Predicate<Item> {
-            return ApiPredicate(ignoreShown = true, ignoreRemoved = true)
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            return ApiPredicate(
+                ignoreShown = true,
+                ignoreRemoved = true,
+                config = apiPredicateConfig,
+            )
         }
     },
 
     /** Everything */
     ALL("all", "all") {
-        override fun getOptionFile(): File? {
-            return null
-        }
 
-        override fun getEmitFilter(): Predicate<Item> {
+        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return Predicate { it.emit }
         }
 
-        override fun getReferenceFilter(): Predicate<Item> {
+        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return Predicate { true }
         }
     };
 
-    /** Returns the user-configured file where the API has been written to, if any */
-    abstract fun getOptionFile(): File?
+    abstract fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
-    abstract fun getEmitFilter(): Predicate<Item>
-
-    abstract fun getReferenceFilter(): Predicate<Item>
-
-    override fun toString(): String = displayName
+    abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
     /**
-     * Gets the signature file for the given API type. Will create it if not already
-     * created.
+     * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
+     * [apiPredicateConfig].
      */
-    fun getSignatureFile(codebase: Codebase, defaultName: String): File {
-        val apiType = this
-        return apiType.getOptionFile() ?: run {
-            val tempFile = createTempFile(defaultName, DOT_TXT)
-            tempFile.deleteOnExit()
-            val apiEmit = apiType.getEmitFilter()
-            val apiReference = apiType.getReferenceFilter()
+    protected fun elidingPredicate(
+        wrappedPredicate: ApiPredicate,
+        apiPredicateConfig: ApiPredicate.Config
+    ) =
+        ElidingPredicate(
+            wrappedPredicate,
+            addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
+            additionalNonessentialOverridesClasses =
+                apiPredicateConfig.additionalNonessentialOverridesClasses,
+        )
 
-            createReportFile(codebase, tempFile, null) { printWriter ->
-                SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
-            }
-
-            tempFile
-        }
-    }
+    override fun toString(): String = displayName
 }

@@ -16,35 +16,47 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
+@Suppress("DEPRECATION")
 object SignatureFileLoader {
-    private val map = mutableMapOf<File, Codebase>()
+    private val map = mutableMapOf<File, TextCodebase>()
 
-    fun load(file: File, kotlinStyleNulls: Boolean = false): Codebase {
-        return map[file] ?: run {
-            val loaded = loadFiles(listOf(file), kotlinStyleNulls)
-            map[file] = loaded
-            loaded
-        }
+    /** Used by java file. */
+    fun load(file: File): TextCodebase {
+        return load(file, null)
     }
 
-    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): Codebase {
+    fun load(
+        file: File,
+        classResolver: ClassResolver? = null,
+        annotationManager: AnnotationManager = options.annotationManager,
+    ): TextCodebase {
+        return map[file]
+            ?: run {
+                val loaded = loadFiles(listOf(file), classResolver, annotationManager)
+                map[file] = loaded
+                loaded
+            }
+    }
+
+    fun loadFiles(
+        files: List<File>,
+        classResolver: ClassResolver? = null,
+        annotationManager: AnnotationManager = options.annotationManager,
+    ): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
-            val codebase = ApiFile.parseApi(files, kotlinStyleNulls)
-
-            // Unlike loadFromSources, analyzer methods are not required for text based codebase
-            // because all methods in the API text file belong to an API surface.
-            val analyzer = ApiAnalyzer(codebase)
-            analyzer.addConstructors { _ -> true }
-            return codebase
+            return ApiFile.parseApi(files, classResolver, annotationManager)
         } catch (ex: ApiParseException) {
-            throw DriverException("Unable to parse signature file: ${ex.message}")
+            throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
         }
     }
 }

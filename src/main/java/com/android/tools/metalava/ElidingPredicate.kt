@@ -21,24 +21,45 @@ import com.android.tools.metalava.model.MethodItem
 import java.util.function.Predicate
 
 /**
- * Filter that will elide exact duplicate methods that are already included
- * in another superclass/interfaces.
+ * Filter that will elide exact duplicate methods that are already included in another
+ * superclass/interfaces.
  */
-class ElidingPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
+class ElidingPredicate(
+    private val wrapped: Predicate<Item>,
 
+    /** Whether overriding methods essential for compiling the stubs should be elided or not. */
+    private val addAdditionalOverrides: Boolean,
+
+    /** Set of qualified names of classes where all visible overriding methods are not elided. */
+    private val additionalNonessentialOverridesClasses: Set<String>,
+) : Predicate<Item> {
+
+    // Returning true means we are keeping this item
+    // i.e. when this returns false, we are eliding the item
     override fun test(method: Item): Boolean {
         // This method should be included, but if it's an exact duplicate
         // override then we can elide it.
         return if (method is MethodItem && !method.isConstructor()) {
-            val differentSuper = method.findPredicateSuperMethod(
-                Predicate { test ->
-                    // We're looking for included and perfect signature
-                    wrapped.test(test) &&
-                        test is MethodItem &&
-                        MethodItem.sameSignature(method, test, false)
-                }
-            )
-            differentSuper == null
+            val differentSuper =
+                method.findPredicateSuperMethod(
+                    // This predicate returns true if
+                    // the potential super method has same signature
+                    Predicate { maybeEqualSuperMethod ->
+                        // We're looking for included and perfect signature
+                        wrapped.test(maybeEqualSuperMethod) &&
+                            maybeEqualSuperMethod is MethodItem &&
+                            MethodItem.sameSignature(method, maybeEqualSuperMethod, false)
+                    }
+                )
+
+            val doNotElideForAdditionalOverridePurpose =
+                addAdditionalOverrides &&
+                    (method.isRequiredOverridingMethodForTextStub() ||
+                        (method.containingClass().qualifiedName() in
+                            additionalNonessentialOverridesClasses &&
+                            method.superMethods().all { !it.hidden || it.hasShowAnnotation() }))
+
+            differentSuper == null || doNotElideForAdditionalOverridePurpose
         } else {
             true
         }
