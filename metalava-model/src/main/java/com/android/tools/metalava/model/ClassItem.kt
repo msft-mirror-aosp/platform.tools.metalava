@@ -197,9 +197,7 @@ interface ClassItem : Item {
     @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
-    fun containingPackage(): PackageItem
-
-    override fun containingPackage(strict: Boolean): PackageItem = containingPackage()
+    override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
     fun toType(): TypeItem
