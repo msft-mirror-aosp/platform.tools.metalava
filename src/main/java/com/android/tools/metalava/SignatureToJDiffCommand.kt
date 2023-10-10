@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.cli.common.progressTracker
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
@@ -76,7 +80,11 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
+        // Some code that this calls still accesses options, but it only needs the default values.
+        @Suppress("DEPRECATION")
+        options = Options()
+
         val convertFile = ConvertFile(apiFile, xmlFile, baseApiFile, strip)
-        convertFile.process()
+        convertFile.process(progressTracker)
     }
 }

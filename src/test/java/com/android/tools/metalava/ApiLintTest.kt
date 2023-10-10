@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class ApiLintTest : DriverTest() {
@@ -1590,22 +1594,14 @@ class ApiLintTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
-        check(
+    private fun `Check boolean constructor parameter accessor naming patterns in Kotlin`(
+        isK2: Boolean,
+        expectedIssues: String?,
+    ) {
+        uastCheck(
+            isK2 = isK2,
             apiLint = "", // enabled
-            // TODO (b/278505954): missing errors for `isVisibleSetterBad`,
-            // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                              """,
+            expectedIssues = expectedIssues,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
@@ -1656,6 +1652,46 @@ class ApiLintTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
+        `Check boolean constructor parameter accessor naming patterns in Kotlin`(
+            isK2 = false,
+            // missing errors for `isVisibleSetterBad`,
+            // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
+            expectedIssues =
+                """
+                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                              """,
+        )
+    }
+
+    @Test
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
+        `Check boolean constructor parameter accessor naming patterns in Kotlin`(
+            isK2 = true,
+            expectedIssues =
+                """
+                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:22: error: Invalid name for boolean property setter `setIsVisibleBad`, should be `setVisibleSetterBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:37: error: Getter for boolean property `hasTransientStateGetterBad` is named `getHasTransientStateGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:39: error: Getter for boolean property `canRecordGetterBad` is named `getCanRecordGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:41: error: Getter for boolean property `shouldFitWidthGetterBad` is named `getShouldFitWidthGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                              """,
         )
     }
 
@@ -3702,6 +3738,136 @@ class ApiLintTest : DriverTest() {
                     )
                 ),
             extraArguments = arrayOf("--error", "NoSettingsProvider")
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi on new APIs`() {
+        check(
+            expectedIssues =
+                """
+                src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad [UnflaggedApi]
+                src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: constructor android.foobar.Bad() [UnflaggedApi]
+                src/android/foobar/Bad.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.bad() [UnflaggedApi]
+                src/android/foobar/Bad.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD [UnflaggedApi]
+                src/android/foobar/Bad.java:7: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadAnnotation [UnflaggedApi]
+                src/android/foobar/Bad.java:6: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadInterface [UnflaggedApi]
+                src/android/foobar/ExistingClass.java:10: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.bad() [UnflaggedApi]
+                src/android/foobar/ExistingClass.java:9: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.BAD [UnflaggedApi]
+                """
+                    .trimIndent(),
+            apiLint =
+                """
+                package android.foobar {
+                  public class ExistingClass {
+                      ctor ExistingClass();
+                      field public static final String EXISTING_FIELD = "foo";
+                      method public void existingMethod();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingClass {
+                            public static final String EXISTING_FIELD = "foo";
+                            public void existingMethod() {}
+
+                            public static final String BAD = "bar";
+                            public void bad() {}
+
+                            @FlaggedApi("foo/bar")
+                            public static final String OK = "baz";
+
+                            @FlaggedApi("foo/bar")
+                            public void ok() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        public class Bad {
+                            public static final String BAD = "bar";
+                            public void bad() {}
+                            public interface BadInterface {}
+                            public @interface BadAnnotation {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        @FlaggedApi("foo/bar")
+                        public class Ok {
+                            @FlaggedApi("foo/bar")
+                            Ok() {}
+                            @FlaggedApi("foo/bar")
+                            public static final String OK = "bar";
+                            @FlaggedApi("foo/bar")
+                            public void ok() {}
+                            @FlaggedApi("foo/bar")
+                            public interface OkInterface {}
+                            @FlaggedApi("foo/bar")
+                            public @interface OkAnnotation {}
+                        }
+                    """
+                    ),
+                    flaggedApiSource
+                ),
+            extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
+    fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues =
+                // TODO: (b/299675771): This warning is erroneous. It appears because the
+                //  ComparisonVisitor treats Existing as added, so ApiLint visits it and all its
+                //  contained classes, even though Existing.Inner isn't new.
+                """
+                src/android/foobar/Existing.java:9: warning: New API must be flagged with @FlaggedApi: method android.foobar.Existing.Inner.existing() [UnflaggedApi]
+            """,
+            apiLint =
+                """
+                package android.foobar {
+                  public class Existing.Inner {
+                      method int existing();
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+
+                        public class Existing {
+                            public class Inner {
+                                /** @hide */
+                                @SystemApi
+                                public int existing() {}
+                            }
+                        }
+                    """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            extraArguments = arrayOf("--warning", "UnflaggedApi")
         )
     }
 

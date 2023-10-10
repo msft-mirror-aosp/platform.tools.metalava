@@ -29,42 +29,19 @@ import kotlin.random.Random
 /**
  * Preprocess command line arguments.
  * 1. Prepend/append {@code ENV_VAR_METALAVA_PREPEND_ARGS} and {@code ENV_VAR_METALAVA_PREPEND_ARGS}
- * 2. Reflect --verbose to {@link options#verbose}.
  */
 internal fun preprocessArgv(args: Array<String>): Array<String> {
-    val modifiedArgs =
-        if (args.isEmpty()) {
-            arrayOf("--help")
-        } else if (!isUnderTest()) {
-            val prepend = envVarToArgs(ENV_VAR_METALAVA_PREPEND_ARGS)
-            val append = envVarToArgs(ENV_VAR_METALAVA_APPEND_ARGS)
-            if (prepend.isEmpty() && append.isEmpty()) {
-                args
-            } else {
-                prepend + args + append
-            }
-        } else {
+    return if (!isUnderTest()) {
+        val prepend = envVarToArgs(ENV_VAR_METALAVA_PREPEND_ARGS)
+        val append = envVarToArgs(ENV_VAR_METALAVA_APPEND_ARGS)
+        if (prepend.isEmpty() && append.isEmpty()) {
             args
+        } else {
+            prepend + args + append
         }
-
-    // We want to enable verbose log as soon as possible, so we cheat here and try to detect
-    // --verbose and --quiet.
-    // (Note this logic could generate results different from what Options.kt would generate,
-    // for example when "--verbose" is used as a flag value. But that's not a practical problem....)
-    modifiedArgs.forEach { arg ->
-        when (arg) {
-            ARG_QUIET -> {
-                options.quiet = true
-                options.verbose = false
-            }
-            ARG_VERBOSE -> {
-                options.verbose = true
-                options.quiet = false
-            }
-        }
+    } else {
+        args
     }
-
-    return modifiedArgs
 }
 
 /**
