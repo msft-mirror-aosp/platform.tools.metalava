@@ -1785,7 +1785,21 @@ class ApiLint(
     }
 
     private fun checkHasFlaggedApi(item: Item) {
-        if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
+        fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
+            var it: Item? = item
+            while (it != null) {
+                if (predicate.test(it)) {
+                    return true
+                }
+                it = it.containingClass()
+            }
+            return false
+        }
+        if (
+            !itemOrAnyContainingClasses {
+                it.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }
+            }
+        ) {
             val elidedField =
                 if (item is FieldItem) {
                     val inheritedFrom = item.inheritedFrom
