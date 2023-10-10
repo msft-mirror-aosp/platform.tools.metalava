@@ -270,12 +270,8 @@ interface Item {
      */
     fun describe(capitalize: Boolean = false) = describe(this, capitalize)
 
-    /**
-     * Returns the package that contains this item. If [strict] is false, this will return self if
-     * called on a package, otherwise it will return the containing package (e.g. "foo" for
-     * "foo.bar"). The parameter is ignored on other item types.
-     */
-    fun containingPackage(strict: Boolean = true): PackageItem?
+    /** Returns the package that contains this item. */
+    fun containingPackage(): PackageItem?
 
     /** Returns the class that contains this item. */
     fun containingClass(): ClassItem?

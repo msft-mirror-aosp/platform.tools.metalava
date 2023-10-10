@@ -49,10 +49,7 @@ internal constructor(
 
     override fun containingClass(): ClassItem? = null
 
-    override fun containingPackage(strict: Boolean): PackageItem? {
-        if (!strict) {
-            return this
-        }
+    override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {
             if (!::containingPackageField.isInitialized) {
