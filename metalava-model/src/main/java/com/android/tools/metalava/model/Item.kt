@@ -277,12 +277,8 @@ interface Item {
      */
     fun containingPackage(strict: Boolean = true): PackageItem?
 
-    /**
-     * Returns the class that contains this item. If [strict] is false, this will return self if
-     * called on a class, otherwise it will return the outer class, if any. The parameter is ignored
-     * on other item types.
-     */
-    fun containingClass(strict: Boolean = true): ClassItem?
+    /** Returns the class that contains this item. */
+    fun containingClass(): ClassItem?
 
     /**
      * Returns the associated type if any. For example, for a field, property or parameter, this is
