@@ -94,6 +94,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val testClass = codebase.assertClass("test.pkg.Test")
             val fieldItem = testClass.assertField("field")
             assertEquals("field", fieldItem.name())
+            assertEquals(testClass, fieldItem.containingClass())
         }
     }
 

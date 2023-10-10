@@ -35,6 +35,9 @@ class TurbinePackageItem(
     override fun containingClass(): ClassItem? = null
 
     override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
         return other is PackageItem && qualifiedName == other.qualifiedName()
     }
 

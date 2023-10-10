@@ -27,7 +27,9 @@ import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Kind.TY_DECL
+import com.google.turbine.tree.Tree.Kind.VAR_DECL
 import com.google.turbine.tree.Tree.TyDecl
+import com.google.turbine.tree.Tree.VarDecl
 import java.io.File
 import java.util.Optional
 
@@ -138,17 +140,26 @@ open class TurbineCodebaseInitialiser(
             )
 
         val members = typeDecl.members()
+        val fields = mutableListOf<TurbineFieldItem>()
         for (member in members) {
             when (member.kind()) {
                 // A class or an interface declaration
                 TY_DECL -> {
                     populateClass(member as TyDecl, pkgItem, classItem, false)
                 }
+                // A field declaration
+                VAR_DECL -> {
+                    val field = member as VarDecl
+                    val fieldItem =
+                        TurbineFieldItem(codebase, field.name().value(), classItem, modifers)
+                    fields.add(fieldItem)
+                }
                 else -> {
                     // Do nothing for now
                 }
             }
         }
+        classItem.fields = fields
         codebase.addClass(classItem, isTopClass)
         itemMap.put(typeDecl, qualifiedName)
 
