@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class NullabilityAnnotationsValidatorTest : DriverTest() {
@@ -47,7 +49,7 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                     libcoreNullableSource,
                     libcoreNullFromTypeParamSource
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -90,7 +92,7 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullFromTypeParamSource
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -134,7 +136,7 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                     ),
                     libcoreNullableSource
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -179,7 +181,7 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                     libcoreNullableSource,
                     libcoreNullFromTypeParamSource
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -223,7 +225,7 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                     libcoreNullableSource,
                     libcoreNullFromTypeParamSource
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -271,7 +273,7 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                     ),
                     libcoreNullableSource
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
             validateNullabilityFromList =
                 """

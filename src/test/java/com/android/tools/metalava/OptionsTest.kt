@@ -16,26 +16,18 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Severity
-import java.io.File
-import java.io.OutputStreamWriter
+import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
     private val FLAGS =
         """
-General:
---repeat-errors-max <N>
-                                             When specified, repeat at most N errors before finishing.
-
-
 API sources:
 --source-files <files>
                                              A comma separated list of source files to be parsed. Can also be @ followed
@@ -43,10 +35,7 @@ API sources:
                                              parse.
 --source-path <paths>
                                              One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy). If --strict-input-files, --strict-input-files:warn,
-                                             or --strict-input-files:stack are used, files accessed under --source-path
-                                             that are not explicitly specified in --source-files are reported as
-                                             violations.
+                                             a package hierarchy).
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -92,15 +81,12 @@ API sources:
                                              signature file and API lint
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
---hide-meta-annotation <meta-annotation class>
-                                             Treat as hidden any elements annotated with an annotation which is itself
-                                             annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.9.
+                                             Sets the source level for Kotlin source files; default is 1.8.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -123,31 +109,8 @@ API sources:
 
 
 Extracting Signature Files:
---api <file>
-                                             Generate a signature descriptor file
 --dex-api <file>
                                              Generate a DEX signature descriptor file listing the APIs
---removed-api <file>
-                                             Generate a signature descriptor file for APIs that have been removed
---api-overloaded-method-order <source|signature>
-                                             Specifies the order of overloaded methods in signature files (default
-                                             `signature`). Applies to the contents of the files specified on --api and
-                                             --removed-api. `--api-overloaded-method-order source` will preserve the
-                                             order in which they appear in the source files.
-                                             `--api-overloaded-method-order signature` will sort them based on their
-                                             signature.
---format=<v1,v2,v3,...>
-                                             Sets the output signature file format to be the given version.
---output-kotlin-nulls[=yes|no]
-                                             Controls whether nullness annotations should be formatted as in Kotlin
-                                             (with "?" for nullable types, "" for non nullable types, and "!" for
-                                             unknown. The default is yes.
---output-default-values[=yes|no]
-                                             Controls whether default values should be included in signature files. The
-                                             default is yes.
---include-signature-version[=yes|no]
-                                             Whether the signature files should include a comment listing the format
-                                             version of the signature file.
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
@@ -155,8 +118,6 @@ Extracting Signature Files:
 
 
 Generating Stubs:
---stubs <dir>
-                                             Generate stub source files for the API
 --doc-stubs <dir>
                                              Generate documentation stub source files for the API. Documentation stub
                                              files are similar to regular stub files, but there are some differences.
@@ -168,10 +129,6 @@ Generating Stubs:
 --kotlin-stubs
                                              [CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source
                                              code will be written in Kotlin rather than the Java programming language.
---include-annotations
-                                             Include annotations such as @Nullable in the stub files.
---exclude-all-annotations
-                                             Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
@@ -219,22 +176,6 @@ Diffs and Checks:
                                              Promote all warnings to errors
 --lints-as-errors
                                              Promote all API lint warnings to errors
---error <id>
-                                             Report issues of the given id as errors
---warning <id>
-                                             Report issues of the given id as warnings
---lint <id>
-                                             Report issues of the given id as having lint-severity
---hide <id>
-                                             Hide/skip issues of the given id
---error-category <name>
-                                             Report all issues in the given category as errors
---warning-category <name>
-                                             Report all issues in the given category as warnings
---lint-category <name>
-                                             Report all issues in the given category as having lint-severity
---hide-category <name>
-                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category')
@@ -278,26 +219,12 @@ Diffs and Checks:
 JDiff:
 --api-xml <file>
                                              Like --api, but emits the API in the JDiff XML format instead
---convert-to-jdiff <sig> <xml>
-                                             Reads in the given signature file, and writes it out in the JDiff XML
-                                             format. Can be specified multiple times.
---convert-new-to-jdiff <old> <new> <xml>
-                                             Reads in the given old and new api files, computes the difference, and
-                                             writes out only the new parts of the API in the JDiff XML format.
 
 
 Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---force-convert-to-warning-nullability-annotations <package1:-package2:...>
-                                             On every API declared in a class referenced by the given filter, makes
-                                             nullability issues appear to callers as warnings rather than errors by
-                                             replacing @Nullable/@NonNull in these APIs with
-                                             @RecentlyNullable/@RecentlyNonNull
---copy-annotations <source> <dest>
-                                             For a source folder full of annotation sources, generates corresponding
-                                             package private versions of the same annotations.
 --include-source-retention
                                              If true, include source-retention annotations in the stub files. Does not
                                              apply to signature files. Source retention annotations are extracted into
@@ -370,27 +297,6 @@ Generating API version history:
                                              Required to generate API version JSON.
 
 
-Sandboxing:
---no-implicit-root
-                                             Disable implicit root directory detection. Otherwise, metalava adds in
-                                             source roots implied by the source files
---strict-input-files <file>
-                                             Do not read files that are not explicitly specified in the command line.
-                                             All violations are written to the given file. Reads on directories are
-                                             always allowed, but metalava still tracks reads on directories that are not
-                                             specified in the command line, and write them to the file.
---strict-input-files:warn <file>
-                                             Warn when files not explicitly specified on the command line are read. All
-                                             violations are written to the given file. Reads on directories not
-                                             specified in the command line are allowed but also logged.
---strict-input-files:stack <file>
-                                             Same as --strict-input-files but also print stacktraces.
---strict-input-files-exempt <files or dirs>
-                                             Used with --strict-input-files. Explicitly allow access to files and/or
-                                             directories (separated by `:). Can also be @ followed by a path to a text
-                                             file containing paths to the full set of files and/or directories.
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.
@@ -412,19 +318,22 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
             .trimIndent()
 
-    /** The options from [CommonOptions] plus Clikt defined opiotns from [Options]. */
+    /**
+     * The options from [com.android.tools.metalava.cli.common.CommonOptions] plus Clikt defined
+     * options from [Options].
+     */
     private val CLIKT_OPTIONS =
         """
 Options:
   --version                                  Show the version and exit
-  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
-                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
-                                             is set)
-  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   --quiet, --verbose                         Set the verbosity of the output.
                                              --quiet - Only include vital output.
                                              --verbose - Include extra diagnostic output.
                                              (default: Neither --quiet or --verbose)
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   -h, --help                                 Show this message and exit
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
@@ -437,19 +346,7 @@ Options:
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
-  --api-overloaded-method-order [source|signature]
-                                             Specifies the order of overloaded methods in signature files. Applies to
-                                             the contents of the files specified on --api and --removed-api.
-
-                                             source - preserves the order in which overloaded methods appear in the
-                                             source files. This means that refactorings of the source files which change
-                                             the order but not the API can cause unnecessary changes in the API
-                                             signature files.
-
-                                             signature (default) - sorts overloaded methods by their signature. This
-                                             means that refactorings of the source files which change the order but not
-                                             the API will have no effect on the API signature files.
-  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
@@ -460,15 +357,41 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-    """
+  --add-nonessential-overrides-classes TEXT  Specifies a list of qualified class names where all visible overriding
+                                             methods are added to signature files. This is a no-op when --format does
+                                             not specify --add-additional-overrides=yes.
+
+                                             The list of qualified class names should be separated with ':'(colon).
+                                             (default: [])
+
+$REPORTING_OPTIONS_HELP
+
+Signature File Output:
+
+  Options controlling the signature file output. The format of the generated file is determined by the options in the
+  `Signature Format Output` section.
+
+  --api <file>                               Output file into which the API signature will be generated. If this is not
+                                             specified then no API signature file will be created.
+  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
+                                             generated. If this is not specified then no removed API signature file will
+                                             be created.
+
+$SIGNATURE_FORMAT_OPTIONS_HELP
+
+$STUB_GENERATION_OPTIONS_HELP
+"""
             .trimIndent()
 
     private val SUB_COMMANDS =
         """
 Sub-commands:
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
-                                             source tree by
+                                             source tree.
+  help                                       Provides help for general metalava concepts
+  merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  update-signature-header                    Updates the header of signature files to a different format.
   version                                    Show the version
         """
             .trimIndent()
@@ -589,112 +512,7 @@ $MAIN_HELP_BODY
     }
 
     @Test
-    fun `Test issue severity options`() {
-        check(
-            extraArguments =
-                arrayOf(
-                    "--hide",
-                    "StartWithLower",
-                    "--lint",
-                    "EndsWithImpl",
-                    "--warning",
-                    "StartWithUpper",
-                    "--error",
-                    "ArrayReturn"
-                )
-        )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
-        assertEquals(Severity.WARNING, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test multiple issue severity options`() {
-        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with inheriting issues`() {
-        check(extraArguments = arrayOf("--error", "RemovedClass"))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(
-            Severity.ERROR,
-            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
-        )
-    }
-
-    @Test
-    fun `Test issue severity options with case insensitive names`() {
-        check(
-            extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues =
-                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
-        )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with non-existing issue`() {
-        check(
-            extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Aborting: Unknown issue id: --hide ThisIssueDoesNotExist"
-        )
-    }
-
-    @Test
-    fun `Test for --strict-input-files-exempt`() {
-        val top = temporaryFolder.newFolder()
-
-        val dir = File(top, "childdir").apply { mkdirs() }
-        val grandchild1 = File(dir, "grandchiild1").apply { createNewFile() }
-        val grandchild2 = File(dir, "grandchiild2").apply { createNewFile() }
-        val file1 = File(top, "file1").apply { createNewFile() }
-        val file2 = File(top, "file2").apply { createNewFile() }
-
-        try {
-            check(
-                extraArguments =
-                    arrayOf(
-                        "--strict-input-files-exempt",
-                        file1.path + File.pathSeparatorChar + dir.path
-                    )
-            )
-
-            assertTrue(FileReadSandbox.isAccessAllowed(file1))
-            assertTrue(FileReadSandbox.isAccessAllowed(grandchild1))
-            assertTrue(FileReadSandbox.isAccessAllowed(grandchild2))
-
-            assertFalse(FileReadSandbox.isAccessAllowed(file2)) // Access *not* allowed
-        } finally {
-            FileReadSandbox.reset()
-        }
-    }
-
-    @Test
     fun `Test for @ usage on command line`() {
         check(showAnnotations = arrayOf("@foo.Show"))
     }
-}
-
-/**
- * Update the global [options] from the supplied arguments.
- *
- * This is for use by tests which do not use [Driver.run]. It does not support any of the
- * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
- */
-internal fun updateGlobalOptionsForTest(
-    args: Array<String>,
-    /** Writer to direct output to */
-    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-    /** Writer to direct error messages to */
-    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-) {
-    // Create a special command that will ensure that the Clikt based properties in Options have
-    // been initialized correctly before updating the global options.
-    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
-    command.parse(args)
 }

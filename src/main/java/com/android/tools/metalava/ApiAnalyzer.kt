@@ -19,9 +19,11 @@ package com.android.tools.metalava
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -35,11 +37,14 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import java.io.File
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -50,10 +55,47 @@ import org.jetbrains.uast.UClass
  * visibility etc of the APIs
  */
 class ApiAnalyzer(
+    private val sourceParser: SourceParser,
     /** The code to analyze */
     private val codebase: Codebase,
-    private val manifest: Manifest = emptyManifest,
+    private val reporter: Reporter,
+    private val config: Config = Config(),
 ) {
+
+    data class Config(
+        val manifest: Manifest = emptyManifest,
+
+        /** Packages to exclude/hide */
+        val hidePackages: List<String> = emptyList(),
+
+        /**
+         * Packages that we should skip generating even if not hidden; typically only used by tests
+         */
+        val skipEmitPackages: List<String> = emptyList(),
+
+        /**
+         * External annotation files that contain non-inclusion annotations which will appear in the
+         * generated API.
+         *
+         * These will be merged into the codebase.
+         */
+        val mergeQualifierAnnotations: List<File> = emptyList(),
+
+        /**
+         * External annotation files that contain annotations which affect inclusion of items in the
+         * API.
+         *
+         * These will be merged into the codebase.
+         */
+        val mergeInclusionAnnotations: List<File> = emptyList(),
+
+        /** Packages to import (if empty, include all) */
+        val stubImportPackages: Set<String> = emptySet(),
+
+        /** The filter for all the show annotations. */
+        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+    )
+
     /** All packages in the API */
     private val packages: PackageList = codebase.getPackages()
 
@@ -516,7 +558,7 @@ class ApiAnalyzer(
 
     /** Hide packages explicitly listed in [Options.hidePackages] */
     private fun hidePackages() {
-        for (pkgName in options.hidePackages) {
+        for (pkgName in config.hidePackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.hidden = true
         }
@@ -524,7 +566,7 @@ class ApiAnalyzer(
 
     /** Apply emit filters listed in [Options.skipEmitPackages] */
     private fun skipEmitPackages() {
-        for (pkgName in options.skipEmitPackages) {
+        for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.emit = false
         }
@@ -558,15 +600,19 @@ class ApiAnalyzer(
      * from all configured sources.
      */
     fun mergeExternalQualifierAnnotations() {
-        if (options.mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(codebase).mergeQualifierAnnotations(options.mergeQualifierAnnotations)
+        val mergeQualifierAnnotations = config.mergeQualifierAnnotations
+        if (mergeQualifierAnnotations.isNotEmpty()) {
+            AnnotationsMerger(sourceParser, codebase, reporter)
+                .mergeQualifierAnnotations(mergeQualifierAnnotations)
         }
     }
 
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
-        if (options.mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(codebase).mergeInclusionAnnotations(options.mergeInclusionAnnotations)
+        val mergeInclusionAnnotations = config.mergeInclusionAnnotations
+        if (mergeInclusionAnnotations.isNotEmpty()) {
+            AnnotationsMerger(sourceParser, codebase, reporter)
+                .mergeInclusionAnnotations(mergeInclusionAnnotations)
         }
     }
 
@@ -579,9 +625,9 @@ class ApiAnalyzer(
             object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
                 override fun visitPackage(pkg: PackageItem) {
                     when {
-                        options.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                        pkg.modifiers.hasShowAnnotation() -> pkg.hidden = false
-                        pkg.modifiers.hasHideAnnotations() -> pkg.hidden = true
+                        config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
+                        pkg.hasShowAnnotation() -> pkg.hidden = false
+                        pkg.hasHideAnnotation() -> pkg.hidden = true
                     }
                     val containingPackage = pkg.containingPackage()
                     if (containingPackage != null) {
@@ -596,7 +642,7 @@ class ApiAnalyzer(
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
-                    if (cls.modifiers.hasShowAnnotation()) {
+                    if (cls.hasShowAnnotation()) {
                         cls.hidden = false
                         // Make containing package non-hidden if it contains a show-annotation
                         // class. Doclava does this in PackageInfo.isHidden().
@@ -604,14 +650,14 @@ class ApiAnalyzer(
                         if (cls.containingClass() != null) {
                             ensureParentVisible(cls)
                         }
-                    } else if (cls.modifiers.hasHideAnnotations()) {
+                    } else if (cls.hasHideAnnotation()) {
                         cls.hidden = true
                     } else if (containingClass != null) {
                         if (containingClass.hidden) {
                             cls.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.modifiers.hasShowSingleAnnotation()
+                                containingClass.hasShowSingleAnnotation()
                         ) {
                             // See explanation in visitMethod
                             cls.hidden = true
@@ -635,17 +681,17 @@ class ApiAnalyzer(
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
-                        if (containingPackage.removed && !cls.modifiers.hasShowAnnotation()) {
+                        if (containingPackage.removed && !cls.hasShowAnnotation()) {
                             cls.removed = true
                         }
                     }
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    if (method.modifiers.hasShowAnnotation()) {
+                    if (method.hasShowAnnotation()) {
                         method.hidden = false
                         ensureParentVisible(method)
-                    } else if (method.modifiers.hasHideAnnotations()) {
+                    } else if (method.hasHideAnnotation()) {
                         method.hidden = true
                     } else {
                         val containingClass = method.containingClass()
@@ -653,7 +699,7 @@ class ApiAnalyzer(
                             method.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.modifiers.hasShowSingleAnnotation()
+                                containingClass.hasShowSingleAnnotation()
                         ) {
                             // This is a member in a class that was hidden but then unhidden;
                             // but it was unhidden by a non-recursive (single) show annotation, so
@@ -670,10 +716,10 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    if (field.modifiers.hasShowAnnotation()) {
+                    if (field.hasShowAnnotation()) {
                         field.hidden = false
                         ensureParentVisible(field)
-                    } else if (field.modifiers.hasHideAnnotations()) {
+                    } else if (field.hasHideAnnotation()) {
                         field.hidden = true
                     } else {
                         val containingClass = field.containingClass()
@@ -687,7 +733,7 @@ class ApiAnalyzer(
                             field.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.modifiers.hasShowSingleAnnotation()
+                                containingClass.hasShowSingleAnnotation()
                         ) {
                             // See explanation in visitMethod
                             field.hidden = true
@@ -706,14 +752,8 @@ class ApiAnalyzer(
                     if (!parent.hidden) {
                         return
                     }
-                    val violatingAnnotation =
-                        if (item.modifiers.hasShowAnnotation()) {
-                            item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)
-                                ?: options.showAnnotations.firstQualifiedName()
-                        } else {
-                            null
-                        }
-                    if (violatingAnnotation != null) {
+                    item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
+                        violatingAnnotation ->
                         reporter.report(
                             Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
                             item,
@@ -759,7 +799,7 @@ class ApiAnalyzer(
                 val missing = ArrayList<String>()
                 for (value in values) {
                     val perm = (value.value() ?: value.toSource()).toString()
-                    val level = manifest.getPermissionLevel(perm)
+                    val level = config.manifest.getPermissionLevel(perm)
                     if (level == null) {
                         if (any) {
                             missing.add(perm)
@@ -769,7 +809,7 @@ class ApiAnalyzer(
                         reporter.report(
                             Issues.REQUIRES_PERMISSION,
                             method,
-                            "Permission '$perm' is not defined by manifest ${manifest}."
+                            "Permission '$perm' is not defined by manifest ${config.manifest}."
                         )
                         continue
                     }
@@ -788,7 +828,7 @@ class ApiAnalyzer(
                         Issues.REQUIRES_PERMISSION,
                         method,
                         "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${manifest}."
+                            "${config.manifest}."
                     )
                 }
 
@@ -825,11 +865,11 @@ class ApiAnalyzer(
 
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                options.showAnnotations.matches(ANDROID_SYSTEM_API) &&
-                !options.manifest.isEmpty()
+                config.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
+                !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
-                options.showAnnotations.isNotEmpty()
+                config.allShowAnnotations.isNotEmpty()
 
         packages.accept(
             object : ApiVisitor() {
@@ -883,14 +923,17 @@ class ApiAnalyzer(
                         checkHiddenShowAnnotations &&
                             item.hasShowAnnotation() &&
                             !item.originallyHidden &&
-                            !item.modifiers.hasShowSingleAnnotation()
+                            !item.hasShowSingleAnnotation()
                     ) {
                         val annotationName =
-                            (item.modifiers
-                                    .annotations()
-                                    .firstOrNull(AnnotationItem::isShowAnnotation)
-                                    ?.qualifiedName
-                                    ?: options.showAnnotations.firstQualifiedName())
+                            item.modifiers
+                                .annotations()
+                                // As item.hasShowAnnotation() is true there must be at least one
+                                // annotation that matches the following predicate.
+                                .first(AnnotationItem::isShowAnnotation)
+                                // All show annotations must have a non-null string otherwise they
+                                // would not have been matched.
+                                .qualifiedName!!
                                 .removePrefix(ANDROID_ANNOTATION_PREFIX)
                         reporter.report(
                             Issues.UNHIDDEN_SYSTEM_API,
@@ -974,7 +1017,7 @@ class ApiAnalyzer(
                             method,
                             "$method should not be annotated @Nullable; it should be left unspecified to make it a platform type"
                         )
-                        val annotation = method.modifiers.annotations().find { it.isNullable() }
+                        val annotation = method.modifiers.findAnnotation(AnnotationItem::isNullable)
                         annotation?.let {
                             method.mutableModifiers().removeAnnotation(it)
                             // Have to also clear the annotation out of the return type itself, if
@@ -1035,8 +1078,7 @@ class ApiAnalyzer(
 
     fun handleStripping() {
         // TODO: Switch to visitor iteration
-        // val stubPackages = options.stubPackages
-        val stubImportPackages = options.stubImportPackages
+        val stubImportPackages = config.stubImportPackages
         handleStripping(stubImportPackages)
     }
 
