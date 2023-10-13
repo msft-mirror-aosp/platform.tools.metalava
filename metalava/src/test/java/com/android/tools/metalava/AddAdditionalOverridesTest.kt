@@ -390,7 +390,7 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add additional overrides -- Method with multiple interface parent methods in same hierarchy elided`() {
+    fun `Add additional overrides -- Method with multiple interface parent methods in same hierarchy not elided`() {
         checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
@@ -448,6 +448,7 @@ class AddAdditionalOverridesTest : DriverTest() {
               }
               public class ChildClass implements test.pkg.AnotherParentInterface test.pkg.ParentInterface {
                 ctor public ChildClass();
+                method public void Foo();
               }
               public interface ParentInterface {
                 method public default void Foo();
