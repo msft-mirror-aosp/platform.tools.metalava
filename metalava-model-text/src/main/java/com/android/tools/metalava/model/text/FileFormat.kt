@@ -518,8 +518,8 @@ data class FileFormat(
          */
         fun parseSpecifier(
             specifier: String,
-            migratingAllowed: Boolean,
-            extraVersions: Set<String>,
+            migratingAllowed: Boolean = false,
+            extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
@@ -29,6 +30,7 @@ import java.io.File
  */
 class SignatureFileLoader(
     private val annotationManager: AnnotationManager,
+    private val formatForLegacyFiles: FileFormat? = null,
 ) {
     fun load(
         file: File,
@@ -44,7 +46,7 @@ class SignatureFileLoader(
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseApi(files, annotationManager, classResolver)
+            return ApiFile.parseApi(files, annotationManager, classResolver, formatForLegacyFiles)
         } catch (ex: ApiParseException) {
             throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
         }

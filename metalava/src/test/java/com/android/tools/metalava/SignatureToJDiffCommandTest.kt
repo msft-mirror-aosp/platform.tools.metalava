@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommandTestConfig
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
+import com.android.tools.metalava.model.text.FileFormat
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import org.junit.Test
@@ -32,6 +33,19 @@ Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
 Options:
   --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
                                              output or not. (default: false)
+  --format-for-legacy-files <format-specifier>
+                                             Optional format to use when reading legacy, i.e. no longer supported,
+                                             format versions. Forces the signature file to be parsed as if it was in
+                                             this format.
+
+                                             This is provided primarily to allow version 1.0 files, which had no header,
+                                             to be parsed as if they were 2.0 files (by specifying
+                                             `--format-for-legacy-files=2.0`) so that version 1.0 files can still be
+                                             read even though metalava no longer supports version 1.0 files
+                                             specifically. That is effectively what metalava did anyway before it
+                                             removed support for version 1.0 files so should work reasonably well.
+
+                                             Applies to both `--base-api` and `<api-file>`.
   --base-api <base-api-file>                 Optional base API file. If provided then the output will only include API
                                              items that are not in this file.
   -h, -?, --help                             Show this message and exit
@@ -542,6 +556,57 @@ $signatureToJdiffHelp
                 "Aborting: Unable to parse signature file: TESTROOT/jdiff-conversion/base-api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '"
         }
     }
+
+    @Test
+    fun `Test convert legacy files with --format-for-legacy-files`() {
+        jdiffConversionTest {
+            formatForLegacyFiles = FileFormat.V2
+
+            api =
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Object"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <constructor name="Test"
+                     type="test.pkg.Test"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </constructor>
+                    </class>
+                    </package>
+                    </api>
+                """
+                    .trimIndent()
+        }
+    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
@@ -554,6 +619,7 @@ fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTest
 
 class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffCommand>) {
     var strip = false
+    var formatForLegacyFiles: FileFormat? = null
     var api = ""
     var baseApi: String? = null
     var expectedXml: String? = null
@@ -571,6 +637,11 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
 
             if (strip) {
                 args += "--strip"
+            }
+
+            formatForLegacyFiles?.let { format ->
+                args += "--format-for-legacy-files"
+                args += format.specifier()
             }
 
             // Create a unique folder to allow multiple configs to be run in the same test.
