@@ -27,19 +27,19 @@ import java.io.File
  * Helper object to load signature files and rethrow any [ApiParseException] as a
  * [MetalavaCliException].
  */
-object SignatureFileLoader {
+class SignatureFileLoader(
+    private val annotationManager: AnnotationManager,
+) {
     fun load(
         file: File,
         classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager,
     ): TextCodebase {
-        return loadFiles(listOf(file), classResolver, annotationManager)
+        return loadFiles(listOf(file), classResolver)
     }
 
     fun loadFiles(
         files: List<File>,
         classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager,
     ): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 
