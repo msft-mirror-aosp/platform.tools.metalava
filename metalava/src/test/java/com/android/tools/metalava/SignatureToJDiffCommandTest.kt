@@ -20,6 +20,7 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommandTestConfig
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import org.junit.Test
 
 private val signatureToJdiffHelp =
@@ -499,6 +500,48 @@ $signatureToJdiffHelp
                 """
         }
     }
+
+    @Test
+    fun `Test convert legacy file`() {
+        jdiffConversionTest {
+            api =
+                """
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+
+            expectedStderr =
+                "Aborting: Unable to parse signature file: TESTROOT/jdiff-conversion/api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '"
+        }
+    }
+
+    @Test
+    fun `Test convert legacy base file`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+
+            expectedStderr =
+                "Aborting: Unable to parse signature file: TESTROOT/jdiff-conversion/base-api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '"
+        }
+    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
@@ -513,7 +556,14 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
     var strip = false
     var api = ""
     var baseApi: String? = null
-    var expectedXml = ""
+    var expectedXml: String? = null
+
+    /**
+     * The expected output, defaults to an empty string.
+     *
+     * This will be checked after running the test.
+     */
+    var expectedStderr: String = ""
 
     fun arrange() {
         with(commandTestConfig) {
@@ -538,7 +588,19 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
             val xmlFile = outputFile("api.xml", parentDir = folder)
             args += xmlFile.path
 
-            verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }
+            verify {
+                val expectedXml = this@JDiffTestConfig.expectedXml
+                if (expectedXml == null) {
+                    assertFalse(
+                        xmlFile.exists(),
+                        message = "did not expect $xmlFile to be created but it was"
+                    )
+                } else {
+                    assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim())
+                }
+            }
+
+            expectedStderr = this@JDiffTestConfig.expectedStderr
         }
     }
 }
