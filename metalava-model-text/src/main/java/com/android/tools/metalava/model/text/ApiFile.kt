@@ -75,7 +75,7 @@ private constructor(
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), null, annotationManager)
+        ) = parseApi(listOf(file), annotationManager)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -88,8 +88,8 @@ private constructor(
          */
         fun parseApi(
             files: List<File>,
+            annotationManager: AnnotationManager = noOpAnnotationManager,
             classResolver: ClassResolver? = null,
-            annotationManager: AnnotationManager,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], annotationManager)

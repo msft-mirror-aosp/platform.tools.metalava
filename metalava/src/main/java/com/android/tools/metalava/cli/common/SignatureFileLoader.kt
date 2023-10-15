@@ -44,7 +44,7 @@ class SignatureFileLoader(
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseApi(files, classResolver, annotationManager)
+            return ApiFile.parseApi(files, annotationManager, classResolver)
         } catch (ex: ApiParseException) {
             throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
         }
