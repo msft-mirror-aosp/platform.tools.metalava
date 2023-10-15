@@ -73,7 +73,7 @@ $signatureToJdiffHelp
     }
 
     @Test
-    fun `Test conversion flag`() {
+    fun `Test conversion flag class with constructor`() {
         jdiffConversionTest {
             strip = true
 
@@ -113,7 +113,10 @@ $signatureToJdiffHelp
                     </api>
                 """
         }
+    }
 
+    @Test
+    fun `Test conversion flag empty class`() {
         jdiffConversionTest {
             strip = true
 
@@ -521,7 +524,7 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
             }
 
             // Create a unique folder to allow multiple configs to be run in the same test.
-            val folder = commandTestConfig.folder()
+            val folder = commandTestConfig.folder("jdiff-conversion")
 
             val apiFile = inputFile("api.txt", api.trimIndent(), parentDir = folder)
             args += apiFile.path
