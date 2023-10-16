@@ -26,6 +26,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package java.lang {
               public final class Float extends java.lang.Number implements java.lang.Comparable<java.lang.Float> {
               }
@@ -101,7 +102,7 @@ class TextClassItemTest {
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, T, T")!!
+                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
         val evaluate2 =
             codebase
                 .getOrCreateClass("android.animation.FloatEvaluator")
@@ -148,6 +149,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package java.lang {
               public final class Class<T> implements java.lang.reflect.AnnotatedElement {
                 method @Nullable public <A extends java.lang.annotation.Annotation> A getAnnotation(@NonNull Class<A>);
@@ -178,6 +180,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package android.widget {
               public abstract class AdapterView<T extends android.widget.Adapter> extends android.view.ViewGroup {
                 method public abstract T getAdapter();
@@ -210,6 +213,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package java.lang {
               public interface Comparable<T> {
                 method public int compareTo(T);
@@ -242,7 +246,9 @@ class TextClassItemTest {
             )
 
         val compareTo1 =
-            codebase.getOrCreateClass("java.lang.Comparable").findMethod("compareTo", "T")!!
+            codebase
+                .getOrCreateClass("java.lang.Comparable")
+                .findMethod("compareTo", "java.lang.Object")!!
         val compareTo2 =
             codebase
                 .getOrCreateClass("java.lang.String")
@@ -250,15 +256,18 @@ class TextClassItemTest {
         val insertParameterTypes1 =
             codebase
                 .getOrCreateClass("java.lang.invoke.MethodType")
-                .findMethod("insertParameterTypes", "int, java.lang.Class...")!!
+                .findMethod("insertParameterTypes", "int, java.lang.Class[]")!!
         val insertParameterTypes2 =
             codebase
                 .getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod")
-                .findMethod("insertParameterTypes", "int, F...")!!
+                .findMethod(
+                    "insertParameterTypes",
+                    "int, java.lang.invoke.TypeDescriptor.OfField[]"
+                )!!
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, T, T")!!
+                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
         val evaluate2 =
             codebase
                 .getOrCreateClass("android.animation.ArgbEvaluator")

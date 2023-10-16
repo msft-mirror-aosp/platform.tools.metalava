@@ -29,6 +29,7 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
@@ -41,7 +42,8 @@ import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
 
-abstract class PsiItem(
+abstract class PsiItem
+internal constructor(
     override val codebase: PsiBasedCodebase,
     val element: PsiElement,
     override val modifiers: PsiModifierItem,
@@ -58,7 +60,7 @@ abstract class PsiItem(
     override val synthetic = false
 
     /** The source PSI provided by UAST */
-    val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
+    internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
     // a property with a lazily calculated default value
     inner class LazyDelegate<T>(val defaultValueProvider: () -> T) : ReadWriteProperty<PsiItem, T> {
@@ -109,11 +111,21 @@ abstract class PsiItem(
 
         when (val sourcePsi = (element as? UElement)?.sourcePsi) {
             is KtCallableDeclaration -> {
-                analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getReturnKtType()) }
+                analyze(sourcePsi) {
+                    // NB: We should not use [KtDeclaration.getReturnKtType]; see its comment:
+                    // IMPORTANT: For `vararg foo: T` parameter returns full `Array<out T>` type
+                    // (unlike [KtValueParameterSymbol.returnType] which returns `T`).
+                    val ktType =
+                        (sourcePsi.getSymbol() as? KtCallableSymbol)?.returnType
+                            ?: return@lazy false
+                    isInheritedGenericType(ktType)
+                }
             }
             is KtPropertyAccessor -> {
-                val property = sourcePsi.property
-                analyze(property) { isInheritedGenericType(property.getReturnKtType()) }
+                // Not necessary to use the containing property
+                // getter: its return type should be the same as property
+                // setter: it's always `void`, and its (implicit) setter parameter is callable.
+                analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getReturnKtType()) }
             }
             is KtTypeReference -> {
                 analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getKtType()) }
@@ -309,7 +321,7 @@ abstract class PsiItem(
     }
 
     companion object {
-        fun javadoc(element: PsiElement): String {
+        internal fun javadoc(element: PsiElement): String {
             if (element is PsiCompiledElement) {
                 return ""
             }
@@ -341,7 +353,7 @@ abstract class PsiItem(
             return ""
         }
 
-        fun modifiers(
+        internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             documentation: String

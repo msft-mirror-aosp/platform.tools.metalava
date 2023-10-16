@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
-class PsiTypeParameterItem(
+internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
     psiClass: PsiTypeParameter,
     name: String,
@@ -56,15 +56,10 @@ class PsiTypeParameterItem(
 
         val refs = psiClass.extendsList?.referencedTypes
         bounds =
-            if (refs != null && refs.isNotEmpty()) {
-                // Omit java.lang.Object since PSI will turn "T extends Comparable" to "T extends
-                // Object & Comparable"
-                // and this just makes comparisons harder; *everything* extends Object.
-                refs
-                    .mapNotNull { PsiTypeItem.create(codebase, it) }
-                    .filter { !it.isJavaLangObject() }
-            } else {
+            if (refs.isNullOrEmpty()) {
                 emptyList()
+            } else {
+                refs.mapNotNull { PsiTypeItem.create(codebase, it) }
             }
     }
 
