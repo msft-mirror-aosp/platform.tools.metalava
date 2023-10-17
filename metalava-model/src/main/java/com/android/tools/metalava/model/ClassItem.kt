@@ -194,16 +194,10 @@ interface ClassItem : Item {
     fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
 
     /** The containing class, for inner classes */
-    @MetalavaApi fun containingClass(): ClassItem?
+    @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
-    fun containingPackage(): PackageItem
-
-    override fun containingPackage(strict: Boolean): PackageItem = containingPackage()
-
-    override fun containingClass(strict: Boolean): ClassItem? {
-        return if (strict) containingClass() else this
-    }
+    override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
     fun toType(): TypeItem
@@ -419,6 +413,27 @@ interface ClassItem : Item {
         return null
     }
 
+    /**
+     * Find the [MethodItem] in this.
+     *
+     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
+     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
+     *
+     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
+     * subclass) whose parameters match the supplied parameters string. Parameters are matched
+     * against a candidate [MethodItem] as follows:
+     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
+     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
+     * * Everything after `<` is removed.
+     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
+     *   on the [ParameterItem.type].
+     *
+     * If every parameter matches then the matched [MethodItem] is returned. If no `candidate`
+     * matches then it returns 'null`.
+     *
+     * @param methodName the name of the method or [simpleName] if looking for constructors.
+     * @param parameters the comma separated erased types of the parameters.
+     */
     fun findMethod(methodName: String, parameters: String): MethodItem? {
         if (methodName == simpleName()) {
             // Constructor
