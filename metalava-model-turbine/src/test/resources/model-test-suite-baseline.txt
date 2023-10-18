@@ -1,7 +1,6 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   060 - check method exists[turbine,java]
   070 - check constructor exists[turbine,java]
-  120 - check modifiers[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Find method with type parameterized by two types[turbine,java]
