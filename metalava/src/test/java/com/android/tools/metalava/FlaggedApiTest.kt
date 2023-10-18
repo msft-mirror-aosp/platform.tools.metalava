@@ -19,11 +19,57 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
+import java.util.Locale
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 private val annotationsList = listOf(systemApiSource, flaggedApiSource)
 
-class FlaggedApiTest : DriverTest() {
+@RunWith(Parameterized::class)
+class FlaggedApiTest(private val config: Configuration) : DriverTest() {
+
+    /** The configuration of the test. */
+    data class Configuration(
+        val surface: Surface,
+        val flagged: Flagged,
+    ) {
+        val extraArguments = surface.args + flagged.args
+
+        override fun toString(): String {
+            val surfaceText = surface.name.lowercase(Locale.US)
+            val prepositionText = flagged.name.lowercase(Locale.US)
+            return "$surfaceText $prepositionText flagged api"
+        }
+    }
+
+    /** The surfaces that this test will check. */
+    enum class Surface(val args: List<String>) {
+        PUBLIC(emptyList()),
+        SYSTEM(listOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API)),
+    }
+
+    /** The different configurations of the flagged API that this test will check. */
+    enum class Flagged(val args: List<String>) {
+        WITH(emptyList()),
+        WITHOUT(listOf(ARG_HIDE_ANNOTATION, ANDROID_FLAGGED_API))
+    }
+
+    companion object {
+        /** Compute the cross product of [Surface] and [Flagged]. */
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun configurations(): Iterable<Configuration> =
+            Surface.values().flatMap { surface ->
+                Flagged.values().map { flagged ->
+                    Configuration(
+                        surface = surface,
+                        flagged = flagged,
+                    )
+                }
+            }
+    }
+
     /**
      * Check the result of generating APIs with and without flagged apis for both public and system
      * API surfaces.
@@ -35,45 +81,31 @@ class FlaggedApiTest : DriverTest() {
         expectedSystemApi: String,
         expectedSystemApiMinusFlaggedApi: String,
     ) {
-        fun checkFlaggedApi(api: String, extraArguments: Array<String>) {
-            check(
-                format = FileFormat.V2,
-                sourceFiles =
-                    buildList {
-                            addAll(sourceFiles)
-                            addAll(annotationsList)
-                        }
-                        .toTypedArray(),
-                api = api,
-                extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + extraArguments
-            )
-        }
+        val expectedApi =
+            when (config.surface) {
+                Surface.PUBLIC ->
+                    when (config.flagged) {
+                        Flagged.WITH -> expectedPublicApi
+                        Flagged.WITHOUT -> expectedPublicApiMinusFlaggedApi
+                    }
+                Surface.SYSTEM ->
+                    when (config.flagged) {
+                        Flagged.WITH -> expectedSystemApi
+                        Flagged.WITHOUT -> expectedSystemApiMinusFlaggedApi
+                    }
+            }
 
-        // public api scope, including flagged APIs
-        checkFlaggedApi(api = expectedPublicApi, extraArguments = arrayOf())
-
-        // public api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api = expectedPublicApiMinusFlaggedApi,
-            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "android.annotation.FlaggedApi")
-        )
-
-        // system api scope, including flagged APIs
-        checkFlaggedApi(
-            api = expectedSystemApi,
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "android.annotation.SystemApi")
-        )
-
-        // system api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api = expectedSystemApiMinusFlaggedApi,
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                buildList {
+                        addAll(sourceFiles)
+                        addAll(annotationsList)
+                    }
+                    .toTypedArray(),
+            api = expectedApi,
             extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_ANNOTATION,
-                    "android.annotation.FlaggedApi"
-                )
+                arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + config.extraArguments,
         )
     }
 
