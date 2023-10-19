@@ -501,6 +501,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                 package test.pkg {
                   public class ChildClass<T extends java.lang.Number> extends test.pkg.ParentClass<T> {
                     ctor public ChildClass();
+                    method public void hasGenericParameter(T);
                   }
                   public class ParentClass<T> {
                     ctor public ParentClass();
@@ -613,6 +614,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                 package test.pkg {
                   public class ChildClass<T extends java.lang.Number> extends test.pkg.ParentClass<T> {
                     ctor public ChildClass();
+                    method public T hasGenericReturnType();
                   }
                   public class ParentClass<T> {
                     ctor public ParentClass();

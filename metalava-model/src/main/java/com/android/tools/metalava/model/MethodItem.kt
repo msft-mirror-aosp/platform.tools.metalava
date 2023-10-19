@@ -258,14 +258,45 @@ interface MethodItem : MemberItem {
          * TODO: Compare annotations to see for example whether you've refined the nullness policy;
          *   if so, that should be included
          */
-        private fun sameType(t1: TypeItem, t2: TypeItem): Boolean {
-            return t1 == t2
+        private fun sameType(
+            context1: MethodItem,
+            t1: TypeItem,
+            context2: MethodItem,
+            t2: TypeItem,
+            addAdditionalOverrides: Boolean,
+        ): Boolean {
+            // Compare the types in two ways.
+            // 1. Using `TypeItem.equals(TypeItem)` which is basically a textual comparison that
+            //    ignores type parameter bounds but includes everuthing else that is present in the
+            //    string representation of the type apart from white space differences. This is
+            //    needed to preserve methods that change annotations, e.g. adding `@NonNull`, which
+            //    are significant to the API, and also to preserver legacy behavior to reduce churn
+            //    in API signature files.
+            // 2. Comparing their erased types which takes into account type parameter bounds but
+            //    ignores annotations and generic types. Comparing erased types will retain more
+            //    methods overrides in the signature file so only do it when adding additional
+            //    overrides.
+            return t1 == t2 &&
+                (!addAdditionalOverrides ||
+                    t1.toErasedTypeString(context1) == t2.toErasedTypeString(context2))
         }
 
-        fun sameSignature(method: MethodItem, superMethod: MethodItem): Boolean {
+        fun sameSignature(
+            method: MethodItem,
+            superMethod: MethodItem,
+            addAdditionalOverrides: Boolean,
+        ): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
-            if (!sameType(method.returnType(), superMethod.returnType())) {
+            if (
+                !sameType(
+                    method,
+                    method.returnType(),
+                    superMethod,
+                    superMethod.returnType(),
+                    addAdditionalOverrides = addAdditionalOverrides
+                )
+            ) {
                 return false
             }
 
@@ -293,7 +324,7 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (!sameType(pt1, pt2)) {
+                if (!sameType(method, pt1, superMethod, pt2, addAdditionalOverrides)) {
                     return false
                 }
             }
@@ -624,7 +655,12 @@ interface MethodItem : MemberItem {
                     // it only required override when it is directly (not transitively) overriding
                     // it and the signature differs (e.g. visibility or modifier
                     // changes)
-                    !sameSignature(this, it.first())
+                    !sameSignature(
+                        this,
+                        it.first(),
+                        // This method is only called when add-additional-overrides=yes.
+                        addAdditionalOverrides = true,
+                    )
                 } else {
                     // Since a class can extend a single class except Object,
                     // there is only one non-Object super class method at max.
