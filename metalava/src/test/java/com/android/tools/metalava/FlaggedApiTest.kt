@@ -24,7 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, flaggedApiSource)
+private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
 
 @RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
@@ -81,18 +81,36 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         expectedPublicApiMinusFlaggedApi: String,
         expectedSystemApi: String,
         expectedSystemApiMinusFlaggedApi: String,
+        expectedSystemApiMinusFlaggedApiIssues: String = "",
     ) {
-        val expectedApi =
+        data class Expectations(
+            val expectedApi: String,
+            val expectedIssues: String = "",
+        )
+        val expectations =
             when (config.surface) {
                 Surface.PUBLIC ->
                     when (config.flagged) {
-                        Flagged.WITH -> expectedPublicApi
-                        Flagged.WITHOUT -> expectedPublicApiMinusFlaggedApi
+                        Flagged.WITH ->
+                            Expectations(
+                                expectedApi = expectedPublicApi,
+                            )
+                        Flagged.WITHOUT ->
+                            Expectations(
+                                expectedApi = expectedPublicApiMinusFlaggedApi,
+                            )
                     }
                 Surface.SYSTEM ->
                     when (config.flagged) {
-                        Flagged.WITH -> expectedSystemApi
-                        Flagged.WITHOUT -> expectedSystemApiMinusFlaggedApi
+                        Flagged.WITH ->
+                            Expectations(
+                                expectedApi = expectedSystemApi,
+                            )
+                        Flagged.WITHOUT ->
+                            Expectations(
+                                expectedApi = expectedSystemApiMinusFlaggedApi,
+                                expectedIssues = expectedSystemApiMinusFlaggedApiIssues,
+                            )
                     }
             }
 
@@ -107,7 +125,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         addAll(annotationsList)
                     }
                     .toTypedArray(),
-            api = expectedApi,
+            api = expectations.expectedApi,
+            expectedIssues = expectations.expectedIssues,
             extraArguments =
                 arrayOf(ARG_HIDE_PACKAGE, "android.annotation", "--warning", "UnflaggedApi") +
                     config.extraArguments,
@@ -175,6 +194,90 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             expectedSystemApiMinusFlaggedApi =
                 """
                     // Signature format: 2.0
+                """,
+        )
+    }
+
+    @Test
+    fun `Test that cross references are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    @FlaggedApi("foo/bar")
+                    public class Foo {
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    public class Bar {
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("foo/bar")
+                        public void flaggedSystemApi(@android.annotation.NonNull Foo foo) {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                        ctor public Bar();
+                      }
+                    }
+                """,
+            expectedPublicApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                        ctor public Bar();
+                      }
+                      @FlaggedApi("foo/bar") public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            expectedPublicApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                        ctor public Bar();
+                      }
+                    }
+                """,
+            expectedSystemApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                        method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
+                      }
+                    }
+                """,
+            expectedSystemApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                """,
+            // This should be empty as removing the API annotated with FlaggedApi should also remove
+            // the references to it but that does not work.
+            expectedSystemApiMinusFlaggedApiIssues =
+                """
+                    src/test/pkg/Bar.java:10: error: Class test.pkg.Foo is hidden but was referenced (as parameter type) from public parameter foo in test.pkg.Bar.flaggedSystemApi(test.pkg.Foo foo) [ReferencesHidden]
+                    src/test/pkg/Bar.java:10: warning: Parameter of unavailable type test.pkg.Foo in test.pkg.Bar.flaggedSystemApi() [UnavailableSymbol]
+                    src/test/pkg/Bar.java:10: warning: Parameter foo references hidden type test.pkg.Foo. [HiddenTypeParameter]
                 """,
         )
     }
