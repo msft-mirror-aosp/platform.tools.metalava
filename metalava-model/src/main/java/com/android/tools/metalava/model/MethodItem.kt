@@ -250,11 +250,7 @@ interface MethodItem : MemberItem {
                 compareMethods(o1, o2, true)
             }
 
-        fun sameSignature(
-            method: MethodItem,
-            superMethod: MethodItem,
-            compareRawTypes: Boolean = false
-        ): Boolean {
+        fun sameSignature(method: MethodItem, superMethod: MethodItem): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
             if (method.returnType() != superMethod.returnType()) {
@@ -285,14 +281,8 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (compareRawTypes) {
-                    if (pt1.toErasedTypeString() != pt2.toErasedTypeString()) {
-                        return false
-                    }
-                } else {
-                    if (pt1 != pt2) {
-                        return false
-                    }
+                if (pt1 != pt2) {
+                    return false
                 }
 
                 // TODO: Compare annotations to see for example whether
