@@ -250,10 +250,22 @@ interface MethodItem : MemberItem {
                 compareMethods(o1, o2, true)
             }
 
+        /**
+         * Compare two types to see if they are considered the same.
+         *
+         * Same means, functionally equivalent at both compile time and runtime.
+         *
+         * TODO: Compare annotations to see for example whether you've refined the nullness policy;
+         *   if so, that should be included
+         */
+        private fun sameType(t1: TypeItem, t2: TypeItem): Boolean {
+            return t1 == t2
+        }
+
         fun sameSignature(method: MethodItem, superMethod: MethodItem): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
-            if (method.returnType() != superMethod.returnType()) {
+            if (!sameType(method.returnType(), superMethod.returnType())) {
                 return false
             }
 
@@ -281,12 +293,9 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (pt1 != pt2) {
+                if (!sameType(pt1, pt2)) {
                     return false
                 }
-
-                // TODO: Compare annotations to see for example whether
-                // you've refined the nullness policy; if so, that should be included
             }
 
             // Also compare throws lists
