@@ -19,6 +19,7 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
@@ -26,9 +27,10 @@ import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
@@ -337,8 +339,15 @@ private constructor(
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token) {
             token = tokenizer.requireToken()
-            assertIdent(tokenizer, token)
-            ext = token
+            var superClassName = token
+            // Make sure full super class name is found if there are type use annotations.
+            if (token.contains('@')) {
+                while (token.contains('@')) {
+                    token = tokenizer.requireToken()
+                    superClassName += " $token"
+                }
+            }
+            ext = superClassName
             token = tokenizer.requireToken()
         }
         if (
@@ -346,19 +355,26 @@ private constructor(
                 "extends" == token ||
                 isInterface && ext != null && token != "{"
         ) {
-            if (token != "implements" && token != "extends") {
-                mapClassToInterface(cl, token)
+            // If this is part of a list of interface supertypes, token is already a supertype.
+            // Otherwise, skip to the next token to get the supertype.
+            if (token == "implements" || token == "extends") {
+                token = tokenizer.requireToken()
             }
             while (true) {
-                token = tokenizer.requireToken()
+                var interfaceName = token
                 if ("{" == token) {
                     break
-                } else {
-                    // / TODO
-                    if ("," != token) {
-                        mapClassToInterface(cl, token)
+                } else if ("," != token) {
+                    // Make sure full interface name is found if there are type use annotations.
+                    if (token.contains('@')) {
+                        while (token.contains('@')) {
+                            token = tokenizer.requireToken()
+                            interfaceName += " $token"
+                        }
                     }
+                    mapClassToInterface(cl, interfaceName)
                 }
+                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
@@ -446,7 +462,7 @@ private constructor(
     private fun processKotlinTypeSuffix(
         startingType: String,
         annotations: MutableList<String>
-    ): Pair<String, MutableList<String>> {
+    ): String {
         var type = startingType
         var varArgs = false
         if (type.endsWith("...")) {
@@ -474,7 +490,7 @@ private constructor(
         if (varArgs) {
             type = "$type..."
         }
-        return Pair(type, annotations)
+        return type
     }
 
     @Throws(ApiParseException::class)
@@ -578,7 +594,7 @@ private constructor(
         var typeParameterList = NONE
 
         // Metalava: including annotations in file now
-        var annotations = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
@@ -587,9 +603,7 @@ private constructor(
             token = tokenizer.requireToken()
         }
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(token, annotations)
-        token = first
-        annotations = second
+        token = processKotlinTypeSuffix(token, annotations)
         modifiers.addAnnotations(annotations)
         var returnTypeString = token
         token = tokenizer.requireToken()
@@ -673,14 +687,12 @@ private constructor(
         isEnum: Boolean
     ) {
         var token = startingToken
-        var annotations = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(token, annotations)
-        token = first
-        annotations = second
+        token = processKotlinTypeSuffix(token, annotations)
         modifiers.addAnnotations(annotations)
         val type = token
         val typeInfo =
@@ -692,7 +704,7 @@ private constructor(
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)
-            value = parseValue(type, token)
+            value = parseValue(typeInfo, token, tokenizer)
             token = tokenizer.requireToken()
         }
         if (";" != token) {
@@ -820,45 +832,51 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(type: String?, value: String?): Any? {
+    private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
-            when (type) {
-                "boolean" ->
-                    if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-                "byte" -> Integer.valueOf(value)
-                "short" -> Integer.valueOf(value)
-                "int" -> Integer.valueOf(value)
-                "long" -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-                "float" ->
-                    when (value) {
-                        "(1.0f/0.0f)",
-                        "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                        "(-1.0f/0.0f)",
-                        "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                        "(0.0f/0.0f)",
-                        "(0.0f / 0.0f)" -> Float.NaN
-                        else -> java.lang.Float.valueOf(value)
-                    }
-                "double" ->
-                    when (value) {
-                        "(1.0/0.0)",
-                        "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                        "(-1.0/0.0)",
-                        "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                        "(0.0/0.0)",
-                        "(0.0 / 0.0)" -> Double.NaN
-                        else -> java.lang.Double.valueOf(value)
-                    }
-                "char" -> value.toInt().toChar()
-                JAVA_LANG_STRING,
-                "String" ->
-                    if ("null" == value) {
-                        null
-                    } else {
-                        javaUnescapeString(value.substring(1, value.length - 1))
-                    }
-                "null" -> null
-                else -> value
+            if (type is PrimitiveTypeItem) {
+                when (type.kind) {
+                    Primitive.BOOLEAN ->
+                        if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+                    Primitive.BYTE,
+                    Primitive.SHORT,
+                    Primitive.INT -> Integer.valueOf(value)
+                    Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
+                    Primitive.FLOAT ->
+                        when (value) {
+                            "(1.0f/0.0f)",
+                            "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
+                            "(-1.0f/0.0f)",
+                            "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
+                            "(0.0f/0.0f)",
+                            "(0.0f / 0.0f)" -> Float.NaN
+                            else -> java.lang.Float.valueOf(value)
+                        }
+                    Primitive.DOUBLE ->
+                        when (value) {
+                            "(1.0/0.0)",
+                            "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
+                            "(-1.0/0.0)",
+                            "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
+                            "(0.0/0.0)",
+                            "(0.0 / 0.0)" -> Double.NaN
+                            else -> java.lang.Double.valueOf(value)
+                        }
+                    Primitive.CHAR -> value.toInt().toChar()
+                    Primitive.VOID ->
+                        throw ApiParseException(
+                            "Found value $value assigned to void type",
+                            tokenizer
+                        )
+                }
+            } else if (type.isString()) {
+                if ("null" == value) {
+                    null
+                } else {
+                    javaUnescapeString(value.substring(1, value.length - 1))
+                }
+            } else {
+                value
             }
         } else null
     }
@@ -873,14 +891,12 @@ private constructor(
         var token = startingToken
 
         // Metalava: including annotations in file now
-        var annotations = getAnnotations(tokenizer, token)
+        val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(token, annotations)
-        token = first
-        annotations = second
+        token = processKotlinTypeSuffix(token, annotations)
         modifiers.addAnnotations(annotations)
         val type: String = token
         val typeInfo =
@@ -947,7 +963,7 @@ private constructor(
             }
 
             // Metalava: including annotations in file now
-            var annotations = getAnnotations(tokenizer, token)
+            val annotations = getAnnotations(tokenizer, token)
             token = tokenizer.current
             val modifiers = parseModifiers(api, tokenizer, token, null)
             token = tokenizer.current
@@ -967,13 +983,12 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
-            val (typeString, second) = processKotlinTypeSuffix(type, annotations)
-            annotations = second
+            val typeString = processKotlinTypeSuffix(type, annotations)
             modifiers.addAnnotations(annotations)
-            if (typeString.endsWith("...")) {
+            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
+            if (typeInfo is ArrayTypeItem && typeInfo.isVarargs) {
                 modifiers.setVarArg(true)
             }
-            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
             var name: String
             var publicName: String?
             if (isIdent(token) && token != "=") {

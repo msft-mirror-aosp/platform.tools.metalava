@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -179,7 +180,7 @@ class NullabilityAnnotationsValidator(
                 assert(!SUPPORT_TYPE_USE_ANNOTATIONS)
             }
             // Type parameter reference (should have nullability):
-            type.asTypeParameter() != null -> {
+            type is VariableTypeItem -> {
                 if (nullability == null) {
                     warnings.add(Warning(method, label, WarningType.MISSING))
                 }

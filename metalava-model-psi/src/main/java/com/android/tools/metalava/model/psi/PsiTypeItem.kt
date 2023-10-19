@@ -212,11 +212,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         return asClass
     }
 
-    override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
-        val cls = asClass() ?: return null
-        return cls as? PsiTypeParameterItem
-    }
-
     override fun hashCode(): Int {
         return psiType.hashCode()
     }
@@ -877,9 +872,21 @@ class PsiClassTypeItem(
     // It should be possible to do `psiType.rawType().canonicalText` instead, but this doesn't
     // always work if psi is unable to resolve the reference.
     // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
-    override val qualifiedName: String =
-        PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
+    override val qualifiedName = PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
     override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
+    override val outerClassType =
+        PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
+            // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no outer
+            // class reference.
+            // If the type is not an inner type, it returns the package name (e.g. for
+            // "java.lang.String" it returns "java.lang").
+            if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
+                null
+            } else {
+                val psiOuterClassType = codebase.createPsiType(outerClassName, psiType.psiContext)
+                create(codebase, psiOuterClassType) as ClassTypeItem
+            }
+        }
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
