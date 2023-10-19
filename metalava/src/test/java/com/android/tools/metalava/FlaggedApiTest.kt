@@ -79,6 +79,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         previouslyReleasedApi: String,
         expectedPublicApi: String,
         expectedPublicApiMinusFlaggedApi: String,
+        expectedPublicApiMinusFlaggedApiIssues: String = "",
         expectedSystemApi: String,
         expectedSystemApiMinusFlaggedApi: String,
         expectedSystemApiMinusFlaggedApiIssues: String = "",
@@ -98,6 +99,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         Flagged.WITHOUT ->
                             Expectations(
                                 expectedApi = expectedPublicApiMinusFlaggedApi,
+                                expectedIssues = expectedPublicApiMinusFlaggedApiIssues,
                             )
                     }
                 Surface.SYSTEM ->
@@ -278,6 +280,115 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     src/test/pkg/Bar.java:10: error: Class test.pkg.Foo is hidden but was referenced (as parameter type) from public parameter foo in test.pkg.Bar.flaggedSystemApi(test.pkg.Foo foo) [ReferencesHidden]
                     src/test/pkg/Bar.java:10: warning: Parameter of unavailable type test.pkg.Foo in test.pkg.Bar.flaggedSystemApi() [UnavailableSymbol]
                     src/test/pkg/Bar.java:10: warning: Parameter foo references hidden type test.pkg.Foo. [HiddenTypeParameter]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test that method overrides are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    public class Foo {
+                        @FlaggedApi("foo/bar")
+                        public void flaggedMethod() {}
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("foo/bar")
+                        public void systemFlaggedMethod() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    public class Bar extends Foo {
+                        @Override
+                        public void flaggedMethod() {}
+
+                        /** @hide */
+                        @SystemApi
+                        @Override
+                        public void systemFlaggedMethod() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar extends test.pkg.Foo {
+                        ctor public Bar();
+                      }
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            expectedPublicApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar extends test.pkg.Foo {
+                        ctor public Bar();
+                      }
+                      public class Foo {
+                        ctor public Foo();
+                        method @FlaggedApi("foo/bar") public void flaggedMethod();
+                      }
+                    }
+                """,
+            // This should not include flaggedMethod(). As overrides of flagged methods do not need
+            // to themselves be flagged then removing flagged methods should remove the overrides
+            // too.
+            expectedPublicApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar extends test.pkg.Foo {
+                        ctor public Bar();
+                        method public void flaggedMethod();
+                      }
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            // This should be empty.
+            expectedPublicApiMinusFlaggedApiIssues =
+                """
+                    src/test/pkg/Bar.java:8: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.flaggedMethod() [UnflaggedApi]
+                """,
+            expectedSystemApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
+                      }
+                    }
+                """,
+            // This should not include systemFlaggedMethod(). As overrides of flagged methods do not
+            // need to themselves be flagged then removing flagged methods should remove the
+            // overrides too. That would leave this empty apart from the signature header.
+            expectedSystemApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar extends test.pkg.Foo {
+                        method public void systemFlaggedMethod();
+                      }
+                    }
                 """,
         )
     }
