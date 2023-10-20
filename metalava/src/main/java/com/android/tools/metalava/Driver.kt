@@ -37,6 +37,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -567,16 +568,8 @@ private fun ActionContext.subtractApi(
 }
 
 fun reallyHideFlaggedSystemApis(codebase: Codebase) {
-    @Suppress("DEPRECATION")
-    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-    val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
     codebase.accept(
-        object :
-            ApiVisitor(
-                filterEmit = apiEmitAndReference,
-                filterReference = apiEmitAndReference,
-                includeEmptyOuterClasses = true
-            ) {
+        object : BaseItemVisitor() {
             override fun visitItem(item: Item) {
                 item.modifiers.findAnnotation(ANDROID_FLAGGED_API) ?: return
                 item.hidden = true
