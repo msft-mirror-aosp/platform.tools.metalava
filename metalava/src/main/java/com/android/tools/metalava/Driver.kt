@@ -192,10 +192,6 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
-        reallyHideFlaggedSystemApis(codebase)
-    }
-
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
     val apiGenerator = ApiGenerator(signatureFileCache)
@@ -729,6 +725,11 @@ private fun ActionContext.loadFromSources(
 
     val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
+
+    if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+        reallyHideFlaggedSystemApis(codebase)
+    }
+
     analyzer.computeApi()
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)

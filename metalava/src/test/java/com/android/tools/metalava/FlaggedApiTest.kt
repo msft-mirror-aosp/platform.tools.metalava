@@ -273,14 +273,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
                     // Signature format: 2.0
                 """,
-            // This should be empty as removing the API annotated with FlaggedApi should also remove
-            // the references to it but that does not work.
-            expectedSystemApiMinusFlaggedApiIssues =
-                """
-                    src/test/pkg/Bar.java:10: error: Class test.pkg.Foo is hidden but was referenced (as parameter type) from public parameter foo in test.pkg.Bar.flaggedSystemApi(test.pkg.Foo foo) [ReferencesHidden]
-                    src/test/pkg/Bar.java:10: warning: Parameter of unavailable type test.pkg.Foo in test.pkg.Bar.flaggedSystemApi() [UnavailableSymbol]
-                    src/test/pkg/Bar.java:10: warning: Parameter foo references hidden type test.pkg.Foo. [HiddenTypeParameter]
-                """,
+            expectedSystemApiMinusFlaggedApiIssues = "",
         )
     }
 
@@ -389,6 +382,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         method public void systemFlaggedMethod();
                       }
                     }
+                """,
+            expectedSystemApiMinusFlaggedApiIssues =
+                """
+                    src/test/pkg/Bar.java:13: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.systemFlaggedMethod() [UnflaggedApi]
                 """,
         )
     }
