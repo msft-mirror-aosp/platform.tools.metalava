@@ -76,6 +76,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      */
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
+        previouslyReleasedApi: String,
         expectedPublicApi: String,
         expectedPublicApiMinusFlaggedApi: String,
         expectedSystemApi: String,
@@ -96,6 +97,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             }
 
         check(
+            // Enable API linting against the previous API; only report issues in changes to that
+            // API.
+            apiLint = previouslyReleasedApi,
             format = FileFormat.V2,
             sourceFiles =
                 buildList {
@@ -105,7 +109,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     .toTypedArray(),
             api = expectedApi,
             extraArguments =
-                arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + config.extraArguments,
+                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", "--warning", "UnflaggedApi") +
+                    config.extraArguments,
         )
     }
 
@@ -130,6 +135,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     }
                 """
             ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
             expectedPublicApi =
                 """
                     // Signature format: 2.0
