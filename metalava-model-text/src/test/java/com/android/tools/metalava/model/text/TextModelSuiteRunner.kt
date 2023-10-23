@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import java.io.File
@@ -30,12 +29,11 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         tempDir: File,
-        input: TestFile,
+        input: List<TestFile>,
         test: (Codebase) -> Unit,
     ) {
-        val signatureFile = input.createFile(tempDir)
-        val codebase =
-            ApiFile.parseApi(listOf(signatureFile), annotationManager = noOpAnnotationManager)
+        val signatureFiles = input.map { it.createFile(tempDir) }
+        val codebase = ApiFile.parseApi(signatureFiles)
         test(codebase)
     }
 

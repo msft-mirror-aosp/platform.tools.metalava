@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.VariableTypeItem
@@ -31,10 +32,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
 import kotlin.math.min
 
-const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
-
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
-
     override fun toString(): String = type
 
     override fun toErasedTypeString(context: Item?): String {
@@ -152,7 +150,8 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         ): String {
             return if (erased) {
                 val raw = eraseTypeArguments(type)
-                val concrete = eraseTypeArguments(substituteTypeParameters(raw, context))
+                val rawNoEllipsis = raw.replace("...", "[]")
+                val concrete = eraseTypeArguments(substituteTypeParameters(rawNoEllipsis, context))
                 if (outerAnnotations && innerAnnotations) {
                     concrete
                 } else {
@@ -181,10 +180,8 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
                         if (bounds.isNotEmpty()) {
                             return bounds.first().toTypeString() + s.substring(end)
                         }
-                        @Suppress("ConstantConditionIf")
-                        if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
-                            return JAVA_LANG_OBJECT + s.substring(end)
-                        }
+
+                        return JAVA_LANG_OBJECT + s.substring(end)
                     }
                 }
             }
@@ -328,7 +325,8 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
 internal class TextPrimitiveTypeItem(
     override val codebase: TextCodebase,
     override val type: String,
-    override val kind: PrimitiveTypeItem.Primitive
+    override val kind: PrimitiveTypeItem.Primitive,
+    override val modifiers: TypeModifiers
 ) : PrimitiveTypeItem, TextTypeItem(codebase, type)
 
 /** An [ArrayTypeItem] parsed from a signature file. */
@@ -336,7 +334,8 @@ internal class TextArrayTypeItem(
     override val codebase: TextCodebase,
     override val type: String,
     override val componentType: TypeItem,
-    override val isVarargs: Boolean
+    override val isVarargs: Boolean,
+    override val modifiers: TypeModifiers
 ) : ArrayTypeItem, TextTypeItem(codebase, type)
 
 /** A [ClassTypeItem] parsed from a signature file. */
@@ -345,7 +344,8 @@ internal class TextClassTypeItem(
     override val type: String,
     override val qualifiedName: String,
     override val parameters: List<TypeItem>,
-    override val outerClassType: ClassTypeItem?
+    override val outerClassType: ClassTypeItem?,
+    override val modifiers: TypeModifiers
 ) : ClassTypeItem, TextTypeItem(codebase, type)
 
 /** A [VariableTypeItem] parsed from a signature file. */
@@ -353,7 +353,8 @@ internal class TextVariableTypeItem(
     override val codebase: TextCodebase,
     override val type: String,
     override val name: String,
-    override val asTypeParameter: TypeParameterItem
+    override val asTypeParameter: TypeParameterItem,
+    override val modifiers: TypeModifiers
 ) : VariableTypeItem, TextTypeItem(codebase, type)
 
 /** A [WildcardTypeItem] parsed from a signature file. */
@@ -361,5 +362,6 @@ internal class TextWildcardTypeItem(
     override val codebase: TextCodebase,
     override val type: String,
     override val extendsBound: TypeItem?,
-    override val superBound: TypeItem?
+    override val superBound: TypeItem?,
+    override val modifiers: TypeModifiers
 ) : WildcardTypeItem, TextTypeItem(codebase, type)

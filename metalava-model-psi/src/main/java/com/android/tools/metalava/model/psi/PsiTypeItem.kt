@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -61,8 +62,11 @@ import java.lang.IllegalStateException
 import java.util.function.Predicate
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
-    TypeItem {
+sealed class PsiTypeItem(
+    open val codebase: PsiBasedCodebase,
+    open val psiType: PsiType,
+    override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
+) : TypeItem {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var toInnerAnnotatedString: String? = null
@@ -331,6 +335,26 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     }
 
     companion object {
+        /**
+         * Work around inconsistency in [TypeConversionUtil.erasure].
+         *
+         * If the [TypeConversionUtil.erasure] is passed a [PsiEllipsisType] (which is a subclass of
+         * [PsiArrayType]) then it will treat it as a [PsiArrayType], replacing the `...` suffix
+         * with `[]` only when the component type changes during erasure, i.e. is generic. If the
+         * component type is not affected by erasure then the `...` suffix is preserved.
+         *
+         * This works around that inconsistency by explicitly handling the [PsiEllipsisType] and
+         * always replacing it with a [PsiArrayType]. So, an erased type string never includes with
+         * `...`.
+         */
+        private fun typeErasure(psiType: PsiType): PsiType {
+            return if (psiType is PsiEllipsisType) {
+                PsiArrayType(TypeConversionUtil.erasure(psiType.componentType))
+            } else {
+                TypeConversionUtil.erasure(psiType)
+            }
+        }
+
         private fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,
@@ -345,7 +369,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
                 // Recurse with raw type and erase=false
                 return toTypeString(
                     codebase,
-                    TypeConversionUtil.erasure(type),
+                    typeErasure(type),
                     outerAnnotations,
                     innerAnnotations,
                     false,
@@ -875,6 +899,7 @@ class PsiClassTypeItem(
     override val qualifiedName = PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
     override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
     override val outerClassType =
+        // TODO(b/300081840): this drops annotations on the outer class
         PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no outer
             // class reference.

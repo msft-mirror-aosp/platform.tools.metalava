@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.tools.metalava.cli.common.ActionContext
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
@@ -74,9 +75,9 @@ class ConvertJarsToSignatureFiles(
 
             progressTracker.progress("Writing signature files $signatureFile for $apiJar")
 
-            // Treat android.jar file as not filtered since they contain misc stuff that shouldn't
-            // be there: package private super classes etc.
             val annotationManager = DefaultAnnotationManager()
+            val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
+
             val sourceParser =
                 environmentManager.createSourceParser(
                     reporter,
@@ -91,6 +92,8 @@ class ConvertJarsToSignatureFiles(
             val jarCodebase =
                 actionContext.loadFromJarFile(
                     apiJar,
+                    // Treat android.jar file as not filtered since they contain misc stuff that
+                    // shouldn't be there: package private super classes etc.
                     preFiltered = false,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
                     codebaseValidator = {},
@@ -139,11 +142,7 @@ class ConvertJarsToSignatureFiles(
 
             val oldRemovedFile = File(root, "prebuilts/sdk/$api/public/api/removed.txt")
             if (oldRemovedFile.isFile) {
-                val oldCodebase =
-                    SignatureFileLoader.load(
-                        oldRemovedFile,
-                        annotationManager = annotationManager,
-                    )
+                val oldCodebase = signatureFileLoader.load(oldRemovedFile)
                 val visitor =
                     object : ComparisonVisitor() {
                         override fun compare(old: MethodItem, new: MethodItem) {
@@ -167,11 +166,7 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase =
-                        SignatureFileLoader.load(
-                            oldApiFile,
-                            annotationManager = annotationManager,
-                        )
+                    val oldCodebase = signatureFileLoader.load(oldApiFile)
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {

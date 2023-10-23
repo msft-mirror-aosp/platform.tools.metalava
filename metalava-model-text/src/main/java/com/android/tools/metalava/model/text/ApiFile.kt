@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -44,10 +45,12 @@ import java.io.IOException
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
+@MetalavaApi
 class ApiFile
 private constructor(
     /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?
+    override val classResolver: ClassResolver?,
+    private val formatForLegacyFiles: FileFormat?
 ) : ResolverContext {
 
     /**
@@ -70,11 +73,10 @@ private constructor(
          *
          * @param file input signature file
          */
-        @Throws(ApiParseException::class)
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), null, annotationManager)
+        ) = parseApi(listOf(file), annotationManager)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -85,16 +87,16 @@ private constructor(
          *
          * @param files input signature files
          */
-        @Throws(ApiParseException::class)
         fun parseApi(
             files: List<File>,
+            annotationManager: AnnotationManager = noOpAnnotationManager,
             classResolver: ClassResolver? = null,
-            annotationManager: AnnotationManager,
+            formatForLegacyFiles: FileFormat? = null,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], annotationManager)
             val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile(classResolver, formatForLegacyFiles)
             var first = true
             for (file in files) {
                 if (!first) {
@@ -122,6 +124,7 @@ private constructor(
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
         @Deprecated("Exists only for external callers. ")
         @JvmStatic
+        @MetalavaApi
         @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
@@ -135,15 +138,15 @@ private constructor(
         }
 
         /** Entry point for testing. Take a filename and content separately. */
-        @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
             apiText: String,
             classResolver: ClassResolver? = null,
+            formatForLegacyFiles: FileFormat? = null,
         ): TextCodebase {
             val api = TextCodebase(File(filename), noOpAnnotationManager)
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile(classResolver, formatForLegacyFiles)
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -158,15 +161,17 @@ private constructor(
         ReferenceResolver.resolveReferences(this, api)
     }
 
-    @Throws(ApiParseException::class)
     private fun parseApiSingleFile(
         api: TextCodebase,
         appending: Boolean,
         filename: String,
         apiText: String,
     ) {
-        // Parse the header of the signature file to determine the format.
-        format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
+        // Parse the header of the signature file to determine the format. If the signature file is
+        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+        format =
+            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
+                ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
         if (appending) {
@@ -188,7 +193,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parsePackage(api: TextCodebase, tokenizer: Tokenizer) {
         var pkg: TextPackageItem
         var token: String = tokenizer.requireToken()
@@ -268,7 +272,6 @@ private constructor(
     /** Implements [ResolverContext] interface */
     override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
 
-    @Throws(ApiParseException::class)
     private fun parseClass(
         api: TextCodebase,
         pkg: TextPackageItem,
@@ -341,11 +344,14 @@ private constructor(
             token = tokenizer.requireToken()
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
-            if (token.contains('@')) {
-                while (token.contains('@')) {
-                    token = tokenizer.requireToken()
-                    superClassName += " $token"
-                }
+            // This can't use [parseType] because the next token might be a separate type (classes
+            // only have a single `extends` type, but all interface supertypes are listed as
+            // `extends` instead of `implements`).
+            // However, this type cannot be an array, so unlike [parseType] this does not need to
+            // check if the next token has annotations.
+            while (isIncompleteTypeToken(token)) {
+                token = tokenizer.requireToken()
+                superClassName += " $token"
             }
             ext = superClassName
             token = tokenizer.requireToken()
@@ -366,11 +372,12 @@ private constructor(
                     break
                 } else if ("," != token) {
                     // Make sure full interface name is found if there are type use annotations.
-                    if (token.contains('@')) {
-                        while (token.contains('@')) {
-                            token = tokenizer.requireToken()
-                            interfaceName += " $token"
-                        }
+                    // This can't use [parseType] because the next token might be a separate type.
+                    // However, this type cannot be an array, so unlike [parseType] this does not
+                    // need to check if the next token has annotations.
+                    while (isIncompleteTypeToken(token)) {
+                        token = tokenizer.requireToken()
+                        interfaceName += " $token"
                     }
                     mapClassToInterface(cl, interfaceName)
                 }
@@ -458,7 +465,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun processKotlinTypeSuffix(
         startingType: String,
         annotations: MutableList<String>
@@ -493,7 +499,6 @@ private constructor(
         return type
     }
 
-    @Throws(ApiParseException::class)
     private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
         var token = startingToken
         val annotations: MutableList<String> = mutableListOf()
@@ -531,7 +536,6 @@ private constructor(
         return annotations
     }
 
-    @Throws(ApiParseException::class)
     private fun parseConstructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -581,7 +585,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseMethod(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -589,7 +592,6 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val returnType: TextTypeItem
         val method: TextMethodItem
         var typeParameterList = NONE
 
@@ -603,39 +605,11 @@ private constructor(
             token = tokenizer.requireToken()
         }
         assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
-        modifiers.addAnnotations(annotations)
-        var returnTypeString = token
-        token = tokenizer.requireToken()
-        if (
-            returnTypeString.contains("@") &&
-                (returnTypeString.indexOf('<') == -1 ||
-                    returnTypeString.indexOf('@') < returnTypeString.indexOf('<'))
-        ) {
-            returnTypeString += " $token"
-            token = tokenizer.requireToken()
-        }
-        while (true) {
-            if (
-                token.contains("@") &&
-                    (token.indexOf('<') == -1 || token.indexOf('@') < token.indexOf('<'))
-            ) {
-                // Type-use annotations in type; keep accumulating
-                returnTypeString += " $token"
-                token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
-                    returnTypeString += " $token"
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                break
-            }
-        }
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        returnType = api.typeResolver.obtainTypeFromString(returnTypeString, typeParams)
+        val returnType = parseType(api, tokenizer, token, typeParams, annotations)
+        modifiers.addAnnotations(annotations)
+        token = tokenizer.current
         assertIdent(tokenizer, token)
         val name: String = token
         method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
@@ -678,7 +652,6 @@ private constructor(
         return annotations
     }
 
-    @Throws(ApiParseException::class)
     private fun parseField(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -692,25 +665,23 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
+        val type =
+            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
         modifiers.addAnnotations(annotations)
-        val type = token
-        val typeInfo =
-            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
-        token = tokenizer.requireToken()
+        token = tokenizer.current
         assertIdent(tokenizer, token)
         val name = token
         token = tokenizer.requireToken()
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)
-            value = parseValue(typeInfo, token, tokenizer)
+            value = parseValue(type, token, tokenizer)
             token = tokenizer.requireToken()
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val field = TextFieldItem(api, name, cl, modifiers, typeInfo, value, tokenizer.pos())
+        val field = TextFieldItem(api, name, cl, modifiers, type, value, tokenizer.pos())
         field.deprecated = modifiers.isDeprecated()
         if (isEnum) {
             cl.addEnumConstant(field)
@@ -719,7 +690,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseModifiers(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -835,40 +805,7 @@ private constructor(
     private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
-                when (type.kind) {
-                    Primitive.BOOLEAN ->
-                        if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-                    Primitive.BYTE,
-                    Primitive.SHORT,
-                    Primitive.INT -> Integer.valueOf(value)
-                    Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-                    Primitive.FLOAT ->
-                        when (value) {
-                            "(1.0f/0.0f)",
-                            "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                            "(-1.0f/0.0f)",
-                            "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                            "(0.0f/0.0f)",
-                            "(0.0f / 0.0f)" -> Float.NaN
-                            else -> java.lang.Float.valueOf(value)
-                        }
-                    Primitive.DOUBLE ->
-                        when (value) {
-                            "(1.0/0.0)",
-                            "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                            "(-1.0/0.0)",
-                            "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                            "(0.0/0.0)",
-                            "(0.0 / 0.0)" -> Double.NaN
-                            else -> java.lang.Double.valueOf(value)
-                        }
-                    Primitive.CHAR -> value.toInt().toChar()
-                    Primitive.VOID ->
-                        throw ApiParseException(
-                            "Found value $value assigned to void type",
-                            tokenizer
-                        )
-                }
+                parsePrimitiveValue(type, value, tokenizer)
             } else if (type.isString()) {
                 if ("null" == value) {
                     null
@@ -881,7 +818,44 @@ private constructor(
         } else null
     }
 
-    @Throws(ApiParseException::class)
+    private fun parsePrimitiveValue(
+        type: PrimitiveTypeItem,
+        value: String,
+        tokenizer: Tokenizer
+    ): Any {
+        return when (type.kind) {
+            Primitive.BOOLEAN ->
+                if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+            Primitive.BYTE,
+            Primitive.SHORT,
+            Primitive.INT -> Integer.valueOf(value)
+            Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
+            Primitive.FLOAT ->
+                when (value) {
+                    "(1.0f/0.0f)",
+                    "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
+                    "(-1.0f/0.0f)",
+                    "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
+                    "(0.0f/0.0f)",
+                    "(0.0f / 0.0f)" -> Float.NaN
+                    else -> java.lang.Float.valueOf(value)
+                }
+            Primitive.DOUBLE ->
+                when (value) {
+                    "(1.0/0.0)",
+                    "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
+                    "(-1.0/0.0)",
+                    "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
+                    "(0.0/0.0)",
+                    "(0.0 / 0.0)" -> Double.NaN
+                    else -> java.lang.Double.valueOf(value)
+                }
+            Primitive.CHAR -> value.toInt().toChar()
+            Primitive.VOID ->
+                throw ApiParseException("Found value $value assigned to void type", tokenizer)
+        }
+    }
+
     private fun parseProperty(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -896,24 +870,21 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
+        val type =
+            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
         modifiers.addAnnotations(annotations)
-        val type: String = token
-        val typeInfo =
-            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
-        token = tokenizer.requireToken()
+        token = tokenizer.current
         assertIdent(tokenizer, token)
         val name: String = token
         token = tokenizer.requireToken()
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val property = TextPropertyItem(api, name, cl, modifiers, typeInfo, tokenizer.pos())
+        val property = TextPropertyItem(api, name, cl, modifiers, type, tokenizer.pos())
         property.deprecated = modifiers.isDeprecated()
         cl.addProperty(property)
     }
 
-    @Throws(ApiParseException::class)
     private fun parseTypeParameterList(
         codebase: TextCodebase,
         tokenizer: Tokenizer
@@ -937,7 +908,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -969,24 +939,10 @@ private constructor(
             token = tokenizer.current
 
             // Token should now represent the type
-            var type = token
-            token = tokenizer.requireToken()
-            if (token.startsWith("@")) {
-                // Type use annotations within the type, which broke up the tokenizer;
-                // put it back together
-                type += " $token"
-                token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
-                    type += " $token"
-                    token = tokenizer.requireToken()
-                }
-            }
-            val typeString = processKotlinTypeSuffix(type, annotations)
+            val type = parseType(api, tokenizer, token, typeParameters, annotations)
             modifiers.addAnnotations(annotations)
-            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
-            if (typeInfo is ArrayTypeItem && typeInfo.isVarargs) {
+            token = tokenizer.current
+            if (type is ArrayTypeItem && type.isVarargs) {
                 modifiers.setVarArg(true)
             }
             var name: String
@@ -1062,7 +1018,7 @@ private constructor(
                     hasDefaultValue,
                     defaultValue,
                     index,
-                    typeInfo,
+                    type,
                     modifiers,
                     tokenizer.pos()
                 )
@@ -1074,7 +1030,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
         val sb = StringBuilder()
         while (true) {
@@ -1088,7 +1043,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseThrows(tokenizer: Tokenizer, method: TextMethodItem): String {
         var token = tokenizer.requireToken()
         var comma = true
@@ -1115,6 +1069,67 @@ private constructor(
         }
     }
 
+    /**
+     * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
+     * that the full type string is gathered, even when there are type-use annotations. Once the
+     * full type string is found, this parses the type in the context of the [typeParameters].
+     *
+     * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
+     * that nullability to [annotations].
+     *
+     * After this method is called, `tokenizer.current` will point to the token after the type.
+     *
+     * Note: this **should not** be used when the token after the type could contain annotations,
+     * such as when multiple types appear as consecutive tokens. (This happens in the `implements`
+     * list of a class definition, e.g. `class Foo implements test.pkg.Bar test.pkg.@A Baz`.)
+     *
+     * To handle arrays with type-use annotations, this looks forward at the next token and includes
+     * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
+     */
+    private fun parseType(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        startingToken: String,
+        typeParameters: List<TypeParameterItem>,
+        annotations: MutableList<String>
+    ): TextTypeItem {
+        var type = startingToken
+        var prev = type
+        var token = tokenizer.requireToken()
+        // Look both at the last used token and the next one:
+        // If the last token has annotations, the type string was broken up by annotations, and the
+        // next token is also part of the type.
+        // If the next token has annotations, this is an array type like "Foo @A []", so the next
+        // token is part of the type.
+        while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
+            type += " $token"
+            prev = token
+            token = tokenizer.requireToken()
+        }
+
+        // TODO: this should be handled by [obtainTypeFromString]
+        type = processKotlinTypeSuffix(type, annotations)
+
+        return api.typeResolver.obtainTypeFromString(type, typeParameters)
+    }
+
+    /**
+     * Determines whether the [type] is an incomplete type string broken up by annotations. This is
+     * the case when there's an annotation that isn't contained within a parameter list (because
+     * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
+     */
+    private fun isIncompleteTypeToken(type: String): Boolean {
+        val firstAnnotationIndex = type.indexOf('@')
+        val paramStartIndex = type.indexOf('<')
+        val lastAnnotationIndex = type.lastIndexOf('@')
+        val paramEndIndex = type.lastIndexOf('>')
+        return firstAnnotationIndex != -1 &&
+            (paramStartIndex == -1 ||
+                firstAnnotationIndex < paramStartIndex ||
+                paramEndIndex == -1 ||
+                paramEndIndex < lastAnnotationIndex)
+    }
+
     private fun qualifiedName(pkg: String, className: String): String {
         return "$pkg.$className"
     }
@@ -1123,7 +1138,6 @@ private constructor(
         return isIdent(token[0])
     }
 
-    @Throws(ApiParseException::class)
     private fun assertIdent(tokenizer: Tokenizer, token: String) {
         if (!isIdent(token[0])) {
             throw ApiParseException("Expected identifier: $token", tokenizer)
@@ -1190,7 +1204,6 @@ private constructor(
             }
         }
 
-        @Throws(ApiParseException::class)
         fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
             val token = getToken(parenIsSep, eatWhitespace)
             return token ?: throw ApiParseException("Unexpected end of file", this)
@@ -1206,7 +1219,6 @@ private constructor(
 
         lateinit var current: String
 
-        @Throws(ApiParseException::class)
         fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
             if (eatWhitespace) {
                 eatWhitespaceAndComments()
