@@ -343,14 +343,6 @@ internal fun processFlags(
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
     val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-
-        createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, apiFilter, apiReferenceIgnoreShown, options.apiVisitorConfig)
-        }
-    }
-
     options.proguard?.let { proguard ->
         val apiEmit = FilterPredicate(ApiPredicate())
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
