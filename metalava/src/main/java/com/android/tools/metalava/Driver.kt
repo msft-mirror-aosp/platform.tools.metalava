@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
 import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
@@ -125,6 +126,7 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
+    val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
     val sourceParser =
         environmentManager.createSourceParser(
@@ -142,6 +144,7 @@ internal fun processFlags(
         ActionContext(
             progressTracker = progressTracker,
             reporter = reporter,
+            reporterApiLint = reporterApiLint,
             sourceParser = sourceParser,
         )
 
@@ -170,7 +173,11 @@ internal fun processFlags(
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(sourceParser, textCodebase)
+                addMissingItemsRequiredForGeneratingStubs(
+                    sourceParser,
+                    textCodebase,
+                    reporterApiLint
+                )
             }
             textCodebase
         } else if (options.apiJar != null) {
@@ -230,7 +237,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, options.reporterApiLint)
+        val docAnalyzer = DocAnalyzer(codebase, reporterApiLint)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -432,12 +439,13 @@ internal fun processFlags(
 private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
     textCodebase: TextCodebase,
+    reporterApiLint: Reporter,
 ) {
     // Reuse the existing ApiAnalyzer support for adding constructors that is used in
     // [loadFromSources], to make sure that the constructors are correct when generating stubs
     // from source files.
     val analyzer =
-        ApiAnalyzer(sourceParser, textCodebase, options.reporter, options.apiAnalyzerConfig)
+        ApiAnalyzer(sourceParser, textCodebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.addConstructors { _ -> true }
 
     // Only add missing concrete overrides if the codebase does not fall back to loading classes
@@ -723,7 +731,7 @@ private fun ActionContext.loadFromSources(
 
     progressTracker.progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(sourceParser, codebase, options.reporter, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
 
     if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
@@ -751,7 +759,7 @@ private fun ActionContext.loadFromSources(
     analyzer.handleStripping()
 
     // General API checks for Android APIs
-    AndroidApiChecks(options.reporter).check(codebase)
+    AndroidApiChecks(reporterApiLint).check(codebase)
 
     if (options.checkApi) {
         progressTracker.progress("API Lint: ")
@@ -764,7 +772,7 @@ private fun ActionContext.loadFromSources(
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
                 else -> signatureFileCache.load(file = previousApiFile)
             }
-        val apiLintReporter = options.reporterApiLint as DefaultReporter
+        val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
             .check()
         progressTracker.progress(
@@ -826,7 +834,7 @@ fun ActionContext.loadFromJarFile(
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val apiReference = apiEmit
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
