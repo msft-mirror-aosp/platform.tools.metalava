@@ -125,6 +125,20 @@ data class Showability(
      */
     fun showNonRecursive() = show && !recursive && !forStubsOnly
 
+    /** Combine this with [other] to produce a combination [Showability]. */
+    fun combineWith(other: Showability): Showability {
+        // Show wins over not showing.
+        val newShow = show || other.show
+
+        // Recursive wins over not recursive.
+        val newRecursive = recursive || other.recursive
+
+        // For everything wins over only for stubs.
+        val forStubsOnly = !newShow && (forStubsOnly || other.forStubsOnly)
+
+        return Showability(newShow, newRecursive, forStubsOnly)
+    }
+
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */
         val NO_EFFECT = Showability(show = false, recursive = false, forStubsOnly = false)

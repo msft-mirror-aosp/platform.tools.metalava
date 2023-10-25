@@ -45,22 +45,12 @@ import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 
-class DefaultAnnotationManager(
-    /**
-     * The optional reporter.
-     *
-     * This is optional as at the moment not all callers have or need a [Reporter].
-     */
-    private val reporter: Reporter? = null,
-    private val config: Config = Config()
-) : BaseAnnotationManager() {
+class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
@@ -515,40 +505,21 @@ class DefaultAnnotationManager(
         // * `show=true` beats `show=false`
         // * `recurse=true` beats `recurse=false`
         // * `forStubsOnly=false` beats `forStubsOnly=true`
-        // This implementation is not implemented in terms of those properties as not all
-        // combinations are currently supported. Also, it is not clear how to combine something like
-        // SHOW_SINGLE and SHOW_FOR_STUBS, so if found they will result in an error. However, that
-        // should not be an issue in practices as the existing uses do not use both together.
 
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
 
-        // The annotation whose showability won.
-        var primaryAnnotation: AnnotationItem? = null
         for (annotation in item.modifiers.annotations()) {
             val showability = annotation.showability
-            if (itemShowability == Showability.NO_EFFECT) {
-                // NO_EFFECT is beaten by anything.
-                itemShowability = showability
-                primaryAnnotation = annotation
-            } else if (showability != Showability.NO_EFFECT && showability != itemShowability) {
-                // If an annotation has a different and significant showability then if it is SHOW
-                // then it wins, otherwise it is an error.
-                if (showability == LazyAnnotationInfo.SHOW) {
-                    // SHOW cannot be beaten so break out.
-                    itemShowability = showability
-                    break
-                } else {
-                    val message =
-                        "${item.describe(capitalize = true)} has conflicting show annotations $primaryAnnotation ($itemShowability) and $annotation ($showability)"
-                    reporter?.report(Issues.CONFLICTING_SHOW_ANNOTATIONS, item, message)
-                        ?: throw IllegalStateException(message)
-                    break
-                }
+            if (showability == Showability.NO_EFFECT) {
+                // NO_EFFECT has no effect on the result so just ignore it.
+                continue
             }
+            itemShowability = itemShowability.combineWith(showability)
 
-            // SHOW cannot be beaten so break out.
+            // SHOW cannot be beaten so break out, reusing it.
             if (itemShowability == LazyAnnotationInfo.SHOW) {
+                itemShowability = LazyAnnotationInfo.SHOW
                 break
             }
         }
