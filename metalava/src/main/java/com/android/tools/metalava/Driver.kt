@@ -31,6 +31,7 @@ import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
+import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
@@ -344,7 +345,7 @@ internal fun processFlags(
         val dexApiEmit = memberIsNotCloned.and(apiFilter)
 
         createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, dexApiEmit, apiReferenceIgnoreShown)
+            DexApiWriter(printWriter, dexApiEmit, apiReferenceIgnoreShown, options.apiVisitorConfig)
         }
     }
 
@@ -992,6 +993,7 @@ private fun createMetalavaCommand(
         HelpCommand(),
         MakeAnnotationsPackagePrivateCommand(),
         MergeSignaturesCommand(),
+        SignatureToDexCommand(),
         SignatureToJDiffCommand(),
         UpdateSignatureHeaderCommand(),
         VersionCommand(),
