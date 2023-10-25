@@ -124,6 +124,7 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
+    val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
     val sourceParser =
         environmentManager.createSourceParser(
@@ -141,6 +142,7 @@ internal fun processFlags(
         ActionContext(
             progressTracker = progressTracker,
             reporter = reporter,
+            reporterApiLint = reporterApiLint,
             sourceParser = sourceParser,
         )
 
@@ -233,7 +235,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, options.reporterApiLint)
+        val docAnalyzer = DocAnalyzer(codebase, reporterApiLint)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -770,7 +772,7 @@ private fun ActionContext.loadFromSources(
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
                 else -> signatureFileCache.load(file = previousApiFile)
             }
-        val apiLintReporter = options.reporterApiLint as DefaultReporter
+        val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
             .check()
         progressTracker.progress(
