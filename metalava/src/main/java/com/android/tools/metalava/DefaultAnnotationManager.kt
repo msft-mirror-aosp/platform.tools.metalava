@@ -600,7 +600,7 @@ private class LazyAnnotationInfo(
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown in the stubs only.
          */
-        val SHOW_FOR_STUBS = Showability(show = true, recursive = true, forStubsOnly = true)
+        val SHOW_FOR_STUBS = Showability(show = false, recursive = false, forStubsOnly = true)
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
         val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)

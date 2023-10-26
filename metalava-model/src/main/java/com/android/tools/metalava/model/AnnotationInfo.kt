@@ -75,24 +75,55 @@ data class Showability(
     /**
      * If true then the annotated item will be shown as part of the API, unless overridden in some
      * way.
+     *
+     * Is `true` for annotations that match `--show-annotation`, or `--show-single-annotation`, but
+     * not `--show-for-stub-purposes-annotation`, and items that are annotated with such an
+     * annotation that is not overridden in some way.
      */
     private val show: Boolean,
+
     /**
      * If true then the annotated item will recursively affect enclosed items, unless overridden by
      * a closer annotation.
+     *
+     * Is `true` for annotations that match `--show-annotation`, but not `--show-single-annotation`,
+     * or `--show-for-stub-purposes-annotation`, and items that are annotated with such an
+     * annotation that is not overridden in some way.
      */
     private val recursive: Boolean,
+
     /**
      * If true then the annotated item will only be included in stubs of the API, otherwise it can
      * appear in all representations of the API, e.g. signature files.
+     *
+     * Is `true` for annotations that match ``--show-for-stub-purposes-annotation`, and items that
+     * are annotated with such an annotation that is not overridden in some way.
      */
     private val forStubsOnly: Boolean,
 ) {
-    fun show() = show
+    /**
+     * Check whether the annotated item should be considered part of the API or not.
+     *
+     * Returns `true` if the item is annotated with a `--show-annotation`,
+     * `--show-single-annotation`, or `--show-for-stub-purposes-annotation`.
+     */
+    fun show() = show || forStubsOnly
 
+    /**
+     * Check whether the annotated item should only be considered part of the API when generating
+     * stubs.
+     *
+     * Returns `true` if the item is annotated with a `--show-for-stub-purposes-annotation`. Such
+     * items will be part of an API surface that the API being generated extends.
+     */
     fun showForStubsOnly() = forStubsOnly
 
-    fun showNonRecursive() = show && !recursive
+    /**
+     * Check whether the annotations on this item only affect the current `Item`.
+     *
+     * Returns `true` if they do, `false` if they can also affect nested `Item`s.
+     */
+    fun showNonRecursive() = show && !recursive && !forStubsOnly
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */

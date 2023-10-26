@@ -836,9 +836,9 @@ class ShowAnnotationTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:10: error: Method test.pkg.Foo.method1() has conflicting show annotations @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) and @android.annotation.TestApi (Showability(show=true, recursive=true, forStubsOnly=true)) [ConflictingShowAnnotations]
-                src/test/pkg/Foo.java:17: error: Method test.pkg.Foo.method2() has conflicting show annotations @android.annotation.TestApi (Showability(show=true, recursive=true, forStubsOnly=true)) and @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) [ConflictingShowAnnotations]
-            """
+                    src/test/pkg/Foo.java:10: error: Method test.pkg.Foo.method1() has conflicting show annotations @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) and @android.annotation.TestApi (Showability(show=false, recursive=false, forStubsOnly=true)) [ConflictingShowAnnotations]
+                    src/test/pkg/Foo.java:17: error: Method test.pkg.Foo.method2() has conflicting show annotations @android.annotation.TestApi (Showability(show=false, recursive=false, forStubsOnly=true)) and @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) [ConflictingShowAnnotations]
+                """
                     .trimIndent(),
             sourceFiles =
                 arrayOf(
