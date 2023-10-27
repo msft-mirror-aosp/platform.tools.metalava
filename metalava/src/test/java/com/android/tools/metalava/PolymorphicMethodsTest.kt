@@ -76,7 +76,7 @@ class PolymorphicMethodsTest : DriverTest() {
                     package java.lang.invoke {
                       public abstract class MethodHandle {
                         ctor public MethodHandle();
-                        method public final Object invokeNative(java.lang.Object...);
+                        method public final native Object invokeNative(java.lang.Object...);
                         method @java.lang.SafeVarargs public final <T> Object invokeNotDeclaredObjectVarArgsTypes(T...);
                         method public final Object invokeNotNative(java.lang.Object...);
                         method public final Object invokeNotSingleParameter(String, Object[]);
@@ -117,9 +117,9 @@ class PolymorphicMethodsTest : DriverTest() {
                     package java.lang.invoke {
                       public abstract class VarHandle {
                         ctor public VarHandle();
-                        method public final boolean compareAndSet(java.lang.Object...);
-                        method public final Object get(java.lang.Object...);
-                        method public final void set(java.lang.Object...);
+                        method public final native boolean compareAndSet(java.lang.Object...);
+                        method public final native Object get(java.lang.Object...);
+                        method public final native void set(java.lang.Object...);
                       }
                     }
                 """
