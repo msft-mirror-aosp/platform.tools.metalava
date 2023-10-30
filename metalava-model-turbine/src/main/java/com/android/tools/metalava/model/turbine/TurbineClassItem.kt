@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -33,8 +32,7 @@ open class TurbineClassItem(
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    private val containingClass: TurbineClassItem?,
-    override val modifiers: ModifierList,
+    override val modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
@@ -59,6 +57,8 @@ open class TurbineClassItem(
     internal lateinit var containingPackage: TurbinePackageItem
 
     internal lateinit var fields: List<TurbineFieldItem>
+
+    internal var containingClass: TurbineClassItem? = null
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
