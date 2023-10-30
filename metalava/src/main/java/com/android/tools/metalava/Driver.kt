@@ -253,12 +253,19 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API version history JSON file, ${apiVersionsJson.name}: "
         )
+
+        val apiType = ApiType.PUBLIC_API
+        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
             apiVersionsJson,
-            apiVersionNames
+            apiVersionNames,
+            apiEmit,
+            apiReference
         )
     }
 
