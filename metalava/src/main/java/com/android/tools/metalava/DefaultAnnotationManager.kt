@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
@@ -517,13 +518,18 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 continue
             }
             itemShowability = itemShowability.combineWith(showability)
+        }
 
-            // SHOW cannot be beaten so break out, reusing it.
-            if (itemShowability == LazyAnnotationInfo.SHOW) {
-                itemShowability = LazyAnnotationInfo.SHOW
-                break
+        if (item is MethodItem) {
+            // If any of a method's super methods are part of a hidden unstable API then treat the
+            // method as if it is too.
+            val hideUnstableApi =
+                item.superMethods().any { methodItem -> methodItem.showability.hideUnstableApi() }
+            if (hideUnstableApi) {
+                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
             }
         }
+
         return itemShowability
     }
 
@@ -557,7 +563,9 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
-                config.hideAnnotations.matches(annotationItem) -> HIDE
+                config.hideAnnotations.matches(annotationItem) ->
+                    if (annotationItem.qualifiedName == ANDROID_FLAGGED_API) HIDE_UNSTABLE_API
+                    else HIDE
                 else -> Showability.NO_EFFECT
             }
         }
@@ -595,6 +603,17 @@ private class LazyAnnotationInfo(
          */
         val HIDE =
             Showability(show = ShowOrHide.HIDE, recursive = ShowOrHide.HIDE, forStubsOnly = false)
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val HIDE_UNSTABLE_API =
+            Showability(
+                show = ShowOrHide.HIDE_UNSTABLE_API,
+                recursive = ShowOrHide.HIDE_UNSTABLE_API,
+                forStubsOnly = false
+            )
 
         /**
          * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].

@@ -75,6 +75,14 @@ enum class ShowOrHide(private val show: Boolean?) {
 
     /** Show an item as part of the API. */
     SHOW(show = true),
+
+    /**
+     * Hide an unstable API.
+     *
+     * API items could have show annotations so in order to hide them this has to come after [SHOW]
+     * so it can override any show annotations.
+     */
+    HIDE_UNSTABLE_API(show = false),
     ;
 
     /** Return true if this shows an `Item` as part of the API. */
@@ -153,6 +161,15 @@ data class Showability(
      * Returns `true` if the annotation matches an `--hide-annotation`.
      */
     fun hide() = show.hide()
+
+    /**
+     * Check whether the annotated item is part of an unstable API that needs to be hidden.
+     *
+     * Returns `true` if the annotation matches `--hide-annotation android.annotation.FlaggedApi` or
+     * if this is on an item then when the item is annotated with such an annotation or is a method
+     * that overrides such an item.
+     */
+    fun hideUnstableApi() = show == ShowOrHide.HIDE_UNSTABLE_API
 
     /** Combine this with [other] to produce a combination [Showability]. */
     fun combineWith(other: Showability): Showability {
