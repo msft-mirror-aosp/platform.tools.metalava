@@ -84,6 +84,8 @@ object Issues {
 
     // Metalava warnings (not from doclava)
 
+    val INVALID_FEATURE_ENFORCEMENT = Issue(Severity.LINT, Category.DOCUMENTATION)
+
     val MISSING_PERMISSION = Issue(Severity.LINT, Category.DOCUMENTATION)
     val MULTIPLE_THREAD_ANNOTATIONS = Issue(Severity.LINT, Category.DOCUMENTATION)
     val UNRESOLVED_CLASS = Issue(Severity.LINT, Category.DOCUMENTATION)
@@ -224,6 +226,7 @@ object Issues {
     val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS = Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_DEFAULT_PARAMETER_ORDER = Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC)
+    val UNFLAGGED_API = Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

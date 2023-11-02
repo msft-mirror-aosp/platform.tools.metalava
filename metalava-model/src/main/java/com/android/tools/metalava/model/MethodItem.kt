@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import java.util.function.Predicate
 
+@MetalavaApi
 interface MethodItem : MemberItem {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
@@ -27,13 +28,13 @@ interface MethodItem : MemberItem {
         get() = null
 
     /** Whether this method is a constructor */
-    fun isConstructor(): Boolean
+    @MetalavaApi fun isConstructor(): Boolean
 
     /** The type of this field. Returns the containing class for constructors */
-    fun returnType(): TypeItem
+    @MetalavaApi fun returnType(): TypeItem
 
     /** The list of parameters */
-    fun parameters(): List<ParameterItem>
+    @MetalavaApi fun parameters(): List<ParameterItem>
 
     /** Returns true if this method is a Kotlin extension method */
     fun isExtensionMethod(): Boolean
@@ -58,7 +59,7 @@ interface MethodItem : MemberItem {
      * Any type parameters for the class, if any, as a source string (with fully qualified class
      * names)
      */
-    fun typeParameterList(): TypeParameterList
+    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
     fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
@@ -127,6 +128,11 @@ interface MethodItem : MemberItem {
      * to the original class it was inherited from
      */
     var inheritedFrom: ClassItem?
+
+    /**
+     * If this method requires override in the child class to prevent error when compiling the stubs
+     */
+    @Deprecated("This property should not be accessed directly.") var _requiresOverride: Boolean?
 
     /**
      * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
@@ -244,14 +250,53 @@ interface MethodItem : MemberItem {
                 compareMethods(o1, o2, true)
             }
 
+        /**
+         * Compare two types to see if they are considered the same.
+         *
+         * Same means, functionally equivalent at both compile time and runtime.
+         *
+         * TODO: Compare annotations to see for example whether you've refined the nullness policy;
+         *   if so, that should be included
+         */
+        private fun sameType(
+            context1: MethodItem,
+            t1: TypeItem,
+            context2: MethodItem,
+            t2: TypeItem,
+            addAdditionalOverrides: Boolean,
+        ): Boolean {
+            // Compare the types in two ways.
+            // 1. Using `TypeItem.equals(TypeItem)` which is basically a textual comparison that
+            //    ignores type parameter bounds but includes everuthing else that is present in the
+            //    string representation of the type apart from white space differences. This is
+            //    needed to preserve methods that change annotations, e.g. adding `@NonNull`, which
+            //    are significant to the API, and also to preserver legacy behavior to reduce churn
+            //    in API signature files.
+            // 2. Comparing their erased types which takes into account type parameter bounds but
+            //    ignores annotations and generic types. Comparing erased types will retain more
+            //    methods overrides in the signature file so only do it when adding additional
+            //    overrides.
+            return t1 == t2 &&
+                (!addAdditionalOverrides ||
+                    t1.toErasedTypeString(context1) == t2.toErasedTypeString(context2))
+        }
+
         fun sameSignature(
             method: MethodItem,
             superMethod: MethodItem,
-            compareRawTypes: Boolean = false
+            addAdditionalOverrides: Boolean,
         ): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
-            if (method.returnType() != superMethod.returnType()) {
+            if (
+                !sameType(
+                    method,
+                    method.returnType(),
+                    superMethod,
+                    superMethod.returnType(),
+                    addAdditionalOverrides = addAdditionalOverrides
+                )
+            ) {
                 return false
             }
 
@@ -279,18 +324,9 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (compareRawTypes) {
-                    if (pt1.toErasedTypeString() != pt2.toErasedTypeString()) {
-                        return false
-                    }
-                } else {
-                    if (pt1 != pt2) {
-                        return false
-                    }
+                if (!sameType(method, pt1, superMethod, pt2, addAdditionalOverrides)) {
+                    return false
                 }
-
-                // TODO: Compare annotations to see for example whether
-                // you've refined the nullness policy; if so, that should be included
             }
 
             // Also compare throws lists
@@ -338,8 +374,8 @@ interface MethodItem : MemberItem {
         return when {
             modifiers.hasJvmSyntheticAnnotation() -> false
             isConstructor() -> false
-            (!returnType().primitive) -> true
-            parameters().any { !it.type().primitive } -> true
+            (returnType() !is PrimitiveTypeItem) -> true
+            parameters().any { it.type() !is PrimitiveTypeItem } -> true
             else -> false
         }
     }
@@ -349,7 +385,7 @@ interface MethodItem : MemberItem {
             return true
         }
 
-        if (!isConstructor() && !returnType().primitive) {
+        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
             if (!modifiers.hasNullnessInfo()) {
                 return false
             }
@@ -402,6 +438,16 @@ interface MethodItem : MemberItem {
     fun hasDefaultValue(): Boolean {
         return defaultValue() != ""
     }
+
+    /**
+     * Returns true if overloads of the method should be checked separately when checking signature
+     * of the method.
+     *
+     * This works around the issue of actual method not generating overloads for @JvmOverloads
+     * annotation when the default is specified on expect side
+     * (https://youtrack.jetbrains.com/issue/KT-57537).
+     */
+    fun shouldExpandOverloads(): Boolean = false
 
     /**
      * Returns true if this method is a signature match for the given method (e.g. can be
@@ -501,20 +547,6 @@ interface MethodItem : MemberItem {
         return false
     }
 
-    override fun hasShowAnnotationInherited(): Boolean {
-        if (super.hasShowAnnotationInherited()) {
-            return true
-        }
-        return superMethods().any { it.hasShowAnnotationInherited() }
-    }
-
-    override fun onlyShowForStubPurposesInherited(): Boolean {
-        if (super.onlyShowForStubPurposesInherited()) {
-            return true
-        }
-        return superMethods().any { it.onlyShowForStubPurposesInherited() }
-    }
-
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
@@ -529,4 +561,126 @@ interface MethodItem : MemberItem {
             name() == JAVA_ENUM_VALUE_OF &&
             parameters().size == 1 &&
             parameters()[0].type().isString()
+
+    /**
+     * Determines if the method is a method that needs to be overridden in any child classes that
+     * extend this [MethodItem] in order to prevent errors when compiling the stubs or the reverse
+     * dependencies of stubs.
+     *
+     * @return Boolean value indicating whether the method needs to be overridden in the child
+     *   classes
+     */
+    @Suppress("DEPRECATION")
+    private fun requiresOverride(): Boolean {
+        _requiresOverride?.let {
+            return _requiresOverride as Boolean
+        }
+
+        _requiresOverride = computeRequiresOverride()
+
+        return _requiresOverride as Boolean
+    }
+
+    private fun computeRequiresOverride(): Boolean {
+        val isVisible = !hidden || hasShowAnnotation()
+        return if (!modifiers.isAbstract()) {
+            false
+        } else if (superMethods().isEmpty()) {
+            // If the method is abstract and is not overriding any parent methods,
+            // it requires override in the child class if it is visible
+            isVisible
+        } else {
+            // If the method is abstract and is overriding any visible parent methods:
+            // it needs to be overridden if:
+            // - it is visible or
+            // - all super methods are either java.lang.Object method or requires override
+            isVisible ||
+                superMethods().all {
+                    it.containingClass().isJavaLangObject() || it.requiresOverride()
+                }
+        }
+    }
+
+    private fun getUniqueSuperInterfaceMethods(
+        superInterfaceMethods: List<MethodItem>
+    ): List<MethodItem> {
+        val visitCountMap = mutableMapOf<ClassItem, Int>()
+
+        // perform BFS on all super interfaces of each super interface methods'
+        // containing interface to determine the leaf interface of each unique hierarchy.
+        superInterfaceMethods.forEach {
+            val superInterface = it.containingClass()
+            val queue = mutableListOf(superInterface)
+            while (queue.isNotEmpty()) {
+                val s = queue.removeFirst()
+                visitCountMap[s] = visitCountMap.getOrDefault(s, 0) + 1
+                queue.addAll(
+                    s.interfaceTypes().mapNotNull { interfaceType -> interfaceType.asClass() }
+                )
+            }
+        }
+
+        // If visit count is greater than 1, it means the interface is within the hierarchy of
+        // another method, thus filter out.
+        return superInterfaceMethods.filter { visitCountMap[it.containingClass()]!! == 1 }
+    }
+
+    /**
+     * Determines if the method needs to be added to the signature file in order to prevent errors
+     * when compiling the stubs or the reverse dependencies of the stubs.
+     *
+     * @return Boolean value indicating whether the method needs to be added to the signature file
+     */
+    fun isRequiredOverridingMethodForTextStub(): Boolean {
+        return (containingClass().isClass() &&
+            !modifiers.isAbstract() &&
+            superMethods().isNotEmpty() &&
+            superMethods().let {
+                if (it.size == 1 && it.first().containingClass().isJavaLangObject()) {
+                    // If the method is extending a java.lang.Object method,
+                    // it only required override when it is directly (not transitively) overriding
+                    // it and the signature differs (e.g. visibility or modifier
+                    // changes)
+                    !sameSignature(
+                        this,
+                        it.first(),
+                        // This method is only called when add-additional-overrides=yes.
+                        addAdditionalOverrides = true,
+                    )
+                } else {
+                    // Since a class can extend a single class except Object,
+                    // there is only one non-Object super class method at max.
+                    val superClassMethods =
+                        it.firstOrNull { superMethod ->
+                            superMethod.containingClass().isClass() &&
+                                !superMethod.containingClass().isJavaLangObject()
+                        }
+
+                    // Assume a class implements two interfaces A and B;
+                    // A provides a default super method, and B provides an abstract super method.
+                    // In such case, the child method is a required overriding method when:
+                    // - A and B do not extend each other or
+                    // - A is a super interface of B
+                    // On the other hand, the child method is not a required overriding method when:
+                    // - B is a super interface of A
+                    // Given this, we should make decisions only based on the leaf interface of each
+                    // unique hierarchy.
+                    val uniqueSuperInterfaceMethods =
+                        getUniqueSuperInterfaceMethods(
+                            it.filter { superMethod -> superMethod.containingClass().isInterface() }
+                        )
+
+                    // If super method is non-null, whether this method is required
+                    // is determined by whether the super method requires override.
+                    // If super method is null, this method is required if there is a
+                    // unique super interface that requires override.
+                    superClassMethods?.requiresOverride()
+                        ?: uniqueSuperInterfaceMethods.any { s -> s.requiresOverride() }
+                }
+            }) ||
+            // To inherit methods with override-equivalent signatures
+            // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
+            (containingClass().isInterface() &&
+                superMethods().count { it.modifiers.isAbstract() || it.modifiers.isDefault() } > 1)
+    }
 }
