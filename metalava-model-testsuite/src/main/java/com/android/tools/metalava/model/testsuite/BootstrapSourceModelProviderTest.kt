@@ -162,23 +162,33 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     @Test
     fun `090 - check class hierarchy`() {
         runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
 
-                    interface SuperInterface{}
-                    abstract class SuperClass implements SuperInterface{}
+                        import test.parent.SuperInterface;
 
-                    interface SuperChildInterface{}
-                    interface ChildInterface extends SuperChildInterface,SuperInterface{}
+                        abstract class SuperClass implements SuperInterface {}
 
-                    class Test extends SuperClass implements ChildInterface{}
-                """
-            ),
+                        interface SuperChildInterface {}
+                        interface ChildInterface extends SuperChildInterface,SuperInterface {}
+
+                        class Test extends SuperClass implements ChildInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.parent;
+
+                        public interface SuperInterface {}
+                     """
+                ),
+            )
         ) { codebase ->
             val classItem = codebase.assertClass("test.pkg.Test")
             val superClassItem = codebase.assertClass("test.pkg.SuperClass")
-            val superInterfaceItem = codebase.assertClass("test.pkg.SuperInterface")
+            val superInterfaceItem = codebase.assertClass("test.parent.SuperInterface")
             val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
             val superChildInterfaceItem = codebase.assertClass("test.pkg.SuperChildInterface")
             assertEquals(superClassItem, classItem.superClass())
@@ -200,7 +210,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                 """
                   package test.pkg;
 
-                  interface TestInterface{}
+                  interface TestInterface {}
                   enum TestEnum {}
                   @interface TestAnnotation {}
                 """
@@ -299,7 +309,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
 
                     import java.util.Date;
 
-                    class Test extends Date{}
+                    class Test extends Date {}
                 """
             ),
         ) { codebase ->
@@ -319,7 +329,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                 """
                     package test.pkg;
 
-                    interface Interface{}
+                    interface Interface {}
                     class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
                 """
             ),
