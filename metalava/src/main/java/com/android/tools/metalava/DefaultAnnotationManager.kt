@@ -530,6 +530,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             }
         }
 
+        val containingClass = item.containingClass()
+        if (containingClass != null) {
+            if (containingClass.showability.hideUnstableApi()) {
+                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
+            }
+        }
+
         return itemShowability
     }
 

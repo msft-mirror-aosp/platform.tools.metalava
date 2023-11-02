@@ -167,7 +167,8 @@ data class Showability(
      *
      * Returns `true` if the annotation matches `--hide-annotation android.annotation.FlaggedApi` or
      * if this is on an item then when the item is annotated with such an annotation or is a method
-     * that overrides such an item.
+     * that overrides such an item or is contained within a class that is annotated with such an
+     * annotation.
      */
     fun hideUnstableApi() = show == ShowOrHide.HIDE_UNSTABLE_API
 

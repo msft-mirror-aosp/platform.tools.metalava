@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.util.Locale
@@ -434,13 +433,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             expectedSystemApiMinusFlaggedApi =
                 """
                     // Signature format: 2.0
-                """,
-            // There should be no lint errors or issues.
-            expectedSystemApiMinusFlaggedApiFail = DefaultLintErrorMessage,
-            expectedSystemApiMinusFlaggedApiIssues =
-                """
-                    src/test/pkg/Foo.java:16: error: Attempting to unhide constructor test.pkg.Foo(), but surrounding class test.pkg.Foo is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                    src/test/pkg/Foo.java:22: error: Attempting to unhide method test.pkg.Foo.method(), but surrounding class test.pkg.Foo is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
         )
     }
