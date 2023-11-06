@@ -1,7 +1,6 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   060 - check method exists[turbine,java]
   070 - check constructor exists[turbine,java]
-  130 - test annotations[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Find method with type parameterized by two types[turbine,java]
@@ -11,14 +10,6 @@ com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem superMethods() on constructor[turbine,java]
   MethodItem superMethods() on simple method[turbine,java]
   MethodItem type[turbine,java]
-
-com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with annotation values[turbine,java]
-  annotation with boolean values[turbine,java]
-  annotation with char values[turbine,java]
-  annotation with class values[turbine,java]
-  annotation with number values[turbine,java]
-  annotation with string values[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test class array types[turbine,java]

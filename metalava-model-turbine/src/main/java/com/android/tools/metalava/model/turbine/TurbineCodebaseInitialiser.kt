@@ -16,6 +16,12 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -23,13 +29,19 @@ import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
+import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.diag.TurbineLog
+import com.google.turbine.model.Const
+import com.google.turbine.model.Const.ArrayInitValue
+import com.google.turbine.model.Const.Kind
+import com.google.turbine.model.Const.Value
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.type.AnnoInfo
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
@@ -121,7 +133,7 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifers = TurbineModifierItem.create(codebase, 0)
+            val modifers = TurbineModifierItem.create(codebase, 0, null)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
@@ -167,7 +179,8 @@ open class TurbineCodebaseInitialiser(
         val qualifiedName = sym.binaryName().replace('/', '.').replace('$', '.')
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
-        val modifierItem = TurbineModifierItem.create(codebase, cls.access())
+        val annotations = createAnnotations(cls.annotations()).toMutableList()
+        val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
         val classItem =
             TurbineClassItem(
                 codebase,
@@ -222,7 +235,9 @@ open class TurbineCodebaseInitialiser(
     private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
         classItem.fields =
             fields.map { field ->
-                val fieldModifierItem = TurbineModifierItem.create(codebase, field.access())
+                val annotations = createAnnotations(field.annotations()).toMutableList()
+                val fieldModifierItem =
+                    TurbineModifierItem.create(codebase, field.access(), annotations)
                 TurbineFieldItem(
                     codebase,
                     field.name(),
@@ -230,5 +245,58 @@ open class TurbineCodebaseInitialiser(
                     fieldModifierItem,
                 )
             }
+    }
+
+    /** Creates a list of AnnotationItems from given list of Turbine Annotations */
+    private fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
+        return annotations.map { createAnnotation(it) }
+    }
+
+    private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem {
+        val annoAttrs = getAnnotationAttributes(annotation.values())
+        val nameList = annotation.tree().name().map { it.value() }
+        val simpleName = nameList.joinToString(separator = ".")
+        val clsSym = annotation.sym()
+        val qualifiedName =
+            if (clsSym == null) simpleName
+            else clsSym.binaryName().replace('/', '.').replace('$', '.')
+        return TurbineAnnotationItem(codebase, qualifiedName, annoAttrs)
+    }
+
+    /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
+    private fun getAnnotationAttributes(
+        attrs: ImmutableMap<String, Const>
+    ): List<AnnotationAttribute> {
+        val attributes = mutableListOf<AnnotationAttribute>()
+        for ((name, value) in attrs) {
+            attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value)))
+        }
+        return attributes
+    }
+
+    private fun createAttrValue(const: Const): AnnotationAttributeValue {
+        if (const.kind() == Kind.ARRAY) {
+            val arrayVal = const as ArrayInitValue
+            return DefaultAnnotationArrayAttributeValue(
+                { arrayVal.toString() },
+                { arrayVal.elements().map { createAttrValue(it) } }
+            )
+        }
+        return DefaultAnnotationSingleAttributeValue({ const.toString() }, { getValue(const) })
+    }
+
+    private fun getValue(const: Const): Any? {
+        when (const.kind()) {
+            Kind.PRIMITIVE -> {
+                val value = const as Value
+                return value.getValue()
+            }
+            // For cases like AnyClass.class, return the qualified name of AnyClass
+            Kind.CLASS_LITERAL -> {
+                val value = const as TurbineClassValue
+                return value.type().toString()
+            }
+            else -> return const.toString()
+        }
     }
 }
