@@ -27,18 +27,17 @@ import java.io.File
  */
 interface ModelSuiteRunner {
 
+    /** The set of supported [InputFormat]s that this runner can handle. */
+    val supportedInputFormats: Set<InputFormat>
+
     /**
-     * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
-     * test on that [Codebase].
+     * Create a [Codebase] from the supplied [input] files and then run a test on that [Codebase].
      *
-     * This must be called with [signature] and [source] contents that are equivalent so that the
-     * test can have the same behavior on models that consume the different formats. Implementations
-     * of this must consume at least one of them to create a [Codebase] on which the test is run.
+     * Implementations of this consume [input] to create a [Codebase] on which the test is run.
      */
     fun createCodebaseAndRun(
         tempDir: File,
-        signature: String,
-        source: TestFile,
+        input: List<TestFile>,
         test: (Codebase) -> Unit,
     )
 

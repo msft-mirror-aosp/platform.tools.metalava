@@ -155,8 +155,6 @@ open class PsiBasedCodebase(
      */
     private var initializing = false
 
-    override fun trustedApi(): Boolean = false
-
     private var packageDocs: PackageDocs? = null
 
     private var hideClassesFromJars = true
@@ -291,7 +289,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+            val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
                 continue
@@ -357,7 +355,7 @@ open class PsiBasedCodebase(
 
         // Create PackageItems for any packages that weren't in the source
         for (pkgName in missingPackages) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName) ?: continue
+            val psiPackage = findPsiPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
             val packageHtml = null
             registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
@@ -480,7 +478,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, packageClasses) in packageToClasses) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+            val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
                 continue
@@ -592,7 +590,7 @@ open class PsiBasedCodebase(
                 // dynamically discovered packages should NOT be included
                 // val packageHtml = "/** @hide */"
                 val packageHtml = null
-                val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+                val psiPackage = findPsiPackage(pkgName)
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
                     packageItem.addClass(classItem)
@@ -623,6 +621,10 @@ open class PsiBasedCodebase(
 
     override fun findPackage(pkgName: String): PsiPackageItem? {
         return packageMap[pkgName]
+    }
+
+    internal fun findPsiPackage(pkgName: String): PsiPackage? {
+        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
     override fun findClass(className: String): PsiClassItem? {
