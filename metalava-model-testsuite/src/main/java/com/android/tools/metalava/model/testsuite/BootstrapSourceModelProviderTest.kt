@@ -339,4 +339,105 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(1, classItem.allInterfaces().count())
         }
     }
+
+    @Test
+    fun `130 - test annotations`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import test.anno.FieldInfo;
+                        import anno.FieldValue;
+                        import test.SimpleClass;
+
+                        class Test {
+                            @test.Nullable
+                            @FieldInfo(children = {"child1","child2"}, val = 5, cls = SimpleClass.class)
+                            @FieldValue(testInt1+testInt2)
+                            public static String myString;
+
+                            public static final int testInt1 = 5;
+                            public static final int testInt2 = 7;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.anno;
+
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        import java.lang.annotation.Target;
+
+                        @Target(ElementType.FIELD)
+                        @Retention(RetentionPolicy.RUNTIME)
+                        public @interface FieldInfo {
+                          String name() default "FieldName";
+                          String[] children();
+                          int val();
+                          Class<?> cls();
+                        }
+                     """
+                ),
+                java(
+                    """
+                        package anno;
+
+                        public @interface FieldValue {
+                          int value();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test;
+
+                        @Nullable
+                        public class SimpleClass<T> {}
+                    """
+                ),
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val fieldItem = classItem.assertField("myString")
+
+            val nullAnno = fieldItem.assertAnnotation("test.Nullable")
+
+            val customAnno1 = fieldItem.assertAnnotation("test.anno.FieldInfo")
+            val custAnno1Attr1 = customAnno1.findAttribute("children")
+            val custAnno1Attr2 = customAnno1.findAttribute("val")
+            val custAnno1Attr3 = customAnno1.findAttribute("cls")
+            val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
+            val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
+
+            val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
+            val annoClassItem2 = codebase.assertClass("anno.FieldValue")
+            val custAnno2Attr1 = customAnno2.findAttribute("value")
+
+            assertEquals(3, fieldItem.modifiers.annotations().count())
+
+            assertEquals(true, nullAnno.isNullable())
+
+            assertEquals(false, customAnno1.isRetention())
+            assertNotNull(custAnno1Attr1)
+            assertNotNull(custAnno1Attr2)
+            assertNotNull(custAnno1Attr3)
+            assertEquals(
+                true,
+                listOf("child1", "child2").toTypedArray() contentEquals
+                    custAnno1Attr1.value.value() as Array<*>
+            )
+            assertEquals(5, custAnno1Attr2.value.value())
+            assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
+            assertEquals(annoClassItem1, customAnno1.resolve())
+            assertEquals(true, retAnno.isRetention())
+
+            assertEquals(annoClassItem2, customAnno2.resolve())
+            assertNotNull(custAnno2Attr1)
+            assertEquals(12, custAnno2Attr1.value.value())
+        }
+    }
 }
