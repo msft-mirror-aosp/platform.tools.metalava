@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 
 class TextTypeParameterItem(
     codebase: TextCodebase,
-    private val owner: TypeParameterListOwner?,
+    private var owner: TypeParameterListOwner?,
     private val typeParameterString: String,
     name: String,
     private var bounds: List<TypeItem>? = null
@@ -53,6 +53,10 @@ class TextTypeParameterItem(
 
     override fun isReified(): Boolean {
         return typeParameterString.startsWith("reified")
+    }
+
+    internal fun setOwner(newOwner: TypeParameterListOwner) {
+        owner = newOwner
     }
 
     companion object {
