@@ -260,10 +260,6 @@ open class DefaultModifierList(
         annotations?.remove(annotation)
     }
 
-    override fun removeAnnotations(predicate: (AnnotationItem) -> Boolean) {
-        annotations?.removeAll(predicate)
-    }
-
     override fun clearAnnotations(annotation: AnnotationItem) {
         annotations?.clear()
     }

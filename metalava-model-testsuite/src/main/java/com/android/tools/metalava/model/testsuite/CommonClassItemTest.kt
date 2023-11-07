@@ -18,20 +18,19 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
 @RunWith(Parameterized::class)
-class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonClassItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
 
+    @IgnoreForRunner("turbine")
     @Test
     fun `empty class`() {
-        runCodebaseTest(
-            signature(
+        createCodebaseAndRun(
+            signature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -39,66 +38,28 @@ class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters
                         ctor public Test();
                       }
                     }
-                """
-            ),
-            java(
-                """
+            """,
+            source =
+                java(
+                    """
                     package test.pkg;
 
                     public class Test {
                         public Test() {}
                     }
                 """
-            ),
-        ) { codebase ->
-            val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals("Test", testClass.fullName())
-            assertEquals("test/pkg/Test", testClass.internalName())
-            assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
-            assertEquals(1, testClass.constructors().size)
-            assertEquals(emptyList(), testClass.methods())
-            assertEquals(emptyList(), testClass.fields())
-            assertEquals(emptyList(), testClass.properties())
-        }
-    }
-
-    @Test
-    fun `Find method with type parameterized by two types`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method public void foo(java.util.Map<String, Integer>);
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    public class Foo {
-                        public void foo(java.util.Map<String, Integer> map) {}
-                    }
-                """
-            ),
-        ) { codebase ->
-            val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooMethod = fooClass.methods().single()
-
-            // This should not find the method as `findMethod` splits parameters by `,` so it looks
-            // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
-            assertNull(
-                foundMethod,
-                message = "unexpectedly found method with multiple type parameters"
-            )
-
-            // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
-        }
+                ),
+            test = { codebase ->
+                val testClass = codebase.assertClass("test.pkg.Test")
+                assertEquals("Test", testClass.fullName())
+                assertEquals("test/pkg/Test", testClass.internalName())
+                assertEquals("test.pkg.Test", testClass.qualifiedName())
+                assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
+                assertEquals(1, testClass.constructors().size)
+                assertEquals(emptyList(), testClass.methods())
+                assertEquals(emptyList(), testClass.fields())
+                assertEquals(emptyList(), testClass.properties())
+            }
+        )
     }
 }

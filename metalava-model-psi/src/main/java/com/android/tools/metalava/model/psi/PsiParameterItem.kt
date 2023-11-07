@@ -29,15 +29,10 @@ import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionLikeSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
@@ -110,7 +105,7 @@ internal constructor(
 
     override fun isDefaultValueKnown(): Boolean {
         return if (isKotlin(psiParameter)) {
-            defaultValue() != INVALID_VALUE
+            getKtParameter()?.hasDefaultValue() ?: false && defaultValue() != INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
             modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
@@ -121,34 +116,28 @@ internal constructor(
     // $this$functionName
     private fun isReceiver(): Boolean = parameterIndex == 0 && name.startsWith("\$this\$")
 
-    private fun getKtParameterSymbol(functionSymbol: KtFunctionLikeSymbol): KtParameterSymbol? {
-        if (isReceiver()) {
-            return functionSymbol.receiverParameter
-        }
+    private fun getKtParameter(): KtParameter? {
+        val ktParameters =
+            ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)?.valueParameters
+                ?: return null
 
         // Perform matching based on parameter names, because indices won't work in the
         // presence of @JvmOverloads where UAST generates multiple permutations of the
         // method from the same KtParameters array.
-        val parameters = functionSymbol.valueParameters
 
-        val index = if (functionSymbol.isExtension) parameterIndex - 1 else parameterIndex
-        val isSuspend = functionSymbol is KtFunctionSymbol && functionSymbol.isSuspend
-        if (isSuspend && index >= parameters.size) {
-            // suspend functions have continuation as a last parameter, which is not
-            // defined in the symbol
-            return null
-        }
-
-        // Quick lookup first which usually works
+        // Quick lookup first which usually works (lined up from the end to account
+        // for receivers for extension methods etc)
+        val rem = containingMethod.parameters().size - parameterIndex
+        val index = ktParameters.size - rem
         if (index >= 0) {
-            val parameter = parameters[index]
-            if (parameter.name.asString() == name) {
+            val parameter = ktParameters[index]
+            if (parameter.name == name) {
                 return parameter
             }
         }
 
-        for (parameter in parameters) {
-            if (parameter.name.asString() == name) {
+        for (parameter in ktParameters) {
+            if (parameter.name == name) {
                 return parameter
             }
         }
@@ -156,7 +145,7 @@ internal constructor(
         // Fallback to handle scenario where the real parameter names are hidden by
         // UAST (see UastKotlinPsiParameter which replaces parameter names to p$index)
         if (index >= 0) {
-            val parameter = parameters[index]
+            val parameter = ktParameters[index]
             if (!isReceiver()) {
                 return parameter
             }
@@ -179,38 +168,24 @@ internal constructor(
 
     private fun computeDefaultValue(): String? {
         if (isKotlin(psiParameter)) {
-            val ktFunction =
-                ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)
-                    ?: return INVALID_VALUE
+            val ktParameter = getKtParameter() ?: return null
+            if (ktParameter.hasDefaultValue()) {
+                val defaultValue = ktParameter.defaultValue ?: return null
+                if (defaultValue is KtConstantExpression) {
+                    return defaultValue.text
+                }
 
-            analyze(ktFunction) {
-                val function =
-                    if (ktFunction.hasActualModifier()) {
-                        ktFunction.getSymbol().getExpectForActual()
-                    } else {
-                        ktFunction.getSymbol()
-                    }
-                if (function !is KtFunctionLikeSymbol) return INVALID_VALUE
-                val symbol = getKtParameterSymbol(function) ?: return INVALID_VALUE
-                if (symbol is KtValueParameterSymbol && symbol.hasDefaultValue) {
-                    val defaultValue =
-                        (symbol.psi as? KtParameter)?.defaultValue ?: return INVALID_VALUE
-                    if (defaultValue is KtConstantExpression) {
-                        return defaultValue.text
-                    }
-
-                    val defaultExpression =
-                        UastFacade.convertElement(defaultValue, null, UExpression::class.java)
-                            as? UExpression
-                            ?: return INVALID_VALUE
-                    val constant = defaultExpression.evaluate()
-                    return if (constant != null && constant !is Pair<*, *>) {
-                        constantToSource(constant)
-                    } else {
-                        // Expression: Compute from UAST rather than just using the source text
-                        // such that we can ensure references are fully qualified etc.
-                        codebase.printer.toSourceString(defaultExpression)
-                    }
+                val defaultExpression: UExpression =
+                    UastFacade.convertElement(defaultValue, null, UExpression::class.java)
+                        as? UExpression
+                        ?: return INVALID_VALUE
+                val constant = defaultExpression.evaluate()
+                return if (constant != null && constant !is Pair<*, *>) {
+                    constantToSource(constant)
+                } else {
+                    // Expression: Compute from UAST rather than just using the source text
+                    // such that we can ensure references are fully qualified etc.
+                    codebase.printer.toSourceString(defaultExpression)
                 }
             }
 

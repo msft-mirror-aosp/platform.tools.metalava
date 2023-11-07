@@ -26,7 +26,6 @@ import java.util.function.Predicate
  * If you need to model array dimensions or resolved type parameters, see {@link
  * com.android.tools.metalava.model.TypeItem} instead
  */
-@MetalavaApi
 interface ClassItem : Item {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
     fun simpleName(): String
@@ -38,13 +37,13 @@ interface ClassItem : Item {
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
      */
-    @MetalavaApi fun qualifiedName(): String
+    fun qualifiedName(): String
 
     /** Is the class explicitly defined in the source file? */
     fun isDefined(): Boolean
 
     /** Is this an innerclass? */
-    @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
+    fun isInnerClass(): Boolean = containingClass() != null
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
@@ -91,7 +90,7 @@ interface ClassItem : Item {
     }
 
     /** The super class of this class, if any */
-    @MetalavaApi fun superClass(): ClassItem?
+    fun superClass(): ClassItem?
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -150,7 +149,7 @@ interface ClassItem : Item {
         extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
-    @MetalavaApi fun interfaceTypes(): List<TypeItem>
+    fun interfaceTypes(): List<TypeItem>
 
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
@@ -162,19 +161,19 @@ interface ClassItem : Item {
     fun innerClasses(): List<ClassItem>
 
     /** The constructors in this class */
-    @MetalavaApi fun constructors(): List<ConstructorItem>
+    fun constructors(): List<ConstructorItem>
 
     /** Whether this class has an implicit default constructor */
     fun hasImplicitDefaultConstructor(): Boolean
 
     /** The non-constructor methods in this class */
-    @MetalavaApi fun methods(): List<MethodItem>
+    fun methods(): List<MethodItem>
 
     /** The properties in this class */
     fun properties(): List<PropertyItem>
 
     /** The fields in this class */
-    @MetalavaApi fun fields(): List<FieldItem>
+    fun fields(): List<FieldItem>
 
     /** The members in this class: constructors, methods, fields/enum constants */
     fun members(): Sequence<MemberItem> {
@@ -194,10 +193,16 @@ interface ClassItem : Item {
     fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
 
     /** The containing class, for inner classes */
-    @MetalavaApi override fun containingClass(): ClassItem?
+    fun containingClass(): ClassItem?
 
     /** The containing package */
-    override fun containingPackage(): PackageItem
+    fun containingPackage(): PackageItem
+
+    override fun containingPackage(strict: Boolean): PackageItem = containingPackage()
+
+    override fun containingClass(strict: Boolean): ClassItem? {
+        return if (strict) containingClass() else this
+    }
 
     /** Gets the type for this class */
     fun toType(): TypeItem
@@ -211,7 +216,7 @@ interface ClassItem : Item {
      * Any type parameters for the class, if any, as a source string (with fully qualified class
      * names)
      */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
+    fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
     fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
@@ -413,27 +418,6 @@ interface ClassItem : Item {
         return null
     }
 
-    /**
-     * Find the [MethodItem] in this.
-     *
-     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
-     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
-     *
-     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
-     * subclass) whose parameters match the supplied parameters string. Parameters are matched
-     * against a candidate [MethodItem] as follows:
-     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
-     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
-     * * Everything after `<` is removed.
-     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
-     *   on the [ParameterItem.type].
-     *
-     * If every parameter matches then the matched [MethodItem] is returned. If no `candidate`
-     * matches then it returns 'null`.
-     *
-     * @param methodName the name of the method or [simpleName] if looking for constructors.
-     * @param parameters the comma separated erased types of the parameters.
-     */
     fun findMethod(methodName: String, parameters: String): MethodItem? {
         if (methodName == simpleName()) {
             // Constructor

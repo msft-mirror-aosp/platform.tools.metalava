@@ -17,20 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiArrayType
@@ -45,7 +39,6 @@ import com.intellij.psi.PsiIntersectionType
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaToken
 import com.intellij.psi.PsiLambdaExpressionType
-import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiRecursiveElementVisitor
 import com.intellij.psi.PsiReferenceList
@@ -54,19 +47,14 @@ import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterList
 import com.intellij.psi.PsiTypeVisitor
-import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
-import java.lang.IllegalStateException
 import java.util.function.Predicate
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(
-    open val codebase: PsiBasedCodebase,
-    open val psiType: PsiType,
-    override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
-) : TypeItem {
+class PsiTypeItem
+private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType) : TypeItem {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var toInnerAnnotatedString: String? = null
@@ -197,6 +185,10 @@ sealed class PsiTypeItem(
         )
     }
 
+    override fun arrayDimensions(): Int {
+        return psiType.arrayDimensions
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 
@@ -207,7 +199,7 @@ sealed class PsiTypeItem(
     }
 
     override fun asClass(): PsiClassItem? {
-        if (this is PrimitiveTypeItem) {
+        if (primitive) {
             return null
         }
         if (asClass == null) {
@@ -216,12 +208,20 @@ sealed class PsiTypeItem(
         return asClass
     }
 
+    override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
+        val cls = asClass() ?: return null
+        return cls as? PsiTypeParameterItem
+    }
+
     override fun hashCode(): Int {
         return psiType.hashCode()
     }
 
+    override val primitive: Boolean
+        get() = psiType is PsiPrimitiveType
+
     override fun typeArgumentClasses(): List<ClassItem> {
-        if (this is PrimitiveTypeItem) {
+        if (primitive) {
             return emptyList()
         }
 
@@ -318,8 +318,15 @@ sealed class PsiTypeItem(
         return type is PsiClassType && type.hasParameters()
     }
 
-    // This method is only used when `SUPPORT_TYPE_USE_ANNOTATIONS` is hardcoded to true
-    override fun markRecent() = TODO()
+    override fun markRecent() {
+        val source =
+            toTypeString(outerAnnotations = true, innerAnnotations = true)
+                .replace(".NonNull", ".RecentlyNonNull")
+        // TODO: Pass in a context!
+        psiType = codebase.createPsiType(source)
+        toAnnotatedString = null
+        toInnerAnnotatedString = null
+    }
 
     override fun scrubAnnotations() {
         toAnnotatedString = toTypeString(outerAnnotations = false, innerAnnotations = false)
@@ -328,33 +335,13 @@ sealed class PsiTypeItem(
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
-        if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {
+        if (this.primitive && !other.primitive) {
             return false
         }
         return TypeConversionUtil.isAssignable(psiType, other.psiType)
     }
 
     companion object {
-        /**
-         * Work around inconsistency in [TypeConversionUtil.erasure].
-         *
-         * If the [TypeConversionUtil.erasure] is passed a [PsiEllipsisType] (which is a subclass of
-         * [PsiArrayType]) then it will treat it as a [PsiArrayType], replacing the `...` suffix
-         * with `[]` only when the component type changes during erasure, i.e. is generic. If the
-         * component type is not affected by erasure then the `...` suffix is preserved.
-         *
-         * This works around that inconsistency by explicitly handling the [PsiEllipsisType] and
-         * always replacing it with a [PsiArrayType]. So, an erased type string never includes with
-         * `...`.
-         */
-        private fun typeErasure(psiType: PsiType): PsiType {
-            return if (psiType is PsiEllipsisType) {
-                PsiArrayType(TypeConversionUtil.erasure(psiType.componentType))
-            } else {
-                TypeConversionUtil.erasure(psiType)
-            }
-        }
-
         private fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,
@@ -369,7 +356,7 @@ sealed class PsiTypeItem(
                 // Recurse with raw type and erase=false
                 return toTypeString(
                     codebase,
-                    typeErasure(type),
+                    TypeConversionUtil.erasure(type),
                     outerAnnotations,
                     innerAnnotations,
                     false,
@@ -516,30 +503,11 @@ sealed class PsiTypeItem(
         }
 
         fun create(codebase: PsiBasedCodebase, psiType: PsiType): PsiTypeItem {
-            return when (psiType) {
-                is PsiPrimitiveType -> PsiPrimitiveTypeItem(codebase, psiType)
-                is PsiArrayType -> PsiArrayTypeItem(codebase, psiType)
-                is PsiClassType -> {
-                    if (psiType.resolve() is PsiTypeParameter) {
-                        PsiVariableTypeItem(codebase, psiType)
-                    } else {
-                        PsiClassTypeItem(codebase, psiType)
-                    }
-                }
-                is PsiWildcardType -> PsiWildcardTypeItem(codebase, psiType)
-                // There are other [PsiType]s, but none can appear in API surfaces.
-                else -> throw IllegalStateException("Invalid type in API surface: $psiType")
-            }
+            return PsiTypeItem(codebase, psiType)
         }
 
         fun create(codebase: PsiBasedCodebase, original: PsiTypeItem): PsiTypeItem {
-            return when (original) {
-                is PsiPrimitiveTypeItem -> PsiPrimitiveTypeItem(codebase, original.psiType)
-                is PsiArrayTypeItem -> PsiArrayTypeItem(codebase, original.psiType)
-                is PsiClassTypeItem -> PsiClassTypeItem(codebase, original.psiType)
-                is PsiWildcardTypeItem -> PsiWildcardTypeItem(codebase, original.psiType)
-                is PsiVariableTypeItem -> PsiVariableTypeItem(codebase, original.psiType)
-            }
+            return PsiTypeItem(codebase, original.psiType)
         }
 
         fun typeParameterList(typeList: PsiTypeParameterList?): String? {
@@ -850,96 +818,6 @@ sealed class PsiTypeItem(
             ) { // typically small number of items, don't need Set
                 classes.add(cls)
             }
-        }
-    }
-}
-
-/** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
-class PsiPrimitiveTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiPrimitiveType
-) : PrimitiveTypeItem, PsiTypeItem(codebase, psiType) {
-    override val kind: PrimitiveTypeItem.Primitive = getKind(psiType)
-
-    companion object {
-        private fun getKind(type: PsiPrimitiveType): PrimitiveTypeItem.Primitive {
-            return when (type) {
-                PsiTypes.booleanType() -> PrimitiveTypeItem.Primitive.BOOLEAN
-                PsiTypes.byteType() -> PrimitiveTypeItem.Primitive.BYTE
-                PsiTypes.charType() -> PrimitiveTypeItem.Primitive.CHAR
-                PsiTypes.doubleType() -> PrimitiveTypeItem.Primitive.DOUBLE
-                PsiTypes.floatType() -> PrimitiveTypeItem.Primitive.FLOAT
-                PsiTypes.intType() -> PrimitiveTypeItem.Primitive.INT
-                PsiTypes.longType() -> PrimitiveTypeItem.Primitive.LONG
-                PsiTypes.shortType() -> PrimitiveTypeItem.Primitive.SHORT
-                PsiTypes.voidType() -> PrimitiveTypeItem.Primitive.VOID
-                else -> throw IllegalStateException("Invalid primitive type in API surface: $type")
-            }
-        }
-    }
-}
-
-/** A [PsiTypeItem] backed by a [PsiArrayType]. */
-class PsiArrayTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiArrayType
-) : ArrayTypeItem, PsiTypeItem(codebase, psiType) {
-    override val componentType: TypeItem = create(codebase, psiType.componentType)
-    override val isVarargs: Boolean = psiType is PsiEllipsisType
-}
-
-/** A [PsiTypeItem] backed by a [PsiClassType] that does not represent a type variable. */
-class PsiClassTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiClassType
-) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
-    // It should be possible to do `psiType.rawType().canonicalText` instead, but this doesn't
-    // always work if psi is unable to resolve the reference.
-    // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
-    override val qualifiedName = PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
-    override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
-    override val outerClassType =
-        // TODO(b/300081840): this drops annotations on the outer class
-        PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
-            // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no outer
-            // class reference.
-            // If the type is not an inner type, it returns the package name (e.g. for
-            // "java.lang.String" it returns "java.lang").
-            if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
-                null
-            } else {
-                val psiOuterClassType = codebase.createPsiType(outerClassName, psiType.psiContext)
-                create(codebase, psiOuterClassType) as ClassTypeItem
-            }
-        }
-}
-
-/** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
-class PsiVariableTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiClassType
-) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
-    override val name: String = psiType.name
-    override val asTypeParameter: TypeParameterItem by lazy { asClass() as TypeParameterItem }
-}
-
-/** A [PsiTypeItem] backed by a [PsiWildcardType]. */
-class PsiWildcardTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiWildcardType
-) : WildcardTypeItem, PsiTypeItem(codebase, psiType) {
-    override val extendsBound: TypeItem? = createBound(psiType.extendsBound)
-    override val superBound: TypeItem? = createBound(psiType.superBound)
-
-    /**
-     * If a [PsiWildcardType] doesn't have a bound, the bound is represented as the null [PsiType]
-     * instead of just `null`.
-     */
-    private fun createBound(bound: PsiType): PsiTypeItem? {
-        return if (bound == PsiTypes.nullType()) {
-            null
-        } else {
-            create(codebase, bound)
         }
     }
 }

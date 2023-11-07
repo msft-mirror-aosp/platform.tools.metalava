@@ -24,12 +24,13 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
 @RunWith(Parameterized::class)
-class CommonMethodItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
 
+    @IgnoreForRunner("turbine")
     @Test
     fun `MethodItem type`() {
-        runCodebaseTest(
-            signature(
+        createCodebaseAndRun(
+            signature =
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -39,10 +40,10 @@ class CommonMethodItemTest(parameters: TestParameters) : BaseModelTest(parameter
                         method public abstract void bar(test.pkg.Test... tests);
                       }
                     }
-                """
-            ),
-            java(
-                """
+            """,
+            source =
+                java(
+                    """
                     package test.pkg;
 
                     public abstract class Test {
@@ -52,132 +53,35 @@ class CommonMethodItemTest(parameters: TestParameters) : BaseModelTest(parameter
                         public abstract void bar(Test... tests);
                     }
                 """
-            ),
-        ) { codebase ->
-            val testClass = codebase.assertClass("test.pkg.Test")
+                ),
+            test = { codebase ->
+                val testClass = codebase.assertClass("test.pkg.Test")
 
-            val actual = buildString {
-                testClass.methods().forEach {
-                    append(it.returnType())
-                    append(" ")
-                    append(it.name())
-                    append("(")
-                    it.parameters().forEachIndexed { i, p ->
-                        if (i > 0) {
-                            append(", ")
+                val actual = buildString {
+                    testClass.methods().forEach {
+                        append(it.returnType())
+                        append(" ")
+                        append(it.name())
+                        append("(")
+                        it.parameters().forEachIndexed { i, p ->
+                            if (i > 0) {
+                                append(", ")
+                            }
+                            append(p.type())
                         }
-                        append(p.type())
+                        append(")\n")
                     }
-                    append(")\n")
                 }
-            }
 
-            assertEquals(
-                """
+                assertEquals(
+                    """
                     boolean foo(test.pkg.Test, int...)
                     void bar(test.pkg.Test...)
                 """
-                    .trimIndent(),
-                actual.trim()
-            )
-        }
-    }
-
-    @Test
-    fun `MethodItem superMethods() on constructor`() {
-        runCodebaseTest(
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Base {
-                            ctor public Base();
-                          }
-                          public class Test extends test.pkg.Base {
-                            ctor public Test();
-                          }
-                        }
-                    """
-                ),
-            ),
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-    
-                        public class Base {
-                            public Base() {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-    
-                        public class Test extends Base {
-                            public Test() {}
-                        }
-                    """
-                ),
-            ),
-        ) { codebase ->
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val testConstructor = testClass.constructors().single()
-            assertEquals(emptyList(), testConstructor.superMethods())
-        }
-    }
-
-    @Test
-    fun `MethodItem superMethods() on simple method`() {
-        runCodebaseTest(
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Base {
-                            ctor public Base();
-                            method public void foo();
-                          }
-                          public class Test extends test.pkg.Base {
-                            ctor public Test();
-                            method public void foo();
-                          }
-                        }
-                    """
-                ),
-            ),
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-    
-                        public class Base {
-                            public Base() {}
-                            public void foo() {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-    
-                        public class Test extends Base {
-                            public Test() {}
-                            public void foo() {}
-                        }
-                    """
-                ),
-            ),
-        ) { codebase ->
-            val baseClass = codebase.assertClass("test.pkg.Base")
-            val testClass = codebase.assertClass("test.pkg.Test")
-
-            val baseFoo = baseClass.methods().single()
-            val testFoo = testClass.methods().single()
-
-            assertEquals(listOf(baseFoo), testFoo.superMethods())
-        }
+                        .trimIndent(),
+                    actual.trim()
+                )
+            }
+        )
     }
 }

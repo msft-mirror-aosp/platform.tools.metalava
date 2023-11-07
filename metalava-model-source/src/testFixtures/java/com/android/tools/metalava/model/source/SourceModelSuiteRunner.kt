@@ -19,10 +19,8 @@ package com.android.tools.metalava.model.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.reporter.BasicReporter
-import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.io.PrintWriter
 
@@ -38,23 +36,19 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
 
-    override val supportedInputFormats =
-        InputFormat.values()
-            .filter { it.sourceLanguage in sourceModelProvider.supportedLanguages }
-            .toSet()
-
     override fun createCodebaseAndRun(
         tempDir: File,
-        input: List<TestFile>,
-        test: (Codebase) -> Unit,
+        signature: String,
+        source: TestFile,
+        test: (Codebase) -> Unit
     ) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val codebase =
                 createTestCodebase(
                     environmentManager,
                     tempDir,
-                    input,
-                    listOf(getAndroidJar()),
+                    listOf(source),
+                    emptyList(),
                 )
             test(codebase)
         }

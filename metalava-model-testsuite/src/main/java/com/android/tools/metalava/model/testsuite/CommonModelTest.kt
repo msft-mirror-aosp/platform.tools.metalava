@@ -22,17 +22,18 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+@IgnoreForRunner("turbine")
 @RunWith(Parameterized::class)
-class CommonModelTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonModelTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
     @Test
     fun `empty file`() {
-        runCodebaseTest(
-            signature("""
+        createCodebaseAndRun(
+            signature = """
                     // Signature format: 2.0
+            """,
+            source = java("""
                 """),
-            java(""),
-        ) { codebase ->
-            assertNotNull(codebase)
-        }
+            test = { codebase -> assertNotNull(codebase) }
+        )
     }
 }

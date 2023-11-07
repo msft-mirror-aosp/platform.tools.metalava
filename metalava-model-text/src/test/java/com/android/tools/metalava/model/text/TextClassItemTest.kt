@@ -102,7 +102,7 @@ class TextClassItemTest {
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
+                .findMethod("evaluate", "float, T, T")!!
         val evaluate2 =
             codebase
                 .getOrCreateClass("android.animation.FloatEvaluator")
@@ -246,9 +246,7 @@ class TextClassItemTest {
             )
 
         val compareTo1 =
-            codebase
-                .getOrCreateClass("java.lang.Comparable")
-                .findMethod("compareTo", "java.lang.Object")!!
+            codebase.getOrCreateClass("java.lang.Comparable").findMethod("compareTo", "T")!!
         val compareTo2 =
             codebase
                 .getOrCreateClass("java.lang.String")
@@ -256,18 +254,15 @@ class TextClassItemTest {
         val insertParameterTypes1 =
             codebase
                 .getOrCreateClass("java.lang.invoke.MethodType")
-                .findMethod("insertParameterTypes", "int, java.lang.Class[]")!!
+                .findMethod("insertParameterTypes", "int, java.lang.Class...")!!
         val insertParameterTypes2 =
             codebase
                 .getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod")
-                .findMethod(
-                    "insertParameterTypes",
-                    "int, java.lang.invoke.TypeDescriptor.OfField[]"
-                )!!
+                .findMethod("insertParameterTypes", "int, F...")!!
         val evaluate1 =
             codebase
                 .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
+                .findMethod("evaluate", "float, T, T")!!
         val evaluate2 =
             codebase
                 .getOrCreateClass("android.animation.ArgbEvaluator")

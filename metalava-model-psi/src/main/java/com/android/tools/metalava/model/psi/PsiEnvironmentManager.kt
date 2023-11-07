@@ -47,7 +47,6 @@ class PsiEnvironmentManager(
 
     init {
         if (forTesting) {
-            System.setProperty("java.awt.headless", "true")
             Disposer.setDebugMode(true)
         }
     }

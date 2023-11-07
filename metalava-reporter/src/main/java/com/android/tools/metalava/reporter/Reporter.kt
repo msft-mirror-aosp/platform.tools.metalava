@@ -102,12 +102,7 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
     ): Boolean {
         stderr.println(
             buildString {
-                val usableLocation = item?.location() ?: location
-                append(usableLocation.path)
-                if (usableLocation.line > 0) {
-                    append(":")
-                    append(usableLocation.line)
-                }
+                append(item?.location() ?: location)
                 append(": ")
                 append(id.defaultLevel.name.lowercase())
                 append(": ")

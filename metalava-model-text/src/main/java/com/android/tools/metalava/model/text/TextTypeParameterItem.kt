@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
 class TextTypeParameterItem(
@@ -33,19 +32,20 @@ class TextTypeParameterItem(
         codebase = codebase,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
         name = name,
-        qualifiedName = name,
-        typeParameterList = TypeParameterList.NONE
+        qualifiedName = name
     ),
     TypeParameterItem {
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
-            val boundsStringList = bounds(typeParameterString, owner)
+            val boundsString = bounds(typeParameterString, owner)
             bounds =
-                if (boundsStringList.isEmpty()) {
+                if (boundsString.isEmpty()) {
                     emptyList()
                 } else {
-                    boundsStringList.map { codebase.typeResolver.obtainTypeFromString(it) }
+                    boundsString
+                        .mapNotNull { codebase.obtainTypeFromString(it) }
+                        .filter { !it.isJavaLangObject() }
                 }
         }
         return bounds!!

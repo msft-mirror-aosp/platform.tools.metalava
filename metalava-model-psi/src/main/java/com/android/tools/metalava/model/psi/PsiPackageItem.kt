@@ -47,9 +47,12 @@ internal constructor(
 
     lateinit var containingPackageField: PsiPackageItem
 
-    override fun containingClass(): ClassItem? = null
+    override fun containingClass(strict: Boolean): ClassItem? = null
 
-    override fun containingPackage(): PackageItem? {
+    override fun containingPackage(strict: Boolean): PackageItem? {
+        if (!strict) {
+            return this
+        }
         return if (qualifiedName.isEmpty()) null
         else {
             if (!::containingPackageField.isInitialized) {

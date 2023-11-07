@@ -26,22 +26,26 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.google.common.collect.Lists
+import com.google.common.io.Files
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
-import java.nio.file.Files
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
-internal val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
+val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
 
-internal val defaultKotlinLanguageLevel = LanguageVersionSettingsImpl.DEFAULT
+// TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
+// LanguageVersionSettingsImpl.DEFAULT
+val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings(DEFAULT_KOTLIN_LANGUAGE_LEVEL)
 
 fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     val languageLevel =
@@ -200,7 +204,7 @@ private fun gatherPackageJavadoc(sources: List<File>, sourceRoots: List<File>): 
                 }
                 else -> continue
             }
-        var contents = file.readText(Charsets.UTF_8)
+        var contents = Files.asCharSource(file, Charsets.UTF_8).read()
         if (javadoc) {
             contents = packageHtmlToJavadoc(contents)
         }
@@ -240,7 +244,7 @@ private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: Fi
         if (skippableDirectory(file)) {
             return
         }
-        if (Files.isSymbolicLink(file.toPath())) {
+        if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
             reporter.report(
                 Issues.IGNORING_SYMLINK,
                 file,
@@ -265,7 +269,7 @@ private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: Fi
 }
 
 fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
-    val sources = mutableListOf<File>()
+    val sources = Lists.newArrayList<File>()
     for (file in sourcePath) {
         if (file.path.isBlank()) {
             // --source-path "" means don't search source path; use "." for pwd
@@ -331,7 +335,7 @@ private fun findRoot(reporter: Reporter, file: File): File? {
 
 /** Finds the package of the given Java/Kotlin source file, if possible */
 fun findPackage(file: File): String? {
-    val source = file.readText(Charsets.UTF_8)
+    val source = Files.asCharSource(file, Charsets.UTF_8).read()
     return findPackage(source)
 }
 
