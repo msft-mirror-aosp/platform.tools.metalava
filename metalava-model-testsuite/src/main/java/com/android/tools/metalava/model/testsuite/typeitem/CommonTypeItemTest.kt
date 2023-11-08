@@ -990,4 +990,65 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             assertThat((eVar as VariableTypeItem).asTypeParameter).isEqualTo(eParam)
         }
     }
+
+    @Test
+    fun `Test array of type with parameter used as type parameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public java.util.Collection<java.util.List<java.lang.String>[]> foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.Collection;
+                    import java.util.List;
+
+                    public class Foo {
+                        public Collection<List<String>[]> foo() {}
+                    }
+                """,
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun foo(): Collection<Array<List<String>>> {}
+                    }
+                """
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            // java.util.Collection<java.util.List<java.lang.String>[]>
+            val collectionOfArrayOfStringList = method.returnType()
+            assertThat(collectionOfArrayOfStringList).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((collectionOfArrayOfStringList as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.Collection")
+            assertThat(collectionOfArrayOfStringList.parameters).hasSize(1)
+
+            // java.util.List<java.lang.String>[]
+            val arrayOfStringList = collectionOfArrayOfStringList.parameters.single()
+            assertThat(arrayOfStringList).isInstanceOf(ArrayTypeItem::class.java)
+
+            // java.util.List<java.lang.String>
+            val stringList = (arrayOfStringList as ArrayTypeItem).componentType
+            assertThat(stringList).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((stringList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            assertThat(stringList.parameters).hasSize(1)
+
+            // java.lang.String
+            val string = stringList.parameters.single()
+            assertThat(string.isString()).isTrue()
+        }
+    }
 }
