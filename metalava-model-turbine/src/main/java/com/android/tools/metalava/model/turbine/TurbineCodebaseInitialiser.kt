@@ -32,6 +32,7 @@ import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
+import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.sym.ClassSymbol
@@ -47,7 +48,7 @@ import java.util.Optional
 import javax.lang.model.SourceVersion
 
 /**
- * This initializer acts as adaptor between codebase and the output from Turbine parser.
+ * This initializer acts as an adapter between codebase and the output from Turbine parser.
  *
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
@@ -133,8 +134,8 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifers = TurbineModifierItem.create(codebase, 0, null)
-            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifers)
+            val modifiers = TurbineModifierItem.create(codebase, 0, null)
+            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -179,7 +180,7 @@ open class TurbineCodebaseInitialiser(
         val qualifiedName = sym.binaryName().replace('/', '.').replace('$', '.')
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
-        val annotations = createAnnotations(cls.annotations()).toMutableList()
+        val annotations = createAnnotations(cls.annotations()).toList()
         val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
         val classItem =
             TurbineClassItem(
@@ -205,6 +206,9 @@ open class TurbineCodebaseInitialiser(
         // Create fields
         createFields(classItem, cls.fields())
 
+        // Create methods
+        createMethods(classItem, cls.methods())
+
         // Add to the codebase
         val isTopClass = cls.owner() == null
         codebase.addClass(classItem, isTopClass)
@@ -218,48 +222,21 @@ open class TurbineCodebaseInitialiser(
         return classItem
     }
 
-    /** This method sets up inner class hierarchy. */
-    private fun setInnerClasses(
-        classItem: TurbineClassItem,
-        innerClasses: ImmutableList<ClassSymbol>
-    ) {
-        classItem.innerClasses =
-            innerClasses.map { cls ->
-                val innerClassItem = findOrCreateClass(cls)
-                innerClassItem.containingClass = classItem
-                innerClassItem
-            }
-    }
-
-    /** This methods creates and sets the fields of a class */
-    private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
-        classItem.fields =
-            fields.map { field ->
-                val annotations = createAnnotations(field.annotations()).toMutableList()
-                val fieldModifierItem =
-                    TurbineModifierItem.create(codebase, field.access(), annotations)
-                TurbineFieldItem(
-                    codebase,
-                    field.name(),
-                    classItem,
-                    fieldModifierItem,
-                )
-            }
-    }
-
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     private fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.map { createAnnotation(it) }
+        return annotations.mapNotNull { createAnnotation(it) }
     }
 
-    private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem {
+    private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
         val annoAttrs = getAnnotationAttributes(annotation.values())
-        val nameList = annotation.tree().name().map { it.value() }
-        val simpleName = nameList.joinToString(separator = ".")
+
+        val nameList = annotation.tree()?.let { tree -> tree.name().map { it.value() } }
+        val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
         val clsSym = annotation.sym()
         val qualifiedName =
-            if (clsSym == null) simpleName
+            if (clsSym == null) simpleName!!
             else clsSym.binaryName().replace('/', '.').replace('$', '.')
+
         return TurbineAnnotationItem(codebase, qualifiedName, annoAttrs)
     }
 
@@ -298,5 +275,50 @@ open class TurbineCodebaseInitialiser(
             }
             else -> return const.toString()
         }
+    }
+
+    /** This method sets up the inner class hierarchy. */
+    private fun setInnerClasses(
+        classItem: TurbineClassItem,
+        innerClasses: ImmutableList<ClassSymbol>
+    ) {
+        classItem.innerClasses =
+            innerClasses.map { cls ->
+                val innerClassItem = findOrCreateClass(cls)
+                innerClassItem.containingClass = classItem
+                innerClassItem
+            }
+    }
+
+    /** This methods creates and sets the fields of a class */
+    private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
+        classItem.fields =
+            fields.map { field ->
+                val annotations = createAnnotations(field.annotations()).toList()
+                val fieldModifierItem =
+                    TurbineModifierItem.create(codebase, field.access(), annotations)
+                TurbineFieldItem(
+                    codebase,
+                    field.name(),
+                    classItem,
+                    fieldModifierItem,
+                )
+            }
+    }
+
+    private fun createMethods(classItem: TurbineClassItem, methods: List<MethodInfo>) {
+        classItem.methods =
+            methods.map { method ->
+                val annotations = createAnnotations(method.annotations()).toList()
+                val methodModifierItem =
+                    TurbineModifierItem.create(codebase, method.access(), annotations)
+                TurbineMethodItem(
+                    codebase,
+                    method.sym(),
+                    listOf(),
+                    classItem,
+                    methodModifierItem,
+                )
+            }
     }
 }
