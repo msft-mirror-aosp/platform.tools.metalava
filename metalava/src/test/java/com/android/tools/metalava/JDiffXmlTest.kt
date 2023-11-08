@@ -529,7 +529,7 @@ class JDiffXmlTest : DriverTest() {
             signatureSource =
                 """
                     package android.accounts {
-                      public class ArgbEvaluator implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
+                      public class ArgbEvaluator<D, V> implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
                       }
                     }
                     """,
@@ -565,9 +565,9 @@ class JDiffXmlTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  public interface AbstractList<D,E,F> extends test.pkg.List<A,B,C> {
+                  public interface AbstractList<D,E,F> extends test.pkg.List<D,E,F> {
                   }
-                  public interface ConcreteList<G,H,I> extends test.pkg.AbstractList<D,E,F> {
+                  public interface ConcreteList<G,H,I> extends test.pkg.AbstractList<G,H,I> {
                   }
                   public interface List<A,B,C> {
                   }
@@ -579,7 +579,7 @@ class JDiffXmlTest : DriverTest() {
             <package name="test.pkg"
             >
             <interface name="AbstractList"
-             extends="test.pkg.List&lt;A, B, C>"
+             extends="test.pkg.List&lt;D, E, F>"
              abstract="true"
              static="false"
              final="false"
@@ -588,7 +588,7 @@ class JDiffXmlTest : DriverTest() {
             >
             </interface>
             <interface name="ConcreteList"
-             extends="test.pkg.AbstractList&lt;D, E, F>"
+             extends="test.pkg.AbstractList&lt;G, H, I>"
              abstract="true"
              static="false"
              final="false"
