@@ -571,7 +571,7 @@ private constructor(
         parseParameterList(api, tokenizer, method, typeParams)
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.owner = method
+            typeParameterList.setOwner(method)
         }
         token = tokenizer.requireToken()
         if ("throws" == token) {
@@ -619,7 +619,7 @@ private constructor(
         }
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.owner = method
+            typeParameterList.setOwner(method)
         }
         token = tokenizer.requireToken()
         if ("(" != token) {
