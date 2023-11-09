@@ -572,7 +572,7 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Elides overriding method of a default method`() {
+    fun `Do not elide overriding method of a default method`() {
         checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
@@ -613,6 +613,7 @@ class AddAdditionalOverridesTest : DriverTest() {
                 package test.pkg {
                   public class ChildClass implements test.pkg.ParentInterface {
                     ctor public ChildClass();
+                    method public void bar();
                   }
                   public interface ParentInterface {
                     method public default void bar();
