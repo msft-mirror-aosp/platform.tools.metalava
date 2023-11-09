@@ -45,7 +45,9 @@ class TextTypeParameterItem(
                 if (boundsStringList.isEmpty()) {
                     emptyList()
                 } else {
-                    boundsStringList.map { codebase.typeResolver.obtainTypeFromString(it) }
+                    boundsStringList.map {
+                        codebase.typeResolver.obtainTypeFromString(it, gatherTypeParams(owner))
+                    }
                 }
         }
         return bounds!!
@@ -150,6 +152,15 @@ class TextTypeParameterItem(
                     return
                 }
             }
+        }
+
+        /** Collect all the type parameters in scope for the given [owner]. */
+        private fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
+            return owner?.let {
+                it.typeParameterList().typeParameters() +
+                    gatherTypeParams(owner.typeParameterListOwnerParent())
+            }
+                ?: emptyList()
         }
     }
 }
