@@ -912,4 +912,82 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             assertThat(outerClassParameter.asTypeParameter).isEqualTo(p1)
         }
     }
+
+    @Test
+    fun `Test superclass and interface types using type variables`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Cache<Query, Result> extends java.util.HashMap<Query,Result> {}
+
+                    public class MyList<E> implements java.util.List<E> {}
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Cache<Query, Result> : java.util.HashMap<Query, Result>
+
+                    class MyList<E> : java.util.List<E>
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Cache<Query, Result> extends java.util.HashMap<Query,Result> {
+                      }
+                      public class MyList<E> implements java.util.List<E> {
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            // Verify that the Cache superclass type uses the Cache type variables
+            val cache = codebase.assertClass("test.pkg.Cache")
+            val cacheTypeParams = cache.typeParameterList().typeParameters()
+            assertThat(cacheTypeParams).hasSize(2)
+            val queryParam = cacheTypeParams[0]
+            val resultParam = cacheTypeParams[1]
+
+            val cacheSuperclassType = cache.superClassType()
+            assertThat(cacheSuperclassType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((cacheSuperclassType as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.HashMap")
+            assertThat(cacheSuperclassType.parameters).hasSize(2)
+
+            val queryVar = cacheSuperclassType.parameters[0]
+            assertThat(queryVar).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((queryVar as VariableTypeItem).asTypeParameter).isEqualTo(queryParam)
+
+            val resultVar = cacheSuperclassType.parameters[1]
+            assertThat(resultVar).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((resultVar as VariableTypeItem).asTypeParameter).isEqualTo(resultParam)
+
+            // Verify that the MyList interface type uses the MyList type variable
+            val myList = codebase.assertClass("test.pkg.MyList")
+            val myListTypeParams = myList.typeParameterList().typeParameters()
+            assertThat(myListTypeParams).hasSize(1)
+            val eParam = myListTypeParams.single()
+
+            val myListInterfaces = myList.interfaceTypes()
+            assertThat(myListInterfaces).hasSize(1)
+
+            val myListInterfaceType = myListInterfaces.single()
+            assertThat(myListInterfaceType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((myListInterfaceType as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.List")
+            assertThat(myListInterfaceType.parameters).hasSize(1)
+
+            val eVar = myListInterfaceType.parameters.single()
+            assertThat(eVar).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((eVar as VariableTypeItem).asTypeParameter).isEqualTo(eParam)
+        }
+    }
 }

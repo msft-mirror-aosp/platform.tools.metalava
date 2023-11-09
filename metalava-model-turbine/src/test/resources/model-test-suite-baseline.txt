@@ -21,6 +21,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test multidimensional primitive array types[turbine,java]
   Test primitive array types[turbine,java]
   Test primitive types[turbine,java]
+  Test superclass and interface types using type variables[turbine,java]
   Test primitive vararg types[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
