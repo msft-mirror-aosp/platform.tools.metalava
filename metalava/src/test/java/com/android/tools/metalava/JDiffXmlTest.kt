@@ -891,8 +891,8 @@ class JDiffXmlTest : DriverTest() {
               }
             }
             package test.pkg {
-              public abstract class MyClass extends HashMap<String,String> implements Map<String,String>  {
-                field public Map<String,String> map;
+              public abstract class MyClass extends java.util.HashMap<java.lang.String,java.lang.String> implements java.util.Map<java.lang.String,java.lang.String>  {
+                field public java.util.Map<java.lang.String,java.lang.String> map;
               }
             }
             """,
@@ -934,17 +934,17 @@ class JDiffXmlTest : DriverTest() {
             <package name="test.pkg"
             >
             <class name="MyClass"
-             extends="java.lang.HashMap&lt;String, String>"
+             extends="java.util.HashMap&lt;java.lang.String, java.lang.String>"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
-            <implements name="java.lang.Map&lt;String, String>">
+            <implements name="java.util.Map&lt;java.lang.String, java.lang.String>">
             </implements>
             <field name="map"
-             type="java.lang.Map&lt;String, String>"
+             type="java.util.Map&lt;java.lang.String, java.lang.String>"
              transient="false"
              volatile="false"
              static="false"
