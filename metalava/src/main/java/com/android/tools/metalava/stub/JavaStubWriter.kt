@@ -31,7 +31,7 @@ import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-class JavaStubWriter(
+internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
@@ -53,7 +53,7 @@ class JavaStubWriter(
             if (options.includeDocumentationInStubs) {
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails and thus we need to include imports for the stubs to compile.
+                // fails, and thus we need to include imports for the stubs to compile.
                 cls.getSourceFile()?.getImports(filterReference)?.let {
                     for (item in it) {
                         if (item.isMember) {
@@ -95,7 +95,7 @@ class JavaStubWriter(
 
         if (cls.isEnum()) {
             var first = true
-            // Enums should preserve the original source order, not alphabetical etc sort
+            // Enums should preserve the original source order, not alphabetical etc. sort
             for (field in cls.filteredFields(filterReference, true).sortedBy { it.sortingRank }) {
                 if (field.isEnumConstant()) {
                     if (first) {
@@ -276,7 +276,7 @@ class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map.get(type.toTypeString(context = it)) ?: typeString
+                                val cast = map[type.toTypeString(context = it)] ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -317,14 +317,10 @@ class JavaStubWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
-        writeMethod(method.containingClass(), method, false)
+        writeMethod(method.containingClass(), method)
     }
 
-    private fun writeMethod(
-        containingClass: ClassItem,
-        method: MethodItem,
-        movedFromInterface: Boolean
-    ) {
+    private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
         val modifiers = method.modifiers
         val isEnum = containingClass.isEnum()
         val isAnnotation = containingClass.isAnnotationType()
@@ -341,10 +337,9 @@ class JavaStubWriter(
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
-        val removeAbstract =
-            modifiers.isAbstract() && (isEnum || isAnnotation) || movedFromInterface
+        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
 
-        appendModifiers(method, modifiers, removeAbstract, movedFromInterface)
+        appendModifiers(method, modifiers, removeAbstract, false)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -459,7 +454,7 @@ class JavaStubWriter(
             }
         if (throws.any()) {
             writer.print(" throws ")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     writer.print(", ")
                 }

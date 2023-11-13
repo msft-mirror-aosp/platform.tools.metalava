@@ -143,7 +143,7 @@ class StubWriter(
                     list = pkg.modifiers,
                     separateLines = true,
                     // Some bug in UAST triggers duplicate nullability annotations
-                    // here; make sure the are filtered out
+                    // here; make sure they are filtered out
                     filterDuplicates = true,
                     target = annotationTarget,
                     writer = packageInfoWriter
@@ -233,7 +233,6 @@ class StubWriter(
                 if (options.kotlinStubs && cls.isKotlin()) {
                     KotlinStubWriter(
                         textWriter,
-                        filterEmit,
                         filterReference,
                         generateAnnotations,
                         preFiltered,

@@ -29,9 +29,8 @@ import com.android.tools.metalava.model.psi.PsiClassItem
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-class KotlinStubWriter(
+internal class KotlinStubWriter(
     private val writer: PrintWriter,
-    private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
