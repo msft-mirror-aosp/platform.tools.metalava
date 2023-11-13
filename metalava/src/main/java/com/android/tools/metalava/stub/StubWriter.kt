@@ -42,7 +42,7 @@ import java.io.IOException
 import java.io.PrintWriter
 import java.io.Writer
 
-class StubWriter(
+internal class StubWriter(
     private val codebase: Codebase,
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
@@ -50,6 +50,7 @@ class StubWriter(
     private val docStubs: Boolean,
     private val annotationTarget: AnnotationTarget,
     private val reporter: Reporter,
+    config: StubWriterConfig,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -59,9 +60,10 @@ class StubWriter(
         // Methods are by default sorted in source order in stubs, to encourage methods
         // that are near each other in the source to show up near each other in the documentation
         methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(apiPredicate(docStubs)),
-        filterReference = apiPredicate(docStubs),
-        includeEmptyOuterClasses = true
+        filterEmit = FilterPredicate(apiPredicate(docStubs, config)),
+        filterReference = apiPredicate(docStubs, config),
+        includeEmptyOuterClasses = true,
+        config = config.apiVisitorConfig,
     ) {
 
     override fun visitPackage(pkg: PackageItem) {
@@ -267,10 +269,10 @@ class StubWriter(
     }
 }
 
-private fun apiPredicate(docStubs: Boolean) =
+private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
     ApiPredicate(
         includeDocOnly = docStubs,
-        config = options.apiPredicateConfig.copy(ignoreShown = true)
+        config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
     )
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, docStubs: Boolean) {

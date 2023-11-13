@@ -791,6 +791,7 @@ private fun createStubFiles(
             annotationTarget =
                 if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE,
             reporter = options.reporter,
+            config = options.stubWriterConfig,
         )
     codebase.accept(stubWriter)
 

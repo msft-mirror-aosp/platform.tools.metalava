@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -495,6 +496,12 @@ class Options(
      */
     val verbose: Boolean
         get() = verbosity.verbose
+
+    internal val stubWriterConfig by lazy {
+        StubWriterConfig(
+            apiVisitorConfig = apiVisitorConfig,
+        )
+    }
 
     val stubsDir by stubGenerationOptions::stubsDir
     val forceConvertToWarningNullabilityAnnotations by
