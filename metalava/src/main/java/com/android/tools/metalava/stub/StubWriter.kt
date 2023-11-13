@@ -48,6 +48,7 @@ class StubWriter(
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
+    private val annotationTarget: AnnotationTarget,
     private val reporter: Reporter,
 ) :
     ApiVisitor(
@@ -62,8 +63,6 @@ class StubWriter(
         filterReference = apiPredicate(docStubs),
         includeEmptyOuterClasses = true
     ) {
-    private val annotationTarget =
-        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     private val sourceList = StringBuilder(20000)
 
@@ -236,7 +235,8 @@ class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        docStubs
+                        docStubs,
+                        annotationTarget,
                     )
                 } else {
                     JavaStubWriter(
@@ -245,7 +245,8 @@ class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        docStubs
+                        docStubs,
+                        annotationTarget,
                     )
                 }
 

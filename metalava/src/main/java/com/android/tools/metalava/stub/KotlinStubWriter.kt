@@ -34,10 +34,9 @@ internal class KotlinStubWriter(
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean
+    private val docStubs: Boolean,
+    private val annotationTarget: AnnotationTarget,
 ) : BaseItemVisitor() {
-    private val annotationTarget =
-        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
