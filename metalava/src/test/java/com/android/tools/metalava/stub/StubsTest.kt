@@ -1029,6 +1029,7 @@ class StubsTest : AbstractStubsTest() {
                  * This is the copyright header.
                  */
                 package test.pkg;
+                import java.util.List;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {

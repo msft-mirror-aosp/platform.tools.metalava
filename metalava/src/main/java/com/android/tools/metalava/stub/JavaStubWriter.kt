@@ -49,7 +49,7 @@ internal class JavaStubWriter(
                 writer.println()
             }
             @Suppress("DEPRECATION")
-            if (options.includeDocumentationInStubs) {
+            if (options.includeDocumentationInStubs || docStubs) {
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
                 // fails, and thus we need to include imports for the stubs to compile.

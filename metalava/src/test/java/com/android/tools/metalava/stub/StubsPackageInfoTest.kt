@@ -102,6 +102,12 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 arrayOf(
                     java(
                         """
+                    /** My package docs */
+                    package test.pkg;
+                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Class1 {
