@@ -50,7 +50,7 @@ internal class StubWriter(
     private val docStubs: Boolean,
     private val annotationTarget: AnnotationTarget,
     private val reporter: Reporter,
-    config: StubWriterConfig,
+    private val config: StubWriterConfig,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -153,8 +153,8 @@ internal class StubWriter(
 
         // Kotlin From-text stub generation is not supported.
         // This method will raise an error if
-        // options.kotlinStubs == true and classItem is TextClassItem.
-        return if (options.kotlinStubs && classItem.isKotlin()) {
+        // config.kotlinStubs == true and classItem is TextClassItem.
+        return if (config.kotlinStubs && classItem.isKotlin()) {
             File(packageDir, "${classItem.simpleName()}.kt")
         } else {
             File(packageDir, "${classItem.simpleName()}.java")
@@ -206,7 +206,7 @@ internal class StubWriter(
                 }
 
             stubWriter =
-                if (options.kotlinStubs && cls.isKotlin()) {
+                if (config.kotlinStubs && cls.isKotlin()) {
                     KotlinStubWriter(
                         textWriter,
                         filterReference,

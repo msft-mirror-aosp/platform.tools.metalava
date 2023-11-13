@@ -23,5 +23,10 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
  * options.
  */
 internal data class StubWriterConfig(
-    val apiVisitorConfig: ApiVisitor.Config,
+    val apiVisitorConfig: ApiVisitor.Config = ApiVisitor.Config(),
+
+    /**
+     * If true then generate kotlin stubs if the source is kotlin, otherwise generate java stubs.
+     */
+    val kotlinStubs: Boolean = false,
 )
