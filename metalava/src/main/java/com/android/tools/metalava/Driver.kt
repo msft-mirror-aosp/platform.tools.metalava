@@ -773,11 +773,6 @@ private fun createStubFiles(
         }
     }
 
-    // Temporary bug workaround for org.chromium.arc
-    if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {
-        codebase.findClass("org.chromium.mojo.bindings.Callbacks")?.hidden = true
-    }
-
     if (docStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
