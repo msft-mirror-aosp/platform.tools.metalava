@@ -64,28 +64,6 @@ class StubWriter(
         includeEmptyOuterClasses = true
     ) {
 
-    private val sourceList = StringBuilder(20000)
-
-    /** Writes a source file list of the generated stubs */
-    fun writeSourceList(target: File, root: File?) {
-        target.parentFile?.mkdirs()
-        val contents =
-            if (root != null) {
-                val path = root.path.replace('\\', '/') + "/"
-                sourceList.toString().replace(path, "")
-            } else {
-                sourceList.toString()
-            }
-        target.writeText(contents)
-    }
-
-    private fun startFile(sourceFile: File) {
-        if (sourceList.isNotEmpty()) {
-            sourceList.append(' ')
-        }
-        sourceList.append(sourceFile.path.replace('\\', '/'))
-    }
-
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
 
@@ -133,7 +111,6 @@ class StubWriter(
                     reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
                     return
                 }
-            startFile(sourceFile)
 
             appendDocumentation(pkg, packageInfoWriter, docStubs)
 
@@ -225,8 +202,6 @@ class StubWriter(
                     reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
                     errorTextWriter
                 }
-
-            startFile(sourceFile)
 
             stubWriter =
                 if (options.kotlinStubs && cls.isKotlin()) {
