@@ -40,6 +40,7 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 import java.io.PrintWriter
+import java.io.Writer
 
 class StubWriter(
     private val codebase: Codebase,
@@ -187,7 +188,28 @@ class StubWriter(
      * to this writer, which redirects to the error output. Nothing should be written to the writer
      * at that time.
      */
-    private var errorTextWriter = PrintWriter(options.stderr)
+    private var errorTextWriter =
+        PrintWriter(
+            object : Writer() {
+                override fun close() {
+                    throw IllegalStateException(
+                        "Attempt to close 'textWriter' outside top level class"
+                    )
+                }
+
+                override fun flush() {
+                    throw IllegalStateException(
+                        "Attempt to flush 'textWriter' outside top level class"
+                    )
+                }
+
+                override fun write(cbuf: CharArray, off: Int, len: Int) {
+                    throw IllegalStateException(
+                        "Attempt to write to 'textWriter' outside top level class\n'${String(cbuf, off, len)}'"
+                    )
+                }
+            }
+        )
 
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
