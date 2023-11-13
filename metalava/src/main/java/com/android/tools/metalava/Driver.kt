@@ -781,6 +781,16 @@ private fun createStubFiles(
 
     val localTimer = Stopwatch.createStarted()
 
+    val stubWriterConfig =
+        options.stubWriterConfig.let {
+            if (docStubs) {
+                // Doc stubs always include documentation.
+                it.copy(includeDocumentationInStubs = true)
+            } else {
+                it
+            }
+        }
+
     val stubWriter =
         StubWriter(
             codebase = codebase,
@@ -791,7 +801,7 @@ private fun createStubFiles(
             annotationTarget =
                 if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE,
             reporter = options.reporter,
-            config = options.stubWriterConfig,
+            config = stubWriterConfig,
         )
     codebase.accept(stubWriter)
 

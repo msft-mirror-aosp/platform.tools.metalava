@@ -34,8 +34,8 @@ internal class KotlinStubWriter(
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean,
     private val annotationTarget: AnnotationTarget,
+    private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
     override fun visitClass(cls: ClassItem) {
@@ -52,7 +52,7 @@ internal class KotlinStubWriter(
                 writer.println()
             }
         }
-        appendDocumentation(cls, writer, docStubs)
+        appendDocumentation(cls, writer, config)
 
         writer.println("@file:Suppress(\"ALL\")")
 
@@ -200,7 +200,7 @@ internal class KotlinStubWriter(
         val isAnnotation = containingClass.isAnnotationType()
 
         writer.println()
-        appendDocumentation(method, writer, docStubs)
+        appendDocumentation(method, writer, config)
 
         // TODO: Should be an annotation
         generateThrowsList(method)

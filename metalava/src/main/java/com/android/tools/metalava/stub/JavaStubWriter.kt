@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate
 
@@ -37,8 +36,8 @@ internal class JavaStubWriter(
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean,
     private val annotationTarget: AnnotationTarget,
+    private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
     override fun visitClass(cls: ClassItem) {
@@ -48,8 +47,7 @@ internal class JavaStubWriter(
                 writer.println("package $qualifiedName;")
                 writer.println()
             }
-            @Suppress("DEPRECATION")
-            if (options.includeDocumentationInStubs || docStubs) {
+            if (config.includeDocumentationInStubs) {
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
                 // fails, and thus we need to include imports for the stubs to compile.
@@ -66,7 +64,7 @@ internal class JavaStubWriter(
             }
         }
 
-        appendDocumentation(cls, writer, docStubs)
+        appendDocumentation(cls, writer, config)
 
         // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
         writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
@@ -102,7 +100,7 @@ internal class JavaStubWriter(
                     } else {
                         writer.write(",\n")
                     }
-                    appendDocumentation(field, writer, docStubs)
+                    appendDocumentation(field, writer, config)
 
                     // Can't just appendModifiers(field, true, true): enum constants
                     // don't take modifier lists, only annotations
@@ -235,7 +233,7 @@ internal class JavaStubWriter(
 
     private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
-        appendDocumentation(constructor, writer, docStubs)
+        appendDocumentation(constructor, writer, config)
         appendModifiers(constructor, false)
         generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
         writer.print(constructor.containingClass().simpleName())
@@ -332,7 +330,7 @@ internal class JavaStubWriter(
         }
 
         writer.println()
-        appendDocumentation(method, writer, docStubs)
+        appendDocumentation(method, writer, config)
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
@@ -384,7 +382,7 @@ internal class JavaStubWriter(
 
         writer.println()
 
-        appendDocumentation(field, writer, docStubs)
+        appendDocumentation(field, writer, config)
         appendModifiers(field, removeAbstract = false, removeFinal = false)
         writer.print(
             field

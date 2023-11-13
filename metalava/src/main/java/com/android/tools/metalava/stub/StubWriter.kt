@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
@@ -32,7 +30,6 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -104,7 +101,7 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            (options.includeDocumentationInStubs || docStubs) && pkg.documentation.isNotBlank()
+            config.includeDocumentationInStubs && pkg.documentation.isNotBlank()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -115,7 +112,7 @@ internal class StubWriter(
                     return
                 }
 
-            appendDocumentation(pkg, packageInfoWriter, docStubs)
+            appendDocumentation(pkg, packageInfoWriter, config)
 
             if (annotations.isNotEmpty()) {
                 ModifierList.writeAnnotations(
@@ -213,8 +210,8 @@ internal class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        docStubs,
                         annotationTarget,
+                        config,
                     )
                 } else {
                     JavaStubWriter(
@@ -223,8 +220,8 @@ internal class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        docStubs,
                         annotationTarget,
+                        config,
                     )
                 }
 
@@ -276,8 +273,8 @@ private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
         config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
     )
 
-internal fun appendDocumentation(item: Item, writer: PrintWriter, docStubs: Boolean) {
-    if (options.includeDocumentationInStubs || docStubs) {
+internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
+    if (config.includeDocumentationInStubs) {
         val documentation = item.fullyQualifiedDocumentation()
         if (documentation.isNotBlank()) {
             val trimmed = trimDocIndent(documentation)

@@ -501,6 +501,7 @@ class Options(
         StubWriterConfig(
             apiVisitorConfig = apiVisitorConfig,
             kotlinStubs = kotlinStubs,
+            includeDocumentationInStubs = includeDocumentationInStubs,
         )
     }
 
