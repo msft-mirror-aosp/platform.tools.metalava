@@ -1000,23 +1000,43 @@ private constructor(
             val modifiers = parseModifiers(api, tokenizer, token, null)
             token = tokenizer.current
 
-            // Token should now represent the type
-            val type = parseType(api, tokenizer, token, typeParameters, annotations)
-            modifiers.addAnnotations(annotations)
-            token = tokenizer.current
+            val type: TextTypeItem
+            val name: String
+            val publicName: String?
+            if (format.kotlinNameTypeOrder) {
+                // Kotlin style: parse the name (only considered a public name if it is not `_`,
+                // which is used as a placeholder for params without public names), then the type.
+                name = parseNameWithColon(token, tokenizer)
+                publicName =
+                    if (name == "_") {
+                        null
+                    } else {
+                        name
+                    }
+                token = tokenizer.requireToken()
+                // Token should now represent the type
+                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                // TODO(b/300081840): update nullability handling
+                modifiers.addAnnotations(annotations)
+                token = tokenizer.current
+            } else {
+                // Java style: parse the type, then the public name if it has one.
+                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                modifiers.addAnnotations(annotations)
+                token = tokenizer.current
+                if (isIdent(token) && token != "=") {
+                    name = token
+                    publicName = name
+                    token = tokenizer.requireToken()
+                } else {
+                    name = "arg" + (index + 1)
+                    publicName = null
+                }
+            }
             if (type is ArrayTypeItem && type.isVarargs) {
                 modifiers.setVarArg(true)
             }
-            var name: String
-            var publicName: String?
-            if (isIdent(token) && token != "=") {
-                name = token
-                publicName = name
-                token = tokenizer.requireToken()
-            } else {
-                name = "arg" + (index + 1)
-                publicName = null
-            }
+
             var defaultValue = UNKNOWN_DEFAULT_VALUE
             if ("=" == token) {
                 defaultValue = tokenizer.requireToken(true)

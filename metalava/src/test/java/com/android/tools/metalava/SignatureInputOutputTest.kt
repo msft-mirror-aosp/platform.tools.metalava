@@ -16,11 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.truth.Truth.assertThat
@@ -239,6 +242,254 @@ class SignatureInputOutputTest {
 
             assertThat(method.hasDefaultValue()).isTrue()
             assertThat(method.defaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
+        }
+    }
+
+    @Test
+    fun `Test method with one named parameter`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(arg: int): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(1)
+            val param = method.parameters().single()
+            assertThat(param.name()).isEqualTo("arg")
+            assertThat(param.publicName()).isEqualTo("arg")
+            assertThat((param.type() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+        }
+    }
+
+    @Test
+    fun `Test method with one named parameter with concise default value`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(optional arg: int): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(1)
+            val param = method.parameters().single()
+            assertThat(param.name()).isEqualTo("arg")
+            assertThat(param.publicName()).isEqualTo("arg")
+            assertThat((param.type() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+
+            assertThat(param.hasDefaultValue()).isTrue()
+            assertThat(param.isDefaultValueKnown()).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test method with one named parameter with non-concise default value`() {
+        val format = kotlinStyleFormat.copy(conciseDefaultValues = false)
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(arg: int = 3): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, format) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(1)
+            val param = method.parameters().single()
+            assertThat(param.name()).isEqualTo("arg")
+            assertThat(param.publicName()).isEqualTo("arg")
+            assertThat((param.type() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+
+            assertThat(param.hasDefaultValue()).isTrue()
+            assertThat(param.isDefaultValueKnown()).isTrue()
+            assertThat(param.defaultValue()).isEqualTo("3")
+        }
+    }
+
+    @Test
+    fun `Test method with one named vararg param`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(vals: int...): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(1)
+            val param = method.parameters().single()
+            assertThat(param.name()).isEqualTo("vals")
+            assertThat(param.publicName()).isEqualTo("vals")
+
+            assertThat((param.type() as ArrayTypeItem).isVarargs).isTrue()
+            assertThat(param.isVarArgs()).isTrue()
+            assertThat(param.modifiers.isVarArg()).isTrue()
+            assertThat((method as TextMethodItem).isVarArg()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test method with one unnamed parameter`() {
+        val api =
+            kotlinStyleFormat.header() +
+                """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(_: int): String;
+                  }
+                }
+            """
+                    .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(1)
+            val param = method.parameters().single()
+            assertThat(param.name()).isEqualTo("_")
+            assertThat(param.publicName()).isNull()
+            assertThat((param.type() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+        }
+    }
+
+    @Test
+    fun `Test method with one unnamed parameter with modifier`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(volatile _: test.pkg.Foo): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(1)
+            val param = method.parameters().single()
+            assertThat(param.name()).isEqualTo("_")
+            assertThat(param.publicName()).isNull()
+            assertThat((param.type() as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Foo")
+            assertThat(param.modifiers.isVolatile()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test method with list of named parameters`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(i: int, map: java.util.Map<java.lang.String, java.lang.Object>, arr: String[]): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(3)
+
+            // i: int
+            val p0 = method.parameters()[0]
+            assertThat(p0.name()).isEqualTo("i")
+            assertThat(p0.publicName()).isEqualTo("i")
+            assertThat((p0.type() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+
+            // map: java.util.Map<java.lang.String, java.lang.Object>
+            val p1 = method.parameters()[1]
+            assertThat(p1.name()).isEqualTo("map")
+            assertThat(p1.publicName()).isEqualTo("map")
+            val mapType = p1.type() as ClassTypeItem
+            assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
+            assertThat(mapType.parameters).hasSize(2)
+            assertThat(mapType.parameters[0].isString()).isTrue()
+            assertThat(mapType.parameters[1].isJavaLangObject()).isTrue()
+
+            // arr: String[]
+            val p2 = method.parameters()[2]
+            assertThat(p2.name()).isEqualTo("arr")
+            assertThat(p2.publicName()).isEqualTo("arr")
+            assertThat((p2.type() as ArrayTypeItem).componentType.isString()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test method with list of unnamed parameters`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(_: int, _: java.util.Map<java.lang.String, java.lang.Object>, _: String[]): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            val method = foo!!.methods().single()
+
+            assertThat(method.parameters()).hasSize(3)
+
+            // _: int
+            val p0 = method.parameters()[0]
+            assertThat(p0.name()).isEqualTo("_")
+            assertThat(p0.publicName()).isNull()
+            assertThat((p0.type() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+
+            // _: java.util.Map<java.lang.String, java.lang.Object>
+            val p1 = method.parameters()[1]
+            assertThat(p1.name()).isEqualTo("_")
+            assertThat(p1.publicName()).isNull()
+            val mapType = p1.type() as ClassTypeItem
+            assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
+            assertThat(mapType.parameters).hasSize(2)
+            assertThat(mapType.parameters[0].isString()).isTrue()
+            assertThat(mapType.parameters[1].isJavaLangObject()).isTrue()
+
+            // _: String[]
+            val p2 = method.parameters()[2]
+            assertThat(p2.name()).isEqualTo("_")
+            assertThat(p2.publicName()).isNull()
+            assertThat((p2.type() as ArrayTypeItem).componentType.isString()).isTrue()
         }
     }
 

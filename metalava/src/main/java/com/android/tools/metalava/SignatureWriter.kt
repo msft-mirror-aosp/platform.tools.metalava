@@ -309,12 +309,24 @@ class SignatureWriter(
                 write("optional ")
             }
             writeModifiers(parameter)
-            writeType(parameter, parameter.type())
-            val name = parameter.publicName()
-            if (name != null) {
-                write(" ")
+
+            if (fileFormat.kotlinNameTypeOrder) {
+                // Kotlin style: the parameter must have a name (use `_` if it doesn't have a public
+                // name). Write the name and then the type.
+                val name = parameter.publicName() ?: "_"
                 write(name)
+                write(": ")
+                writeType(parameter, parameter.type())
+            } else {
+                // Java style: write the type, then the name if it has a public name.
+                writeType(parameter, parameter.type())
+                val name = parameter.publicName()
+                if (name != null) {
+                    write(" ")
+                    write(name)
+                }
             }
+
             if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
