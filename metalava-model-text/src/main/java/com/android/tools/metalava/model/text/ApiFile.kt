@@ -870,13 +870,30 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val type =
-            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
-        modifiers.addAnnotations(annotations)
-        token = tokenizer.current
-        assertIdent(tokenizer, token)
-        val name: String = token
-        token = tokenizer.requireToken()
+
+        val type: TextTypeItem
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, then the type.
+            name = parseNameWithColon(token, tokenizer)
+            token = tokenizer.requireToken()
+            assertIdent(tokenizer, token)
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the type, then the name.
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            assertIdent(tokenizer, token)
+            name = token
+            token = tokenizer.requireToken()
+        }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1128,6 +1145,19 @@ private constructor(
                 firstAnnotationIndex < paramStartIndex ||
                 paramEndIndex == -1 ||
                 paramEndIndex < lastAnnotationIndex)
+    }
+
+    /**
+     * For Kotlin-style name/type ordering in signature files, the name is generally followed by a
+     * colon (besides methods, where the colon comes after the parameter list). This method takes
+     * the name [token] and removes the trailing colon, throwing an [ApiParseException] if one isn't
+     * present (the [tokenizer] is only used for context for the error, if needed).
+     */
+    private fun parseNameWithColon(token: String, tokenizer: Tokenizer): String {
+        if (!token.endsWith(':')) {
+            throw ApiParseException("Expecting name ending with \":\" but found $token.", tokenizer)
+        }
+        return token.removeSuffix(":")
     }
 
     private fun qualifiedName(pkg: String, className: String): String {

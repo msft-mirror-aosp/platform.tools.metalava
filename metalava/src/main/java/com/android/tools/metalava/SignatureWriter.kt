@@ -132,9 +132,17 @@ class SignatureWriter(
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
-        writeType(property, property.type())
-        write(" ")
-        write(property.name())
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the property, then the type.
+            write(property.name())
+            write(": ")
+            writeType(property, property.type())
+        } else {
+            // Java style: write the type, then the name of the property.
+            writeType(property, property.type())
+            write(" ")
+            write(property.name())
+        }
         write(";\n")
     }
 

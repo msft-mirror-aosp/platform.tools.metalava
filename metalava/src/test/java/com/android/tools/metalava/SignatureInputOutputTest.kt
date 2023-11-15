@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
@@ -84,6 +85,29 @@ class SignatureInputOutputTest {
             assertThat(foo!!.constructors()).hasSize(1)
             val ctor = foo.constructors().single()
             assertThat(ctor.parameters()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test property`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    property public foo: String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            assertThat(foo!!.properties()).hasSize(1)
+
+            val prop = foo.properties().single()
+            assertThat(prop.name()).isEqualTo("foo")
+            assertThat(prop.type().isString()).isTrue()
+            assertThat(prop.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
         }
     }
 
