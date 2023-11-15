@@ -43,7 +43,7 @@ class TextParameterItem(
     }
 
     override fun isVarArgs(): Boolean {
-        return type.toString().contains("...")
+        return modifiers.isVarArg()
     }
 
     override val synthetic: Boolean
