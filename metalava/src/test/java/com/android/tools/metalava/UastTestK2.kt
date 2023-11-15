@@ -139,6 +139,22 @@ class UastTestK2 : UastTestBase() {
             api =
                 """
                 package test.pkg {
+                  @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                  }
+                  public interface TestInterface {
+                    method @Deprecated public int getPOld_deprecatedOnSetter();
+                    method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                    method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                    method @Deprecated public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                    method @Deprecated public void setPOld_deprecatedOnGetter(int);
+                    method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                    method @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                    method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                    property @Deprecated public abstract int pOld_deprecatedOnSetter;
+                    property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                    property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                    property @Deprecated public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
+                  }
                   public final class Test_accessors {
                     ctor public Test_accessors();
                     method public String? getPNew_accessors();
