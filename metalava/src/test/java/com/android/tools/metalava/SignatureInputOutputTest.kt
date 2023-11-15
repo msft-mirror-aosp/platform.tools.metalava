@@ -111,6 +111,55 @@ class SignatureInputOutputTest {
         }
     }
 
+    @Test
+    fun `Test field without value`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    field protected foo: String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            assertThat(foo!!.fields()).hasSize(1)
+
+            val field = foo.fields().single()
+            assertThat(field.name()).isEqualTo("foo")
+            assertThat(field.type().isString()).isTrue()
+            assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PROTECTED)
+            assertThat(field.initialValue()).isNull()
+        }
+    }
+
+    @Test
+    fun `Test field with value`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    field public static foo: String = "hi";
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            assertThat(foo!!.fields()).hasSize(1)
+
+            val field = foo.fields().single()
+            assertThat(field.name()).isEqualTo("foo")
+            assertThat(field.type().isString()).isTrue()
+            assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(field.modifiers.isStatic()).isTrue()
+            assertThat(field.initialValue()).isEqualTo("hi")
+        }
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)

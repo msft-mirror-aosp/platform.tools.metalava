@@ -665,13 +665,30 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val type =
-            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
-        modifiers.addAnnotations(annotations)
-        token = tokenizer.current
-        assertIdent(tokenizer, token)
-        val name = token
-        token = tokenizer.requireToken()
+
+        val type: TextTypeItem
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, then the type.
+            name = parseNameWithColon(token, tokenizer)
+            token = tokenizer.requireToken()
+            assertIdent(tokenizer, token)
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the name, then the type.
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            assertIdent(tokenizer, token)
+            name = token
+            token = tokenizer.requireToken()
+        }
+
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)

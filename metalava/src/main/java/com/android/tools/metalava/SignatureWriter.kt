@@ -118,9 +118,19 @@ class SignatureWriter(
         write(name)
         write(" ")
         writeModifiers(field)
-        writeType(field, field.type())
-        write(" ")
-        write(field.name())
+
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the field, then the type.
+            write(field.name())
+            write(": ")
+            writeType(field, field.type())
+        } else {
+            // Java style: write the type, then the name of the field.
+            writeType(field, field.type())
+            write(" ")
+            write(field.name())
+        }
+
         field.writeValueWithSemicolon(
             writer,
             allowDefaultValue = false,
