@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
@@ -157,6 +158,87 @@ class SignatureInputOutputTest {
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(field.modifiers.isStatic()).isTrue()
             assertThat(field.initialValue()).isEqualTo("hi")
+        }
+    }
+
+    @Test
+    fun `Test method without parameters`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(): String;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            assertThat(foo!!.methods()).hasSize(1)
+
+            val method = foo.methods().single()
+            assertThat(method.name()).isEqualTo("foo")
+            assertThat(method.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(method.returnType().isString()).isTrue()
+            assertThat(method.parameters()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test method without parameters with throws list`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    method public foo(): void throws java.lang.IllegalStateException;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            assertThat(foo!!.methods()).hasSize(1)
+
+            val method = foo.methods().single()
+            assertThat(method.name()).isEqualTo("foo")
+            assertThat(method.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat((method.returnType() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            assertThat(method.parameters()).isEmpty()
+
+            assertThat(method.throwsTypes()).hasSize(1)
+            assertThat(method.throwsTypes().single().qualifiedName())
+                .isEqualTo("java.lang.IllegalStateException")
+        }
+    }
+
+    @Test
+    fun `Test method without parameters with default value`() {
+        val api =
+            """
+                package test.pkg {
+                  public @interface Foo {
+                    method public foo(): int default java.lang.Integer.MIN_VALUE;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, kotlinStyleFormat) { codebase ->
+            val foo = codebase.findClass("test.pkg.Foo")
+            assertThat(foo).isNotNull()
+            assertThat(foo!!.methods()).hasSize(1)
+
+            val method = foo.methods().single()
+            assertThat(method.name()).isEqualTo("foo")
+            assertThat(method.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat((method.returnType() as PrimitiveTypeItem).kind)
+                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            assertThat(method.parameters()).isEmpty()
+
+            assertThat(method.hasDefaultValue()).isTrue()
+            assertThat(method.defaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
         }
     }
 

@@ -560,10 +560,6 @@ private constructor(
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
-        token = tokenizer.requireToken()
-        if ("(" != token) {
-            throw ApiParseException("expected (", tokenizer)
-        }
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
         val parameters = parseParameterList(api, tokenizer, typeParams)
@@ -608,28 +604,47 @@ private constructor(
         assertIdent(tokenizer, token)
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        val returnType = parseType(api, tokenizer, token, typeParams, annotations)
-        modifiers.addAnnotations(annotations)
-        token = tokenizer.current
-        assertIdent(tokenizer, token)
-        val name: String = token
+
+        val returnType: TextTypeItem
+        val parameters: List<TextParameterItem>
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, the parameter list, then the return type.
+            name = token
+            parameters = parseParameterList(api, tokenizer, typeParams)
+            token = tokenizer.requireToken()
+            if (token != ":") {
+                throw ApiParseException(
+                    "Expecting \":\" after parameter list, found $token.",
+                    tokenizer
+                )
+            }
+            token = tokenizer.requireToken()
+            assertIdent(tokenizer, token)
+            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the return type, the name, and then the parameter list.
+            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            assertIdent(tokenizer, token)
+            name = token
+            parameters = parseParameterList(api, tokenizer, typeParams)
+            token = tokenizer.requireToken()
+        }
+
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
-        token = tokenizer.requireToken()
-        if ("(" != token) {
-            throw ApiParseException("expected (, was $token", tokenizer)
-        }
-        val parameters = parseParameterList(api, tokenizer, typeParams)
-
         method = TextMethodItem(api, name, cl, modifiers, returnType, parameters, tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
         }
-
-        token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
         }
@@ -945,6 +960,12 @@ private constructor(
         }
     }
 
+    /**
+     * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
+     * the opening `(` of the parameter list (the method starts by calling [requireToken]).
+     *
+     * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
+     */
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -952,6 +973,10 @@ private constructor(
     ): List<TextParameterItem> {
         val parameters = mutableListOf<TextParameterItem>()
         var token: String = tokenizer.requireToken()
+        if ("(" != token) {
+            throw ApiParseException("expected (, was $token", tokenizer)
+        }
+        token = tokenizer.requireToken()
         var index = 0
         while (true) {
             if (")" == token) {

@@ -161,10 +161,20 @@ class SignatureWriter(
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList(), addSpace = true)
 
-        writeType(method, method.returnType())
-        write(" ")
-        write(method.name())
-        writeParameterList(method)
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the method and the parameters, then the type.
+            write(method.name())
+            writeParameterList(method)
+            write(": ")
+            writeType(method, method.returnType())
+        } else {
+            // Java style: write the type, then the name of the method and the parameters.
+            writeType(method, method.returnType())
+            write(" ")
+            write(method.name())
+            writeParameterList(method)
+        }
+
         writeThrowsList(method)
 
         if (method.containingClass().isAnnotationType()) {
