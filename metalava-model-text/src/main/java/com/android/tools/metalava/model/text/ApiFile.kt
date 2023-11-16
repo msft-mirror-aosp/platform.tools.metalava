@@ -564,11 +564,12 @@ private constructor(
         if ("(" != token) {
             throw ApiParseException("expected (", tokenizer)
         }
-        method = TextConstructorItem(api, name, cl, modifiers, cl.toType(), tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        parseParameterList(api, tokenizer, method, typeParams)
+        val parameters = parseParameterList(api, tokenizer, typeParams)
+        method =
+            TextConstructorItem(api, name, cl, modifiers, cl.toType(), parameters, tokenizer.pos())
+        method.deprecated = modifiers.isDeprecated()
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
@@ -612,20 +613,22 @@ private constructor(
         token = tokenizer.current
         assertIdent(tokenizer, token)
         val name: String = token
-        method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
-        }
-        method.setTypeParameterList(typeParameterList)
-        if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.setOwner(method)
         }
         token = tokenizer.requireToken()
         if ("(" != token) {
             throw ApiParseException("expected (, was $token", tokenizer)
         }
-        parseParameterList(api, tokenizer, method, typeParams)
+        val parameters = parseParameterList(api, tokenizer, typeParams)
+
+        method = TextMethodItem(api, name, cl, modifiers, returnType, parameters, tokenizer.pos())
+        method.deprecated = modifiers.isDeprecated()
+        method.setTypeParameterList(typeParameterList)
+        if (typeParameterList is TextTypeParameterList) {
+            typeParameterList.setOwner(method)
+        }
+
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
@@ -945,14 +948,14 @@ private constructor(
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
-        method: TextMethodItem,
         typeParameters: List<TypeParameterItem>
-    ) {
+    ): List<TextParameterItem> {
+        val parameters = mutableListOf<TextParameterItem>()
         var token: String = tokenizer.requireToken()
         var index = 0
         while (true) {
             if (")" == token) {
-                return
+                return parameters
             }
 
             // Each item can be
@@ -1043,7 +1046,7 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
-            val parameter =
+            parameters.add(
                 TextParameterItem(
                     api,
                     name,
@@ -1055,11 +1058,7 @@ private constructor(
                     modifiers,
                     tokenizer.pos()
                 )
-            parameter.containingMethod = method
-            method.addParameter(parameter)
-            if (modifiers.isVarArg()) {
-                method.setVarargs(true)
-            }
+            )
             index++
         }
     }
