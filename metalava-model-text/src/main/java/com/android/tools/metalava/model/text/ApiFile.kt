@@ -1043,10 +1043,9 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
-            method.addParameter(
+            val parameter =
                 TextParameterItem(
                     api,
-                    method,
                     name,
                     publicName,
                     hasDefaultValue,
@@ -1056,7 +1055,8 @@ private constructor(
                     modifiers,
                     tokenizer.pos()
                 )
-            )
+            parameter.containingMethod = method
+            method.addParameter(parameter)
             if (modifiers.isVarArg()) {
                 method.setVarargs(true)
             }
