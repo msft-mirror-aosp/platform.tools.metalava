@@ -380,13 +380,13 @@ sealed class PsiTypeItem(
             }
 
             val typeString =
-                if (kotlinStyleNulls && (innerAnnotations || outerAnnotations)) {
+                if (kotlinStyleNulls) {
                     try {
                         getCanonicalText(
                             codebase = codebase,
                             owner = context,
                             type = type,
-                            annotated = true,
+                            annotated = innerAnnotations || outerAnnotations,
                             mapAnnotations = true,
                             kotlinStyleNulls = kotlinStyleNulls,
                             filter = filter
@@ -411,7 +411,7 @@ sealed class PsiTypeItem(
             filter: Predicate<Item>?
         ): String {
             return try {
-                if (annotated && kotlinStyleNulls) {
+                if (kotlinStyleNulls) {
                     // Any nullness annotations on the element to merge in? When we have something
                     // like
                     //  @Nullable String foo

@@ -55,7 +55,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
     ): String {
         val typeString = toTypeString(type, outerAnnotations, innerAnnotations, erased, context)
 
-        if (innerAnnotations && kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
+        if (kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
             var nullable: Boolean? = context.implicitNullness()
 
             if (nullable == null) {
