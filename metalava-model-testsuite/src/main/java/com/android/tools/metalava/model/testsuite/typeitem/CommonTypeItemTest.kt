@@ -1081,12 +1081,7 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             val field = codebase.assertClass("test.pkg.Foo").fields().single()
             val type = field.type()
             assertThat(
-                    type.toTypeString(
-                        outerAnnotations = false,
-                        innerAnnotations = false,
-                        kotlinStyleNulls = true,
-                        context = field
-                    )
+                    type.toTypeString(annotations = false, kotlinStyleNulls = true, context = field)
                 )
                 .isEqualTo("java.lang.String?")
         }

@@ -46,8 +46,7 @@ sealed class TurbineTypeItem(
     }
 
     override fun toTypeString(
-        outerAnnotations: Boolean,
-        innerAnnotations: Boolean,
+        annotations: Boolean,
         erased: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
