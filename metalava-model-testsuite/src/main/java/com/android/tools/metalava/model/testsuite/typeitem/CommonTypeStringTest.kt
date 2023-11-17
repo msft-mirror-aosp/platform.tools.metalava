@@ -91,13 +91,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     ),
                     TypeStringParameters(
                         name = "int varargs",
-                        parameters = "int[]",
-                    ),
-                    TypeStringParameters(
-                        parameters = "long",
-                    ),
-                    TypeStringParameters(
-                        parameters = "short",
+                        parameters = "int...",
+                        expectedErasedType = "int[]"
                     ),
                     TypeStringParameters(
                         parameters = "String",
@@ -128,7 +123,6 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                         name = "generic varargs",
                         parameters = "T...",
                         methodTypeParameter = "<T>",
-                        // This is inconsistent with how varargs are handled for non-generic types.
                         expectedErasedType = "java.lang.Object[]",
                     ),
                     TypeStringParameters(
@@ -147,7 +141,6 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                         name = "T extends Number varargs",
                         parameters = "T...",
                         methodTypeParameter = "<T extends Number>",
-                        // This is inconsistent with how varargs are handled for non-generic types.
                         expectedErasedType = "java.lang.Number[]",
                     ),
                     TypeStringParameters(
@@ -225,11 +218,11 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val fooMethod = fooClass.methods().single()
-            val foundMethod = fooClass.findMethod("foo", parameters.expectedErasedParameters)
+            val foundMethod = fooClass.findMethod("foo", parameters.searchParameters)
 
             if (foundMethod == null) {
                 Assert.fail(
-                    "Searched for method with parameters (${parameters.expectedErasedParameters}) but method has erased parameters of (${
+                    "Searched for method with parameters (${parameters.searchParameters}) but method has erased parameters of (${
                         fooMethod.parameters()
                             .joinToString(", ") { it.type().toErasedTypeString() }
                     })"
