@@ -343,7 +343,7 @@ internal class JavaStubWriter(
         writer.print(
             returnType.toTypeString(
                 outerAnnotations = false,
-                innerAnnotations = generateAnnotations,
+                innerAnnotations = false,
                 filter = filterReference
             )
         )
@@ -389,7 +389,7 @@ internal class JavaStubWriter(
                 .type()
                 .toTypeString(
                     outerAnnotations = false,
-                    innerAnnotations = generateAnnotations,
+                    innerAnnotations = false,
                     filter = filterReference
                 )
         )
@@ -430,7 +430,7 @@ internal class JavaStubWriter(
                     .type()
                     .toTypeString(
                         outerAnnotations = false,
-                        innerAnnotations = generateAnnotations,
+                        innerAnnotations = false,
                         filter = filterReference
                     )
             )
