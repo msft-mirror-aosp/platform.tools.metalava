@@ -27,13 +27,14 @@ import com.google.turbine.binder.sym.MethodSymbol
 class TurbineMethodItem(
     override val codebase: Codebase,
     private val methodSymbol: MethodSymbol,
-    private val parameters: List<ParameterItem>,
     private val containingClass: TurbineClassItem,
+    private val returnType: TurbineTypeItem,
     override val modifiers: TurbineModifierItem,
 ) : TurbineItem(codebase, modifiers), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     private lateinit var throwsTypes: List<ClassItem>
+    internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
@@ -42,7 +43,7 @@ class TurbineMethodItem(
 
     override fun parameters(): List<ParameterItem> = parameters
 
-    override fun returnType(): TypeItem = TODO("b/295800205")
+    override fun returnType(): TypeItem = returnType
 
     override fun throwsTypes(): List<ClassItem> = throwsTypes
 

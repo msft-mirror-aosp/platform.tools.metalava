@@ -34,6 +34,7 @@ import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
+import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.sym.ClassSymbol
@@ -162,7 +163,7 @@ open class TurbineCodebaseInitialiser(
 
     /** Creates a class if not already present in codebase's classmap */
     private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
-        val className = sym.binaryName().replace('/', '.').replace('$', '.')
+        val className = getQualifiedName(sym.binaryName())
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
@@ -182,10 +183,10 @@ open class TurbineCodebaseInitialiser(
         val pkgItem = findOrCreatePackage(pkgName)
 
         // Create class
-        val qualifiedName = sym.binaryName().replace('/', '.').replace('$', '.')
+        val qualifiedName = getQualifiedName(sym.binaryName())
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
-        val annotations = createAnnotations(cls.annotations()).toList()
+        val annotations = createAnnotations(cls.annotations())
         val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
         val classItem =
             TurbineClassItem(
@@ -239,8 +240,7 @@ open class TurbineCodebaseInitialiser(
         val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
         val clsSym = annotation.sym()
         val qualifiedName =
-            if (clsSym == null) simpleName!!
-            else clsSym.binaryName().replace('/', '.').replace('$', '.')
+            if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
 
         return TurbineAnnotationItem(codebase, qualifiedName, annoAttrs)
     }
@@ -330,7 +330,7 @@ open class TurbineCodebaseInitialiser(
     private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
         classItem.fields =
             fields.map { field ->
-                val annotations = createAnnotations(field.annotations()).toList()
+                val annotations = createAnnotations(field.annotations())
                 val fieldModifierItem =
                     TurbineModifierItem.create(codebase, field.access(), annotations)
                 val type = createType(field.type())
@@ -349,16 +349,41 @@ open class TurbineCodebaseInitialiser(
             methods
                 .filter { it.sym().name() != "<init>" }
                 .map { method ->
-                    val annotations = createAnnotations(method.annotations()).toList()
+                    val annotations = createAnnotations(method.annotations())
                     val methodModifierItem =
                         TurbineModifierItem.create(codebase, method.access(), annotations)
-                    TurbineMethodItem(
-                        codebase,
-                        method.sym(),
-                        listOf(),
-                        classItem,
-                        methodModifierItem,
-                    )
+                    val methodItem =
+                        TurbineMethodItem(
+                            codebase,
+                            method.sym(),
+                            classItem,
+                            createType(method.returnType()),
+                            methodModifierItem,
+                        )
+                    createParameters(methodItem, method.parameters())
+                    methodItem
                 }
+    }
+
+    private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {
+        methodItem.parameters =
+            parameters.mapIndexed { idx, parameter ->
+                val annotations = createAnnotations(parameter.annotations())
+                val parameterModifierItem =
+                    TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                val type = createType(parameter.type())
+                TurbineParameterItem(
+                    codebase,
+                    parameter.name(),
+                    methodItem,
+                    idx,
+                    type,
+                    parameterModifierItem,
+                )
+            }
+    }
+
+    private fun getQualifiedName(binaryName: String): String {
+        return binaryName.replace('/', '.').replace('$', '.')
     }
 }
