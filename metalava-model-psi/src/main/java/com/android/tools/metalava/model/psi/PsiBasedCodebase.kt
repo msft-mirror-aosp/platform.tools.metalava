@@ -296,7 +296,12 @@ open class PsiBasedCodebase(
             }
 
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
-            registerPackage(psiPackage, sortedClasses, packageDocs[pkgName], pkgName)
+            registerPackage(
+                pkgName,
+                psiPackage,
+                sortedClasses,
+                packageDocs[pkgName],
+            )
         }
         initializing = false
 
@@ -357,8 +362,7 @@ open class PsiBasedCodebase(
         for (pkgName in missingPackages) {
             val psiPackage = findPsiPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
-            val packageHtml = null
-            registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
+            registerPackage(pkgName, psiPackage, sortedClasses)
         }
 
         // Connect up all the package items
@@ -383,10 +387,10 @@ open class PsiBasedCodebase(
     }
 
     private fun registerPackage(
+        pkgName: String,
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
-        packageHtml: String?,
-        pkgName: String
+        packageHtml: String? = null,
     ): PsiPackageItem {
         val packageItem =
             PsiPackageItem.create(
@@ -486,7 +490,7 @@ open class PsiBasedCodebase(
 
             packageClasses.sortWith(ClassItem.fullNameComparator)
             // When loading from a jar there is no package documentation.
-            registerPackage(psiPackage, packageClasses, null, pkgName)
+            registerPackage(pkgName, psiPackage, packageClasses)
         }
 
         emptyPackage = findPackage("")!!
@@ -576,13 +580,9 @@ open class PsiBasedCodebase(
             val pkgName = getPackageName(clz)
             val pkg = findPackage(pkgName)
             if (pkg == null) {
-                // val packageHtml: String? = packageDocs?.packageDocs!![pkgName]
-                // dynamically discovered packages should NOT be included
-                // val packageHtml = "/** @hide */"
-                val packageHtml = null
                 val psiPackage = findPsiPackage(pkgName)
                 if (psiPackage != null) {
-                    val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
+                    val packageItem = registerPackage(pkgName, psiPackage, null)
                     packageItem.addClass(classItem)
                 }
             } else {
