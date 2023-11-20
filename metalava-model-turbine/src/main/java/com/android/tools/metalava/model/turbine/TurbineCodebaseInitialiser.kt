@@ -47,6 +47,7 @@ import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
+import com.google.turbine.type.Type.ArrayTy
 import com.google.turbine.type.Type.PrimTy
 import com.google.turbine.type.Type.TyKind
 import java.io.File
@@ -282,7 +283,7 @@ open class TurbineCodebaseInitialiser(
         }
     }
 
-    private fun createType(type: Type): TurbineTypeItem {
+    private fun createType(type: Type, isVarArg: Boolean): TurbineTypeItem {
         return when (type.tyKind()) {
             TyKind.PRIM_TY -> {
                 type as PrimTy
@@ -302,6 +303,13 @@ open class TurbineCodebaseInitialiser(
                     else ->
                         throw IllegalStateException("Invalid primitive type in API surface: $type")
                 }
+            }
+            TyKind.ARRAY_TY -> {
+                type as ArrayTy
+                val componentType = createType(type.elementType(), false)
+                val annotations = createAnnotations(type.annos())
+                val modifiers = TurbineTypeModifiers(annotations)
+                return TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
             }
             else -> {
                 return TurbinePrimitiveTypeItem(
@@ -333,7 +341,7 @@ open class TurbineCodebaseInitialiser(
                 val annotations = createAnnotations(field.annotations())
                 val fieldModifierItem =
                     TurbineModifierItem.create(codebase, field.access(), annotations)
-                val type = createType(field.type())
+                val type = createType(field.type(), false)
                 TurbineFieldItem(
                     codebase,
                     field.name(),
@@ -357,7 +365,7 @@ open class TurbineCodebaseInitialiser(
                             codebase,
                             method.sym(),
                             classItem,
-                            createType(method.returnType()),
+                            createType(method.returnType(), false),
                             methodModifierItem,
                         )
                     createParameters(methodItem, method.parameters())
@@ -371,7 +379,7 @@ open class TurbineCodebaseInitialiser(
                 val annotations = createAnnotations(parameter.annotations())
                 val parameterModifierItem =
                     TurbineModifierItem.create(codebase, parameter.access(), annotations)
-                val type = createType(parameter.type())
+                val type = createType(parameter.type(), parameterModifierItem.isVarArg())
                 TurbineParameterItem(
                     codebase,
                     parameter.name(),

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -62,3 +63,10 @@ class TurbinePrimitiveTypeItem(
     override val modifiers: TypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {}
+
+class TurbineArrayTypeItem(
+    override val codebase: Codebase,
+    override val modifiers: TypeModifiers,
+    override val componentType: TypeItem,
+    override val isVarargs: Boolean,
+) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {}

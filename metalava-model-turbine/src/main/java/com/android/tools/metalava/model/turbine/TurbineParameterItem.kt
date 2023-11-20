@@ -48,5 +48,5 @@ class TurbineParameterItem(
 
     override fun type(): TypeItem = type
 
-    override fun isVarArgs(): Boolean = TODO("b/295800205")
+    override fun isVarArgs(): Boolean = modifiers.isVarArg()
 }
