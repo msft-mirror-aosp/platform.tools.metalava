@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -34,7 +35,7 @@ import java.util.function.Predicate
 sealed class TurbineTypeItem(
     open val codebase: Codebase,
     override val modifiers: TypeModifiers,
-) : TypeItem {
+) : DefaultTypeItem() {
 
     override fun asClass(): TurbineClassItem? = TODO("b/295800205")
 
@@ -44,10 +45,6 @@ sealed class TurbineTypeItem(
     override fun markRecent() = TODO("b/295800205")
 
     override fun scrubAnnotations() {
-        TODO("b/295800205")
-    }
-
-    override fun toErasedTypeString(context: Item?): String {
         TODO("b/295800205")
     }
 

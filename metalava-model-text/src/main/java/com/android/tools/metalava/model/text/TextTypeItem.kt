@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -31,17 +32,9 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
 
-sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
+sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
+    DefaultTypeItem() {
     override fun toString(): String = type
-
-    override fun toErasedTypeString(context: Item?): String {
-        return toTypeString(
-            annotations = false,
-            erased = true,
-            kotlinStyleNulls = false,
-            context = context
-        )
-    }
 
     override fun toTypeString(
         annotations: Boolean,

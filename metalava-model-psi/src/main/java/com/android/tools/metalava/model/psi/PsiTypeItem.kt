@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MemberItem
@@ -66,7 +67,7 @@ sealed class PsiTypeItem(
     open val codebase: PsiBasedCodebase,
     open val psiType: PsiType,
     override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
-) : TypeItem {
+) : DefaultTypeItem() {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var toErasedString: String? = null
@@ -171,15 +172,6 @@ sealed class PsiTypeItem(
                 }
             }
         }
-    }
-
-    override fun toErasedTypeString(context: Item?): String {
-        return toTypeString(
-            annotations = false,
-            erased = true,
-            kotlinStyleNulls = false,
-            context = context
-        )
     }
 
     override fun equals(other: Any?): Boolean {
