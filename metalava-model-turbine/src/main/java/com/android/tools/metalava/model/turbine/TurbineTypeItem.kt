@@ -52,20 +52,45 @@ sealed class TurbineTypeItem(
         kotlinStyleNulls: Boolean,
         context: Item?,
         filter: Predicate<Item>?,
-    ): String = TODO("b/295800205")
+    ): String {
+        if (annotations) {
+            TODO("b/295800205")
+        }
+
+        return unannotatedTypeString()
+    }
 
     override fun typeArgumentClasses(): List<ClassItem> = TODO("b/295800205")
+
+    /**
+     * Same as toTypeString(false,false,false,false,null,null). The logic will be handled by the
+     * subclasses
+     */
+    abstract fun unannotatedTypeString(): String
 }
 
 class TurbinePrimitiveTypeItem(
     override val codebase: Codebase,
     override val modifiers: TypeModifiers,
     override val kind: Primitive,
-) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {}
+) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
+    override fun unannotatedTypeString(): String = kind.primitiveName
+}
 
 class TurbineArrayTypeItem(
     override val codebase: Codebase,
     override val modifiers: TypeModifiers,
-    override val componentType: TypeItem,
+    override val componentType: TurbineTypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {}
+) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {
+    override fun unannotatedTypeString(): String {
+        val sb = StringBuilder()
+        sb.append(componentType.unannotatedTypeString())
+        if (isVarargs) {
+            sb.append("...")
+        } else {
+            sb.append("[]")
+        }
+        return sb.toString()
+    }
+}

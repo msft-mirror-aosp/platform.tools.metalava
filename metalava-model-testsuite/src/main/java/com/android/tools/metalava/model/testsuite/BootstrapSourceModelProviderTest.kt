@@ -524,4 +524,30 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(PrimitiveTypeItem.Primitive.INT, (fieldTypeItem as PrimitiveTypeItem).kind)
         }
     }
+
+    @Test
+    fun `170 - check unannotated typeString`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        public int field;
+                        public void method(char[] ... b){}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val methodItem = classItem.methods().single()
+            val fieldTypeItem = classItem.assertField("field").type()
+            val returnTypeItem = methodItem.returnType()
+            val parameterTypeItem = methodItem.parameters().single().type()
+
+            assertEquals("int", fieldTypeItem.toTypeString())
+            assertEquals("void", returnTypeItem.toTypeString())
+            assertEquals("char[]...", parameterTypeItem.toTypeString())
+        }
+    }
 }
