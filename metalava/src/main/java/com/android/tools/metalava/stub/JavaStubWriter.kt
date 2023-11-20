@@ -263,7 +263,7 @@ internal class JavaStubWriter(
                     if (type !is PrimitiveTypeItem) {
                         if (includeCasts) {
                             // Types with varargs can't appear as varargs when used as an argument
-                            val typeString = type.toErasedTypeString(it).replace("...", "[]")
+                            val typeString = type.toErasedTypeString().replace("...", "[]")
                             writer.write("(")
                             if (type is VariableTypeItem) {
                                 // It's a type parameter: see if we should map the type back to the

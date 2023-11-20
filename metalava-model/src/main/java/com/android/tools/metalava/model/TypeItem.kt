@@ -54,7 +54,12 @@ interface TypeItem {
     ): String
 
     /** Legacy alias for [toErasedTypeString]`()`. */
-    @MetalavaApi fun toErasedTypeString(context: Item? = null): String = toErasedTypeString()
+    @Deprecated(
+        "the context item is no longer used",
+        replaceWith = ReplaceWith("toErasedTypeString()")
+    )
+    @MetalavaApi
+    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
 
     /**
      * Get a string representation of the erased type.
