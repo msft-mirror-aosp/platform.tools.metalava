@@ -493,6 +493,44 @@ class SignatureInputOutputTest {
         }
     }
 
+    @Test
+    fun `Type use annotations`() {
+        val format = kotlinStyleFormat.copy(includeTypeUseAnnotations = true)
+        val api =
+            """
+                package test.pkg {
+                  public class MyTest {
+                    method public abstract getParameterAnnotations(): @C java.lang.annotation.Annotation? @A [] @B []!;
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, format) { codebase ->
+            val method = codebase.findClass("test.pkg.MyTest")!!.methods().single()
+            // Return type has platform nullability
+            assertThat(method.hasNullnessInfo()).isFalse()
+
+            val annotationArrayArray = method.returnType()
+            assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat(annotationArrayArray.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("A")
+
+            val annotationArray = (annotationArrayArray as ArrayTypeItem).componentType
+            assertThat(annotationArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat(annotationArray.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("B")
+
+            val annotation = (annotationArray as ArrayTypeItem).componentType
+            assertThat(annotation).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((annotation as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.lang.annotation.Annotation")
+            assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("C")
+
+            // TODO (b/300081840): test nullability of types
+        }
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)
