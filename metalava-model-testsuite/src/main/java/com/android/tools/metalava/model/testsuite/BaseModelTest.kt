@@ -18,10 +18,12 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.source.SourceCodebase
@@ -107,8 +109,12 @@ abstract class BaseModelTest(parameters: TestParameters) {
             throw IllegalStateException("Must provide at least one source file")
         }
 
-        // Make sure that all the test files are the same InputFormat.
-        val byInputFormat = testFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
+        val (htmlFiles, nonHtmlFiles) =
+            testFiles.partition { it.targetRelativePath.endsWith(".html") }
+
+        // Make sure that all the test files are the same InputFormat. Ignore HTML files.
+        val byInputFormat = nonHtmlFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
+
         val inputFormatCount = byInputFormat.size
         if (inputFormatCount != 1) {
             throw IllegalStateException(
@@ -118,14 +124,14 @@ abstract class BaseModelTest(parameters: TestParameters) {
                     )
                     byInputFormat.forEach { (format, files) ->
                         append("    $format\n")
-                        files.forEach { append("        $it") }
+                        files.forEach { append("        $it\n") }
                     }
                 }
             )
         }
 
         val (inputFormat, files) = byInputFormat.entries.single()
-        return InputSet(inputFormat, files)
+        return InputSet(inputFormat, files + htmlFiles)
     }
 
     /**
@@ -257,6 +263,14 @@ abstract class BaseModelTest(parameters: TestParameters) {
         val methodItem = findMethod(simpleName(), parameters)
         assertNotNull(methodItem) { "Expected ${simpleName()}($parameters) to be defined" }
         return assertIs(methodItem)
+    }
+
+    /** Get the annotation from the [Item], failing if it does not exist. */
+    fun Item.assertAnnotation(parameters: String): AnnotationItem {
+        val annoItem =
+            modifiers.annotations().filter { it.qualifiedName == parameters }.firstOrNull()
+        assertNotNull(annoItem) { "Expected item to be annotated with ($parameters)" }
+        return assertIs(annoItem)
     }
 }
 

@@ -58,6 +58,8 @@ open class TurbineClassItem(
 
     internal lateinit var fields: List<TurbineFieldItem>
 
+    internal lateinit var methods: List<TurbineMethodItem>
+
     internal var containingClass: TurbineClassItem? = null
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
@@ -82,6 +84,8 @@ open class TurbineClassItem(
 
         return allInterfaces!!.asSequence()
     }
+
+    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
 
     override fun constructors(): List<ConstructorItem> {
         TODO("b/295800205")
@@ -122,9 +126,7 @@ open class TurbineClassItem(
 
     override fun isInterface(): Boolean = classType == TurbineClassType.INTERFACE
 
-    override fun methods(): List<MethodItem> {
-        TODO("b/295800205")
-    }
+    override fun methods(): List<MethodItem> = methods
 
     override fun properties(): List<PropertyItem> {
         TODO("b/295800205")

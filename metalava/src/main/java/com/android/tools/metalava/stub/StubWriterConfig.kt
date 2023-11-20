@@ -14,7 +14,22 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.stub
 
-const val FILE_FORMAT_PROPERTIES =
-    "'add-additional-overrides', 'concise-default-values', 'kotlin-name-type-order', 'kotlin-style-nulls', 'language', 'migrating', 'name', 'overloaded-method-order', 'surface'"
+import com.android.tools.metalava.model.visitors.ApiVisitor
+
+/**
+ * Contains configuration for [StubWriter] that can, or at least could, come from command line
+ * options.
+ */
+internal data class StubWriterConfig(
+    val apiVisitorConfig: ApiVisitor.Config = ApiVisitor.Config(),
+
+    /**
+     * If true then generate kotlin stubs if the source is kotlin, otherwise generate java stubs.
+     */
+    val kotlinStubs: Boolean = false,
+
+    /** If true then include documentation in the generated stubs. */
+    val includeDocumentationInStubs: Boolean = false,
+)

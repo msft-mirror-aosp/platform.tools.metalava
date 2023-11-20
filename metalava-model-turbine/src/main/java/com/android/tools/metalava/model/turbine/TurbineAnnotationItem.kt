@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.turbine
 
-const val FILE_FORMAT_PROPERTIES =
-    "'add-additional-overrides', 'concise-default-values', 'kotlin-name-type-order', 'kotlin-style-nulls', 'language', 'migrating', 'name', 'overloaded-method-order', 'surface'"
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
+
+class TurbineAnnotationItem
+constructor(
+    override val codebase: TurbineBasedCodebase,
+    originalName: String?,
+    val annotationAttribute: List<AnnotationAttribute>,
+) : DefaultAnnotationItem(codebase, originalName, { annotationAttribute }) {}
