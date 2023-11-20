@@ -164,19 +164,5 @@ internal constructor(
             pkg.modifiers.setOwner(pkg)
             return pkg
         }
-
-        fun create(codebase: PsiBasedCodebase, original: PsiPackageItem): PsiPackageItem {
-            val pkg =
-                PsiPackageItem(
-                    codebase = codebase,
-                    psiPackage = original.psiPackage,
-                    qualifiedName = original.qualifiedName,
-                    documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    fromClassPath = original.isFromClassPath()
-                )
-            pkg.modifiers.setOwner(pkg)
-            return pkg
-        }
     }
 }
