@@ -11,6 +11,10 @@ com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem superMethods() on simple method[turbine,java]
   MethodItem type[turbine,java]
 
+com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
+  Test @hide in package html[turbine,java]
+  Test @hide in package info[turbine,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test array of type with parameter used as type parameter[turbine,java]
   Test class array types[turbine,java]
