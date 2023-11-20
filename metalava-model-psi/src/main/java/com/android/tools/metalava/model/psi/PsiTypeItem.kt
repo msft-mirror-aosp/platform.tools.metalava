@@ -460,7 +460,14 @@ sealed class PsiTypeItem(
                         } else {
                             type
                         }
-                    val printer = PsiTypePrinter(codebase, filter, mapAnnotations, kotlinStyleNulls)
+                    val printer =
+                        PsiTypePrinter(
+                            codebase,
+                            filter,
+                            mapAnnotations,
+                            kotlinStyleNulls,
+                            annotated
+                        )
 
                     printer.getAnnotatedCanonicalText(annotatedType, elementAnnotations)
                 } else if (annotated) {
