@@ -485,18 +485,8 @@ open class PsiBasedCodebase(
             }
 
             packageClasses.sortWith(ClassItem.fullNameComparator)
-            // TODO: How do we obtain the package docs? We generally don't have them, but it *would*
-            // be
-            // nice if we picked up "overview.html" bundled files and added them. But since the docs
-            // are generally missing for all elements *anyway*, let's not bother.
-            val docs = packageDocs?.packageDocs
-            val packageHtml: String? =
-                if (docs != null) {
-                    docs[pkgName]
-                } else {
-                    null
-                }
-            registerPackage(psiPackage, packageClasses, packageHtml, pkgName)
+            // When loading from a jar there is no package documentation.
+            registerPackage(psiPackage, packageClasses, null, pkgName)
         }
 
         emptyPackage = findPackage("")!!
