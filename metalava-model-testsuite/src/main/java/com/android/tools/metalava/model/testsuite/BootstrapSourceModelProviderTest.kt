@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.testing.java
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
@@ -501,6 +503,25 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(listOf(itf1Mtd2), cls1Mtd2.superMethods())
             assertEquals(listOf(itf1Mtd1, itf2Mtd1), cls2Mtd1.superMethods())
             assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls3Mtd1.superMethods())
+        }
+    }
+
+    @Test
+    fun `160 - check field type`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        public int field;
+                    }
+                """
+            ),
+        ) { codebase ->
+            val fieldTypeItem = codebase.assertClass("test.pkg.Test").assertField("field").type()
+            assertThat(fieldTypeItem).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertEquals(PrimitiveTypeItem.Primitive.INT, (fieldTypeItem as PrimitiveTypeItem).kind)
         }
     }
 }

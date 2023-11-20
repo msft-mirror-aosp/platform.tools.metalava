@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -41,8 +42,12 @@ import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
+import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.type.AnnoInfo
+import com.google.turbine.type.Type
+import com.google.turbine.type.Type.PrimTy
+import com.google.turbine.type.Type.TyKind
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
@@ -277,6 +282,37 @@ open class TurbineCodebaseInitialiser(
         }
     }
 
+    private fun createType(type: Type): TurbineTypeItem {
+        return when (type.tyKind()) {
+            TyKind.PRIM_TY -> {
+                type as PrimTy
+                val annotations = createAnnotations(type.annos())
+                val modifiers = TurbineTypeModifiers(annotations)
+                when (type.primkind()) {
+                    PrimKind.BOOLEAN ->
+                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BOOLEAN)
+                    PrimKind.BYTE -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BYTE)
+                    PrimKind.CHAR -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.CHAR)
+                    PrimKind.DOUBLE ->
+                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.DOUBLE)
+                    PrimKind.FLOAT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.FLOAT)
+                    PrimKind.INT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.INT)
+                    PrimKind.LONG -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.LONG)
+                    PrimKind.SHORT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.SHORT)
+                    else ->
+                        throw IllegalStateException("Invalid primitive type in API surface: $type")
+                }
+            }
+            else -> {
+                return TurbinePrimitiveTypeItem(
+                    codebase,
+                    TurbineTypeModifiers(emptyList()),
+                    Primitive.VOID
+                )
+            }
+        }
+    }
+
     /** This method sets up the inner class hierarchy. */
     private fun setInnerClasses(
         classItem: TurbineClassItem,
@@ -297,10 +333,12 @@ open class TurbineCodebaseInitialiser(
                 val annotations = createAnnotations(field.annotations()).toList()
                 val fieldModifierItem =
                     TurbineModifierItem.create(codebase, field.access(), annotations)
+                val type = createType(field.type())
                 TurbineFieldItem(
                     codebase,
                     field.name(),
                     classItem,
+                    type,
                     fieldModifierItem,
                 )
             }
