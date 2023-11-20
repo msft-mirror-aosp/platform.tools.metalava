@@ -134,7 +134,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         fun toTypeString(
             type: String,
             annotations: Boolean,
-            erased: Boolean,
+            erased: Boolean = false,
             context: Item? = null
         ): String {
             return if (erased) {
