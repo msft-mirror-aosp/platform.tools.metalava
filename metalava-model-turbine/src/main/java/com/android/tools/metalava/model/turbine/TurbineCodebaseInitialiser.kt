@@ -48,6 +48,8 @@ import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
+import com.google.turbine.type.Type.ClassTy
+import com.google.turbine.type.Type.ClassTy.SimpleClassTy
 import com.google.turbine.type.Type.PrimTy
 import com.google.turbine.type.Type.TyKind
 import java.io.File
@@ -311,6 +313,17 @@ open class TurbineCodebaseInitialiser(
                 val modifiers = TurbineTypeModifiers(annotations)
                 return TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
             }
+            TyKind.CLASS_TY -> {
+                type as ClassTy
+                var outerClass: TurbineClassTypeItem? = null
+                // A ClassTy is represented by list of SimpleClassTY each representing an inner
+                // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
+                // Outer, Outer.Inner and Outer.Inner.Inner1
+                for (simpleClass in type.classes()) {
+                    outerClass = createSimpleClassType(simpleClass, outerClass)
+                }
+                return outerClass!!
+            }
             else -> {
                 return TurbinePrimitiveTypeItem(
                     codebase,
@@ -319,6 +332,17 @@ open class TurbineCodebaseInitialiser(
                 )
             }
         }
+    }
+
+    private fun createSimpleClassType(
+        type: SimpleClassTy,
+        outerClass: TurbineClassTypeItem?
+    ): TurbineClassTypeItem {
+        val annotations = createAnnotations(type.annos())
+        val modifiers = TurbineTypeModifiers(annotations)
+        val qualifiedName = getQualifiedName(type.sym().binaryName())
+        val parameters = type.targs().map { createType(it, false) }
+        return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
     }
 
     /** This method sets up the inner class hierarchy. */

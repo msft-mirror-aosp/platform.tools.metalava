@@ -532,22 +532,47 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                 """
                     package test.pkg;
 
+                    import java.util.List;
+
                     public class Test {
                         public int field;
-                        public void method(char[] ... b){}
+
+                        public void method(String a, List<Outer<String>> [] ... b){}
+
+                        public Outer<Integer>.Inner<Boolean, Test1<String>> foo() {
+                            return (new Outer<Integer>()).new Inner<Boolean, Test1<String>>();
+                        }
                     }
+
+                    class Outer<P> {
+                        class Inner<R,S> {}
+                    }
+
+                    class Test1<String> {}
                 """
             ),
         ) { codebase ->
             val classItem = codebase.assertClass("test.pkg.Test")
-            val methodItem = classItem.methods().single()
+            val methodItem1 = classItem.methods()[0]
+            val methodItem2 = classItem.methods()[1]
+
             val fieldTypeItem = classItem.assertField("field").type()
-            val returnTypeItem = methodItem.returnType()
-            val parameterTypeItem = methodItem.parameters().single().type()
+            val returnTypeItem1 = methodItem1.returnType()
+            val parameterTypeItem1 = methodItem1.parameters()[0].type()
+            val parameterTypeItem2 = methodItem1.parameters()[1].type()
+            val returnTypeItem2 = methodItem2.returnType()
 
             assertEquals("int", fieldTypeItem.toTypeString())
-            assertEquals("void", returnTypeItem.toTypeString())
-            assertEquals("char[]...", parameterTypeItem.toTypeString())
+            assertEquals("void", returnTypeItem1.toTypeString())
+            assertEquals("java.lang.String", parameterTypeItem1.toTypeString())
+            assertEquals(
+                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
+                parameterTypeItem2.toTypeString()
+            )
+            assertEquals(
+                "test.pkg.Outer<java.lang.Integer>.Inner<java.lang.Boolean,test.pkg.Test1<java.lang.String>>",
+                returnTypeItem2.toTypeString()
+            )
         }
     }
 }

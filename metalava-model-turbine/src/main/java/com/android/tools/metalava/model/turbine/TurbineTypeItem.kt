@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -90,6 +91,43 @@ class TurbineArrayTypeItem(
             sb.append("...")
         } else {
             sb.append("[]")
+        }
+        return sb.toString()
+    }
+}
+
+class TurbineClassTypeItem(
+    override val codebase: Codebase,
+    override val modifiers: TypeModifiers,
+    override val qualifiedName: String,
+    override val parameters: List<TurbineTypeItem>,
+    override val outerClassType: TurbineClassTypeItem?,
+) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
+    override fun unannotatedTypeString(): String {
+        val sb = StringBuilder()
+
+        // For inner class fully qualified name of outer class and simple name of inner class will
+        // be used
+        if (outerClassType != null) {
+            sb.append(outerClassType.unannotatedTypeString())
+            sb.append(".")
+            val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+            sb.append(simpleName)
+        } else {
+            sb.append(qualifiedName)
+        }
+
+        if (!parameters.isEmpty()) {
+            sb.append("<")
+            var first = true
+            for (parameter in parameters) {
+                if (!first) {
+                    sb.append(",")
+                }
+                sb.append(parameter.unannotatedTypeString())
+                first = false
+            }
+            sb.append(">")
         }
         return sb.toString()
     }
