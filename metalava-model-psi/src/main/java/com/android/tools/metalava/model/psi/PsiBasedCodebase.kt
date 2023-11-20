@@ -174,7 +174,7 @@ open class PsiBasedCodebase(
         // there are currently ~230 packages in the public SDK, but here we need to account for
         // internal ones too
         val hiddenPackages: MutableSet<String> = packages.hiddenPackages
-        val packageDocs: MutableMap<String, String> = packages.packageDocs
+        val packageDocs = packages.packageDocs
         this.hiddenPackages = HashMap(100)
         for (pkgName in hiddenPackages) {
             this.hiddenPackages[pkgName] = true
@@ -288,6 +288,7 @@ open class PsiBasedCodebase(
         }
 
         // Next construct packages
+        val overviewDocs = packages.overviewDocs
         for ((pkgName, classes) in packageClasses) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
@@ -301,6 +302,7 @@ open class PsiBasedCodebase(
                 psiPackage,
                 sortedClasses,
                 packageDocs[pkgName],
+                overviewDocs[pkgName],
             )
         }
         initializing = false
@@ -391,12 +393,14 @@ open class PsiBasedCodebase(
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
         packageHtml: String? = null,
+        overviewHtml: String? = null,
     ): PsiPackageItem {
         val packageItem =
             PsiPackageItem.create(
                 this,
                 psiPackage,
                 packageHtml,
+                overviewHtml,
                 fromClassPath = fromClasspath || !initializing
             )
         packageItem.emit = !packageItem.isFromClassPath()
