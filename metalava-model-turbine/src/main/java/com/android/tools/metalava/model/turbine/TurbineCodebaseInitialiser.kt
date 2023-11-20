@@ -308,17 +308,19 @@ open class TurbineCodebaseInitialiser(
 
     private fun createMethods(classItem: TurbineClassItem, methods: List<MethodInfo>) {
         classItem.methods =
-            methods.map { method ->
-                val annotations = createAnnotations(method.annotations()).toList()
-                val methodModifierItem =
-                    TurbineModifierItem.create(codebase, method.access(), annotations)
-                TurbineMethodItem(
-                    codebase,
-                    method.sym(),
-                    listOf(),
-                    classItem,
-                    methodModifierItem,
-                )
-            }
+            methods
+                .filter { it.sym().name() != "<init>" }
+                .map { method ->
+                    val annotations = createAnnotations(method.annotations()).toList()
+                    val methodModifierItem =
+                        TurbineModifierItem.create(codebase, method.access(), annotations)
+                    TurbineMethodItem(
+                        codebase,
+                        method.sym(),
+                        listOf(),
+                        classItem,
+                        methodModifierItem,
+                    )
+                }
     }
 }
