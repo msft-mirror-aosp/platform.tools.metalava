@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.source.SourceCodebase
@@ -155,8 +154,6 @@ open class PsiBasedCodebase(
      */
     private var initializing = false
 
-    private var packageDocs: PackageDocs? = null
-
     private var hideClassesFromJars = true
 
     private lateinit var emptyPackage: PsiPackageItem
@@ -168,7 +165,6 @@ open class PsiBasedCodebase(
     ) {
         initializing = true
         this.units = psiFiles
-        packageDocs = packages
 
         this.uastEnvironment = uastEnvironment
         // there are currently ~230 packages in the public SDK, but here we need to account for
@@ -603,10 +599,6 @@ open class PsiBasedCodebase(
             this,
             packageMap.values.toMutableList().sortedWith(PackageItem.comparator)
         )
-    }
-
-    override fun getPackageDocs(): PackageDocs? {
-        return packageDocs
     }
 
     override fun size(): Int {
