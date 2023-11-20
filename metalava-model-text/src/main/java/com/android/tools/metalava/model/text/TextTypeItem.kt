@@ -21,13 +21,11 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
@@ -38,12 +36,11 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
 
     override fun toTypeString(
         annotations: Boolean,
-        erased: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
         filter: Predicate<Item>?
     ): String {
-        val typeString = toTypeString(type, annotations, erased, context)
+        val typeString = toTypeString(type, annotations)
 
         if (kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
             var nullable: Boolean? = context.implicitNullness()
@@ -85,7 +82,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return codebase.getOrCreateClass(cls)
     }
 
-    fun qualifiedTypeName(): String = type
+    private fun qualifiedTypeName(): String = type
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -134,49 +131,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         fun toTypeString(
             type: String,
             annotations: Boolean,
-            erased: Boolean = false,
-            context: Item? = null
-        ): String {
-            return if (erased) {
-                val raw = eraseTypeArguments(type)
-                val rawNoEllipsis = raw.replace("...", "[]")
-                val concrete = eraseTypeArguments(substituteTypeParameters(rawNoEllipsis, context))
-                if (annotations) {
-                    concrete
-                } else {
-                    eraseAnnotations(concrete)
-                }
-            } else {
-                if (annotations) {
-                    type
-                } else {
-                    eraseAnnotations(type)
-                }
-            }
-        }
-
-        private fun substituteTypeParameters(s: String, context: Item?): String {
-            if (context is TypeParameterListOwner) {
-                var end = s.indexOf('[')
-                if (end == -1) {
-                    end = s.length
-                }
-                if (s[0].isUpperCase() && s.lastIndexOf('.', end) == -1) {
-                    val v = s.substring(0, end)
-                    val parameter = context.resolveParameter(v)
-                    if (parameter != null) {
-                        val bounds = parameter.typeBounds()
-                        if (bounds.isNotEmpty()) {
-                            return bounds.first().toTypeString() + s.substring(end)
-                        }
-
-                        return JAVA_LANG_OBJECT + s.substring(end)
-                    }
-                }
-            }
-
-            return s
-        }
+        ): String = if (annotations) type else eraseAnnotations(type)
 
         fun eraseTypeArguments(s: String): String {
             val index = s.indexOf('<')

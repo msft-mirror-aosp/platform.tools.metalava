@@ -37,8 +37,7 @@ interface TypeItem {
      * Generates a string for this type.
      *
      * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
-     * controls whether the annotations like @Nullable and @NonNull are included, and [erased]
-     * controls whether we return the string for the raw type, e.g. just "java.util.List". The
+     * controls whether the annotations like @Nullable and @NonNull are included. The
      * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
      * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
      * any.
@@ -47,7 +46,6 @@ interface TypeItem {
      */
     fun toTypeString(
         annotations: Boolean = false,
-        erased: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
         filter: Predicate<Item>? = null
