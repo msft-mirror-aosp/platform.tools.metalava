@@ -23,8 +23,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test multidimensional primitive array types[turbine,java]
   Test primitive array types[turbine,java]
   Test primitive types[turbine,java]
-  Test superclass and interface types using type variables[turbine,java]
   Test primitive vararg types[turbine,java]
+  Test superclass and interface types using type variables[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
 
@@ -46,10 +46,10 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test method type parameter that references class type parameter[turbine,java]
   Test self-referential type parameter[turbine,java]
+  Test type parameters that reference each other[turbine,java]
   Test typeBounds extends Comparable[turbine,java]
   Test typeBounds multiple[turbine,java]
   Test typeBounds no extends[turbine,java]
-  Test type parameters that reference each other[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Erased type string[turbine,java,String]
