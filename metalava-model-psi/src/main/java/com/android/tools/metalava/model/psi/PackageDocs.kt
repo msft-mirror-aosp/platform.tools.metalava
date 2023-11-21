@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.psi
 
-const val FILE_FORMAT_PROPERTIES =
-    "'add-additional-overrides', 'concise-default-values', 'include-type-use-annotations', 'kotlin-name-type-order', 'kotlin-style-nulls', 'language', 'migrating', 'name', 'overloaded-method-order', 'surface'"
+internal data class PackageDocs(
+    val packageDocs: MutableMap<String, String>,
+    val overviewDocs: MutableMap<String, String>,
+    val hiddenPackages: MutableSet<String>
+)
