@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.TestParameters
+import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
 import com.android.tools.metalava.testing.java
@@ -431,6 +432,94 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                         "java.util.Map<? extends java.lang.Number,? super java.lang.Number>",
                     expectedKotlinNullsTypeString =
                         "java.util.Map<? extends java.lang.Number,? super java.lang.Number>!"
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated integer list",
+                    sourceType =
+                        "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<java.lang.Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<java.lang.Integer!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString =
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated with negative filter",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        filter = { false },
+                                    ),
+                                expectedTypeString = "java.util.List<java.lang.Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated with negative filter and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        filter = { false },
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.util.List<java.lang.Integer!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated with positive filter",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        filter = { true },
+                                    ),
+                                expectedTypeString =
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                            )
+                        ),
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated primitive",
+                    sourceType = "@androidx.annotation.IntRange(from=5,to=10) int",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "int"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "@androidx.annotation.IntRange(from=5,to=10) int"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "int"
+                            )
+                        ),
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource)
                 )
     }
 }
