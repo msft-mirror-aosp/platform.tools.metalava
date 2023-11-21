@@ -30,6 +30,7 @@ class TurbineMethodItem(
     private val containingClass: TurbineClassItem,
     private val returnType: TurbineTypeItem,
     override val modifiers: TurbineModifierItem,
+    private val typeParameters: TypeParameterList
 ) : TurbineItem(codebase, modifiers), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
@@ -124,7 +125,5 @@ class TurbineMethodItem(
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
-    override fun typeParameterList(): TypeParameterList {
-        TODO("b/295800205")
-    }
+    override fun typeParameterList(): TypeParameterList = typeParameters
 }

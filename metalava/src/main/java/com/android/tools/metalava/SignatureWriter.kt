@@ -353,7 +353,6 @@ class SignatureWriter(
         var typeString =
             type.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
-                erased = false,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls && !item.hasInheritedGenericType(),
                 context = item,
                 filter = filterReference
