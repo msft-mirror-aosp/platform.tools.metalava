@@ -237,6 +237,7 @@ class SignatureWriter(
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
                 superClass.toTypeString(
+                    annotations = fileFormat.includeTypeUseAnnotations,
                     kotlinStyleNulls = false,
                     context = superClass.asClass(),
                     filter = filterReference
@@ -275,6 +276,7 @@ class SignatureWriter(
                 write(" ")
                 write(
                     item.toTypeString(
+                        annotations = fileFormat.includeTypeUseAnnotations,
                         kotlinStyleNulls = false,
                         context = item.asClass(),
                         filter = filterReference

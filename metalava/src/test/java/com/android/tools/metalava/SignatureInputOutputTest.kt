@@ -531,6 +531,28 @@ class SignatureInputOutputTest {
         }
     }
 
+    @Test
+    fun `Type-use annotations in implements and extends section`() {
+        val format = kotlinStyleFormat.copy(includeTypeUseAnnotations = true)
+        val api =
+            """
+                package test.pkg {
+                  public class Foo extends test.pkg.@test.pkg.A Baz implements test.pkg.@test.pkg.B Bar {
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(api, format) { codebase ->
+            val fooClass = codebase.findClass("test.pkg.Foo")!!
+            val superClassType = fooClass.superClassType()
+            assertThat(superClassType!!.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("test.pkg.A")
+            val interfaceType = fooClass.interfaceTypes().single()
+            assertThat(interfaceType.modifiers.annotations().map { it.qualifiedName })
+                .containsExactly("test.pkg.B")
+        }
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)
