@@ -37,8 +37,7 @@ interface TypeItem {
      * Generates a string for this type.
      *
      * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
-     * controls whether the annotations like @Nullable and @NonNull are included, and [erased]
-     * controls whether we return the string for the raw type, e.g. just "java.util.List". The
+     * controls whether the annotations like @Nullable and @NonNull are included. The
      * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
      * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
      * any.
@@ -47,14 +46,21 @@ interface TypeItem {
      */
     fun toTypeString(
         annotations: Boolean = false,
-        erased: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
         filter: Predicate<Item>? = null
     ): String
 
+    /** Legacy alias for [toErasedTypeString]`()`. */
+    @Deprecated(
+        "the context item is no longer used",
+        replaceWith = ReplaceWith("toErasedTypeString()")
+    )
+    @MetalavaApi
+    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
+
     /**
-     * Alias for [toTypeString] with erased=true.
+     * Get a string representation of the erased type.
      *
      * Implements the behavior described
      * [here](https://docs.oracle.com/javase/tutorial/java/generics/genTypes.html).
@@ -63,7 +69,7 @@ interface TypeItem {
      * `[]`, not the special source `...` syntax. The reason for that is that the erased type is
      * mainly used at runtime which treats a vararg parameter as a standard array type.
      */
-    @MetalavaApi fun toErasedTypeString(context: Item? = null): String
+    @MetalavaApi fun toErasedTypeString(): String
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     @MetalavaApi fun arrayDimensions(): Int = 0
@@ -408,6 +414,40 @@ interface TypeItem {
                 i2++
             }
             return i1 == l1 && i2 == l2
+        }
+    }
+}
+
+abstract class DefaultTypeItem : TypeItem {
+
+    private lateinit var cachedErasedType: String
+
+    override fun toErasedTypeString(): String {
+        if (!::cachedErasedType.isInitialized) {
+            cachedErasedType = buildString { appendErasedTypeString(this@DefaultTypeItem) }
+        }
+        return cachedErasedType
+    }
+
+    companion object {
+        private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
+            when (type) {
+                is PrimitiveTypeItem -> append(type.kind.primitiveName)
+                is ArrayTypeItem -> {
+                    appendErasedTypeString(type.componentType)
+                    append("[]")
+                }
+                is ClassTypeItem -> append(type.qualifiedName)
+                is VariableTypeItem ->
+                    type.asTypeParameter.typeBounds().firstOrNull()?.let {
+                        appendErasedTypeString(it)
+                    }
+                        ?: append(JAVA_LANG_OBJECT)
+                else ->
+                    throw IllegalStateException(
+                        "should never visit $type of type ${type.javaClass} while generating erased type string"
+                    )
+            }
         }
     }
 }

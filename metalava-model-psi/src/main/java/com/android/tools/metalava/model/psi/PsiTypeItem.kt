@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MemberItem
@@ -66,10 +67,9 @@ sealed class PsiTypeItem(
     open val codebase: PsiBasedCodebase,
     open val psiType: PsiType,
     override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
-) : TypeItem {
+) : DefaultTypeItem() {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
-    private var toErasedString: String? = null
     private var asClass: PsiClassItem? = null
 
     override fun toString(): String {
@@ -78,7 +78,6 @@ sealed class PsiTypeItem(
 
     override fun toTypeString(
         annotations: Boolean,
-        erased: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
         filter: Predicate<Item>?
@@ -91,95 +90,54 @@ sealed class PsiTypeItem(
                 codebase = codebase,
                 type = psiType,
                 annotations = annotations,
-                erased = erased,
                 kotlinStyleNulls = kotlinStyleNulls,
                 context = context,
                 filter = filter
             )
         }
 
-        return if (erased) {
-            if (kotlinStyleNulls || annotations) {
-                // Not cached: Not common
-                toTypeString(
-                    codebase = codebase,
-                    type = psiType,
-                    annotations = annotations,
-                    erased = erased,
-                    kotlinStyleNulls = kotlinStyleNulls,
-                    context = context,
-                    filter = filter
-                )
-            } else {
-                if (toErasedString == null) {
-                    toErasedString =
+        return when {
+            kotlinStyleNulls && annotations -> {
+                if (toAnnotatedString == null) {
+                    toAnnotatedString =
                         toTypeString(
                             codebase = codebase,
                             type = psiType,
                             annotations = annotations,
-                            erased = erased,
                             kotlinStyleNulls = kotlinStyleNulls,
                             context = context,
                             filter = filter
                         )
                 }
-                toErasedString!!
+                toAnnotatedString!!
             }
-        } else {
-            when {
-                kotlinStyleNulls && annotations -> {
-                    if (toAnnotatedString == null) {
-                        toAnnotatedString =
-                            toTypeString(
+            kotlinStyleNulls || annotations ->
+                toTypeString(
+                    codebase = codebase,
+                    type = psiType,
+                    annotations = annotations,
+                    kotlinStyleNulls = kotlinStyleNulls,
+                    context = context,
+                    filter = filter
+                )
+            else -> {
+                if (toString == null) {
+                    toString =
+                        TypeItem.formatType(
+                            getCanonicalText(
                                 codebase = codebase,
+                                owner = context,
                                 type = psiType,
-                                annotations = annotations,
-                                erased = erased,
+                                annotated = false,
+                                mapAnnotations = false,
                                 kotlinStyleNulls = kotlinStyleNulls,
-                                context = context,
                                 filter = filter
                             )
-                    }
-                    toAnnotatedString!!
+                        )
                 }
-                kotlinStyleNulls || annotations ->
-                    toTypeString(
-                        codebase = codebase,
-                        type = psiType,
-                        annotations = annotations,
-                        erased = erased,
-                        kotlinStyleNulls = kotlinStyleNulls,
-                        context = context,
-                        filter = filter
-                    )
-                else -> {
-                    if (toString == null) {
-                        toString =
-                            TypeItem.formatType(
-                                getCanonicalText(
-                                    codebase = codebase,
-                                    owner = context,
-                                    type = psiType,
-                                    annotated = false,
-                                    mapAnnotations = false,
-                                    kotlinStyleNulls = kotlinStyleNulls,
-                                    filter = filter
-                                )
-                            )
-                    }
-                    toString!!
-                }
+                toString!!
             }
         }
-    }
-
-    override fun toErasedTypeString(context: Item?): String {
-        return toTypeString(
-            annotations = false,
-            erased = true,
-            kotlinStyleNulls = false,
-            context = context
-        )
     }
 
     override fun equals(other: Any?): Boolean {
@@ -217,7 +175,7 @@ sealed class PsiTypeItem(
                     return type
                 }
 
-                override fun visitClassType(classType: PsiClassType): PsiType? {
+                override fun visitClassType(classType: PsiClassType): PsiType {
                     codebase.findClass(classType)?.let {
                         if (!it.isTypeParameter && !classes.contains(it)) {
                             classes.add(it)
@@ -229,7 +187,7 @@ sealed class PsiTypeItem(
                     return classType
                 }
 
-                override fun visitWildcardType(wildcardType: PsiWildcardType): PsiType? {
+                override fun visitWildcardType(wildcardType: PsiWildcardType): PsiType {
                     if (wildcardType.isExtends) {
                         wildcardType.extendsBound.accept(this)
                     }
@@ -242,23 +200,23 @@ sealed class PsiTypeItem(
                     return wildcardType
                 }
 
-                override fun visitPrimitiveType(primitiveType: PsiPrimitiveType): PsiType? {
+                override fun visitPrimitiveType(primitiveType: PsiPrimitiveType): PsiType {
                     return primitiveType
                 }
 
-                override fun visitEllipsisType(ellipsisType: PsiEllipsisType): PsiType? {
+                override fun visitEllipsisType(ellipsisType: PsiEllipsisType): PsiType {
                     ellipsisType.componentType.accept(this)
                     return ellipsisType
                 }
 
-                override fun visitArrayType(arrayType: PsiArrayType): PsiType? {
+                override fun visitArrayType(arrayType: PsiArrayType): PsiType {
                     arrayType.componentType.accept(this)
                     return arrayType
                 }
 
                 override fun visitLambdaExpressionType(
                     lambdaExpressionType: PsiLambdaExpressionType
-                ): PsiType? {
+                ): PsiType {
                     for (superType in lambdaExpressionType.superTypes) {
                         superType.accept(this)
                     }
@@ -267,21 +225,19 @@ sealed class PsiTypeItem(
 
                 override fun visitCapturedWildcardType(
                     capturedWildcardType: PsiCapturedWildcardType
-                ): PsiType? {
+                ): PsiType {
                     capturedWildcardType.upperBound.accept(this)
                     return capturedWildcardType
                 }
 
-                override fun visitDisjunctionType(disjunctionType: PsiDisjunctionType): PsiType? {
+                override fun visitDisjunctionType(disjunctionType: PsiDisjunctionType): PsiType {
                     for (type in disjunctionType.disjunctions) {
                         type.accept(this)
                     }
                     return disjunctionType
                 }
 
-                override fun visitIntersectionType(
-                    intersectionType: PsiIntersectionType
-                ): PsiType? {
+                override fun visitIntersectionType(intersectionType: PsiIntersectionType): PsiType {
                     for (type in intersectionType.conjuncts) {
                         type.accept(this)
                     }
@@ -319,48 +275,14 @@ sealed class PsiTypeItem(
     }
 
     companion object {
-        /**
-         * Work around inconsistency in [TypeConversionUtil.erasure].
-         *
-         * If the [TypeConversionUtil.erasure] is passed a [PsiEllipsisType] (which is a subclass of
-         * [PsiArrayType]) then it will treat it as a [PsiArrayType], replacing the `...` suffix
-         * with `[]` only when the component type changes during erasure, i.e. is generic. If the
-         * component type is not affected by erasure then the `...` suffix is preserved.
-         *
-         * This works around that inconsistency by explicitly handling the [PsiEllipsisType] and
-         * always replacing it with a [PsiArrayType]. So, an erased type string never includes with
-         * `...`.
-         */
-        private fun typeErasure(psiType: PsiType): PsiType {
-            return if (psiType is PsiEllipsisType) {
-                PsiArrayType(TypeConversionUtil.erasure(psiType.componentType))
-            } else {
-                TypeConversionUtil.erasure(psiType)
-            }
-        }
-
         private fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,
             annotations: Boolean,
-            erased: Boolean,
             kotlinStyleNulls: Boolean,
             context: Item?,
             filter: Predicate<Item>?
         ): String {
-            if (erased) {
-                // Recurse with raw type and erase=false
-                return toTypeString(
-                    codebase,
-                    typeErasure(type),
-                    annotations,
-                    false,
-                    kotlinStyleNulls,
-                    context,
-                    filter
-                )
-            }
-
             val typeString =
                 if (kotlinStyleNulls || annotations) {
                     try {
