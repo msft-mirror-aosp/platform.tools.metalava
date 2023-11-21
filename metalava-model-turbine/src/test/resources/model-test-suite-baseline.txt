@@ -45,9 +45,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test method type parameter that references class type parameter[turbine,java]
   Test self-referential type parameter[turbine,java]
   Test type parameters that reference each other[turbine,java]
-  Test typeBounds extends Comparable[turbine,java]
-  Test typeBounds multiple[turbine,java]
-  Test typeBounds no extends[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Erased type string[turbine,java,String]
