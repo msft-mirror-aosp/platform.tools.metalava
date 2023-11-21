@@ -1,5 +1,2 @@
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test typeBounds multiple[psi,kotlin]
