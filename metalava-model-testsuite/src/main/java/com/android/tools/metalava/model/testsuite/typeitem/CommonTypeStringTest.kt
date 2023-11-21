@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.TestParameters
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -36,6 +39,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
         val typeStringConfiguration: TypeStringConfiguration = TypeStringConfiguration(),
         val expectedTypeString: String = sourceType,
         val typeParameters: String? = null,
+        val extraJavaSourceFiles: List<TestFile> = emptyList()
     ) {
         override fun toString(): String {
             return name
@@ -47,7 +51,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 sourceType: String = name,
                 expectedDefaultTypeString: String = sourceType,
                 expectedKotlinNullsTypeString: String = sourceType,
-                typeParameters: String? = null
+                typeParameters: String? = null,
+                extraJavaSourceFiles: List<TestFile> = emptyList()
             ): List<TypeStringParameters> {
                 return fromConfigurations(
                     name = name,
@@ -65,7 +70,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 expectedTypeString = expectedKotlinNullsTypeString
                             )
                         ),
-                    typeParameters = typeParameters
+                    typeParameters = typeParameters,
+                    extraJavaSourceFiles = extraJavaSourceFiles
                 )
             }
 
@@ -73,7 +79,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 name: String,
                 sourceType: String,
                 configs: List<ConfigurationTestCase>,
-                typeParameters: String? = null
+                typeParameters: String? = null,
+                extraJavaSourceFiles: List<TestFile> = emptyList()
             ): List<TypeStringParameters> {
                 return configs.map {
                     TypeStringParameters(
@@ -81,7 +88,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                         sourceType = sourceType,
                         typeStringConfiguration = it.configuration,
                         expectedTypeString = it.expectedTypeString,
-                        typeParameters = typeParameters
+                        typeParameters = typeParameters,
+                        extraJavaSourceFiles = extraJavaSourceFiles
                     )
                 }
             }
@@ -106,18 +114,22 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
     private val parameters = combinedParameters.typeStringParameters
 
     private fun javaTestFiles() =
-        java(
-            """
+        inputSet(
+            java(
+                """
                 package test.pkg;
                 public class Foo {
                     public ${parameters.typeParameters.orEmpty()} void foo(${parameters.sourceType} arg) {}
                 }
             """
+            ),
+            *parameters.extraJavaSourceFiles.toTypedArray()
         )
 
     private fun signatureTestFile() =
-        signature(
-            """
+        inputSet(
+            signature(
+                """
                 // Signature format: 5.0
                 // - kotlin-name-type-order=yes
                 // - include-type-use-annotations=yes
@@ -128,6 +140,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                   }
                 }
             """
+            )
         )
 
     @Test
@@ -210,6 +223,40 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     name = "T",
                     expectedKotlinNullsTypeString = "T!",
                     typeParameters = "<T>"
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated string list",
+                    sourceType =
+                        "java.util.@libcore.util.Nullable List<java.lang.@libcore.util.NonNull String>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<java.lang.String>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.@libcore.util.Nullable List<java.lang.@libcore.util.NonNull String>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<java.lang.String>?"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.util.List<java.lang.String>?"
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource)
                 )
     }
 }
