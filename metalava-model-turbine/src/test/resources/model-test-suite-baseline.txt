@@ -17,16 +17,11 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test superclass and interface types using type variables[turbine,java]
   Test that Kotlin-style nulls can be included in a type string without annotations[turbine,java]
-  Test wildcard types[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]
-  Test annotation on basic types[turbine,java]
-  Test annotations on array type and component type[turbine,java]
-  Test annotations on class type parameters[turbine,java]
   Test annotations on multidimensional array[turbine,java]
   Test annotations on multidimensional vararg array[turbine,java]
-  Test annotations on qualified class type[turbine,java]
   Test filtering of annotations based on target usages[turbine,java]
   Test inner parameterized types with annotations[turbine,java]
   Test interface types[turbine,java]

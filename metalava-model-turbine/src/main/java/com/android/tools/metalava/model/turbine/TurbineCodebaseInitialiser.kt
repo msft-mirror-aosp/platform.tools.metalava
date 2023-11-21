@@ -56,6 +56,8 @@ import com.google.turbine.type.Type.ClassTy.SimpleClassTy
 import com.google.turbine.type.Type.PrimTy
 import com.google.turbine.type.Type.TyKind
 import com.google.turbine.type.Type.TyVar
+import com.google.turbine.type.Type.WildTy
+import com.google.turbine.type.Type.WildTy.BoundKind
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
@@ -317,7 +319,7 @@ open class TurbineCodebaseInitialiser(
                 val componentType = createType(type.elementType(), false)
                 val annotations = createAnnotations(type.annos())
                 val modifiers = TurbineTypeModifiers(annotations)
-                return TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
+                TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
             }
             TyKind.CLASS_TY -> {
                 type as ClassTy
@@ -328,21 +330,51 @@ open class TurbineCodebaseInitialiser(
                 for (simpleClass in type.classes()) {
                     outerClass = createSimpleClassType(simpleClass, outerClass)
                 }
-                return outerClass!!
+                outerClass!!
             }
             TyKind.TY_VAR -> {
                 type as TyVar
                 val annotations = createAnnotations(type.annos())
                 val modifiers = TurbineTypeModifiers(annotations)
-                return TurbineVariableTypeItem(codebase, modifiers, type.sym())
+                TurbineVariableTypeItem(codebase, modifiers, type.sym())
             }
-            else -> {
-                return TurbinePrimitiveTypeItem(
+            TyKind.WILD_TY -> {
+                type as WildTy
+                val annotations = createAnnotations(type.annotations())
+                val modifiers = TurbineTypeModifiers(annotations)
+                when (type.boundKind()) {
+                    BoundKind.UPPER -> {
+                        val upperBound = createType(type.bound(), false)
+                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
+                    }
+                    BoundKind.LOWER -> {
+                        // LowerBounded types have java.lang.Object as upper bound
+                        val upperBound = createType(ClassTy.OBJECT, false)
+                        val lowerBound = createType(type.bound(), false)
+                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, lowerBound)
+                    }
+                    BoundKind.NONE -> {
+                        // Unbounded types have java.lang.Object as upper bound
+                        val upperBound = createType(ClassTy.OBJECT, false)
+                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
+                    }
+                    else ->
+                        throw IllegalStateException("Invalid wildcard type in API surface: $type")
+                }
+            }
+            TyKind.VOID_TY ->
+                TurbinePrimitiveTypeItem(
                     codebase,
                     TurbineTypeModifiers(emptyList()),
                     Primitive.VOID
                 )
-            }
+            TyKind.NONE_TY ->
+                TurbinePrimitiveTypeItem(
+                    codebase,
+                    TurbineTypeModifiers(emptyList()),
+                    Primitive.VOID
+                )
+            else -> throw IllegalStateException("Invalid type in API surface: $type.tyKind()")
         }
     }
 

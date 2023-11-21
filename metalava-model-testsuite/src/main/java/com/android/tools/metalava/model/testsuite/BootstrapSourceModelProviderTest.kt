@@ -537,9 +537,9 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                     public class Test {
                         public int field;
 
-                        public void method(String a, List<Outer<String>> [] ... b){}
+                        public void method(String a, List<Outer<String>> [] ... b, List<?extends   String> c){}
 
-                        public Outer<Integer>.Inner<Boolean, Test1<String>> foo() {
+                        public <T> Outer<Integer>.Inner<T, Test1<String>> foo() {
                             return (new Outer<Integer>()).new Inner<Boolean, Test1<String>>();
                         }
                     }
@@ -560,6 +560,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val returnTypeItem1 = methodItem1.returnType()
             val parameterTypeItem1 = methodItem1.parameters()[0].type()
             val parameterTypeItem2 = methodItem1.parameters()[1].type()
+            val parameterTypeItem3 = methodItem1.parameters()[2].type()
             val returnTypeItem2 = methodItem2.returnType()
 
             assertEquals("int", fieldTypeItem.toTypeString())
@@ -570,7 +571,11 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                 parameterTypeItem2.toTypeString()
             )
             assertEquals(
-                "test.pkg.Outer<java.lang.Integer>.Inner<java.lang.Boolean,test.pkg.Test1<java.lang.String>>",
+                "java.util.List<? extends java.lang.String>",
+                parameterTypeItem3.toTypeString()
+            )
+            assertEquals(
+                "test.pkg.Outer<java.lang.Integer>.Inner<T,test.pkg.Test1<java.lang.String>>",
                 returnTypeItem2.toTypeString()
             )
         }

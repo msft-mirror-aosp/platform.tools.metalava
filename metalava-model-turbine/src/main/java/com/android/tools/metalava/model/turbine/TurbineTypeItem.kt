@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
 import java.util.function.Predicate
 
@@ -145,4 +146,29 @@ class TurbineVariableTypeItem(
     override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
 
     override fun unannotatedTypeString() = name
+}
+
+class TurbineWildcardTypeItem(
+    override val codebase: TurbineBasedCodebase,
+    override val modifiers: TypeModifiers,
+    override val extendsBound: TurbineTypeItem?,
+    override val superBound: TurbineTypeItem?,
+) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {
+
+    override fun unannotatedTypeString(): String {
+        val result =
+            StringBuilder().apply {
+                append("?")
+                extendsBound?.let {
+                    append(" extends ")
+                    append(it.unannotatedTypeString())
+                }
+                superBound?.let {
+                    append(" super ")
+                    append(it.unannotatedTypeString())
+                }
+            }
+
+        return result.toString()
+    }
 }
