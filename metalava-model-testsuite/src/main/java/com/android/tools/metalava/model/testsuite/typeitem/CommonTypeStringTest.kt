@@ -17,8 +17,10 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
@@ -162,6 +164,18 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
     }
 
     companion object {
+        // Turbine needs this type defined in order to use it in tests
+        private val innerParameterizedTypeSource =
+            java(
+                """
+                package test.pkg;
+                public class Outer<P1> {
+                    public class Inner<P2> {}
+                }
+            """
+                    .trimIndent()
+            )
+
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun combinedTestParameters(): Iterable<CombinedParameters> {
@@ -552,6 +566,111 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                             )
                         ),
                     extraJavaSourceFiles = listOf(intRangeTypeUseSource)
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "parameterized inner type",
+                    sourceType = "test.pkg.Outer<java.lang.String>.Inner<java.lang.Integer>",
+                    expectedKotlinNullsTypeString =
+                        "test.pkg.Outer<java.lang.String!>.Inner<java.lang.Integer!>!",
+                    extraJavaSourceFiles = listOf(innerParameterizedTypeSource)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated parameterized inner type",
+                    sourceType =
+                        "test.pkg.Outer<java.lang.@libcore.util.Nullable String>.@libcore.util.Nullable Inner<java.lang.@libcore.util.NonNull Integer>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.String>.Inner<java.lang.Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.@libcore.util.Nullable String>.@libcore.util.Nullable Inner<java.lang.@libcore.util.NonNull Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.String?>.Inner<java.lang.Integer>?"
+                            )
+                        ),
+                    extraJavaSourceFiles =
+                        listOf(
+                            innerParameterizedTypeSource,
+                            libcoreNullableSource,
+                            libcoreNonNullSource
+                        )
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "multiple annotations integer list",
+                    sourceType =
+                        "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5,to=10) Integer>",
+                    listOf(
+                        ConfigurationTestCase(
+                            name = "default",
+                            configuration = TypeStringConfiguration(),
+                            expectedTypeString = "java.util.List<java.lang.Integer>"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated",
+                            configuration = TypeStringConfiguration(annotations = true),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5,to=10) Integer>"
+                        ),
+                        ConfigurationTestCase(
+                            name = "kotlin nulls",
+                            configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                            expectedTypeString = "java.util.List<java.lang.Integer?>!"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated and kotlin nulls",
+                            configuration =
+                                TypeStringConfiguration(
+                                    annotations = true,
+                                    kotlinStyleNulls = true
+                                ),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer?>!"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated with filter",
+                            configuration =
+                                TypeStringConfiguration(
+                                    annotations = true,
+                                    // Filter that removes nullness annotations
+                                    filter = {
+                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                            isNullnessAnnotation(name)
+                                        } != true
+                                    }
+                                ),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated and kotlin nulls with filter",
+                            configuration =
+                                TypeStringConfiguration(
+                                    annotations = true,
+                                    kotlinStyleNulls = true,
+                                    // Filter that removes nullness annotations, but Kotlin-nulls
+                                    // should still be present
+                                    filter = {
+                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                            isNullnessAnnotation(name)
+                                        } != true
+                                    }
+                                ),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer?>!"
+                        ),
+                    ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource, intRangeTypeUseSource)
                 )
     }
 }
