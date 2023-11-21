@@ -226,6 +226,38 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     typeParameters = "<T>"
                 ) +
                 TypeStringParameters.fromConfigurations(
+                    name = "null annotated string",
+                    sourceType = "@libcore.util.Nullable String",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.String"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString = "java.lang.@libcore.util.Nullable String"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.lang.String?"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.lang.String?"
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource)
+                ) +
+                TypeStringParameters.fromConfigurations(
                     name = "null annotated string list",
                     sourceType =
                         "java.util.@libcore.util.Nullable List<java.lang.@libcore.util.NonNull String>",

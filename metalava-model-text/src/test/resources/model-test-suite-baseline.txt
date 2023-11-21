@@ -18,6 +18,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[text,signature,null annotated extends T collection - annotated and kotlin nulls]
   Type string[text,signature,null annotated extends T collection - default]
   Type string[text,signature,null annotated extends T collection - kotlin nulls]
+  Type string[text,signature,null annotated string - annotated and kotlin nulls]
+  Type string[text,signature,null annotated string - kotlin nulls]
   Type string[text,signature,null annotated string array - annotated and kotlin nulls]
   Type string[text,signature,null annotated string array - annotated]
   Type string[text,signature,null annotated string array - kotlin nulls]
