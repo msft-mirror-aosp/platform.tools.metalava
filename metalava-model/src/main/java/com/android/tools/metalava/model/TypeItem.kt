@@ -36,18 +36,17 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [outerAnnotations]
-     * controls whether the top level annotation like @Nullable is included, [innerAnnotations]
-     * controls whether annotations like @NonNull are included, and [erased] controls whether we
-     * return the string for the raw type, e.g. just "java.util.List". The [kotlinStyleNulls]
-     * parameter controls whether it should return "@Nullable List<String>" as "List<String!>?".
-     * Finally, [filter] specifies a filter to apply to the type annotations, if any.
+     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
+     * controls whether the annotations like @Nullable and @NonNull are included, and [erased]
+     * controls whether we return the string for the raw type, e.g. just "java.util.List". The
+     * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
+     * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
+     * any.
      *
      * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
      */
     fun toTypeString(
-        outerAnnotations: Boolean = false,
-        innerAnnotations: Boolean = outerAnnotations,
+        annotations: Boolean = false,
         erased: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
@@ -114,8 +113,7 @@ interface TypeItem {
     fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
 
     fun convertTypeString(replacementMap: Map<String, String>?): String {
-        val typeString =
-            toTypeString(outerAnnotations = true, innerAnnotations = true, kotlinStyleNulls = false)
+        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
         return convertTypeString(typeString, replacementMap)
     }
 

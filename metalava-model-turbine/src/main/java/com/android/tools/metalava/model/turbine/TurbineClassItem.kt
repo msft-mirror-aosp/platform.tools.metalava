@@ -85,6 +85,8 @@ open class TurbineClassItem(
         return allInterfaces!!.asSequence()
     }
 
+    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
+
     override fun constructors(): List<ConstructorItem> {
         TODO("b/295800205")
     }
