@@ -69,7 +69,6 @@ sealed class PsiTypeItem(
 ) : TypeItem {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
-    private var toInnerAnnotatedString: String? = null
     private var toErasedString: String? = null
     private var asClass: PsiClassItem? = null
 
@@ -78,15 +77,12 @@ sealed class PsiTypeItem(
     }
 
     override fun toTypeString(
-        outerAnnotations: Boolean,
-        innerAnnotations: Boolean,
+        annotations: Boolean,
         erased: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
         filter: Predicate<Item>?
     ): String {
-        assert(innerAnnotations || !outerAnnotations) // Can't supply outer=true,inner=false
-
         if (filter != null) {
             // No caching when specifying filter.
             // TODO: When we support type use annotations, here we need to deal with markRecent
@@ -94,8 +90,7 @@ sealed class PsiTypeItem(
             return toTypeString(
                 codebase = codebase,
                 type = psiType,
-                outerAnnotations = outerAnnotations,
-                innerAnnotations = innerAnnotations,
+                annotations = annotations,
                 erased = erased,
                 kotlinStyleNulls = kotlinStyleNulls,
                 context = context,
@@ -104,13 +99,12 @@ sealed class PsiTypeItem(
         }
 
         return if (erased) {
-            if (kotlinStyleNulls && (innerAnnotations || outerAnnotations)) {
+            if (kotlinStyleNulls || annotations) {
                 // Not cached: Not common
                 toTypeString(
                     codebase = codebase,
                     type = psiType,
-                    outerAnnotations = outerAnnotations,
-                    innerAnnotations = innerAnnotations,
+                    annotations = annotations,
                     erased = erased,
                     kotlinStyleNulls = kotlinStyleNulls,
                     context = context,
@@ -122,8 +116,7 @@ sealed class PsiTypeItem(
                         toTypeString(
                             codebase = codebase,
                             type = psiType,
-                            outerAnnotations = outerAnnotations,
-                            innerAnnotations = innerAnnotations,
+                            annotations = annotations,
                             erased = erased,
                             kotlinStyleNulls = kotlinStyleNulls,
                             context = context,
@@ -134,14 +127,13 @@ sealed class PsiTypeItem(
             }
         } else {
             when {
-                kotlinStyleNulls && outerAnnotations -> {
+                kotlinStyleNulls && annotations -> {
                     if (toAnnotatedString == null) {
                         toAnnotatedString =
                             toTypeString(
                                 codebase = codebase,
                                 type = psiType,
-                                outerAnnotations = outerAnnotations,
-                                innerAnnotations = innerAnnotations,
+                                annotations = annotations,
                                 erased = erased,
                                 kotlinStyleNulls = kotlinStyleNulls,
                                 context = context,
@@ -150,22 +142,16 @@ sealed class PsiTypeItem(
                     }
                     toAnnotatedString!!
                 }
-                kotlinStyleNulls && innerAnnotations -> {
-                    if (toInnerAnnotatedString == null) {
-                        toInnerAnnotatedString =
-                            toTypeString(
-                                codebase = codebase,
-                                type = psiType,
-                                outerAnnotations = outerAnnotations,
-                                innerAnnotations = innerAnnotations,
-                                erased = erased,
-                                kotlinStyleNulls = kotlinStyleNulls,
-                                context = context,
-                                filter = filter
-                            )
-                    }
-                    toInnerAnnotatedString!!
-                }
+                kotlinStyleNulls || annotations ->
+                    toTypeString(
+                        codebase = codebase,
+                        type = psiType,
+                        annotations = annotations,
+                        erased = erased,
+                        kotlinStyleNulls = kotlinStyleNulls,
+                        context = context,
+                        filter = filter
+                    )
                 else -> {
                     if (toString == null) {
                         toString =
@@ -189,8 +175,7 @@ sealed class PsiTypeItem(
 
     override fun toErasedTypeString(context: Item?): String {
         return toTypeString(
-            outerAnnotations = false,
-            innerAnnotations = false,
+            annotations = false,
             erased = true,
             kotlinStyleNulls = false,
             context = context
@@ -322,8 +307,7 @@ sealed class PsiTypeItem(
     override fun markRecent() = TODO()
 
     override fun scrubAnnotations() {
-        toAnnotatedString = toTypeString(outerAnnotations = false, innerAnnotations = false)
-        toInnerAnnotatedString = toAnnotatedString
+        toAnnotatedString = toTypeString(annotations = false)
     }
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
@@ -358,8 +342,7 @@ sealed class PsiTypeItem(
         private fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,
-            outerAnnotations: Boolean,
-            innerAnnotations: Boolean,
+            annotations: Boolean,
             erased: Boolean,
             kotlinStyleNulls: Boolean,
             context: Item?,
@@ -370,8 +353,7 @@ sealed class PsiTypeItem(
                 return toTypeString(
                     codebase,
                     typeErasure(type),
-                    outerAnnotations,
-                    innerAnnotations,
+                    annotations,
                     false,
                     kotlinStyleNulls,
                     context,
@@ -380,13 +362,13 @@ sealed class PsiTypeItem(
             }
 
             val typeString =
-                if (kotlinStyleNulls) {
+                if (kotlinStyleNulls || annotations) {
                     try {
                         getCanonicalText(
                             codebase = codebase,
                             owner = context,
                             type = type,
-                            annotated = innerAnnotations || outerAnnotations,
+                            annotated = annotations,
                             mapAnnotations = true,
                             kotlinStyleNulls = kotlinStyleNulls,
                             filter = filter
@@ -478,7 +460,14 @@ sealed class PsiTypeItem(
                         } else {
                             type
                         }
-                    val printer = PsiTypePrinter(codebase, filter, mapAnnotations, kotlinStyleNulls)
+                    val printer =
+                        PsiTypePrinter(
+                            codebase,
+                            filter,
+                            mapAnnotations,
+                            kotlinStyleNulls,
+                            annotated
+                        )
 
                     printer.getAnnotatedCanonicalText(annotatedType, elementAnnotations)
                 } else if (annotated) {
