@@ -1,0 +1,9 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
+  Type string[text,signature,T - kotlin nulls]
+  Type string[text,signature,extends string list - kotlin nulls]
+  Type string[text,signature,int array - kotlin nulls]
+  Type string[text,signature,number - kotlin nulls]
+  Type string[text,signature,string - kotlin nulls]
+  Type string[text,signature,string array - kotlin nulls]
+  Type string[text,signature,string list - kotlin nulls]
+  Type string[text,signature,string varargs - kotlin nulls]
