@@ -24,6 +24,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test method parameter type variable types[turbine,java]
   Test method return type variable types[turbine,java]
   Test superclass and interface types using type variables[turbine,java]
+  Test that Kotlin-style nulls can be included in a type string without annotations[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
 
