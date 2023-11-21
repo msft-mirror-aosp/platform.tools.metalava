@@ -82,6 +82,10 @@ sealed class PsiTypeItem(
         context: Item?,
         filter: Predicate<Item>?
     ): String {
+        if (!annotations && !kotlinStyleNulls && filter == null) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+        }
+
         if (filter != null) {
             // No caching when specifying filter.
             // TODO: When we support type use annotations, here we need to deal with markRecent

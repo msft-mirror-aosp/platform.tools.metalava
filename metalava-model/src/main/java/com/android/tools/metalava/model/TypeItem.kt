@@ -461,7 +461,31 @@ interface TypeItem {
 
 abstract class DefaultTypeItem : TypeItem {
 
+    private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
+
+    override fun toTypeString(
+        annotations: Boolean,
+        kotlinStyleNulls: Boolean,
+        context: Item?,
+        filter: Predicate<Item>?
+    ): String {
+        return toTypeString(TypeStringConfiguration(annotations, kotlinStyleNulls, filter))
+    }
+
+    private fun toTypeString(configuration: TypeStringConfiguration): String {
+        // Cache the default type string. Other configurations are less likely to be reused.
+        return if (configuration.isDefault) {
+            if (!::cachedDefaultType.isInitialized) {
+                cachedDefaultType = buildString {
+                    appendTypeString(this@DefaultTypeItem, configuration)
+                }
+            }
+            cachedDefaultType
+        } else {
+            buildString { appendTypeString(this@DefaultTypeItem, configuration) }
+        }
+    }
 
     override fun toErasedTypeString(): String {
         if (!::cachedErasedType.isInitialized) {
@@ -489,7 +513,73 @@ abstract class DefaultTypeItem : TypeItem {
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val filter: Predicate<Item>? = null,
-        )
+        ) {
+            internal val isDefault = !annotations && !kotlinStyleNulls && filter == null
+        }
+
+        private fun StringBuilder.appendTypeString(
+            type: TypeItem,
+            configuration: TypeStringConfiguration
+        ) {
+            when (type) {
+                is PrimitiveTypeItem -> {
+                    // TODO: annotations
+                    append(type.kind.primitiveName)
+                }
+                is ArrayTypeItem -> {
+                    appendTypeString(type.componentType, configuration)
+                    if (type.isVarargs) {
+                        append("...")
+                    } else {
+                        append("[]")
+                    }
+                    // TODO: annotations
+                    // TODO: kotlin nulls
+                }
+                is ClassTypeItem -> {
+                    // TODO: annotations
+                    if (type.outerClassType != null) {
+                        appendTypeString(type.outerClassType!!, configuration)
+                        append('.')
+                        append(type.className)
+                    } else {
+                        append(type.qualifiedName)
+                    }
+
+                    if (type.parameters.isNotEmpty()) {
+                        append("<")
+                        type.parameters.forEachIndexed { index, parameter ->
+                            appendTypeString(parameter, configuration)
+                            if (index != type.parameters.size - 1) {
+                                append(",")
+                            }
+                        }
+                        append(">")
+                    }
+                    // TODO: kotlin nulls
+                }
+                is VariableTypeItem -> {
+                    // TODO: annotations
+                    append(type.name)
+                    // TODO: kotlin nulls
+                }
+                is WildcardTypeItem -> {
+                    // TODO: annotations
+                    append("?")
+                    type.extendsBound?.let {
+                        // Leave out object bounds, because they're implied
+                        if (!it.isJavaLangObject()) {
+                            append(" extends ")
+                            appendTypeString(it, configuration)
+                        }
+                    }
+                    type.superBound?.let {
+                        append(" super ")
+                        appendTypeString(it, configuration)
+                    }
+                }
+            }
+        }
 
         private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
             when (type) {

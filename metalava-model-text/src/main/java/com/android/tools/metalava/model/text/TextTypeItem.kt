@@ -40,6 +40,10 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         context: Item?,
         filter: Predicate<Item>?
     ): String {
+        if (!annotations && !kotlinStyleNulls && filter == null) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+        }
+
         val typeString = toTypeString(type, annotations)
 
         if (kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
