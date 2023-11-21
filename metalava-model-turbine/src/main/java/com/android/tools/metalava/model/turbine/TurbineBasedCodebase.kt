@@ -67,8 +67,8 @@ open class TurbineBasedCodebase(
         return classMap[className]
     }
 
-    fun findTypeParameter(sym: TyVarSymbol): TypeParameterItem? {
-        return typeParameterMap[sym]
+    fun findTypeParameter(sym: TyVarSymbol): TypeParameterItem {
+        return typeParameterMap[sym]!!
     }
 
     override fun findPackage(pkgName: String): PackageItem? {

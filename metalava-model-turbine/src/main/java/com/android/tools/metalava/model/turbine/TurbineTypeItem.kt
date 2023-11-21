@@ -25,6 +25,9 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
+import com.google.turbine.binder.sym.TyVarSymbol
 import java.util.function.Predicate
 
 sealed class TurbineTypeItem(
@@ -131,4 +134,15 @@ class TurbineClassTypeItem(
         }
         return sb.toString()
     }
+}
+
+class TurbineVariableTypeItem(
+    override val codebase: TurbineBasedCodebase,
+    override val modifiers: TypeModifiers,
+    private val symbol: TyVarSymbol
+) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
+    override val name: String = symbol.name()
+    override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
+
+    override fun unannotatedTypeString() = name
 }

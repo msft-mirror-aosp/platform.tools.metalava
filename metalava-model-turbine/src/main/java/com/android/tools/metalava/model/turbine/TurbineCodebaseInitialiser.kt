@@ -55,6 +55,7 @@ import com.google.turbine.type.Type.ClassTy
 import com.google.turbine.type.Type.ClassTy.SimpleClassTy
 import com.google.turbine.type.Type.PrimTy
 import com.google.turbine.type.Type.TyKind
+import com.google.turbine.type.Type.TyVar
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
@@ -328,6 +329,12 @@ open class TurbineCodebaseInitialiser(
                     outerClass = createSimpleClassType(simpleClass, outerClass)
                 }
                 return outerClass!!
+            }
+            TyKind.TY_VAR -> {
+                type as TyVar
+                val annotations = createAnnotations(type.annos())
+                val modifiers = TurbineTypeModifiers(annotations)
+                return TurbineVariableTypeItem(codebase, modifiers, type.sym())
             }
             else -> {
                 return TurbinePrimitiveTypeItem(
