@@ -823,6 +823,9 @@ class PsiClassTypeItem(
                 create(codebase, psiOuterClassType) as ClassTypeItem
             }
         }
+    // This should be able to use `psiType.name`, but that sometimes returns null when run on the
+    // AndroidX codebase.
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */

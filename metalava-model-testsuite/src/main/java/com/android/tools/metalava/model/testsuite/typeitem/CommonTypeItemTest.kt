@@ -736,12 +736,14 @@ class CommonTypeItemTest : BaseModelTest() {
             val stringType = paramTypes[0]
             assertThat(stringType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((stringType as ClassTypeItem).qualifiedName).isEqualTo("java.lang.String")
+            assertThat(stringType.className).isEqualTo("String")
             assertThat(stringType.parameters).isEmpty()
 
             // List<String>
             val stringListType = paramTypes[1]
             assertThat(stringListType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((stringListType as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            assertThat(stringListType.className).isEqualTo("List")
             assertThat(stringListType.parameters).hasSize(1)
             assertThat(stringListType.parameters.single().isString()).isTrue()
 
@@ -825,16 +827,19 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((innerType as ClassTypeItem).qualifiedName)
                 .isEqualTo("test.pkg.Outer.Middle.Inner")
+            assertThat(innerType.className).isEqualTo("Inner")
             assertThat(innerType.parameters).isEmpty()
 
             val middleType = innerType.outerClassType
             assertThat(middleType).isNotNull()
             assertThat(middleType!!.qualifiedName).isEqualTo("test.pkg.Outer.Middle")
+            assertThat(middleType.className).isEqualTo("Middle")
             assertThat(middleType.parameters).isEmpty()
 
             val outerType = middleType.outerClassType
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
+            assertThat(outerType.className).isEqualTo("Outer")
             assertThat(outerType.parameters).isEmpty()
             assertThat(outerType.outerClassType).isNull()
         }
@@ -894,6 +899,7 @@ class CommonTypeItemTest : BaseModelTest() {
             val innerType = method.returnType()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
+            assertThat(innerType.className).isEqualTo("Inner")
             assertThat(innerType.parameters).hasSize(1)
             val innerTypeParameter = innerType.parameters.single()
             assertThat(innerTypeParameter).isInstanceOf(VariableTypeItem::class.java)
@@ -903,6 +909,7 @@ class CommonTypeItemTest : BaseModelTest() {
             val outerType = innerType.outerClassType
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
+            assertThat(outerType.className).isEqualTo("Outer")
             assertThat(outerType.outerClassType).isNull()
             assertThat(outerType.parameters).hasSize(1)
             val outerClassParameter = outerType.parameters.single()

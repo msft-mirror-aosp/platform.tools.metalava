@@ -116,6 +116,8 @@ class TurbineClassTypeItem(
     override val parameters: List<TurbineTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
+
     override fun unannotatedTypeString(): String {
         val sb = StringBuilder()
 

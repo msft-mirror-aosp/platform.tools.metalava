@@ -606,6 +606,24 @@ interface ClassTypeItem : TypeItem {
 
     /** The outer class type of this class, if it is an inner type. */
     val outerClassType: ClassTypeItem?
+
+    /**
+     * The name of the class, e.g. "String" for "java.lang.String" and "Inner" for
+     * "test.pkg.Outer.Inner".
+     */
+    val className: String
+
+    companion object {
+        /** Computes the simple name of a class from a qualified class name. */
+        fun computeClassName(qualifiedName: String): String {
+            val lastDotIndex = qualifiedName.lastIndexOf('.')
+            return if (lastDotIndex == -1) {
+                qualifiedName
+            } else {
+                qualifiedName.substring(lastDotIndex + 1)
+            }
+        }
+    }
 }
 
 /** Represents a type variable type. */

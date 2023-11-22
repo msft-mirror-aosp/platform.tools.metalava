@@ -268,7 +268,9 @@ internal class TextClassTypeItem(
     override val parameters: List<TypeItem>,
     override val outerClassType: ClassTypeItem?,
     override val modifiers: TypeModifiers
-) : ClassTypeItem, TextTypeItem(codebase, type)
+) : ClassTypeItem, TextTypeItem(codebase, type) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
+}
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(
