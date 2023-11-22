@@ -1494,6 +1494,9 @@ class ReferenceResolver(
                     when {
                         cl.isEnum() -> JAVA_LANG_ENUM
                         cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
+                        // Interfaces do not extend java.lang.Object so drop out before the else
+                        // clause.
+                        cl.isInterface() -> return
                         else -> {
                             val existing = cl.superClassType()?.toTypeString()
                             existing ?: JAVA_LANG_OBJECT
