@@ -807,11 +807,13 @@ class ApiLintTest : DriverTest() {
                         public @Nullable ListenableFuture<String> okAsync() { return null; }
                         public void ok2(@Nullable ListenableFuture<String> param) { }
 
-                        public interface BadFuture<T> extends Future<T> {
+                        public interface BadFuture<T> extends AnotherInterface, Future<T> {
                         }
                         public static abstract class BadFutureClass<T> implements Future<T> {
                         }
                         public class BadCompletableFuture<T> extends CompletableFuture<T> {
+                        }
+                        public interface AnotherInterface {
                         }
                     }
                     """
