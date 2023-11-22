@@ -540,16 +540,16 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,include-type-use-annotations=yes)`() {
+    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,kotlin-name-type-order=yes)`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
-                // - kotlin-name-type-order=yes
                 // - include-type-use-annotations=yes
+                // - kotlin-name-type-order=yes
 
             """,
-            specifier = "5.0:kotlin-name-type-order=yes,include-type-use-annotations=yes",
+            specifier = "5.0:include-type-use-annotations=yes,kotlin-name-type-order=yes",
             format =
                 FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
         )
