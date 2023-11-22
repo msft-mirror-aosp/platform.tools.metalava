@@ -264,8 +264,13 @@ class SignatureWriter(
         }
         val isInterface = cls.isInterface()
 
+        val unfilteredInterfaceTypes = cls.interfaceTypes()
         val interfaces =
-            if (preFiltered) cls.interfaceTypes() else cls.filteredInterfaceTypes(filterReference)
+            if (preFiltered) unfilteredInterfaceTypes
+            else cls.filteredInterfaceTypes(filterReference)
+        if (interfaces.isEmpty()) {
+            return
+        }
 
         // Sort before prepending the super class (if this is an interface) as the super class
         // always comes first because it was previously written out by writeSuperClassStatement.
@@ -274,22 +279,31 @@ class SignatureWriter(
         // Combine the super class and interfaces into a full list of them.
         val fullInterfaces =
             if (isInterface) {
-                // If this is an interface then the set of interfaces includes the super class, if
-                // not null. Although the interfaces is not empty if and only if the superClass is
-                // non-null the filtered interfaces could be not empty even if the filtered
-                // superClass is null.
-                when (val superClass = getFilteredSuperClassTypeFor(cls)) {
-                    null -> sortedInterfaces
-                    else ->
-                        buildList {
-                            add(superClass)
-                            addAll(sortedInterfaces)
+                // Previously, when the first interface in the extends list was stored in
+                // superClass, if that interface was visible in the signature then it would always
+                // be first even though the other interfaces are sorted in alphabetical order. This
+                // implements similar logic.
+                val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
+                val firstFilteredInterfaceType = interfaces.first()
+                if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
+                    buildList {
+                        // The first interface in the interfaces list is also the first interface in
+                        // the filtered interfaces list so add it first.
+                        add(firstFilteredInterfaceType)
+
+                        // Add the remaining interfaces in sorted order.
+                        if (sortedInterfaces.size > 1) {
+                            for (interfaceType in sortedInterfaces) {
+                                if (interfaceType != firstFilteredInterfaceType) {
+                                    add(interfaceType)
+                                }
+                            }
                         }
+                    }
+                } else {
+                    sortedInterfaces
                 }
             } else sortedInterfaces
-        if (fullInterfaces.isEmpty()) {
-            return
-        }
 
         val label = if (isInterface) " extends" else " implements"
         write(label)
