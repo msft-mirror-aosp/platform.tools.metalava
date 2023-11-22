@@ -23,6 +23,14 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
+val DEFAULTABLE_PROPERTY_NAMES =
+    listOf(
+        "add-additional-overrides",
+        "overloaded-method-order",
+    )
+
+val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }
+
 class FileFormatTest {
     private fun checkParseHeader(
         apiText: String,
@@ -660,10 +668,7 @@ class FileFormatTest {
 
     @Test
     fun `Check defaultable properties`() {
-        assertEquals(
-            listOf("add-additional-overrides", "overloaded-method-order"),
-            FileFormat.defaultableProperties()
-        )
+        assertEquals(DEFAULTABLE_PROPERTY_NAMES, FileFormat.defaultableProperties())
     }
 
     @Test
@@ -682,7 +687,7 @@ class FileFormatTest {
                 FileFormat.parseDefaults("kotlin-style-nulls=yes")
             }
         assertEquals(
-            "unknown format property name `kotlin-style-nulls`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
+            "unknown format property name `kotlin-style-nulls`, expected one of $DEFAULTABLE_PROPERTIES",
             e.message
         )
     }
@@ -691,7 +696,7 @@ class FileFormatTest {
     fun `Check parseDefaults foo=bar`() {
         val e = assertThrows(ApiParseException::class.java) { FileFormat.parseDefaults("foo=bar") }
         assertEquals(
-            "unknown format property name `foo`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
+            "unknown format property name `foo`, expected one of $DEFAULTABLE_PROPERTIES",
             e.message
         )
     }
