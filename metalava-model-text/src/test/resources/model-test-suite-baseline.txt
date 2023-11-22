@@ -1,3 +1,7 @@
+com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  Test interface extends list[text,signature]
+  Test interface no extends list[text,signature]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[text,signature,2d boolean array list - kotlin nulls]
   Type string[text,signature,2d string array - kotlin nulls]

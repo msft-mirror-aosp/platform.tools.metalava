@@ -2,6 +2,12 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   070 - check constructor exists[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  Test class no super class but implements lists[turbine,java]
+  Test class no super class or implements lists[turbine,java]
+  Test class super class and implements lists[turbine,java]
+  Test class super class no implements lists[turbine,java]
+  Test interface extends list[turbine,java]
+  Test interface no extends list[turbine,java]
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
