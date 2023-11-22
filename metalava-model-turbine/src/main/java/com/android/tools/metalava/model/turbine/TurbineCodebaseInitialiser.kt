@@ -211,7 +211,11 @@ open class TurbineCodebaseInitialiser(
 
         // Setup the SuperClass
         val superClassItem = cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
-        classItem.setSuperClass(superClassItem, null)
+        val superClassType = cls.superClassType()
+        val superClassTypeItem =
+            if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
+            else createType(superClassType, false)
+        classItem.setSuperClass(superClassItem, superClassTypeItem)
 
         // Setup InnerClasses
         val t = cls.children()
@@ -219,6 +223,13 @@ open class TurbineCodebaseInitialiser(
 
         // Set direct interfaces
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
+
+        // Set interface types
+        classItem.setInterfaceTypes(
+            cls.interfaceTypes()
+                .filter { it.tyKind() != TyKind.ERROR_TY }
+                .map { createType(it, false) }
+        )
 
         // Create fields
         createFields(classItem, cls.fields())

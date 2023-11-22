@@ -63,6 +63,8 @@ open class TurbineClassItem(
 
     internal var containingClass: TurbineClassItem? = null
 
+    private lateinit var interfaceTypesList: List<TypeItem>
+
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
             val interfaces = mutableSetOf<TurbineClassItem>()
@@ -113,9 +115,7 @@ open class TurbineClassItem(
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
-    override fun interfaceTypes(): List<TypeItem> {
-        TODO("b/295800205")
-    }
+    override fun interfaceTypes(): List<TypeItem> = interfaceTypesList
 
     override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
 
@@ -140,7 +140,7 @@ open class TurbineClassItem(
     override fun fullName(): String = fullName
 
     override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
-        TODO("b/295800205")
+        interfaceTypesList = interfaceTypes
     }
 
     internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {

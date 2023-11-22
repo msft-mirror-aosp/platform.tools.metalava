@@ -194,14 +194,14 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
             val superChildInterfaceItem = codebase.assertClass("test.pkg.SuperChildInterface")
             assertEquals(superClassItem, classItem.superClass())
-            assertEquals(3, classItem.allInterfaces().count(), message = "")
-            assertEquals(true, classItem.allInterfaces().contains(childInterfaceItem))
-            assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
-            assertEquals(true, classItem.allInterfaces().contains(superChildInterfaceItem))
-            assertEquals(3, childInterfaceItem.allInterfaces().count(), message = "")
-            assertEquals(true, childInterfaceItem.allInterfaces().contains(superChildInterfaceItem))
-            assertEquals(true, childInterfaceItem.allInterfaces().contains(childInterfaceItem))
-            assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
+            assertEquals(
+                setOf(childInterfaceItem, superChildInterfaceItem, superInterfaceItem),
+                classItem.allInterfaces().toSet()
+            )
+            assertEquals(
+                setOf(childInterfaceItem, superChildInterfaceItem, superInterfaceItem),
+                childInterfaceItem.allInterfaces().toSet()
+            )
         }
     }
 
