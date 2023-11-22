@@ -16,6 +16,14 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeParameterList
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -23,19 +31,39 @@ import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
+import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
+import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
+import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
+import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.diag.TurbineLog
+import com.google.turbine.model.Const
+import com.google.turbine.model.Const.ArrayInitValue
+import com.google.turbine.model.Const.Kind
+import com.google.turbine.model.Const.Value
+import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.type.AnnoInfo
+import com.google.turbine.type.Type
+import com.google.turbine.type.Type.ArrayTy
+import com.google.turbine.type.Type.ClassTy
+import com.google.turbine.type.Type.ClassTy.SimpleClassTy
+import com.google.turbine.type.Type.PrimTy
+import com.google.turbine.type.Type.TyKind
+import com.google.turbine.type.Type.TyVar
+import com.google.turbine.type.Type.WildTy
+import com.google.turbine.type.Type.WildTy.BoundKind
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
 
 /**
- * This initializer acts as adaptor between codebase and the output from Turbine parser.
+ * This initializer acts as an adapter between codebase and the output from Turbine parser.
  *
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
@@ -121,8 +149,8 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifers = TurbineModifierItem.create(codebase, 0)
-            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifers)
+            val modifiers = TurbineModifierItem.create(codebase, 0, null)
+            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -144,7 +172,7 @@ open class TurbineCodebaseInitialiser(
 
     /** Creates a class if not already present in codebase's classmap */
     private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
-        val className = sym.binaryName().replace('/', '.').replace('$', '.')
+        val className = getQualifiedName(sym.binaryName())
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
@@ -164,10 +192,12 @@ open class TurbineCodebaseInitialiser(
         val pkgItem = findOrCreatePackage(pkgName)
 
         // Create class
-        val qualifiedName = sym.binaryName().replace('/', '.').replace('$', '.')
+        val qualifiedName = getQualifiedName(sym.binaryName())
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
-        val modifierItem = TurbineModifierItem.create(codebase, cls.access())
+        val annotations = createAnnotations(cls.annotations())
+        val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
+        val typeParameters = createTypeParameters(cls.typeParameterTypes())
         val classItem =
             TurbineClassItem(
                 codebase,
@@ -176,6 +206,7 @@ open class TurbineCodebaseInitialiser(
                 qualifiedName,
                 modifierItem,
                 TurbineClassType.getClassType(cls.kind()),
+                typeParameters
             )
 
         // Setup the SuperClass
@@ -192,6 +223,9 @@ open class TurbineCodebaseInitialiser(
         // Create fields
         createFields(classItem, cls.fields())
 
+        // Create methods
+        createMethods(classItem, cls.methods())
+
         // Add to the codebase
         val isTopClass = cls.owner() == null
         codebase.addClass(classItem, isTopClass)
@@ -205,7 +239,183 @@ open class TurbineCodebaseInitialiser(
         return classItem
     }
 
-    /** This method sets up inner class hierarchy. */
+    /** Creates a list of AnnotationItems from given list of Turbine Annotations */
+    private fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
+        return annotations.mapNotNull { createAnnotation(it) }
+    }
+
+    private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
+        val annoAttrs = getAnnotationAttributes(annotation.values())
+
+        val nameList = annotation.tree()?.let { tree -> tree.name().map { it.value() } }
+        val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
+        val clsSym = annotation.sym()
+        val qualifiedName =
+            if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
+
+        return TurbineAnnotationItem(codebase, qualifiedName, annoAttrs)
+    }
+
+    /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
+    private fun getAnnotationAttributes(
+        attrs: ImmutableMap<String, Const>
+    ): List<AnnotationAttribute> {
+        val attributes = mutableListOf<AnnotationAttribute>()
+        for ((name, value) in attrs) {
+            attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value)))
+        }
+        return attributes
+    }
+
+    private fun createAttrValue(const: Const): AnnotationAttributeValue {
+        if (const.kind() == Kind.ARRAY) {
+            val arrayVal = const as ArrayInitValue
+            return DefaultAnnotationArrayAttributeValue(
+                { arrayVal.toString() },
+                { arrayVal.elements().map { createAttrValue(it) } }
+            )
+        }
+        return DefaultAnnotationSingleAttributeValue({ const.toString() }, { getValue(const) })
+    }
+
+    private fun getValue(const: Const): Any? {
+        when (const.kind()) {
+            Kind.PRIMITIVE -> {
+                val value = const as Value
+                return value.getValue()
+            }
+            // For cases like AnyClass.class, return the qualified name of AnyClass
+            Kind.CLASS_LITERAL -> {
+                val value = const as TurbineClassValue
+                return value.type().toString()
+            }
+            else -> return const.toString()
+        }
+    }
+
+    private fun createType(type: Type, isVarArg: Boolean): TurbineTypeItem {
+        return when (type.tyKind()) {
+            TyKind.PRIM_TY -> {
+                type as PrimTy
+                val annotations = createAnnotations(type.annos())
+                val modifiers = TurbineTypeModifiers(annotations)
+                when (type.primkind()) {
+                    PrimKind.BOOLEAN ->
+                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BOOLEAN)
+                    PrimKind.BYTE -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BYTE)
+                    PrimKind.CHAR -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.CHAR)
+                    PrimKind.DOUBLE ->
+                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.DOUBLE)
+                    PrimKind.FLOAT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.FLOAT)
+                    PrimKind.INT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.INT)
+                    PrimKind.LONG -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.LONG)
+                    PrimKind.SHORT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.SHORT)
+                    else ->
+                        throw IllegalStateException("Invalid primitive type in API surface: $type")
+                }
+            }
+            TyKind.ARRAY_TY -> {
+                type as ArrayTy
+                val componentType = createType(type.elementType(), false)
+                val annotations = createAnnotations(type.annos())
+                val modifiers = TurbineTypeModifiers(annotations)
+                TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
+            }
+            TyKind.CLASS_TY -> {
+                type as ClassTy
+                var outerClass: TurbineClassTypeItem? = null
+                // A ClassTy is represented by list of SimpleClassTY each representing an inner
+                // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
+                // Outer, Outer.Inner and Outer.Inner.Inner1
+                for (simpleClass in type.classes()) {
+                    outerClass = createSimpleClassType(simpleClass, outerClass)
+                }
+                outerClass!!
+            }
+            TyKind.TY_VAR -> {
+                type as TyVar
+                val annotations = createAnnotations(type.annos())
+                val modifiers = TurbineTypeModifiers(annotations)
+                TurbineVariableTypeItem(codebase, modifiers, type.sym())
+            }
+            TyKind.WILD_TY -> {
+                type as WildTy
+                val annotations = createAnnotations(type.annotations())
+                val modifiers = TurbineTypeModifiers(annotations)
+                when (type.boundKind()) {
+                    BoundKind.UPPER -> {
+                        val upperBound = createType(type.bound(), false)
+                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
+                    }
+                    BoundKind.LOWER -> {
+                        // LowerBounded types have java.lang.Object as upper bound
+                        val upperBound = createType(ClassTy.OBJECT, false)
+                        val lowerBound = createType(type.bound(), false)
+                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, lowerBound)
+                    }
+                    BoundKind.NONE -> {
+                        // Unbounded types have java.lang.Object as upper bound
+                        val upperBound = createType(ClassTy.OBJECT, false)
+                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
+                    }
+                    else ->
+                        throw IllegalStateException("Invalid wildcard type in API surface: $type")
+                }
+            }
+            TyKind.VOID_TY ->
+                TurbinePrimitiveTypeItem(
+                    codebase,
+                    TurbineTypeModifiers(emptyList()),
+                    Primitive.VOID
+                )
+            TyKind.NONE_TY ->
+                TurbinePrimitiveTypeItem(
+                    codebase,
+                    TurbineTypeModifiers(emptyList()),
+                    Primitive.VOID
+                )
+            else -> throw IllegalStateException("Invalid type in API surface: $type.tyKind()")
+        }
+    }
+
+    private fun createSimpleClassType(
+        type: SimpleClassTy,
+        outerClass: TurbineClassTypeItem?
+    ): TurbineClassTypeItem {
+        val annotations = createAnnotations(type.annos())
+        val modifiers = TurbineTypeModifiers(annotations)
+        val qualifiedName = getQualifiedName(type.sym().binaryName())
+        val parameters = type.targs().map { createType(it, false) }
+        return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
+    }
+
+    private fun createTypeParameters(
+        tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>
+    ): TypeParameterList {
+        if (tyParams.isEmpty()) return TypeParameterList.NONE
+
+        val tyParamList = TurbineTypeParameterList(codebase)
+        val result = mutableListOf<TurbineTypeParameterItem>()
+        for ((sym, tyParam) in tyParams) {
+            result.add(createTypeParameter(sym, tyParam))
+        }
+        tyParamList.typeParameters = result
+        return tyParamList
+    }
+
+    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): TurbineTypeParameterItem {
+        val typeBounds = mutableListOf<TurbineTypeItem>()
+        val upperBounds = param.upperBound()
+        upperBounds.bounds().mapTo(typeBounds) { createType(it, false) }
+        param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
+        val modifiers =
+            TurbineModifierItem(codebase, annotations = createAnnotations(param.annotations()))
+        val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, sym.name(), typeBounds)
+        codebase.addTypeParameter(sym, typeParamItem)
+        return typeParamItem
+    }
+
+    /** This method sets up the inner class hierarchy. */
     private fun setInnerClasses(
         classItem: TurbineClassItem,
         innerClasses: ImmutableList<ClassSymbol>
@@ -222,13 +432,62 @@ open class TurbineCodebaseInitialiser(
     private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
         classItem.fields =
             fields.map { field ->
-                val fieldModifierItem = TurbineModifierItem.create(codebase, field.access())
+                val annotations = createAnnotations(field.annotations())
+                val fieldModifierItem =
+                    TurbineModifierItem.create(codebase, field.access(), annotations)
+                val type = createType(field.type(), false)
                 TurbineFieldItem(
                     codebase,
                     field.name(),
                     classItem,
+                    type,
                     fieldModifierItem,
                 )
             }
+    }
+
+    private fun createMethods(classItem: TurbineClassItem, methods: List<MethodInfo>) {
+        classItem.methods =
+            methods
+                .filter { it.sym().name() != "<init>" }
+                .map { method ->
+                    val annotations = createAnnotations(method.annotations())
+                    val methodModifierItem =
+                        TurbineModifierItem.create(codebase, method.access(), annotations)
+                    val typeParams = createTypeParameters(method.tyParams())
+                    val methodItem =
+                        TurbineMethodItem(
+                            codebase,
+                            method.sym(),
+                            classItem,
+                            createType(method.returnType(), false),
+                            methodModifierItem,
+                            typeParams,
+                        )
+                    createParameters(methodItem, method.parameters())
+                    methodItem
+                }
+    }
+
+    private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {
+        methodItem.parameters =
+            parameters.mapIndexed { idx, parameter ->
+                val annotations = createAnnotations(parameter.annotations())
+                val parameterModifierItem =
+                    TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                val type = createType(parameter.type(), parameterModifierItem.isVarArg())
+                TurbineParameterItem(
+                    codebase,
+                    parameter.name(),
+                    methodItem,
+                    idx,
+                    type,
+                    parameterModifierItem,
+                )
+            }
+    }
+
+    private fun getQualifiedName(binaryName: String): String {
+        return binaryName.replace('/', '.').replace('$', '.')
     }
 }

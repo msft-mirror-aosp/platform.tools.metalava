@@ -259,9 +259,7 @@ interface MethodItem : MemberItem {
          *   if so, that should be included
          */
         private fun sameType(
-            context1: MethodItem,
             t1: TypeItem,
-            context2: MethodItem,
             t2: TypeItem,
             addAdditionalOverrides: Boolean,
         ): Boolean {
@@ -277,8 +275,7 @@ interface MethodItem : MemberItem {
             //    methods overrides in the signature file so only do it when adding additional
             //    overrides.
             return t1 == t2 &&
-                (!addAdditionalOverrides ||
-                    t1.toErasedTypeString(context1) == t2.toErasedTypeString(context2))
+                (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
         }
 
         fun sameSignature(
@@ -290,9 +287,7 @@ interface MethodItem : MemberItem {
             // subclass overrides with more specific return type)
             if (
                 !sameType(
-                    method,
                     method.returnType(),
-                    superMethod,
                     superMethod.returnType(),
                     addAdditionalOverrides = addAdditionalOverrides
                 )
@@ -324,7 +319,7 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (!sameType(method, pt1, superMethod, pt2, addAdditionalOverrides)) {
+                if (!sameType(pt1, pt2, addAdditionalOverrides)) {
                     return false
                 }
             }
@@ -476,8 +471,8 @@ interface MethodItem : MemberItem {
             if (typeString1 == typeString2) {
                 continue
             }
-            val type1 = parameter1.type().toErasedTypeString(this)
-            val type2 = parameter2.type().toErasedTypeString(other)
+            val type1 = parameter1.type().toErasedTypeString()
+            val type2 = parameter2.type().toErasedTypeString()
 
             if (type1 != type2) {
                 if (!checkGenericParameterTypes(typeString1, typeString2)) {
@@ -547,20 +542,6 @@ interface MethodItem : MemberItem {
         return false
     }
 
-    override fun hasShowAnnotationInherited(): Boolean {
-        if (super.hasShowAnnotationInherited()) {
-            return true
-        }
-        return superMethods().any { it.hasShowAnnotationInherited() }
-    }
-
-    override fun onlyShowForStubPurposesInherited(): Boolean {
-        if (super.onlyShowForStubPurposesInherited()) {
-            return true
-        }
-        return superMethods().any { it.onlyShowForStubPurposesInherited() }
-    }
-
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
@@ -597,7 +578,10 @@ interface MethodItem : MemberItem {
 
     private fun computeRequiresOverride(): Boolean {
         val isVisible = !hidden || hasShowAnnotation()
-        return if (!modifiers.isAbstract()) {
+
+        // When the method is a concrete, non-default method, its overriding method is not required
+        // to be shown in the signature file.
+        return if (!modifiers.isAbstract() && !modifiers.isDefault()) {
             false
         } else if (superMethods().isEmpty()) {
             // If the method is abstract and is not overriding any parent methods,

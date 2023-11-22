@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.testing.java
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
@@ -162,23 +164,33 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     @Test
     fun `090 - check class hierarchy`() {
         runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
 
-                    interface SuperInterface{}
-                    abstract class SuperClass implements SuperInterface{}
+                        import test.parent.SuperInterface;
 
-                    interface SuperChildInterface{}
-                    interface ChildInterface extends SuperChildInterface,SuperInterface{}
+                        abstract class SuperClass implements SuperInterface {}
 
-                    class Test extends SuperClass implements ChildInterface{}
-                """
-            ),
+                        interface SuperChildInterface {}
+                        interface ChildInterface extends SuperChildInterface,SuperInterface {}
+
+                        class Test extends SuperClass implements ChildInterface {}
+                    """
+                ),
+                java(
+                    """
+                        package test.parent;
+
+                        public interface SuperInterface {}
+                     """
+                ),
+            )
         ) { codebase ->
             val classItem = codebase.assertClass("test.pkg.Test")
             val superClassItem = codebase.assertClass("test.pkg.SuperClass")
-            val superInterfaceItem = codebase.assertClass("test.pkg.SuperInterface")
+            val superInterfaceItem = codebase.assertClass("test.parent.SuperInterface")
             val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
             val superChildInterfaceItem = codebase.assertClass("test.pkg.SuperChildInterface")
             assertEquals(superClassItem, classItem.superClass())
@@ -200,7 +212,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                 """
                   package test.pkg;
 
-                  interface TestInterface{}
+                  interface TestInterface {}
                   enum TestEnum {}
                   @interface TestAnnotation {}
                 """
@@ -299,7 +311,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
 
                     import java.util.Date;
 
-                    class Test extends Date{}
+                    class Test extends Date {}
                 """
             ),
         ) { codebase ->
@@ -319,7 +331,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
                 """
                     package test.pkg;
 
-                    interface Interface{}
+                    interface Interface {}
                     class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
                 """
             ),
@@ -327,6 +339,245 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val classItem = codebase.assertClass("test.pkg.Test")
             assertEquals(null, classItem.superClass())
             assertEquals(1, classItem.allInterfaces().count())
+        }
+    }
+
+    @Test
+    fun `140 - test annotations`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import test.anno.FieldInfo;
+                        import anno.FieldValue;
+                        import test.SimpleClass;
+
+                        class Test {
+                            @test.Nullable
+                            @FieldInfo(children = {"child1","child2"}, val = 5, cls = SimpleClass.class)
+                            @FieldValue(testInt1+testInt2)
+                            public static String myString;
+
+                            public static final int testInt1 = 5;
+                            public static final int testInt2 = 7;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.anno;
+
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        import java.lang.annotation.Target;
+
+                        @Target(ElementType.FIELD)
+                        @Retention(RetentionPolicy.RUNTIME)
+                        public @interface FieldInfo {
+                          String name() default "FieldName";
+                          String[] children();
+                          int val();
+                          Class<?> cls();
+                        }
+                     """
+                ),
+                java(
+                    """
+                        package anno;
+
+                        public @interface FieldValue {
+                          int value();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test;
+
+                        @Nullable
+                        public class SimpleClass<T> {}
+                    """
+                ),
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val fieldItem = classItem.assertField("myString")
+
+            val nullAnno = fieldItem.assertAnnotation("test.Nullable")
+
+            val customAnno1 = fieldItem.assertAnnotation("test.anno.FieldInfo")
+            val custAnno1Attr1 = customAnno1.findAttribute("children")
+            val custAnno1Attr2 = customAnno1.findAttribute("val")
+            val custAnno1Attr3 = customAnno1.findAttribute("cls")
+            val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
+            val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
+
+            val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
+            val annoClassItem2 = codebase.assertClass("anno.FieldValue")
+            val custAnno2Attr1 = customAnno2.findAttribute("value")
+
+            assertEquals(3, fieldItem.modifiers.annotations().count())
+
+            assertEquals(true, nullAnno.isNullable())
+
+            assertEquals(false, customAnno1.isRetention())
+            assertNotNull(custAnno1Attr1)
+            assertNotNull(custAnno1Attr2)
+            assertNotNull(custAnno1Attr3)
+            assertEquals(
+                true,
+                listOf("child1", "child2").toTypedArray() contentEquals
+                    custAnno1Attr1.value.value() as Array<*>
+            )
+            assertEquals(5, custAnno1Attr2.value.value())
+            assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
+            assertEquals(annoClassItem1, customAnno1.resolve())
+            assertEquals(true, retAnno.isRetention())
+
+            assertEquals(annoClassItem2, customAnno2.resolve())
+            assertNotNull(custAnno2Attr1)
+            assertEquals(12, custAnno2Attr1.value.value())
+        }
+    }
+
+    @Test
+    fun `150 - advanced superMethods() test on methoditem`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    interface Interface1 {
+                        public void method1();
+                        public <T> void method2(T value);
+                    }
+
+                    interface Interface2 extends Interface1 {
+                        public void method1();
+                    }
+
+                    interface Interface3 extends Interface1,Interface2 {}
+
+                    abstract class Test1 implements Interface2 {
+                        @Override
+                        public void method1(){}
+
+                        @Override
+                        public <Integer> void method2(Integer value){}
+                    }
+
+                    class Test2 implements Interface3 {
+                        @Override
+                        public void method1(){}
+                    }
+
+                    class Test3 implements Interface2,Interface1 {
+                        @Override
+                        public void method1(){}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val itfCls1 = codebase.assertClass("test.pkg.Interface1")
+            val itf1Mtd1 = itfCls1.assertMethod("method1", "")
+            val itf1Mtd2 = itfCls1.assertMethod("method2", "java.lang.Object")
+
+            val itfCls2 = codebase.assertClass("test.pkg.Interface2")
+            val itf2Mtd1 = itfCls2.assertMethod("method1", "")
+
+            val classItem1 = codebase.assertClass("test.pkg.Test1")
+            val cls1Mtd1 = classItem1.assertMethod("method1", "")
+            val cls1Mtd2 = classItem1.assertMethod("method2", "java.lang.Object")
+
+            val classItem2 = codebase.assertClass("test.pkg.Test2")
+            val cls2Mtd1 = classItem2.assertMethod("method1", "")
+
+            val classItem3 = codebase.assertClass("test.pkg.Test3")
+            val cls3Mtd1 = classItem3.assertMethod("method1", "")
+
+            assertEquals(listOf(itf2Mtd1), cls1Mtd1.superMethods())
+            assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls1Mtd1.allSuperMethods().toList())
+            assertEquals(listOf(itf1Mtd2), cls1Mtd2.superMethods())
+            assertEquals(listOf(itf1Mtd1, itf2Mtd1), cls2Mtd1.superMethods())
+            assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls3Mtd1.superMethods())
+        }
+    }
+
+    @Test
+    fun `160 - check field type`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        public int field;
+                    }
+                """
+            ),
+        ) { codebase ->
+            val fieldTypeItem = codebase.assertClass("test.pkg.Test").assertField("field").type()
+            assertThat(fieldTypeItem).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertEquals(PrimitiveTypeItem.Primitive.INT, (fieldTypeItem as PrimitiveTypeItem).kind)
+        }
+    }
+
+    @Test
+    fun `170 - check unannotated typeString`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.List;
+
+                    public class Test {
+                        public int field;
+
+                        public void method(String a, List<Outer<String>> [] ... b, List<?extends   String> c){}
+
+                        public <T> Outer<Integer>.Inner<T, Test1<String>> foo() {
+                            return (new Outer<Integer>()).new Inner<Boolean, Test1<String>>();
+                        }
+                    }
+
+                    class Outer<P> {
+                        class Inner<R,S> {}
+                    }
+
+                    class Test1<String> {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val methodItem1 = classItem.methods()[0]
+            val methodItem2 = classItem.methods()[1]
+
+            val fieldTypeItem = classItem.assertField("field").type()
+            val returnTypeItem1 = methodItem1.returnType()
+            val parameterTypeItem1 = methodItem1.parameters()[0].type()
+            val parameterTypeItem2 = methodItem1.parameters()[1].type()
+            val parameterTypeItem3 = methodItem1.parameters()[2].type()
+            val returnTypeItem2 = methodItem2.returnType()
+
+            assertEquals("int", fieldTypeItem.toTypeString())
+            assertEquals("void", returnTypeItem1.toTypeString())
+            assertEquals("java.lang.String", parameterTypeItem1.toTypeString())
+            assertEquals(
+                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
+                parameterTypeItem2.toTypeString()
+            )
+            assertEquals(
+                "java.util.List<? extends java.lang.String>",
+                parameterTypeItem3.toTypeString()
+            )
+            assertEquals(
+                "test.pkg.Outer<java.lang.Integer>.Inner<T,test.pkg.Test1<java.lang.String>>",
+                returnTypeItem2.toTypeString()
+            )
         }
     }
 }

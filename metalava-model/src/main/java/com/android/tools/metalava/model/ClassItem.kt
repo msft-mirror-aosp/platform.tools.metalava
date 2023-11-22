@@ -226,9 +226,6 @@ interface ClassItem : Item {
 
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
-    // This replaces the "real" super class
-    fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem? = superClass?.toType())
-
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
 
@@ -466,7 +463,7 @@ interface ClassItem : Item {
             if (index != -1) {
                 parameterString = parameterString.substring(0, index)
             }
-            val parameter = parameters[i].type().toErasedTypeString(method)
+            val parameter = parameters[i].type().toErasedTypeString()
             if (parameter != parameterString) {
                 return false
             }

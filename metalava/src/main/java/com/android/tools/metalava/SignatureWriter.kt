@@ -118,9 +118,19 @@ class SignatureWriter(
         write(name)
         write(" ")
         writeModifiers(field)
-        writeType(field, field.type())
-        write(" ")
-        write(field.name())
+
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the field, then the type.
+            write(field.name())
+            write(": ")
+            writeType(field, field.type())
+        } else {
+            // Java style: write the type, then the name of the field.
+            writeType(field, field.type())
+            write(" ")
+            write(field.name())
+        }
+
         field.writeValueWithSemicolon(
             writer,
             allowDefaultValue = false,
@@ -132,9 +142,17 @@ class SignatureWriter(
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
-        writeType(property, property.type())
-        write(" ")
-        write(property.name())
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the property, then the type.
+            write(property.name())
+            write(": ")
+            writeType(property, property.type())
+        } else {
+            // Java style: write the type, then the name of the property.
+            writeType(property, property.type())
+            write(" ")
+            write(property.name())
+        }
         write(";\n")
     }
 
@@ -143,10 +161,20 @@ class SignatureWriter(
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList(), addSpace = true)
 
-        writeType(method, method.returnType())
-        write(" ")
-        write(method.name())
-        writeParameterList(method)
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the method and the parameters, then the type.
+            write(method.name())
+            writeParameterList(method)
+            write(": ")
+            writeType(method, method.returnType())
+        } else {
+            // Java style: write the type, then the name of the method and the parameters.
+            writeType(method, method.returnType())
+            write(" ")
+            write(method.name())
+            writeParameterList(method)
+        }
+
         writeThrowsList(method)
 
         if (method.containingClass().isAnnotationType()) {
@@ -209,6 +237,7 @@ class SignatureWriter(
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
                 superClass.toTypeString(
+                    annotations = fileFormat.includeTypeUseAnnotations,
                     kotlinStyleNulls = false,
                     context = superClass.asClass(),
                     filter = filterReference
@@ -247,6 +276,7 @@ class SignatureWriter(
                 write(" ")
                 write(
                     item.toTypeString(
+                        annotations = fileFormat.includeTypeUseAnnotations,
                         kotlinStyleNulls = false,
                         context = item.asClass(),
                         filter = filterReference
@@ -281,12 +311,24 @@ class SignatureWriter(
                 write("optional ")
             }
             writeModifiers(parameter)
-            writeType(parameter, parameter.type())
-            val name = parameter.publicName()
-            if (name != null) {
-                write(" ")
+
+            if (fileFormat.kotlinNameTypeOrder) {
+                // Kotlin style: the parameter must have a name (use `_` if it doesn't have a public
+                // name). Write the name and then the type.
+                val name = parameter.publicName() ?: "_"
                 write(name)
+                write(": ")
+                writeType(parameter, parameter.type())
+            } else {
+                // Java style: write the type, then the name if it has a public name.
+                writeType(parameter, parameter.type())
+                val name = parameter.publicName()
+                if (name != null) {
+                    write(" ")
+                    write(name)
+                }
             }
+
             if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
@@ -310,9 +352,7 @@ class SignatureWriter(
 
         var typeString =
             type.toTypeString(
-                outerAnnotations = false,
-                innerAnnotations = true,
-                erased = false,
+                annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls && !item.hasInheritedGenericType(),
                 context = item,
                 filter = filterReference

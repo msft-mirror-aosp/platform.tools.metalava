@@ -82,10 +82,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         expectedPublicApiMinusFlaggedApiIssues: String = "",
         expectedSystemApi: String,
         expectedSystemApiMinusFlaggedApi: String,
+        expectedSystemApiMinusFlaggedApiFail: String = "",
         expectedSystemApiMinusFlaggedApiIssues: String = "",
     ) {
         data class Expectations(
             val expectedApi: String,
+            val expectedFail: String = "",
             val expectedIssues: String = "",
         )
         val expectations =
@@ -111,6 +113,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         Flagged.WITHOUT ->
                             Expectations(
                                 expectedApi = expectedSystemApiMinusFlaggedApi,
+                                expectedFail = expectedSystemApiMinusFlaggedApiFail,
                                 expectedIssues = expectedSystemApiMinusFlaggedApiIssues,
                             )
                     }
@@ -128,6 +131,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
+            expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
             extraArguments =
                 arrayOf(ARG_HIDE_PACKAGE, "android.annotation", "--warning", "UnflaggedApi") +
@@ -350,18 +354,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg {
                       public class Bar extends test.pkg.Foo {
                         ctor public Bar();
-                        method public void flaggedMethod();
                       }
                       public class Foo {
                         ctor public Foo();
                       }
                     }
                 """,
-            // This should be empty.
-            expectedPublicApiMinusFlaggedApiIssues =
-                """
-                    src/test/pkg/Bar.java:8: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.flaggedMethod() [UnflaggedApi]
-                """,
+            expectedPublicApiMinusFlaggedApiIssues = "",
             expectedSystemApi =
                 """
                     // Signature format: 2.0
@@ -371,21 +370,69 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            // This should not include systemFlaggedMethod(). As overrides of flagged methods do not
-            // need to themselves be flagged then removing flagged methods should remove the
-            // overrides too. That would leave this empty apart from the signature header.
             expectedSystemApiMinusFlaggedApi =
                 """
                     // Signature format: 2.0
+                """,
+            expectedSystemApiMinusFlaggedApiIssues = "",
+        )
+    }
+
+    @Test
+    fun `Test that annotated class members are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    /**
+                     * @hide
+                     */
+                    @FlaggedApi("foo/bar")
+                    @SystemApi
+                    public class Foo {
+                        /**
+                         * @hide
+                         */
+                        @SystemApi
+                        public Foo() {}
+
+                        /**
+                         * @hide
+                         */
+                        @SystemApi
+                        public void method() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                """,
+            expectedPublicApi =
+                """
+                    // Signature format: 2.0
+                """,
+            expectedPublicApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                """,
+            expectedSystemApi =
+                """
+                    // Signature format: 2.0
                     package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        method public void systemFlaggedMethod();
+                      @FlaggedApi("foo/bar") public class Foo {
+                        ctor public Foo();
+                        method public void method();
                       }
                     }
                 """,
-            expectedSystemApiMinusFlaggedApiIssues =
+            expectedSystemApiMinusFlaggedApi =
                 """
-                    src/test/pkg/Bar.java:13: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.systemFlaggedMethod() [UnflaggedApi]
+                    // Signature format: 2.0
                 """,
         )
     }

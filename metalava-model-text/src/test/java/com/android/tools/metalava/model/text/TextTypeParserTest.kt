@@ -17,12 +17,13 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class TextTypeParserTest {
+class TextTypeParserTest : Assertions {
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -35,6 +36,11 @@ class TextTypeParserTest {
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
+        assertThat(
+                TextTypeParser.typeParameterStrings("<java.util.List<java.lang.String>[]>")
+                    .toString()
+            )
+            .isEqualTo("[java.util.List<java.lang.String>[]]")
     }
 
     @Test
@@ -69,9 +75,8 @@ class TextTypeParserTest {
                 """
                     .trimIndent()
             )
-        val foo = codebase.findClass("test.pkg.Foo")
-        assertThat(foo).isNotNull()
-        assertThat(foo!!.methods()).hasSize(4)
+        val foo = codebase.assertClass("test.pkg.Foo")
+        assertThat(foo.methods()).hasSize(4)
 
         val bar1Param = foo.methods()[0].parameters()[0].type()
         val bar2Param = foo.methods()[1].parameters()[0].type()

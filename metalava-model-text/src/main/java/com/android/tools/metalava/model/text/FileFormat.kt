@@ -91,6 +91,30 @@ data class FileFormat(
     val migrating: String? = null,
     val conciseDefaultValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+    /**
+     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
+     * Java-style syntax (`type name`).
+     *
+     * When Kotlin ordering is used, all method parameters without public names will be given the
+     * placeholder name of `_`, which cannot be used as a Java identifier.
+     *
+     * For example, the following is an example of a method signature with Kotlin ordering:
+     * ```
+     * method public foo(_: int, _: char, _: String[]): String;
+     * ```
+     *
+     * And the following is the equivalent Java ordering:
+     * ```
+     * method public String foo(int, char, String[]);
+     * ```
+     */
+    val kotlinNameTypeOrder: Boolean = false,
+    /**
+     * Whether to include type-use annotations in the signature file. Type-use annotations can only
+     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
+     * whether an annotation is type-use.
+     */
+    val includeTypeUseAnnotations: Boolean = false,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -101,6 +125,12 @@ data class FileFormat(
 
         validateIdentifier(name, "name")
         validateIdentifier(surface, "surface")
+
+        if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
+            throw IllegalStateException(
+                "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
+            )
+        }
     }
 
     /** Check that the supplied identifier is valid. */
@@ -658,6 +688,8 @@ data class FileFormat(
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var surface: String? = null
+        var kotlinNameTypeOrder: Boolean? = null
+        var includeTypeUseAnnotations: Boolean? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
@@ -673,6 +705,9 @@ data class FileFormat(
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
                 surface = surface ?: base.surface,
+                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
+                includeTypeUseAnnotations = includeTypeUseAnnotations
+                        ?: base.includeTypeUseAnnotations
             )
         }
     }
@@ -752,6 +787,22 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedOverloadedMethodOrder?.stringFromEnum()
+        },
+        KOTLIN_NAME_TYPE_ORDER {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.kotlinNameTypeOrder = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinNameTypeOrder)
+        },
+        INCLUDE_TYPE_USE_ANNOTATIONS {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.includeTypeUseAnnotations = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.includeTypeUseAnnotations)
         };
 
         /** The property name in the [parseSpecifier] input. */
