@@ -274,12 +274,15 @@ class SignatureWriter(
 
         // Sort before prepending the super class (if this is an interface) as the super class
         // always comes first because it was previously written out by writeSuperClassStatement.
-        @Suppress("DEPRECATION") val comparator = TypeItem.partialComparator
+        @Suppress("DEPRECATION")
+        val comparator =
+            if (fileFormat.sortWholeExtendsList) TypeItem.totalComparator
+            else TypeItem.partialComparator
         val sortedInterfaces = interfaces.sortedWith(comparator)
 
         // Combine the super class and interfaces into a full list of them.
         val fullInterfaces =
-            if (isInterface) {
+            if (isInterface && !fileFormat.sortWholeExtendsList) {
                 // Previously, when the first interface in the extends list was stored in
                 // superClass, if that interface was visible in the signature then it would always
                 // be first even though the other interfaces are sorted in alphabetical order. This

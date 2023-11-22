@@ -29,6 +29,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "migrating",
         "name",
         "overloaded-method-order",
+        "sort-whole-extends-list",
         "surface",
     )
 

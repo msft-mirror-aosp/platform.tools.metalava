@@ -117,6 +117,20 @@ data class FileFormat(
     val migrating: String? = null,
     val conciseDefaultValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+
+    /**
+     * Indicates whether the whole extends list for an interface is sorted.
+     *
+     * Previously, the first type in the extends list was used as the super type and if it was
+     * present in the API then it would always be output first to the signature files. The code has
+     * been refactored so that is no longer necessary but the previous behavior is maintained to
+     * avoid churn in the API signature files.
+     *
+     * By default, this property preserves the previous behavior but if set to `true` then it will
+     * stop treating the first interface specially and just sort all the interface types. The
+     * sorting is by the full name (without the package) of the class.
+     */
+    val specifiedSortWholeExtendsList: Boolean? = null,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -167,6 +181,10 @@ data class FileFormat(
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
         get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
+
+    // This defaults to false but can be overridden on the command line.
+    val sortWholeExtendsList
+        get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
 
     /** The base version of the file format. */
     enum class Version(
@@ -691,6 +709,7 @@ data class FileFormat(
         var migrating: String? = null
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
+        var sortWholeExtendsList: Boolean? = null
         var surface: String? = null
 
         fun build(): FileFormat {
@@ -709,6 +728,8 @@ data class FileFormat(
                         ?: base.specifiedAddAdditionalOverrides,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
+                specifiedSortWholeExtendsList = sortWholeExtendsList
+                        ?: base.specifiedSortWholeExtendsList,
                 surface = surface ?: base.surface,
             )
         }
@@ -808,7 +829,14 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedOverloadedMethodOrder?.stringFromEnum()
         },
-        ;
+        SORT_WHOLE_EXTENDS_LIST(defaultable = true) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.sortWholeExtendsList = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedSortWholeExtendsList?.let { yesNo(it) }
+        };
 
         /** The property name in the [parseSpecifier] input. */
         val propertyName: String = name.lowercase(Locale.US).replace("_", "-")

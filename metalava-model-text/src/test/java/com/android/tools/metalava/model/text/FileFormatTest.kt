@@ -27,6 +27,7 @@ val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
         "overloaded-method-order",
+        "sort-whole-extends-list",
     )
 
 val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }
