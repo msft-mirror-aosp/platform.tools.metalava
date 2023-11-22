@@ -421,7 +421,8 @@ open class TurbineCodebaseInitialiser(
         param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
         val modifiers =
             TurbineModifierItem(codebase, annotations = createAnnotations(param.annotations()))
-        val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, sym.name(), typeBounds)
+        val typeParamItem =
+            TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
         codebase.addTypeParameter(sym, typeParamItem)
         return typeParamItem
     }

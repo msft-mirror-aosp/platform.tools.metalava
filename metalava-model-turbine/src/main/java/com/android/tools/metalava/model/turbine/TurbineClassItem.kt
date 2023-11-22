@@ -65,6 +65,8 @@ open class TurbineClassItem(
 
     private lateinit var interfaceTypesList: List<TypeItem>
 
+    private var asType: TurbineTypeItem? = null
+
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
             val interfaces = mutableSetOf<TurbineClassItem>()
@@ -94,7 +96,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun containingClass(): ClassItem? = containingClass
+    override fun containingClass(): TurbineClassItem? = containingClass
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
@@ -152,8 +154,22 @@ open class TurbineClassItem(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun toType(): TypeItem {
-        TODO("b/295800205")
+    override fun toType(): TurbineTypeItem {
+        if (asType == null) {
+            val parameters =
+                typeParameterList().typeParameters().map {
+                    createVariableType(it as TurbineTypeParameterItem)
+                }
+            val mods = TurbineTypeModifiers(modifiers.annotations())
+            val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
+            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+        }
+        return asType!!
+    }
+
+    private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
+        val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
+        return TurbineVariableTypeItem(codebase as TurbineBasedCodebase, mods, typeParam.symbol)
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameters
