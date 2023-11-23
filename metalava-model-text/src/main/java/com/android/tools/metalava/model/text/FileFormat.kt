@@ -91,6 +91,30 @@ data class FileFormat(
     val migrating: String? = null,
     val conciseDefaultValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+    /**
+     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
+     * Java-style syntax (`type name`).
+     *
+     * When Kotlin ordering is used, all method parameters without public names will be given the
+     * placeholder name of `_`, which cannot be used as a Java identifier.
+     *
+     * For example, the following is an example of a method signature with Kotlin ordering:
+     * ```
+     * method public foo(_: int, _: char, _: String[]): String;
+     * ```
+     *
+     * And the following is the equivalent Java ordering:
+     * ```
+     * method public String foo(int, char, String[]);
+     * ```
+     */
+    val kotlinNameTypeOrder: Boolean = false,
+    /**
+     * Whether to include type-use annotations in the signature file. Type-use annotations can only
+     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
+     * whether an annotation is type-use.
+     */
+    val includeTypeUseAnnotations: Boolean = false,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -101,6 +125,12 @@ data class FileFormat(
 
         validateIdentifier(name, "name")
         validateIdentifier(surface, "surface")
+
+        if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
+            throw IllegalStateException(
+                "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
+            )
+        }
     }
 
     /** Check that the supplied identifier is valid. */
@@ -388,14 +418,22 @@ data class FileFormat(
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
+         * @param filename the name of the file from which the content is being read.
+         * @param reader the reader to use to read the file contents.
+         * @param formatForLegacyFiles the optional format to use if the file uses a legacy, and now
+         *   unsupported file format.
          * @return the [FileFormat] or null if the reader was blank.
          */
-        fun parseHeader(filename: String, reader: Reader): FileFormat? {
+        fun parseHeader(
+            filename: String,
+            reader: Reader,
+            formatForLegacyFiles: FileFormat? = null
+        ): FileFormat? {
             val lineNumberReader =
                 if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
 
             try {
-                return parseHeader(lineNumberReader)
+                return parseHeader(lineNumberReader, formatForLegacyFiles)
             } catch (cause: ApiParseException) {
                 // Wrap the exception and add contextual information to help user identify and fix
                 // the problem. This is done here instead of when throwing the exception as the
@@ -417,7 +455,14 @@ data class FileFormat(
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
-        private fun parseHeader(reader: LineNumberReader): FileFormat? {
+        private fun parseHeader(
+            reader: LineNumberReader,
+            formatForLegacyFiles: FileFormat?
+        ): FileFormat? {
+            // Remember the starting position of the reader just in case it is necessary to reset
+            // it back to this point.
+            reader.mark(BUFFER_SIZE)
+
             // This reads the minimal amount to determine whether this is likely to be a
             // signature file.
             val prefixLength = SIGNATURE_FORMAT_PREFIX.length
@@ -443,6 +488,16 @@ data class FileFormat(
                     // If the line is null then te whole file is blank which is handled specially.
                     if (line == null) {
                         return null
+                    }
+                }
+
+                // If formatForLegacyFiles has been provided then check to see if the file adheres
+                // to a legacy format and if it does behave as if it was formatForLegacyFiles.
+                if (formatForLegacyFiles != null) {
+                    // Check for version 1.0, i.e. no header at all.
+                    if (prefix.startsWith("package ")) {
+                        reader.reset()
+                        return formatForLegacyFiles
                     }
                 }
 
@@ -493,8 +548,8 @@ data class FileFormat(
          */
         fun parseSpecifier(
             specifier: String,
-            migratingAllowed: Boolean,
-            extraVersions: Set<String>,
+            migratingAllowed: Boolean = false,
+            extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
@@ -573,7 +628,7 @@ data class FileFormat(
         private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
             val builder = Builder(version.defaults)
             do {
-                reader.mark(1024)
+                reader.mark(BUFFER_SIZE)
                 val line = reader.readLine() ?: break
                 if (line.startsWith("package ")) {
                     reader.reset()
@@ -633,6 +688,8 @@ data class FileFormat(
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var surface: String? = null
+        var kotlinNameTypeOrder: Boolean? = null
+        var includeTypeUseAnnotations: Boolean? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
@@ -648,6 +705,9 @@ data class FileFormat(
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
                 surface = surface ?: base.surface,
+                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
+                includeTypeUseAnnotations = includeTypeUseAnnotations
+                        ?: base.includeTypeUseAnnotations
             )
         }
     }
@@ -727,6 +787,22 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedOverloadedMethodOrder?.stringFromEnum()
+        },
+        KOTLIN_NAME_TYPE_ORDER {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.kotlinNameTypeOrder = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinNameTypeOrder)
+        },
+        INCLUDE_TYPE_USE_ANNOTATIONS {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.includeTypeUseAnnotations = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.includeTypeUseAnnotations)
         };
 
         /** The property name in the [parseSpecifier] input. */

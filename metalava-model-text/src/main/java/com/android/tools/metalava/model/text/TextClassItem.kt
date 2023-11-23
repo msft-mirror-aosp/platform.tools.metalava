@@ -52,8 +52,7 @@ open class TextClassItem(
     init {
         @Suppress("LeakingThis") modifiers.setOwner(this)
         if (typeParameterList is TextTypeParameterList) {
-            @Suppress("LeakingThis")
-            typeParameterList.owner = this
+            @Suppress("LeakingThis") typeParameterList.setOwner(this)
         }
     }
 
@@ -144,7 +143,7 @@ open class TextClassItem(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
         this.superClass = superClass
         this.superClassType = superClassType
     }
@@ -251,11 +250,7 @@ open class TextClassItem(
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
     }
 
-    fun containsMethodInClassContext(method: MethodItem): Boolean {
-        return methods.any { equalMethodInClassContext(it, method) }
-    }
-
-    fun getParentAndInterfaces(): List<TextClassItem> {
+    private fun getParentAndInterfaces(): List<TextClassItem> {
         val classes = interfaceTypes().map { it.asClass() as TextClassItem }.toMutableList()
         superClass()?.let { classes.add(0, it as TextClassItem) }
         return classes

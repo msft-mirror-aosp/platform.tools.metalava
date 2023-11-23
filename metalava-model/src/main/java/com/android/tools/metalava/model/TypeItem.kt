@@ -36,26 +36,40 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [outerAnnotations]
-     * controls whether the top level annotation like @Nullable is included, [innerAnnotations]
-     * controls whether annotations like @NonNull are included, and [erased] controls whether we
-     * return the string for the raw type, e.g. just "java.util.List". The [kotlinStyleNulls]
-     * parameter controls whether it should return "@Nullable List<String>" as "List<String!>?".
-     * Finally, [filter] specifies a filter to apply to the type annotations, if any.
+     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
+     * controls whether the annotations like @Nullable and @NonNull are included. The
+     * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
+     * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
+     * any.
      *
      * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
      */
     fun toTypeString(
-        outerAnnotations: Boolean = false,
-        innerAnnotations: Boolean = outerAnnotations,
-        erased: Boolean = false,
+        annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
         filter: Predicate<Item>? = null
     ): String
 
-    /** Alias for [toTypeString] with erased=true */
-    @MetalavaApi fun toErasedTypeString(context: Item? = null): String
+    /** Legacy alias for [toErasedTypeString]`()`. */
+    @Deprecated(
+        "the context item is no longer used",
+        replaceWith = ReplaceWith("toErasedTypeString()")
+    )
+    @MetalavaApi
+    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
+
+    /**
+     * Get a string representation of the erased type.
+     *
+     * Implements the behavior described
+     * [here](https://docs.oracle.com/javase/tutorial/java/generics/genTypes.html).
+     *
+     * One point to note is that vararg parameters are represented using standard array syntax, i.e.
+     * `[]`, not the special source `...` syntax. The reason for that is that the erased type is
+     * mainly used at runtime which treats a vararg parameter as a standard array type.
+     */
+    @MetalavaApi fun toErasedTypeString(): String
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     @MetalavaApi fun arrayDimensions(): Int = 0
@@ -105,8 +119,7 @@ interface TypeItem {
     fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
 
     fun convertTypeString(replacementMap: Map<String, String>?): String {
-        val typeString =
-            toTypeString(outerAnnotations = true, innerAnnotations = true, kotlinStyleNulls = false)
+        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
         return convertTypeString(typeString, replacementMap)
     }
 
@@ -405,6 +418,40 @@ interface TypeItem {
     }
 }
 
+abstract class DefaultTypeItem : TypeItem {
+
+    private lateinit var cachedErasedType: String
+
+    override fun toErasedTypeString(): String {
+        if (!::cachedErasedType.isInitialized) {
+            cachedErasedType = buildString { appendErasedTypeString(this@DefaultTypeItem) }
+        }
+        return cachedErasedType
+    }
+
+    companion object {
+        private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
+            when (type) {
+                is PrimitiveTypeItem -> append(type.kind.primitiveName)
+                is ArrayTypeItem -> {
+                    appendErasedTypeString(type.componentType)
+                    append("[]")
+                }
+                is ClassTypeItem -> append(type.qualifiedName)
+                is VariableTypeItem ->
+                    type.asTypeParameter.typeBounds().firstOrNull()?.let {
+                        appendErasedTypeString(it)
+                    }
+                        ?: append(JAVA_LANG_OBJECT)
+                else ->
+                    throw IllegalStateException(
+                        "should never visit $type of type ${type.javaClass} while generating erased type string"
+                    )
+            }
+        }
+    }
+}
+
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
     /** The kind of [Primitive] this type is. */
@@ -475,3 +522,18 @@ interface WildcardTypeItem : TypeItem {
     /** The type this wildcard must be a super class of. */
     val superBound: TypeItem?
 }
+
+/**
+ * Configuration options for how to represent a type as a string.
+ *
+ * @param annotations Whether to include annotations on the type.
+ * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
+ *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
+ *   `@Nullable List<String>` would be represented as `List<String!>?`.
+ * @param filter A filter to apply to the type annotations, if any.
+ */
+data class TypeStringConfiguration(
+    val annotations: Boolean = false,
+    val kotlinStyleNulls: Boolean = false,
+    val filter: Predicate<Item>? = null,
+)

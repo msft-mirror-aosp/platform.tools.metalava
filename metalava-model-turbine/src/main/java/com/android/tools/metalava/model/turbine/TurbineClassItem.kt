@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -33,9 +32,9 @@ open class TurbineClassItem(
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    private val containingClass: TurbineClassItem?,
-    override val modifiers: ModifierList,
+    override val modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
+    private val typeParameters: TypeParameterList,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
@@ -60,6 +59,10 @@ open class TurbineClassItem(
 
     internal lateinit var fields: List<TurbineFieldItem>
 
+    internal lateinit var methods: List<TurbineMethodItem>
+
+    internal var containingClass: TurbineClassItem? = null
+
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
             val interfaces = mutableSetOf<TurbineClassItem>()
@@ -82,6 +85,8 @@ open class TurbineClassItem(
 
         return allInterfaces!!.asSequence()
     }
+
+    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
 
     override fun constructors(): List<ConstructorItem> {
         TODO("b/295800205")
@@ -122,9 +127,7 @@ open class TurbineClassItem(
 
     override fun isInterface(): Boolean = classType == TurbineClassType.INTERFACE
 
-    override fun methods(): List<MethodItem> {
-        TODO("b/295800205")
-    }
+    override fun methods(): List<MethodItem> = methods
 
     override fun properties(): List<PropertyItem> {
         TODO("b/295800205")
@@ -140,7 +143,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
         this.superClass = superClass as? TurbineClassItem
         this.superClassType = superClassType
     }
@@ -153,9 +156,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun typeParameterList(): TypeParameterList {
-        TODO("b/295800205")
-    }
+    override fun typeParameterList(): TypeParameterList = typeParameters
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 

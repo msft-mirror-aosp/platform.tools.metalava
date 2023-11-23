@@ -226,9 +226,6 @@ interface ClassItem : Item {
 
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
-    // This replaces the "real" super class
-    fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem? = superClass?.toType())
-
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
 
@@ -413,6 +410,27 @@ interface ClassItem : Item {
         return null
     }
 
+    /**
+     * Find the [MethodItem] in this.
+     *
+     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
+     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
+     *
+     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
+     * subclass) whose parameters match the supplied parameters string. Parameters are matched
+     * against a candidate [MethodItem] as follows:
+     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
+     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
+     * * Everything after `<` is removed.
+     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
+     *   on the [ParameterItem.type].
+     *
+     * If every parameter matches then the matched [MethodItem] is returned. If no `candidate`
+     * matches then it returns 'null`.
+     *
+     * @param methodName the name of the method or [simpleName] if looking for constructors.
+     * @param parameters the comma separated erased types of the parameters.
+     */
     fun findMethod(methodName: String, parameters: String): MethodItem? {
         if (methodName == simpleName()) {
             // Constructor
@@ -445,7 +463,7 @@ interface ClassItem : Item {
             if (index != -1) {
                 parameterString = parameterString.substring(0, index)
             }
-            val parameter = parameters[i].type().toErasedTypeString(method)
+            val parameter = parameters[i].type().toErasedTypeString()
             if (parameter != parameterString) {
                 return false
             }
