@@ -170,11 +170,11 @@ class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters
             val interfaceC = codebase.assertClass("test.pkg.C")
             val fooInterface = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(interfaceA, fooInterface.superClassType()?.asClass())
-            assertSame(interfaceA, fooInterface.superClass())
+            assertNull(fooInterface.superClassType()?.asClass())
+            assertNull(fooInterface.superClass())
 
             val interfaceList = fooInterface.interfaceTypes().map { it.asClass() }
-            assertEquals(listOf(interfaceB, interfaceC), interfaceList)
+            assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooInterface.allInterfaces().toList()
             assertEquals(listOf(fooInterface, interfaceA, interfaceB, interfaceC), allInterfaces)

@@ -279,29 +279,15 @@ internal constructor(
                 type.asClass()
                 type
             }
+        setInterfaces(interfaceTypes)
 
-        if (isInterface) {
-            if (interfaces.isNotEmpty()) {
-                // Set the super class type for interfaces to be the first interface.
-                val firstInterfaceType = interfaceTypes.first()
-                this.superClassType = firstInterfaceType
-                this.superClass = firstInterfaceType.asClass()
-
-                // Store the rest in the interfaces.
-                setInterfaces(interfaceTypes.drop(1))
-            } else {
-                // Must set the interfaces to something.
-                setInterfaces(emptyList())
-            }
-        } else {
+        if (!isInterface) {
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
                 this.superClassType = PsiTypeItem.create(codebase, superType)
                 this.superClass = this.superClassType?.asClass()
             }
-
-            setInterfaces(interfaceTypes)
         }
 
         for (inner in innerClasses) {
