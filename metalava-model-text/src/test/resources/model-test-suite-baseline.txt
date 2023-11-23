@@ -1,3 +1,7 @@
+com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  Test interface extends list[text,signature]
+  Test interface no extends list[text,signature]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[text,signature,2d boolean array list - kotlin nulls]
   Type string[text,signature,2d string array - kotlin nulls]
@@ -12,8 +16,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[text,signature,extends number to super number map - kotlin nulls]
   Type string[text,signature,extends string list - kotlin nulls]
   Type string[text,signature,inner class type - kotlin nulls]
-  Type string[text,signature,int array list - kotlin nulls]
   Type string[text,signature,int array - kotlin nulls]
+  Type string[text,signature,int array list - kotlin nulls]
   Type string[text,signature,multiple annotations integer list - annotated and kotlin nulls with filter]
   Type string[text,signature,multiple annotations integer list - annotated and kotlin nulls]
   Type string[text,signature,multiple annotations integer list - annotated with filter]
