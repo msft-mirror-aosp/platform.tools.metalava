@@ -2987,25 +2987,31 @@ class ApiLint(
     private fun checkExtends(cls: ClassItem) {
         // Call cls.superClass().extends() instead of cls.extends() since extends returns true for
         // self
-        val superCls = cls.superClass() ?: return
-        if (superCls.extends("android.os.AsyncTask")) {
-            report(
-                FORBIDDEN_SUPER_CLASS,
-                cls,
-                "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
-            )
-        }
-        if (superCls.extends("android.app.Activity")) {
-            report(
-                FORBIDDEN_SUPER_CLASS,
-                cls,
-                "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
-            )
+        val superCls = cls.superClass()
+        if (superCls != null) {
+            if (superCls.extends("android.os.AsyncTask")) {
+                report(
+                    FORBIDDEN_SUPER_CLASS,
+                    cls,
+                    "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
+                )
+            }
+            if (superCls.extends("android.app.Activity")) {
+                report(
+                    FORBIDDEN_SUPER_CLASS,
+                    cls,
+                    "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
+                )
+            }
         }
         badFutureTypes
             .firstOrNull { cls.extendsOrImplements(it) }
             ?.let {
-                val extendOrImplement = if (cls.extends(it)) "extend" else "implement"
+                // The `badFutureTypes` is a mixture of classes and interfaces. So, when selecting
+                // the verb it is necessary to use `extend` if this class is an interface or a class
+                // extending another class, and `implement` otherwise.
+                val extendOrImplement =
+                    if (cls.isInterface() || cls.extends(it)) "extend" else "implement"
                 report(
                     BAD_FUTURE,
                     cls,
