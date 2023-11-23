@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
@@ -259,38 +258,51 @@ internal constructor(
     }
 
     private fun initializeSuperClasses() {
-        val extendsListTypes = psiClass.extendsListTypes
-        if (extendsListTypes.isNotEmpty()) {
-            val type = PsiTypeItem.create(codebase, extendsListTypes[0])
-            this.superClassType = type
-            this.superClass = type.asClass()
+        val isInterface = isInterface()
+
+        // Get the interfaces from the appropriate list.
+        val interfaces =
+            if (isInterface || isAnnotationType()) {
+                // An interface uses "extends <interfaces>", either explicitly for normal interfaces
+                // or implicitly for annotations.
+                psiClass.extendsListTypes
+            } else {
+                // A class uses "extends <interfaces>".
+                psiClass.implementsListTypes
+            }
+
+        // Map them to PsiTypeItems.
+        val interfaceTypes =
+            interfaces.map {
+                val type = PsiTypeItem.create(codebase, it)
+                // ensure that we initialize classes eagerly too, so that they're registered etc
+                type.asClass()
+                type
+            }
+
+        if (isInterface) {
+            if (interfaces.isNotEmpty()) {
+                // Set the super class type for interfaces to be the first interface.
+                val firstInterfaceType = interfaceTypes.first()
+                this.superClassType = firstInterfaceType
+                this.superClass = firstInterfaceType.asClass()
+
+                // Store the rest in the interfaces.
+                setInterfaces(interfaceTypes.drop(1))
+            } else {
+                // Must set the interfaces to something.
+                setInterfaces(emptyList())
+            }
         } else {
-            val superType = psiClass.superClassType
-            if (superType is PsiType) {
+            // Set the super class type for classes
+            val superClassPsiType = psiClass.superClassType as? PsiType
+            superClassPsiType?.let { superType ->
                 this.superClassType = PsiTypeItem.create(codebase, superType)
                 this.superClass = this.superClassType?.asClass()
             }
-        }
 
-        // Add interfaces. If this class is an interface, it can implement both
-        // classes from the extends clause and from the implements clause.
-        val interfaces = psiClass.implementsListTypes
-        setInterfaces(
-            if (interfaces.isEmpty() && extendsListTypes.size <= 1) {
-                emptyList()
-            } else {
-                val result = ArrayList<PsiTypeItem>(interfaces.size + extendsListTypes.size - 1)
-                val create: (PsiClassType) -> PsiTypeItem = {
-                    val type = PsiTypeItem.create(codebase, it)
-                    type.asClass() // ensure that we initialize classes eagerly too such that
-                    // they're registered etc
-                    type
-                }
-                (1 until extendsListTypes.size).mapTo(result) { create(extendsListTypes[it]) }
-                interfaces.mapTo(result) { create(it) }
-                result
-            }
-        )
+            setInterfaces(interfaceTypes)
+        }
 
         for (inner in innerClasses) {
             inner.initializeSuperClasses()

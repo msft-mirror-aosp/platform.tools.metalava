@@ -2,6 +2,12 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   070 - check constructor exists[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  Test class no super class but implements lists[turbine,java]
+  Test class no super class or implements lists[turbine,java]
+  Test class super class and implements lists[turbine,java]
+  Test class super class no implements lists[turbine,java]
+  Test interface extends list[turbine,java]
+  Test interface no extends list[turbine,java]
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
@@ -14,7 +20,6 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test superclass and interface types using type variables[turbine,java]
-  Test that Kotlin-style nulls can be included in a type string without annotations[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]
@@ -53,7 +58,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[turbine,java,null annotated extends T collection - annotated]
   Type string[turbine,java,null annotated extends T collection - kotlin nulls]
   Type string[turbine,java,null annotated parameterized inner type - annotated]
-  Type string[turbine,java,null annotated parameterized inner type - default]
   Type string[turbine,java,null annotated parameterized inner type - kotlin nulls]
   Type string[turbine,java,null annotated string - annotated and kotlin nulls]
   Type string[turbine,java,null annotated string - annotated]
@@ -68,7 +72,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[turbine,java,null annotated string varargs - annotated]
   Type string[turbine,java,null annotated string varargs - kotlin nulls]
   Type string[turbine,java,number - kotlin nulls]
-  Type string[turbine,java,parameterized inner type - default]
   Type string[turbine,java,parameterized inner type - kotlin nulls]
   Type string[turbine,java,string - kotlin nulls]
   Type string[turbine,java,string array - kotlin nulls]
