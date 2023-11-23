@@ -274,7 +274,8 @@ class SignatureWriter(
 
         // Sort before prepending the super class (if this is an interface) as the super class
         // always comes first because it was previously written out by writeSuperClassStatement.
-        val sortedInterfaces = interfaces.sortedWith(TypeItem.comparator)
+        @Suppress("DEPRECATION") val comparator = TypeItem.partialComparator
+        val sortedInterfaces = interfaces.sortedWith(comparator)
 
         // Combine the super class and interfaces into a full list of them.
         val fullInterfaces =

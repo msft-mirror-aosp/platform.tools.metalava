@@ -3203,6 +3203,64 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test whether partial or total ordering`() {
+        check(
+            format = FileFormat.V2,
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends other.Bar mine.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
