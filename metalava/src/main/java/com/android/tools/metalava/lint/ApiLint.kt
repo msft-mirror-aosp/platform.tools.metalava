@@ -341,7 +341,7 @@ class ApiLint(
         checkParcelable(cls, methods, constructors, fields)
         checkRegistrationMethods(cls, methods)
         checkHelperClasses(cls, methods, fields)
-        checkBuilder(cls, methods, constructors, superClass)
+        checkBuilder(cls, methods, constructors, superClass, interfaces)
         checkAidl(cls, superClass, interfaces)
         checkInternal(cls)
         checkLayering(cls, methodsAndConstructors, fields)
@@ -1104,12 +1104,16 @@ class ApiLint(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
-        superClass: ClassItem?
+        superClass: ClassItem?,
+        interfaces: Sequence<TypeItem>,
     ) {
         if (!cls.simpleName().endsWith("Builder")) {
             return
         }
         if (superClass != null && !superClass.isJavaLangObject()) {
+            return
+        }
+        if (interfaces.any()) {
             return
         }
         if (cls.isTopLevelClass()) {
