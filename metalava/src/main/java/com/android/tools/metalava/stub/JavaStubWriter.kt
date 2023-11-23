@@ -172,22 +172,8 @@ internal class JavaStubWriter(
             if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
 
         if (superClass != null && !superClass.isJavaLangObject()) {
-            val qualifiedName = superClass.toTypeString()
             writer.print(" extends ")
-
-            if (qualifiedName.contains("<")) {
-                // TODO: I need to push this into the model at filter-time such that clients don't
-                // need
-                // to remember to do this!!
-                val s = superClass.asClass()
-                if (s != null) {
-                    val map = cls.mapTypeVariables(s)
-                    val replaced = superClass.convertTypeString(map)
-                    writer.print(replaced)
-                    return
-                }
-            }
-            writer.print(qualifiedName)
+            writer.print(superClass.toTypeString())
         }
     }
 
@@ -215,8 +201,6 @@ internal class JavaStubWriter(
     }
 
     private fun generateTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        // TODO: Do I need to map type variables?
-
         val typeListString = typeList.toString()
         if (typeListString.isNotEmpty()) {
             writer.print(typeListString)
@@ -460,7 +444,6 @@ internal class JavaStubWriter(
                 if (i > 0) {
                     writer.print(", ")
                 }
-                // TODO: Shouldn't declare raw types here!
                 writer.print(type.qualifiedName())
             }
         }
