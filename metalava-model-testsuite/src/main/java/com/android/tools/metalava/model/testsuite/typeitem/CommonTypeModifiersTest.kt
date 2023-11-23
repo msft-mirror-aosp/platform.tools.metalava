@@ -624,6 +624,8 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
                 """
                     package test.pkg;
                     public class Foo extends test.pkg.@test.pkg.A Bar {}
+                    class Bar {}
+                    @interface A {}
                 """
             ),
             signature(
@@ -631,6 +633,10 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
                     // Signature format: 4.0
                     package test.pkg {
                       public class Foo extends test.pkg.@test.pkg.A Bar {
+                      }
+                      public class Bar {
+                      }
+                      public @interface A {
                       }
                     }
                 """
