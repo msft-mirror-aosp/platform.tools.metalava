@@ -162,9 +162,10 @@ internal class JavaStubWriter(
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType()) {
+        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
             // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords
+            // "@interface" keywords. Normal interfaces do support an extends statement but it is
+            // generated in [generateInterfaceList].
             return
         }
 
@@ -184,12 +185,11 @@ internal class JavaStubWriter(
         }
 
         val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
+            if (preFiltered) cls.interfaceTypes() else cls.filteredInterfaceTypes(filterReference)
 
         if (interfaces.any()) {
-            if (cls.isInterface() && cls.superClassType() != null) writer.print(",")
-            else writer.print(" implements")
+            val label = if (cls.isInterface()) " extends" else " implements"
+            writer.print(label)
             interfaces.forEachIndexed { index, type ->
                 if (index > 0) {
                     writer.print(",")
