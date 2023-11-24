@@ -76,7 +76,7 @@ abstract class BaseModelTest : Assertions {
      * The [InputFormat] of the test files that should be processed by this test. It must ignore all
      * other [InputFormat]s.
      */
-    private val inputFormat by lazy { baseParameters.inputFormat }
+    protected val inputFormat by lazy { baseParameters.inputFormat }
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
