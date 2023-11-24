@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.java
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -160,6 +161,14 @@ class CommonInternalNameTest : BaseModelTest() {
                     public interface Foo {
                         method public $returnType method($parameterType p);
                     }
+                }
+                """
+            ),
+            java(
+                """
+                package test.pkg;
+                public interface Foo {
+                    $returnType method($parameterType p);
                 }
                 """
             ),

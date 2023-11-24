@@ -8,11 +8,16 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
-  MethodItem type[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test @hide in package info[turbine,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
+  test[turbine,java,java.lang.List<java.lang.Number>[]]
+  test[turbine,java,java.lang.List<java.lang.Number>]
+  test[turbine,java,pkg.UnknownClass.Inner]
+  test[turbine,java,pkg.UnknownClass]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]
