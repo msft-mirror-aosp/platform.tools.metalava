@@ -70,12 +70,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             }
     }
 
+    @Suppress("ArrayInDataClass")
     data class Expectations(
         val surface: Surface,
         val flagged: Flagged,
         val expectedApi: String,
         val expectedFail: String = "",
         val expectedIssues: String = "",
+        val expectedStubs: Array<TestFile> = emptyArray(),
+        val expectedStubPaths: Array<String>? = null,
     )
 
     /**
@@ -105,6 +108,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
+            stubFiles = expectations.expectedStubs,
+            stubPaths = expectations.expectedStubPaths,
             expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
             extraArguments =
@@ -398,6 +403,33 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Bar.java",
+                                "test/pkg/Foo.java",
+                            ),
+                        // Make sure that no flagged API appears in the stubs.
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Bar extends test.pkg.Foo {
+                                    public Bar() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
                     ),
                 ),
         )
@@ -468,6 +500,33 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                 }
                             """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        // Make sure that no flagged API appears in the stubs.
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    /**
+                                     * @hide
+                                     */
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public final class Foo {
+                                    /**
+                                     * @hide
+                                     */
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    /**
+                                     * @hide
+                                     */
+                                    public void method() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -476,6 +535,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                             """,
+                        // Make sure that no stub classes are generated at all.
+                        expectedStubPaths = emptyArray(),
                     ),
                 ),
         )

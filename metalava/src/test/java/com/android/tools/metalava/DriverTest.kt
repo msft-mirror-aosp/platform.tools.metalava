@@ -248,6 +248,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
+        /** Expected paths of stub files created */
+        stubPaths: Array<String>? = null,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -772,7 +774,7 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty()) {
+            if (stubFiles.isNotEmpty() || stubPaths != null) {
                 stubsDir = newFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1165,19 +1167,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertEquals(validateNullability, actualReport)
         }
 
+        val stubsCreated =
+            stubsDir
+                ?.walkTopDown()
+                ?.filter { it.isFile }
+                ?.map { it.relativeTo(stubsDir).path }
+                ?.sorted()
+                ?.joinToString("\n")
+
+        if (stubPaths != null) {
+            assertEquals("stub paths", stubPaths.joinToString("\n"), stubsCreated)
+        }
+
         if (stubFiles.isNotEmpty()) {
             for (expected in stubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
                 if (!actual.exists()) {
-                    val existing =
-                        stubsDir
-                            .walkTopDown()
-                            .filter { it.isFile }
-                            .map { it.path }
-                            .joinToString("\n  ")
                     throw FileNotFoundException(
                         "Could not find a generated stub for ${expected.targetRelativePath}. " +
-                            "Found these files: \n  $existing"
+                            "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
                 val actualContents = readFile(actual)
