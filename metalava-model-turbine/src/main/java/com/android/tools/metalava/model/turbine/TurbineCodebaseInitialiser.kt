@@ -312,7 +312,7 @@ open class TurbineCodebaseInitialiser(
     }
 
     private fun createType(type: Type, isVarArg: Boolean): TurbineTypeItem {
-        return when (type.tyKind()) {
+        return when (val kind = type.tyKind()) {
             TyKind.PRIM_TY -> {
                 type as PrimTy
                 val annotations = createAnnotations(type.annos())
@@ -392,7 +392,7 @@ open class TurbineCodebaseInitialiser(
                     TurbineTypeModifiers(emptyList()),
                     Primitive.VOID
                 )
-            else -> throw IllegalStateException("Invalid type in API surface: $type.tyKind()")
+            else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
     }
 
