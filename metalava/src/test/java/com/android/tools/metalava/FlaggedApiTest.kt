@@ -70,6 +70,14 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             }
     }
 
+    data class Expectations(
+        val surface: Surface,
+        val flagged: Flagged,
+        val expectedApi: String,
+        val expectedFail: String = "",
+        val expectedIssues: String = "",
+    )
+
     /**
      * Check the result of generating APIs with and without flagged apis for both public and system
      * API surfaces.
@@ -77,47 +85,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
         previouslyReleasedApi: String,
-        expectedPublicApi: String,
-        expectedPublicApiMinusFlaggedApi: String,
-        expectedPublicApiMinusFlaggedApiIssues: String = "",
-        expectedSystemApi: String,
-        expectedSystemApiMinusFlaggedApi: String,
-        expectedSystemApiMinusFlaggedApiFail: String = "",
-        expectedSystemApiMinusFlaggedApiIssues: String = "",
+        expectationsList: List<Expectations>,
     ) {
-        data class Expectations(
-            val expectedApi: String,
-            val expectedFail: String = "",
-            val expectedIssues: String = "",
-        )
         val expectations =
-            when (config.surface) {
-                Surface.PUBLIC ->
-                    when (config.flagged) {
-                        Flagged.WITH ->
-                            Expectations(
-                                expectedApi = expectedPublicApi,
-                            )
-                        Flagged.WITHOUT ->
-                            Expectations(
-                                expectedApi = expectedPublicApiMinusFlaggedApi,
-                                expectedIssues = expectedPublicApiMinusFlaggedApiIssues,
-                            )
-                    }
-                Surface.SYSTEM ->
-                    when (config.flagged) {
-                        Flagged.WITH ->
-                            Expectations(
-                                expectedApi = expectedSystemApi,
-                            )
-                        Flagged.WITHOUT ->
-                            Expectations(
-                                expectedApi = expectedSystemApiMinusFlaggedApi,
-                                expectedFail = expectedSystemApiMinusFlaggedApiFail,
-                                expectedIssues = expectedSystemApiMinusFlaggedApiIssues,
-                            )
-                    }
+            expectationsList.singleOrNull {
+                it.surface == config.surface && it.flagged == config.flagged
             }
+                ?: return
 
         check(
             // Enable API linting against the previous API; only report issues in changes to that
@@ -169,38 +143,57 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                        method @FlaggedApi("foo/bar") public void flaggedPublicApi();
-                      }
-                    }
-                """,
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method @FlaggedApi("foo/bar") public void flaggedSystemApi();
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0                        
+                            """,
+                    ),
+                ),
         )
     }
 
@@ -243,41 +236,59 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        ctor public Bar();
-                      }
-                      @FlaggedApi("foo/bar") public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        ctor public Bar();
-                      }
-                    }
-                """,
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedSystemApiMinusFlaggedApiIssues = "",
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                  @FlaggedApi("foo/bar") public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                ),
         )
     }
 
@@ -332,49 +343,63 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                        method @FlaggedApi("foo/bar") public void flaggedMethod();
-                      }
-                    }
-                """,
-            // This should not include flaggedMethod(). As overrides of flagged methods do not need
-            // to themselves be flagged then removing flagged methods should remove the overrides
-            // too.
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
-            expectedPublicApiMinusFlaggedApiIssues = "",
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedSystemApiMinusFlaggedApiIssues = "",
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @FlaggedApi("foo/bar") public void flaggedMethod();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                ),
         )
     }
 
@@ -393,7 +418,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                      */
                     @FlaggedApi("foo/bar")
                     @SystemApi
-                    public class Foo {
+                    public final class Foo {
                         /**
                          * @hide
                          */
@@ -412,28 +437,47 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
                     // Signature format: 2.0
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @FlaggedApi("foo/bar") public class Foo {
-                        ctor public Foo();
-                        method public void method();
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("foo/bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                ),
         )
     }
 }
