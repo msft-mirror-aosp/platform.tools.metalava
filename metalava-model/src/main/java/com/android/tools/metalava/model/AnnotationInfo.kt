@@ -95,30 +95,39 @@ enum class ShowOrHide(private val show: Boolean?) {
     fun highestPriority(other: ShowOrHide): ShowOrHide = maxOf(this, other)
 }
 
-/** Available ways in which an annotation can affect whether, and if so how, an item is shown. */
+/**
+ * Determines how an annotation will affect whether [Item]s annotated with it are part of the API or
+ * not and also determines whether an [Item] is part of the API or not.
+ */
 data class Showability(
     /**
-     * If true then the annotated item will be shown as part of the API, unless overridden in some
-     * way.
+     * Determines whether an API [Item] is shown as part of the API or hidden from the API.
      *
-     * Is `true` for annotations that match `--show-annotation`, or `--show-single-annotation`, but
-     * not `--show-for-stub-purposes-annotation`, and items that are annotated with such an
-     * annotation that is not overridden in some way.
+     * If [ShowOrHide.show] is `true` then the annotated [Item] will be shown as part of the API.
+     * That is the case for annotations that match `--show-annotation`, or
+     * `--show-single-annotation`, but not `--show-for-stub-purposes-annotation`.
      *
-     * If false then the annotated item will NOT be shown as part of the API, unless overridden in
-     * some way.
+     * If [ShowOrHide.hide] is `true` then the annotated [Item] will NOT be shown as part of the
+     * API. That is the case for annotations that match `--hide-annotation`.
      *
-     * If null then this has no effect on whether an annotated item will be shown or not.
+     * If neither of the above is then this has no effect on whether an annotated [Item] will be
+     * shown or not, that decision will be determined by its container's [Showability.recursive]
+     * setting.
      */
     private val show: ShowOrHide,
 
     /**
-     * If true then the annotated item will recursively affect enclosed items, unless overridden by
-     * a closer annotation.
+     * Determines whether the contents of an API [Item] is shown as part of the API or hidden from
+     * the API.
      *
-     * Is `true` for annotations that match `--show-annotation`, but not `--show-single-annotation`,
-     * or `--show-for-stub-purposes-annotation`, and items that are annotated with such an
-     * annotation that is not overridden in some way.
+     * If [ShowOrHide.show] is `true` then the contents of the annotated [Item] will be included in
+     * the API unless overridden by a closer annotation. That is the case for annotations that match
+     * `--show-annotation`, but not `--show-single-annotation`, or
+     * `--show-for-stub-purposes-annotation`.
+     *
+     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will be included in
+     * the API unless overridden by a closer annotation. That is the case for annotations that match
+     * `--hide-annotation`.
      */
     private val recursive: ShowOrHide,
 
