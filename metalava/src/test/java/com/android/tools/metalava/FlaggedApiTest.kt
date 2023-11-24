@@ -26,6 +26,12 @@ import org.junit.runners.Parameterized
 
 private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
 
+private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
+    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
+
+private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
+    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
+
 @RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
@@ -46,7 +52,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     /** The surfaces that this test will check. */
     enum class Surface(val args: List<String>) {
         PUBLIC(emptyList()),
-        SYSTEM(listOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API)),
+        SYSTEM(
+            listOf(
+                ARG_SHOW_ANNOTATION,
+                FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION,
+            )
+        ),
+        MODULE_LIB(
+            listOf(
+                ARG_SHOW_ANNOTATION,
+                FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION,
+                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION,
+            )
+        ),
     }
 
     /** The different configurations of the flagged API that this test will check. */
