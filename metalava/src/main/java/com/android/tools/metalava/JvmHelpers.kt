@@ -40,10 +40,6 @@ fun TypeItem.internalName(): String {
 internal fun toSlashFormat(typeName: String): String {
     var name = typeName
     var dimension = ""
-    if (name.endsWith("...")) {
-        dimension += "["
-        name = name.substring(0, name.length - 3)
-    }
     while (name.endsWith("[]")) {
         dimension += "["
         name = name.substring(0, name.length - 2)
@@ -61,8 +57,41 @@ internal fun toSlashFormat(typeName: String): String {
             "long" -> "J"
             "float" -> "F"
             "double" -> "D"
-            else -> "L" + ClassContext.getInternalName(name) + ";"
+            else -> "L" + getInternalName(name) + ";"
         }
 
     return dimension + base
+}
+
+/**
+ * Computes the internal class name of the given fully qualified class name. For example, it
+ * converts foo.bar.Foo.Bar into foo/bar/Foo$Bar
+ *
+ * @param qualifiedName the fully qualified class name
+ * @return the internal class name
+ */
+private fun getInternalName(qualifiedName: String): String {
+    if (qualifiedName.indexOf('.') == -1) {
+        return qualifiedName
+    }
+
+    // If class name contains $, it's not an ambiguous inner class name.
+    if (qualifiedName.indexOf('$') != -1) {
+        return qualifiedName.replace('.', '/')
+    }
+    // Let's assume that components that start with Caps are class names.
+    return buildString {
+        var prev: String? = null
+        for (part in qualifiedName.split(".")) {
+            if (!prev.isNullOrEmpty()) {
+                if (Character.isUpperCase(prev[0])) {
+                    append('$')
+                } else {
+                    append('/')
+                }
+            }
+            append(part)
+            prev = part
+        }
+    }
 }
