@@ -450,6 +450,39 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 ),
                             ),
                     ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Bar extends test.pkg.Foo {
+                                    public Bar() { throw new RuntimeException("Stub!"); }
+                                    /** @hide */
+                                    public void systemFlaggedMethod() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    /** @hide */
+                                    public void systemFlaggedMethod() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
                 ),
         )
     }
@@ -556,6 +589,42 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """,
                         // Make sure that no stub classes are generated at all.
                         expectedStubPaths = emptyArray(),
+                    ),
+                    // Check the module lib stubs without flagged apis.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // There should be no stubs generated.
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    /**
+                                     * @hide
+                                     */
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public final class Foo {
+                                    /**
+                                     * @hide
+                                     */
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    /**
+                                     * @hide
+                                     */
+                                    public void method() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                )
+                            ),
                     ),
                 ),
         )
