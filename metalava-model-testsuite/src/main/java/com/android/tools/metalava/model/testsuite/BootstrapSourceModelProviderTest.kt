@@ -35,7 +35,7 @@ import org.junit.runners.Parameterized
  * submitting the changes and then moving on to the next test.
  */
 @RunWith(Parameterized::class)
-class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
     fun `010 - check source model provider exists`() {

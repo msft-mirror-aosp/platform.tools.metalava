@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
@@ -31,12 +30,10 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameter
 
 @RunWith(Parameterized::class)
-class CommonTypeStringTest(
-    baseParameters: TestParameters,
-    private val parameters: TypeStringParameters
-) : BaseModelTest(baseParameters) {
+class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
         val name: String,
@@ -106,6 +103,16 @@ class CommonTypeStringTest(
         val configuration: TypeStringConfiguration,
         val expectedTypeString: String
     )
+
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * See [baseParameters] for more info.
+     */
+    @Parameter(1) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFiles() =
         inputSet(
