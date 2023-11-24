@@ -465,8 +465,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     public class Bar extends test.pkg.Foo {
                                     public Bar() { throw new RuntimeException("Stub!"); }
-                                    /** @hide */
-                                    public void systemFlaggedMethod() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
                                 ),
@@ -476,8 +474,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     public class Foo {
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    /** @hide */
-                                    public void systemFlaggedMethod() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
                                 ),
@@ -599,32 +595,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                             """,
                         // There should be no stubs generated.
-                        expectedStubPaths =
-                            arrayOf(
-                                "test/pkg/Foo.java",
-                            ),
-                        expectedStubs =
-                            arrayOf(
-                                java(
-                                    """
-                                    package test.pkg;
-                                    /**
-                                     * @hide
-                                     */
-                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                    public final class Foo {
-                                    /**
-                                     * @hide
-                                     */
-                                    public Foo() { throw new RuntimeException("Stub!"); }
-                                    /**
-                                     * @hide
-                                     */
-                                    public void method() { throw new RuntimeException("Stub!"); }
-                                    }
-                                """
-                                )
-                            ),
+                        expectedStubPaths = emptyArray(),
                     ),
                 ),
         )
