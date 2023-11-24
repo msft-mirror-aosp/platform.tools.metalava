@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,9 +26,9 @@ import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
 @RunWith(Parameterized::class)
-class InternalNameTest {
+class CommonInternalNameTest : BaseModelTest() {
 
-    @Parameter(0) lateinit var params: TestParams
+    @Parameter(1) lateinit var params: TestParams
 
     data class TestParams(
         val javaType: String,
@@ -134,9 +134,9 @@ class InternalNameTest {
             )
 
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun data(): Collection<TestParams> {
-            return params
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun data(): Collection<Array<Any>> {
+            return crossProduct(params)
         }
     }
 
@@ -152,9 +152,8 @@ class InternalNameTest {
                 Pair(params.javaType, "int")
             }
 
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runCodebaseTest(
+            signature(
                 """
                 // Signature format: 2.0
                 package test.pkg {
@@ -163,11 +162,11 @@ class InternalNameTest {
                     }
                 }
                 """
-                    .trimIndent()
-            )
-
-        val methodItem = codebase.findClass("test.pkg.Foo")!!.methods().single()
-        val typeItem = params.getTypeItem(methodItem)
-        assertEquals(params.internalName, typeItem.internalName())
+            ),
+        ) { codebase ->
+            val methodItem = codebase.assertClass("test.pkg.Foo").methods().single()
+            val typeItem = params.getTypeItem(methodItem)
+            assertEquals(params.internalName, typeItem.internalName())
+        }
     }
 }
