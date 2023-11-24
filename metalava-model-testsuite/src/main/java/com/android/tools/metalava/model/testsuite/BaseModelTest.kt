@@ -59,6 +59,7 @@ abstract class BaseModelTest(parameters: TestParameters) : Assertions {
     @get:Rule val baselineTestRule: TestRule = BaselineTestRule(runner)
 
     companion object {
+        /** Compute the list of [TestParameters] based on the available runners. */
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun testParameters(): Iterable<TestParameters> {
@@ -75,6 +76,22 @@ abstract class BaseModelTest(parameters: TestParameters) : Assertions {
                 }
             return list
         }
+
+        /**
+         * Compute the cross product of the supplied [data] and the [testParameters].
+         *
+         * This must be called from the parameters method of a parameterized test class that is
+         * parameterized in two dimensions, i.e. the available runners as returned by
+         * [testParameters] and its own custom dimension.
+         *
+         *         @JvmStatic
+         *         @Parameterized.Parameters(name = "{0},{1}")
+         *         fun combinedTestParameters(): Iterable<Array<Any>> {
+         *             return crossProduct(myData)
+         *         }
+         */
+        fun crossProduct(data: Iterable<Any>): List<Array<Any>> =
+            testParameters().flatMap { baseParameters -> data.map { arrayOf(baseParameters, it) } }
     }
 
     /**

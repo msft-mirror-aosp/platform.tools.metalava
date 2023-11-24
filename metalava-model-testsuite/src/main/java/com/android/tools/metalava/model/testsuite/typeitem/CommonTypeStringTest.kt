@@ -33,8 +33,10 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonTypeStringTest(combinedParameters: CombinedParameters) :
-    BaseModelTest(combinedParameters.baseParameters) {
+class CommonTypeStringTest(
+    baseParameters: TestParameters,
+    private val parameters: TypeStringParameters
+) : BaseModelTest(baseParameters) {
 
     data class TypeStringParameters(
         val name: String,
@@ -105,17 +107,6 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
         val expectedTypeString: String
     )
 
-    data class CombinedParameters(
-        val baseParameters: TestParameters,
-        val typeStringParameters: TypeStringParameters,
-    ) {
-        override fun toString(): String {
-            return "$baseParameters,$typeStringParameters"
-        }
-    }
-
-    private val parameters = combinedParameters.typeStringParameters
-
     private fun javaTestFiles() =
         inputSet(
             java(
@@ -177,11 +168,9 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
             )
 
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun combinedTestParameters(): Iterable<CombinedParameters> {
-            return testParameters().flatMap { baseParameters ->
-                testCases.map { CombinedParameters(baseParameters, it) }
-            }
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun combinedTestParameters(): Iterable<Array<Any>> {
+            return crossProduct(testCases)
         }
 
         private val testCases =
