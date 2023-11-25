@@ -217,7 +217,7 @@ private constructor(
         val modifiers = DefaultModifierList(api, DefaultModifierList.PUBLIC, null)
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         val name: String = token
 
         // If the same package showed up multiple times, make sure they have the same modifiers.
@@ -330,7 +330,7 @@ private constructor(
                 throw ApiParseException("missing class or interface. got: $token", tokenizer)
             }
         }
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         // The classType and qualifiedClassType include the type parameter string, the className and
         // qualifiedClassName are just the name without type parameters.
         val classType: String = token
@@ -605,7 +605,7 @@ private constructor(
             typeParameterList = parseTypeParameterList(api, tokenizer)
             token = tokenizer.requireToken()
         }
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         val name: String =
             token.substring(
                 token.lastIndexOf('.') + 1
@@ -651,7 +651,7 @@ private constructor(
             typeParameterList = parseTypeParameterList(api, tokenizer)
             token = tokenizer.requireToken()
         }
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
 
@@ -670,7 +670,7 @@ private constructor(
                 )
             }
             token = tokenizer.requireToken()
-            assertIdent(tokenizer, token)
+            tokenizer.assertIdent(token)
             returnType = parseType(api, tokenizer, token, typeParams, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
@@ -680,7 +680,7 @@ private constructor(
             returnType = parseType(api, tokenizer, token, typeParams, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
-            assertIdent(tokenizer, token)
+            tokenizer.assertIdent(token)
             name = token
             parameters = parseParameterList(api, tokenizer, typeParams)
             token = tokenizer.requireToken()
@@ -732,7 +732,7 @@ private constructor(
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
 
         val type: TextTypeItem
         val name: String
@@ -740,7 +740,7 @@ private constructor(
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
-            assertIdent(tokenizer, token)
+            tokenizer.assertIdent(token)
             type =
                 parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
             // TODO(b/300081840): update nullability handling
@@ -752,7 +752,7 @@ private constructor(
                 parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
-            assertIdent(tokenizer, token)
+            tokenizer.assertIdent(token)
             name = token
             token = tokenizer.requireToken()
         }
@@ -954,7 +954,7 @@ private constructor(
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
 
         val type: TextTypeItem
         val name: String
@@ -962,7 +962,7 @@ private constructor(
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
-            assertIdent(tokenizer, token)
+            tokenizer.assertIdent(token)
             type =
                 parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
             // TODO(b/300081840): update nullability handling
@@ -974,7 +974,7 @@ private constructor(
                 parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
-            assertIdent(tokenizer, token)
+            tokenizer.assertIdent(token)
             name = token
             token = tokenizer.requireToken()
         }
@@ -1012,7 +1012,8 @@ private constructor(
 
     /**
      * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
-     * the opening `(` of the parameter list (the method starts by calling [requireToken]).
+     * the opening `(` of the parameter list (the method starts by calling
+     * [Tokenizer.requireToken]).
      *
      * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
      */
@@ -1074,7 +1075,7 @@ private constructor(
                 type = parseType(api, tokenizer, token, typeParameters, annotations)
                 modifiers.addAnnotations(annotations)
                 token = tokenizer.current
-                if (isIdent(token) && token != "=") {
+                if (Tokenizer.isIdent(token) && token != "=") {
                     name = token
                     publicName = name
                     token = tokenizer.requireToken()
@@ -1276,38 +1277,7 @@ private constructor(
         return "$pkg.$className"
     }
 
-    private fun isIdent(token: String): Boolean {
-        return isIdent(token[0])
-    }
-
-    private fun assertIdent(tokenizer: Tokenizer, token: String) {
-        if (!isIdent(token[0])) {
-            throw ApiParseException("Expected identifier: $token", tokenizer)
-        }
-    }
-
-    private fun isSpace(c: Char): Boolean {
-        return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-    }
-
-    private fun isNewline(c: Char): Boolean {
-        return c == '\n' || c == '\r'
-    }
-
-    private fun isSeparator(c: Char, parenIsSep: Boolean): Boolean {
-        if (parenIsSep) {
-            if (c == '(' || c == ')') {
-                return true
-            }
-        }
-        return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>'
-    }
-
-    private fun isIdent(c: Char): Boolean {
-        return c != '"' && !isSeparator(c, true)
-    }
-
-    internal inner class Tokenizer(val fileName: String, private val buffer: CharArray) {
+    internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
         var position = 0
         var line = 1
 
@@ -1450,6 +1420,39 @@ private constructor(
                 }
                 current = String(buffer, start, position - start)
                 return current
+            }
+        }
+
+        internal fun assertIdent(token: String) {
+            if (!isIdent(token[0])) {
+                throw ApiParseException("Expected identifier: $token", this)
+            }
+        }
+
+        companion object {
+            private fun isSpace(c: Char): Boolean {
+                return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+            }
+
+            private fun isNewline(c: Char): Boolean {
+                return c == '\n' || c == '\r'
+            }
+
+            private fun isSeparator(c: Char, parenIsSep: Boolean): Boolean {
+                if (parenIsSep) {
+                    if (c == '(' || c == ')') {
+                        return true
+                    }
+                }
+                return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>'
+            }
+
+            private fun isIdent(c: Char): Boolean {
+                return c != '"' && !isSeparator(c, true)
+            }
+
+            internal fun isIdent(token: String): Boolean {
+                return isIdent(token[0])
             }
         }
     }
