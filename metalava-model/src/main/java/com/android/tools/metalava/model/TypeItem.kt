@@ -36,29 +36,46 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [outerAnnotations]
-     * controls whether the top level annotation like @Nullable is included, [innerAnnotations]
-     * controls whether annotations like @NonNull are included, and [erased] controls whether we
-     * return the string for the raw type, e.g. just "java.util.List". The [kotlinStyleNulls]
-     * parameter controls whether it should return "@Nullable List<String>" as "List<String!>?".
-     * Finally, [filter] specifies a filter to apply to the type annotations, if any.
+     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
+     * controls whether the annotations like @Nullable and @NonNull are included. The
+     * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
+     * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
+     * any.
      *
      * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
      */
     fun toTypeString(
-        outerAnnotations: Boolean = false,
-        innerAnnotations: Boolean = outerAnnotations,
-        erased: Boolean = false,
+        annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
         filter: Predicate<Item>? = null
     ): String
 
-    /** Alias for [toTypeString] with erased=true */
-    @MetalavaApi fun toErasedTypeString(context: Item? = null): String
+    /** Legacy alias for [toErasedTypeString]`()`. */
+    @Deprecated(
+        "the context item is no longer used",
+        replaceWith = ReplaceWith("toErasedTypeString()")
+    )
+    @MetalavaApi
+    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
+
+    /**
+     * Get a string representation of the erased type.
+     *
+     * Implements the behavior described
+     * [here](https://docs.oracle.com/javase/tutorial/java/generics/genTypes.html).
+     *
+     * One point to note is that vararg parameters are represented using standard array syntax, i.e.
+     * `[]`, not the special source `...` syntax. The reason for that is that the erased type is
+     * mainly used at runtime which treats a vararg parameter as a standard array type.
+     */
+    @MetalavaApi fun toErasedTypeString(): String
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     @MetalavaApi fun arrayDimensions(): Int = 0
+
+    /** Returns the internal name of the type, as seen in bytecode. */
+    fun internalName(): String
 
     fun asClass(): ClassItem?
 
@@ -105,8 +122,7 @@ interface TypeItem {
     fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
 
     fun convertTypeString(replacementMap: Map<String, String>?): String {
-        val typeString =
-            toTypeString(outerAnnotations = true, innerAnnotations = true, kotlinStyleNulls = false)
+        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
         return convertTypeString(typeString, replacementMap)
     }
 
@@ -236,7 +252,45 @@ interface TypeItem {
             return signature.replace(" extends java.lang.Object>", ">")
         }
 
-        val comparator: Comparator<TypeItem> = Comparator { type1, type2 ->
+        /**
+         * Create a [Comparator] that when given two [TypeItem] will treat them as equal if either
+         * returns `null` from [TypeItem.asClass] and will otherwise compare the two [ClassItem]s
+         * using [comparator].
+         *
+         * This only defines a partial ordering over [TypeItem].
+         */
+        private fun typeItemAsClassComparator(
+            comparator: Comparator<ClassItem>
+        ): Comparator<TypeItem> {
+            return Comparator { type1, type2 ->
+                val cls1 = type1.asClass()
+                val cls2 = type2.asClass()
+                if (cls1 != null && cls2 != null) {
+                    comparator.compare(cls1, cls2)
+                } else {
+                    0
+                }
+            }
+        }
+
+        /** A total ordering over [TypeItem] comparing [TypeItem.toTypeString]. */
+        private val typeStringComparator =
+            Comparator.comparing<TypeItem, String> { it.toTypeString() }
+
+        /**
+         * A total ordering over [TypeItem] comparing [TypeItem.asClass] using
+         * [ClassItem.fullNameThenQualifierComparator] and then comparing [TypeItem.toTypeString].
+         */
+        val totalComparator: Comparator<TypeItem> =
+            typeItemAsClassComparator(ClassItem.fullNameThenQualifierComparator)
+                .thenComparing(typeStringComparator)
+
+        @Deprecated(
+            "" +
+                "this should not be used as it only defines a partial ordering which means that the " +
+                "source order will affect the result"
+        )
+        val partialComparator: Comparator<TypeItem> = Comparator { type1, type2 ->
             val cls1 = type1.asClass()
             val cls2 = type2.asClass()
             if (cls1 != null && cls2 != null) {
@@ -405,6 +459,105 @@ interface TypeItem {
     }
 }
 
+abstract class DefaultTypeItem : TypeItem {
+
+    private lateinit var cachedErasedType: String
+
+    override fun toErasedTypeString(): String {
+        if (!::cachedErasedType.isInitialized) {
+            cachedErasedType = buildString { appendErasedTypeString(this@DefaultTypeItem) }
+        }
+        return cachedErasedType
+    }
+
+    override fun internalName(): String {
+        // Default implementation; PSI subclass is more accurate
+        return toSlashFormat(toErasedTypeString())
+    }
+
+    companion object {
+        private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
+            when (type) {
+                is PrimitiveTypeItem -> append(type.kind.primitiveName)
+                is ArrayTypeItem -> {
+                    appendErasedTypeString(type.componentType)
+                    append("[]")
+                }
+                is ClassTypeItem -> append(type.qualifiedName)
+                is VariableTypeItem ->
+                    type.asTypeParameter.typeBounds().firstOrNull()?.let {
+                        appendErasedTypeString(it)
+                    }
+                        ?: append(JAVA_LANG_OBJECT)
+                else ->
+                    throw IllegalStateException(
+                        "should never visit $type of type ${type.javaClass} while generating erased type string"
+                    )
+            }
+        }
+
+        // Copied from doclava1
+        private fun toSlashFormat(typeName: String): String {
+            var name = typeName
+            var dimension = ""
+            while (name.endsWith("[]")) {
+                dimension += "["
+                name = name.substring(0, name.length - 2)
+            }
+
+            val base: String
+            base =
+                when (name) {
+                    "void" -> "V"
+                    "byte" -> "B"
+                    "boolean" -> "Z"
+                    "char" -> "C"
+                    "short" -> "S"
+                    "int" -> "I"
+                    "long" -> "J"
+                    "float" -> "F"
+                    "double" -> "D"
+                    else -> "L" + getInternalName(name) + ";"
+                }
+
+            return dimension + base
+        }
+
+        /**
+         * Computes the internal class name of the given fully qualified class name. For example, it
+         * converts foo.bar.Foo.Bar into foo/bar/Foo$Bar
+         *
+         * @param qualifiedName the fully qualified class name
+         * @return the internal class name
+         */
+        private fun getInternalName(qualifiedName: String): String {
+            if (qualifiedName.indexOf('.') == -1) {
+                return qualifiedName
+            }
+
+            // If class name contains $, it's not an ambiguous inner class name.
+            if (qualifiedName.indexOf('$') != -1) {
+                return qualifiedName.replace('.', '/')
+            }
+            // Let's assume that components that start with Caps are class names.
+            return buildString {
+                var prev: String? = null
+                for (part in qualifiedName.split(".")) {
+                    if (!prev.isNullOrEmpty()) {
+                        if (Character.isUpperCase(prev[0])) {
+                            append('$')
+                        } else {
+                            append('/')
+                        }
+                    }
+                    append(part)
+                    prev = part
+                }
+            }
+        }
+    }
+}
+
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
     /** The kind of [Primitive] this type is. */
@@ -475,3 +628,18 @@ interface WildcardTypeItem : TypeItem {
     /** The type this wildcard must be a super class of. */
     val superBound: TypeItem?
 }
+
+/**
+ * Configuration options for how to represent a type as a string.
+ *
+ * @param annotations Whether to include annotations on the type.
+ * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
+ *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
+ *   `@Nullable List<String>` would be represented as `List<String!>?`.
+ * @param filter A filter to apply to the type annotations, if any.
+ */
+data class TypeStringConfiguration(
+    val annotations: Boolean = false,
+    val kotlinStyleNulls: Boolean = false,
+    val filter: Predicate<Item>? = null,
+)
