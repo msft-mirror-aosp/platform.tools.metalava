@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 
 class TextTypeParameterItem(
     codebase: TextCodebase,
-    private val owner: TypeParameterListOwner?,
+    private var owner: TypeParameterListOwner?,
     private val typeParameterString: String,
     name: String,
     private var bounds: List<TypeItem>? = null
@@ -40,14 +40,14 @@ class TextTypeParameterItem(
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
-            val boundsString = bounds(typeParameterString, owner)
+            val boundsStringList = bounds(typeParameterString, owner)
             bounds =
-                if (boundsString.isEmpty()) {
+                if (boundsStringList.isEmpty()) {
                     emptyList()
                 } else {
-                    boundsString
-                        .map { codebase.typeResolver.obtainTypeFromString(it) }
-                        .filter { !it.isJavaLangObject() }
+                    boundsStringList.map {
+                        codebase.typeResolver.obtainTypeFromString(it, gatherTypeParams(owner))
+                    }
                 }
         }
         return bounds!!
@@ -55,6 +55,10 @@ class TextTypeParameterItem(
 
     override fun isReified(): Boolean {
         return typeParameterString.startsWith("reified")
+    }
+
+    internal fun setOwner(newOwner: TypeParameterListOwner) {
+        owner = newOwner
     }
 
     companion object {
@@ -96,9 +100,7 @@ class TextTypeParameterItem(
                         ?: return emptyList()
                 for (p in parameters) {
                     if (p.simpleName() == s) {
-                        return p.typeBounds()
-                            .filter { !it.isJavaLangObject() }
-                            .map { it.toTypeString() }
+                        return p.typeBounds().map { it.toTypeString() }
                     }
                 }
 
@@ -148,6 +150,15 @@ class TextTypeParameterItem(
                     return
                 }
             }
+        }
+
+        /** Collect all the type parameters in scope for the given [owner]. */
+        private fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
+            return owner?.let {
+                it.typeParameterList().typeParameters() +
+                    gatherTypeParams(owner.typeParameterListOwnerParent())
+            }
+                ?: emptyList()
         }
     }
 }
