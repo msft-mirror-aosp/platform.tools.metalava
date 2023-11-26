@@ -250,14 +250,48 @@ interface MethodItem : MemberItem {
                 compareMethods(o1, o2, true)
             }
 
+        /**
+         * Compare two types to see if they are considered the same.
+         *
+         * Same means, functionally equivalent at both compile time and runtime.
+         *
+         * TODO: Compare annotations to see for example whether you've refined the nullness policy;
+         *   if so, that should be included
+         */
+        private fun sameType(
+            t1: TypeItem,
+            t2: TypeItem,
+            addAdditionalOverrides: Boolean,
+        ): Boolean {
+            // Compare the types in two ways.
+            // 1. Using `TypeItem.equals(TypeItem)` which is basically a textual comparison that
+            //    ignores type parameter bounds but includes everuthing else that is present in the
+            //    string representation of the type apart from white space differences. This is
+            //    needed to preserve methods that change annotations, e.g. adding `@NonNull`, which
+            //    are significant to the API, and also to preserver legacy behavior to reduce churn
+            //    in API signature files.
+            // 2. Comparing their erased types which takes into account type parameter bounds but
+            //    ignores annotations and generic types. Comparing erased types will retain more
+            //    methods overrides in the signature file so only do it when adding additional
+            //    overrides.
+            return t1 == t2 &&
+                (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
+        }
+
         fun sameSignature(
             method: MethodItem,
             superMethod: MethodItem,
-            compareRawTypes: Boolean = false
+            addAdditionalOverrides: Boolean,
         ): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
-            if (method.returnType() != superMethod.returnType()) {
+            if (
+                !sameType(
+                    method.returnType(),
+                    superMethod.returnType(),
+                    addAdditionalOverrides = addAdditionalOverrides
+                )
+            ) {
                 return false
             }
 
@@ -285,18 +319,9 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (compareRawTypes) {
-                    if (pt1.toErasedTypeString() != pt2.toErasedTypeString()) {
-                        return false
-                    }
-                } else {
-                    if (pt1 != pt2) {
-                        return false
-                    }
+                if (!sameType(pt1, pt2, addAdditionalOverrides)) {
+                    return false
                 }
-
-                // TODO: Compare annotations to see for example whether
-                // you've refined the nullness policy; if so, that should be included
             }
 
             // Also compare throws lists
@@ -410,6 +435,16 @@ interface MethodItem : MemberItem {
     }
 
     /**
+     * Returns true if overloads of the method should be checked separately when checking signature
+     * of the method.
+     *
+     * This works around the issue of actual method not generating overloads for @JvmOverloads
+     * annotation when the default is specified on expect side
+     * (https://youtrack.jetbrains.com/issue/KT-57537).
+     */
+    fun shouldExpandOverloads(): Boolean = false
+
+    /**
      * Returns true if this method is a signature match for the given method (e.g. can be
      * overriding). This checks that the name and parameter lists match, but ignores differences in
      * parameter names, return value types and throws list types.
@@ -436,8 +471,8 @@ interface MethodItem : MemberItem {
             if (typeString1 == typeString2) {
                 continue
             }
-            val type1 = parameter1.type().toErasedTypeString(this)
-            val type2 = parameter2.type().toErasedTypeString(other)
+            val type1 = parameter1.type().toErasedTypeString()
+            val type2 = parameter2.type().toErasedTypeString()
 
             if (type1 != type2) {
                 if (!checkGenericParameterTypes(typeString1, typeString2)) {
@@ -507,20 +542,6 @@ interface MethodItem : MemberItem {
         return false
     }
 
-    override fun hasShowAnnotationInherited(): Boolean {
-        if (super.hasShowAnnotationInherited()) {
-            return true
-        }
-        return superMethods().any { it.hasShowAnnotationInherited() }
-    }
-
-    override fun onlyShowForStubPurposesInherited(): Boolean {
-        if (super.onlyShowForStubPurposesInherited()) {
-            return true
-        }
-        return superMethods().any { it.onlyShowForStubPurposesInherited() }
-    }
-
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
@@ -557,7 +578,10 @@ interface MethodItem : MemberItem {
 
     private fun computeRequiresOverride(): Boolean {
         val isVisible = !hidden || hasShowAnnotation()
-        return if (!modifiers.isAbstract()) {
+
+        // When the method is a concrete, non-default method, its overriding method is not required
+        // to be shown in the signature file.
+        return if (!modifiers.isAbstract() && !modifiers.isDefault()) {
             false
         } else if (superMethods().isEmpty()) {
             // If the method is abstract and is not overriding any parent methods,
@@ -615,7 +639,12 @@ interface MethodItem : MemberItem {
                     // it only required override when it is directly (not transitively) overriding
                     // it and the signature differs (e.g. visibility or modifier
                     // changes)
-                    !sameSignature(this, it.first())
+                    !sameSignature(
+                        this,
+                        it.first(),
+                        // This method is only called when add-additional-overrides=yes.
+                        addAdditionalOverrides = true,
+                    )
                 } else {
                     // Since a class can extend a single class except Object,
                     // there is only one non-Object super class method at max.
