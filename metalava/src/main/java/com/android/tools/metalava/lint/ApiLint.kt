@@ -17,6 +17,7 @@
 package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.metalava.ANDROID_FLAGGED_API
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
@@ -150,7 +151,6 @@ import com.android.tools.metalava.reporter.Issues.PERCENTAGE_INT
 import com.android.tools.metalava.reporter.Issues.PROTECTED_MEMBER
 import com.android.tools.metalava.reporter.Issues.PUBLIC_TYPEDEF
 import com.android.tools.metalava.reporter.Issues.RAW_AIDL
-import com.android.tools.metalava.reporter.Issues.REGISTRATION_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_STYLE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_VALUE_FIELD_NAME
@@ -341,7 +341,7 @@ class ApiLint(
         checkParcelable(cls, methods, constructors, fields)
         checkRegistrationMethods(cls, methods)
         checkHelperClasses(cls, methods, fields)
-        checkBuilder(cls, methods, constructors, superClass)
+        checkBuilder(cls, methods, constructors, superClass, interfaces)
         checkAidl(cls, superClass, interfaces)
         checkInternal(cls)
         checkLayering(cls, methodsAndConstructors, fields)
@@ -929,35 +929,19 @@ class ApiLint(
             val name = method.name()
             // the python version looks for any substring, but that includes a lot of other stuff,
             // like plurals
-            if (name.endsWith("Callback")) {
+            if (name.endsWith("Callback") || name.endsWith("Listener")) {
                 if (name.startsWith("register")) {
                     val unregister = "unregister" + name.substring(8) // "register".length
                     ensureMatched(cls, methods, method, unregister)
                 } else if (name.startsWith("unregister")) {
-                    val unregister = "register" + name.substring(10) // "unregister".length
-                    ensureMatched(cls, methods, method, unregister)
-                }
-                if (name.startsWith("add") || name.startsWith("remove")) {
-                    report(
-                        REGISTRATION_NAME,
-                        method,
-                        "Callback methods should be named register/unregister; was $name"
-                    )
-                }
-            } else if (name.endsWith("Listener")) {
-                if (name.startsWith("add")) {
-                    val unregister = "remove" + name.substring(3) // "add".length
-                    ensureMatched(cls, methods, method, unregister)
+                    val register = "register" + name.substring(10) // "unregister".length
+                    ensureMatched(cls, methods, method, register)
+                } else if (name.startsWith("add")) {
+                    val remove = "remove" + name.substring(3) // "add".length
+                    ensureMatched(cls, methods, method, remove)
                 } else if (name.startsWith("remove") && !name.startsWith("removeAll")) {
-                    val unregister = "add" + name.substring(6) // "remove".length
-                    ensureMatched(cls, methods, method, unregister)
-                }
-                if (name.startsWith("register") || name.startsWith("unregister")) {
-                    report(
-                        REGISTRATION_NAME,
-                        method,
-                        "Listener methods should be named add/remove; was $name"
-                    )
+                    val add = "add" + name.substring(6) // "remove".length
+                    ensureMatched(cls, methods, method, add)
                 }
             }
         }
@@ -1120,12 +1104,16 @@ class ApiLint(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
-        superClass: ClassItem?
+        superClass: ClassItem?,
+        interfaces: Sequence<TypeItem>,
     ) {
         if (!cls.simpleName().endsWith("Builder")) {
             return
         }
         if (superClass != null && !superClass.isJavaLangObject()) {
+            return
+        }
+        if (interfaces.any()) {
             return
         }
         if (cls.isTopLevelClass()) {
@@ -1630,7 +1618,7 @@ class ApiLint(
                     else -> "Type of ${item.describe()}"
                 }
 
-            val erased = type.toErasedTypeString(item)
+            val erased = type.toErasedTypeString()
             report(
                 NULLABLE_COLLECTION,
                 item,
@@ -1788,7 +1776,7 @@ class ApiLint(
         }
         if (
             !itemOrAnyContainingClasses {
-                it.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }
+                it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
             }
         ) {
             val elidedField =
@@ -1948,7 +1936,8 @@ class ApiLint(
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            !superMethod.hasNullnessInfo() && superMethod.returnType() !is VariableTypeItem
+            !superMethod.modifiers.hasNullnessInfo() &&
+                superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -3002,25 +2991,31 @@ class ApiLint(
     private fun checkExtends(cls: ClassItem) {
         // Call cls.superClass().extends() instead of cls.extends() since extends returns true for
         // self
-        val superCls = cls.superClass() ?: return
-        if (superCls.extends("android.os.AsyncTask")) {
-            report(
-                FORBIDDEN_SUPER_CLASS,
-                cls,
-                "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
-            )
-        }
-        if (superCls.extends("android.app.Activity")) {
-            report(
-                FORBIDDEN_SUPER_CLASS,
-                cls,
-                "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
-            )
+        val superCls = cls.superClass()
+        if (superCls != null) {
+            if (superCls.extends("android.os.AsyncTask")) {
+                report(
+                    FORBIDDEN_SUPER_CLASS,
+                    cls,
+                    "${cls.simpleName()} should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead"
+                )
+            }
+            if (superCls.extends("android.app.Activity")) {
+                report(
+                    FORBIDDEN_SUPER_CLASS,
+                    cls,
+                    "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
+                )
+            }
         }
         badFutureTypes
             .firstOrNull { cls.extendsOrImplements(it) }
             ?.let {
-                val extendOrImplement = if (cls.extends(it)) "extend" else "implement"
+                // The `badFutureTypes` is a mixture of classes and interfaces. So, when selecting
+                // the verb it is necessary to use `extend` if this class is an interface or a class
+                // extending another class, and `implement` otherwise.
+                val extendOrImplement =
+                    if (cls.isInterface() || cls.extends(it)) "extend" else "implement"
                 report(
                     BAD_FUTURE,
                     cls,
@@ -3180,8 +3175,6 @@ class ApiLint(
             listOf("java.util.concurrent.CompletableFuture", "java.util.concurrent.Future")
 
         private val listenableFuture = "com.google.common.util.concurrent.ListenableFuture"
-
-        private val flaggedApi = "android.annotation.FlaggedApi"
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor
