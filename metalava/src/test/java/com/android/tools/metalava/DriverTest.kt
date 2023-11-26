@@ -248,10 +248,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
-        /** Stub source file list generated */
-        stubsSourceList: String? = null,
-        /** Doc Stub source file list generated */
-        docStubsSourceList: String? = null,
+        /** Expected paths of stub files created */
+        stubPaths: Array<String>? = null,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -776,31 +774,13 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty()) {
+            if (stubFiles.isNotEmpty() || stubPaths != null) {
                 stubsDir = newFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
                 } else {
                     arrayOf(ARG_STUBS, stubsDir.path)
                 }
-            } else {
-                emptyArray()
-            }
-
-        var stubsSourceListFile: File? = null
-        val stubsSourceListArgs =
-            if (stubsSourceList != null) {
-                stubsSourceListFile = temporaryFolder.newFile("droiddoc-src-list")
-                arrayOf(ARG_STUBS_SOURCE_LIST, stubsSourceListFile.path)
-            } else {
-                emptyArray()
-            }
-
-        var docStubsSourceListFile: File? = null
-        val docStubsSourceListArgs =
-            if (docStubsSourceList != null) {
-                docStubsSourceListFile = temporaryFolder.newFile("droiddoc-doc-src-list")
-                arrayOf(ARG_DOC_STUBS_SOURCE_LIST, docStubsSourceListFile.path)
             } else {
                 emptyArray()
             }
@@ -986,8 +966,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *dexApiArgs,
                 *subtractApiArgs,
                 *stubsArgs,
-                *stubsSourceListArgs,
-                *docStubsSourceListArgs,
                 *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1189,19 +1167,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertEquals(validateNullability, actualReport)
         }
 
+        val stubsCreated =
+            stubsDir
+                ?.walkTopDown()
+                ?.filter { it.isFile }
+                ?.map { it.relativeTo(stubsDir).path }
+                ?.sorted()
+                ?.joinToString("\n")
+
+        if (stubPaths != null) {
+            assertEquals("stub paths", stubPaths.joinToString("\n"), stubsCreated)
+        }
+
         if (stubFiles.isNotEmpty()) {
             for (expected in stubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
                 if (!actual.exists()) {
-                    val existing =
-                        stubsDir
-                            .walkTopDown()
-                            .filter { it.isFile }
-                            .map { it.path }
-                            .joinToString("\n  ")
                     throw FileNotFoundException(
                         "Could not find a generated stub for ${expected.targetRelativePath}. " +
-                            "Found these files: \n  $existing"
+                            "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
                 val actualContents = readFile(actual)
@@ -1210,38 +1194,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                     "Generated from-$stubSource stub contents does not match expected contents"
                 assertEquals(message, expected.contents, actualContents)
             }
-        }
-
-        if (stubsSourceList != null && stubsSourceListFile != null) {
-            assertTrue(
-                "${stubsSourceListFile.path} does not exist even though --write-stubs-source-list was used",
-                stubsSourceListFile.exists()
-            )
-            val actualText =
-                cleanupString(readFile(stubsSourceListFile), project)
-                    // To make golden files look better put one entry per line instead of a single
-                    // space separated line
-                    .replace(' ', '\n')
-            assertEquals(
-                stripComments(stubsSourceList, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
-        }
-
-        if (docStubsSourceList != null && docStubsSourceListFile != null) {
-            assertTrue(
-                "${docStubsSourceListFile.path} does not exist even though --write-stubs-source-list was used",
-                docStubsSourceListFile.exists()
-            )
-            val actualText =
-                cleanupString(readFile(docStubsSourceListFile), project)
-                    // To make golden files look better put one entry per line instead of a single
-                    // space separated line
-                    .replace(' ', '\n')
-            assertEquals(
-                stripComments(docStubsSourceList, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
         }
 
         if (checkCompilation && stubsDir != null) {
@@ -1751,6 +1703,33 @@ val systemApiSource: TestFile =
     @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
     @Retention(RetentionPolicy.SOURCE)
     public @interface SystemApi {
+        enum Client {
+            /**
+             * Specifies that the intended clients of a SystemApi are privileged apps.
+             * This is the default value for {@link #client}.
+             */
+            PRIVILEGED_APPS,
+
+            /**
+             * Specifies that the intended clients of a SystemApi are used by classes in
+             * <pre>BOOTCLASSPATH</pre> in mainline modules. Mainline modules can also expose
+             * this type of system APIs too when they're used only by the non-updatable
+             * platform code.
+             */
+            MODULE_LIBRARIES,
+
+            /**
+             * Specifies that the system API is available only in the system server process.
+             * Use this to expose APIs from code loaded by the system server process <em>but</em>
+             * not in <pre>BOOTCLASSPATH</pre>.
+             */
+            SYSTEM_SERVER
+        }
+
+        /**
+         * The intended client of this SystemAPI.
+         */
+        Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
     }
     """
         )
