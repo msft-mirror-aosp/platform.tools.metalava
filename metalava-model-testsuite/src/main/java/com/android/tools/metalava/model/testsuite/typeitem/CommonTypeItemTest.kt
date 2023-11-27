@@ -1050,4 +1050,61 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(string.isString()).isTrue()
         }
     }
+
+    @Test
+    fun `check TypeItem asClass()`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.List;
+
+                    public class Test {
+                        public int field;
+
+                        public <T extends Comparable> void method(Outer<String> a,List<? extends String> b,T c,String [] ... d){}
+                    }
+
+                    class Outer<P> {}
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        field public int field;
+                        method public <T extends java.lang.Comparable> void method(test.pkg.Outer<java.lang.String>,java.util.List<? extends java.lang.String>,T,java.lang.String[]...);
+                      }
+                      public class Outer<P> {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            for (cls in codebase.getPackages().allClasses()) {
+                println(cls.qualifiedName())
+            }
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val methodItem1 = classItem.methods()[0]
+
+            val fieldTypeClassItem = classItem.assertField("field").type().asClass()
+            val parameterTypeClassItem1 = methodItem1.parameters()[0].type().asClass()
+            val parameterTypeClassItem2 = methodItem1.parameters()[1].type().asClass()
+            val parameterTypeClassItem3 = methodItem1.parameters()[2].type().asClass()
+            val parameterTypeClassItem4 = methodItem1.parameters()[3].type().asClass()
+
+            val outerClassItem = codebase.assertClass("test.pkg.Outer")
+            val stringClassItem = codebase.assertClass("java.lang.String")
+            val listClassItem = codebase.assertClass("java.util.List")
+            val comparableClassItem = codebase.assertClass("java.lang.Comparable")
+
+            assertThat(fieldTypeClassItem).isNull()
+            assertThat(parameterTypeClassItem1).isEqualTo(outerClassItem)
+            assertThat(parameterTypeClassItem2).isEqualTo(listClassItem)
+            assertThat(parameterTypeClassItem3).isEqualTo(comparableClassItem)
+            assertThat(parameterTypeClassItem4).isEqualTo(stringClassItem)
+        }
+    }
 }
