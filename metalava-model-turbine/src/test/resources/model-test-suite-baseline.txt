@@ -35,6 +35,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[turbine,java,annotated integer list - annotated with negative filter]
   Type string[turbine,java,annotated integer list - annotated with positive filter]
   Type string[turbine,java,annotated integer list - kotlin nulls]
+  Type string[turbine,java,annotated multi-dimensional array - annotated]
   Type string[turbine,java,annotated primitive - kotlin nulls]
   Type string[turbine,java,extends number to super number map - kotlin nulls]
   Type string[turbine,java,extends string list - kotlin nulls]

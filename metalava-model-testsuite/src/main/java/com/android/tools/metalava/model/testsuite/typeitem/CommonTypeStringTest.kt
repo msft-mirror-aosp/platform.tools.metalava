@@ -674,6 +674,25 @@ class CommonTypeStringTest : BaseModelTest() {
                         ),
                     ),
                     extraJavaSourceFiles = listOf(libcoreNullableSource, intRangeTypeUseSource)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated multi-dimensional array",
+                    sourceType =
+                        "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ...",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "test.pkg.Foo[][]..."
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ..."
+                            )
+                        )
                 )
     }
 }

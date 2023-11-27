@@ -529,15 +529,38 @@ abstract class DefaultTypeItem : TypeItem {
                     append(type.kind.primitiveName)
                 }
                 is ArrayTypeItem -> {
-                    appendTypeString(type.componentType, configuration)
-                    // TODO: full handling of array annotation ordering
+                    // The ordering of array annotations means this can't just use a recursive
+                    // approach for annotated multi-dimensional arrays, but it can if annotations
+                    // aren't included.
                     if (configuration.annotations) {
-                        appendAnnotations(type.modifiers, leadingSpace = true)
-                    }
-                    if (type.isVarargs) {
-                        append("...")
+                        var deepComponentType = type.componentType
+                        val arrayModifiers = mutableListOf(type.modifiers)
+                        while (deepComponentType is ArrayTypeItem) {
+                            arrayModifiers.add(deepComponentType.modifiers)
+                            deepComponentType = deepComponentType.componentType
+                        }
+
+                        // Print the innermost component type.
+                        appendTypeString(deepComponentType, configuration)
+
+                        // Print modifiers from the outermost array type in, and the array suffixes.
+                        arrayModifiers.forEachIndexed { index, modifiers ->
+                            appendAnnotations(modifiers, leadingSpace = true)
+                            // Only the outermost array can be varargs.
+                            if (index < arrayModifiers.size - 1 || !type.isVarargs) {
+                                append("[]")
+                            } else {
+                                append("...")
+                            }
+                        }
                     } else {
-                        append("[]")
+                        // Non-annotated case: just recur to the component
+                        appendTypeString(type.componentType, configuration)
+                        if (type.isVarargs) {
+                            append("...")
+                        } else {
+                            append("[]")
+                        }
                     }
                     // TODO: kotlin nulls
                 }
