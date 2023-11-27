@@ -523,27 +523,40 @@ abstract class DefaultTypeItem : TypeItem {
         ) {
             when (type) {
                 is PrimitiveTypeItem -> {
-                    // TODO: annotations
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers)
+                    }
                     append(type.kind.primitiveName)
                 }
                 is ArrayTypeItem -> {
                     appendTypeString(type.componentType, configuration)
+                    // TODO: full handling of array annotation ordering
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers, leadingSpace = true)
+                    }
                     if (type.isVarargs) {
                         append("...")
                     } else {
                         append("[]")
                     }
-                    // TODO: annotations
                     // TODO: kotlin nulls
                 }
                 is ClassTypeItem -> {
-                    // TODO: annotations
                     if (type.outerClassType != null) {
                         appendTypeString(type.outerClassType!!, configuration)
                         append('.')
+                        if (configuration.annotations) {
+                            appendAnnotations(type.modifiers)
+                        }
                         append(type.className)
                     } else {
-                        append(type.qualifiedName)
+                        if (configuration.annotations) {
+                            append(type.qualifiedName.substringBeforeLast(type.className))
+                            appendAnnotations(type.modifiers)
+                            append(type.className)
+                        } else {
+                            append(type.qualifiedName)
+                        }
                     }
 
                     if (type.parameters.isNotEmpty()) {
@@ -559,12 +572,16 @@ abstract class DefaultTypeItem : TypeItem {
                     // TODO: kotlin nulls
                 }
                 is VariableTypeItem -> {
-                    // TODO: annotations
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers)
+                    }
                     append(type.name)
                     // TODO: kotlin nulls
                 }
                 is WildcardTypeItem -> {
-                    // TODO: annotations
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers)
+                    }
                     append("?")
                     type.extendsBound?.let {
                         // Leave out object bounds, because they're implied
@@ -578,6 +595,28 @@ abstract class DefaultTypeItem : TypeItem {
                         appendTypeString(it, configuration)
                     }
                 }
+            }
+        }
+
+        private fun StringBuilder.appendAnnotations(
+            modifiers: TypeModifiers,
+            leadingSpace: Boolean = false,
+            trailingSpace: Boolean = true
+        ) {
+            val annotations = modifiers.annotations()
+            if (annotations.isEmpty()) return
+
+            if (leadingSpace) {
+                append(' ')
+            }
+            annotations.forEachIndexed { index, annotation ->
+                append(annotation.toSource())
+                if (index != annotations.size - 1) {
+                    append(' ')
+                }
+            }
+            if (trailingSpace) {
+                append(' ')
             }
         }
 
