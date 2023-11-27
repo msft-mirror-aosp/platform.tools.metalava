@@ -506,39 +506,60 @@ private constructor(
         return type
     }
 
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
+    /**
+     * If the [startingToken] is the beginning of an annotation, returns the annotation parsed from
+     * the [tokenizer]. Returns null otherwise.
+     *
+     * When the method returns, the [tokenizer] will point to the token after the annotation.
+     */
+    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
         var token = startingToken
-        val annotations: MutableList<String> = mutableListOf()
-        while (true) {
-            if (token.startsWith("@")) {
-                // Annotation
-                var annotation = token
+        if (token.startsWith('@')) {
+            // Annotation
+            var annotation = token
 
-                // Restore annotations that were shortened on export
-                annotation = unshortenAnnotation(annotation)
-                token = tokenizer.requireToken()
-                if (token == "(") {
-                    // Annotation arguments; potentially nested
-                    var balance = 0
-                    val start = tokenizer.offset() - 1
-                    while (true) {
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
+            // Restore annotations that were shortened on export
+            annotation = unshortenAnnotation(annotation)
+            token = tokenizer.requireToken()
+            if (token == "(") {
+                // Annotation arguments; potentially nested
+                var balance = 0
+                val start = tokenizer.offset() - 1
+                while (true) {
+                    if (token == "(") {
+                        balance++
+                    } else if (token == ")") {
+                        balance--
+                        if (balance == 0) {
+                            break
                         }
-                        token = tokenizer.requireToken()
                     }
-                    annotation += tokenizer.getStringFromOffset(start)
                     token = tokenizer.requireToken()
                 }
-                annotations.add(annotation)
-            } else {
-                break
+                annotation += tokenizer.getStringFromOffset(start)
+                // Move the tokenizer so that when the method returns it points to the token after
+                // the end of the annotation.
+                tokenizer.requireToken()
             }
+            return annotation
+        } else {
+            return null
+        }
+    }
+
+    /**
+     * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
+     * returning them as a (possibly empty) mutable list.
+     *
+     * When the method returns, the [tokenizer] will point to the token after the annotation list.
+     */
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
+        val annotations: MutableList<String> = mutableListOf()
+        var token = startingToken
+        while (true) {
+            val annotation = getAnnotation(tokenizer, token) ?: break
+            token = tokenizer.current
+            annotations.add(annotation)
         }
         return annotations
     }
