@@ -22,9 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableSet
+import java.util.TreeMap
 
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
@@ -67,18 +65,18 @@ class AnnotationFilterBuilder {
 
     /** Build the [AnnotationFilter]. */
     fun build(): AnnotationFilter {
-        return ImmutableAnnotationFilter(inclusionExpressions.toImmutableList())
+        val map = inclusionExpressions.groupByTo(TreeMap()) { it.qualifiedName }
+        return ImmutableAnnotationFilter(map)
     }
 }
 
 // Immutable implementation of AnnotationFilter
 private class ImmutableAnnotationFilter(
-    private val inclusionExpressions: ImmutableList<AnnotationFilterEntry>
+    private val qualifiedNameToEntries: Map<String, List<AnnotationFilterEntry>>
 ) : AnnotationFilter {
 
     override fun matches(annotationSource: String): Boolean {
-        val annotationText = annotationSource.replace("@", "")
-        val wrapper = AnnotationFilterEntry.fromSource(annotationText)
+        val wrapper = AnnotationFilterEntry.fromSource(annotationSource)
         return matches(wrapper)
     }
 
@@ -91,35 +89,24 @@ private class ImmutableAnnotationFilter(
     }
 
     private fun matches(annotation: AnnotationFilterEntry): Boolean {
-        return inclusionExpressions.any { includedAnnotation ->
-            annotationsMatch(includedAnnotation, annotation)
-        }
+        val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
+        return entries.any { entry -> annotationsMatch(entry, annotation) }
     }
 
-    override fun getIncludedAnnotationNames(): Set<String> = includedNames
-
-    /** Cache for [getIncludedAnnotationNames] since we call this method over and over again */
-    private val includedNames: Set<String> by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val annotationNames = mutableListOf<String>()
-            for (expression in inclusionExpressions) {
-                annotationNames.add(expression.qualifiedName)
-            }
-            annotationNames.toSortedSet().toImmutableSet()
-        }
+    override fun getIncludedAnnotationNames(): Set<String> = qualifiedNameToEntries.keys
 
     override fun matchesAnnotationName(qualifiedName: String): Boolean {
-        return includedNames.contains(qualifiedName)
+        return qualifiedNameToEntries.contains(qualifiedName)
     }
 
     override fun matchesSuffix(annotationSuffix: String): Boolean {
-        return inclusionExpressions.any { included ->
-            included.qualifiedName.endsWith(annotationSuffix)
+        return qualifiedNameToEntries.keys.any { qualifiedName ->
+            qualifiedName.endsWith(annotationSuffix)
         }
     }
 
     override fun isEmpty(): Boolean {
-        return inclusionExpressions.isEmpty()
+        return qualifiedNameToEntries.isEmpty()
     }
 
     override fun isNotEmpty(): Boolean {
@@ -130,9 +117,6 @@ private class ImmutableAnnotationFilter(
         filter: AnnotationFilterEntry,
         existingAnnotation: AnnotationFilterEntry
     ): Boolean {
-        if (filter.qualifiedName != existingAnnotation.qualifiedName) {
-            return false
-        }
         if (filter.attributes.count() > existingAnnotation.attributes.count()) {
             return false
         }
