@@ -476,6 +476,21 @@ abstract class DefaultTypeItem : TypeItem {
     }
 
     companion object {
+        /**
+         * Configuration options for how to represent a type as a string.
+         *
+         * @param annotations Whether to include annotations on the type.
+         * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
+         *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
+         *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
+         * @param filter A filter to apply to the type annotations, if any.
+         */
+        private data class TypeStringConfiguration(
+            val annotations: Boolean = false,
+            val kotlinStyleNulls: Boolean = false,
+            val filter: Predicate<Item>? = null,
+        )
+
         private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
             when (type) {
                 is PrimitiveTypeItem -> append(type.kind.primitiveName)
@@ -646,18 +661,3 @@ interface WildcardTypeItem : TypeItem {
     /** The type this wildcard must be a super class of. */
     val superBound: TypeItem?
 }
-
-/**
- * Configuration options for how to represent a type as a string.
- *
- * @param annotations Whether to include annotations on the type.
- * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
- *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
- *   `@Nullable List<String>` would be represented as `List<String!>?`.
- * @param filter A filter to apply to the type annotations, if any.
- */
-data class TypeStringConfiguration(
-    val annotations: Boolean = false,
-    val kotlinStyleNulls: Boolean = false,
-    val filter: Predicate<Item>? = null,
-)
