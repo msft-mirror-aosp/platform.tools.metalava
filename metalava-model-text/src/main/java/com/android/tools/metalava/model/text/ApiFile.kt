@@ -188,6 +188,7 @@ private constructor(
             FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
+        api.typeResolver.kotlinStyleNulls = kotlinStyleNulls
 
         if (appending) {
             // When we're appending, and the content is empty, nothing to do.

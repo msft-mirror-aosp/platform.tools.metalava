@@ -18,11 +18,12 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import java.util.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: TextCodebase) {
+internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: Boolean = false) {
     private val typeCache = Cache<String, TextTypeItem>()
 
     /**
@@ -85,7 +86,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     ): TextTypeItem {
         val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
         val allAnnotations = annotations + annotationsFromString
-        val (withoutNullability, suffix) = splitNullabilitySuffix(unannotated)
+        val (withoutNullability, nullability) =
+            splitNullabilitySuffix(unannotated, kotlinStyleNulls)
         val trimmed = withoutNullability.trim()
 
         // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
@@ -96,7 +98,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             // not as an array of wildcards, for consistency with how this would be compiled.
             ?: asWildcard(type, trimmed, typeParams, allAnnotations)
             // Try parsing as an array.
-            ?: asArray(trimmed, allAnnotations, suffix, typeParams)
+            ?: asArray(trimmed, allAnnotations, nullability, typeParams)
             // If it isn't anything else, parse the type as a class.
             ?: asClass(type, trimmed, typeParams, allAnnotations)
     }
@@ -139,7 +141,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun asArray(
         type: String,
         componentAnnotations: List<String>,
-        nullability: String,
+        nullability: TypeNullability?,
         typeParams: List<TypeParameterItem>
     ): TextArrayTypeItem? {
         // Check if this is a regular array or varargs.
@@ -172,7 +174,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
         // Remove nullability marker from the component type, but don't add it to the list yet, as
         // it might not be an array.
-        var nullabilityResult = splitNullabilitySuffix(componentString)
+        var nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
         componentString = nullabilityResult.first
         var componentNullability = nullabilityResult.second
 
@@ -189,14 +191,14 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
             // Remove nullability marker from the new component type, but don't add it to the list
             // yet, as the next component type might not be an array.
-            nullabilityResult = splitNullabilitySuffix(componentString)
+            nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
             componentString = nullabilityResult.first
             componentNullability = nullabilityResult.second
         }
 
         // Re-add the component's nullability suffix when parsing the component type, and include
         // the leading annotations already removed from the type string.
-        componentString += componentNullability
+        componentString += componentNullability?.suffix.orEmpty()
         val deepComponentType =
             obtainTypeFromString(componentString, typeParams, componentAnnotations)
 
@@ -249,7 +251,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         deepComponentType: TextTypeItem,
         deepComponentAnnotations: List<String>,
         allArrayAnnotations: List<List<String>>,
-        allNullability: List<String>,
+        allNullability: List<TypeNullability?>,
         varargs: Boolean
     ): String {
         if (allArrayAnnotations.isNotEmpty()) {
@@ -270,7 +272,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 else {
                     " " + outerArrayAnnotations.joinToString(" ") + " "
                 }
-            val suffix = (if (varargs) "..." else "[]") + allNullability.first()
+            val suffix = (if (varargs) "..." else "[]") + allNullability.first()?.suffix.orEmpty()
             return "$component$trailingAnnotations$suffix"
         } else {
             // End of the recursion, create a string for the non-array component type.
@@ -474,14 +476,27 @@ internal class TextTypeParser(val codebase: TextCodebase) {
          * Splits the Kotlin-style nullability marker off the type string, returning a pair of the
          * cleaned type string and the nullability suffix.
          */
-        fun splitNullabilitySuffix(type: String): Pair<String, String> {
-            // Don't interpret the wildcard type `?` as a nullability marker.
-            return if (type.length == 1) {
-                Pair(type, "")
-            } else if (type.endsWith("?") || type.endsWith("!")) {
-                Pair(type.dropLast(1), type.last().toString())
+        fun splitNullabilitySuffix(
+            type: String,
+            kotlinStyleNulls: Boolean
+        ): Pair<String, TypeNullability?> {
+            return if (kotlinStyleNulls) {
+                // Don't interpret the wildcard type `?` as a nullability marker.
+                if (type == "?") {
+                    Pair(type, TypeNullability.UNDEFINED)
+                } else if (type.endsWith("?")) {
+                    Pair(type.dropLast(1), TypeNullability.NULLABLE)
+                } else if (type.endsWith("!")) {
+                    Pair(type.dropLast(1), TypeNullability.PLATFORM)
+                } else {
+                    Pair(type, TypeNullability.NONNULL)
+                }
+            } else if (type.length > 1 && type.endsWith("?") || type.endsWith("!")) {
+                throw ApiParseException(
+                    "Format does not support Kotlin-style null type syntax: $type"
+                )
             } else {
-                Pair(type, "")
+                Pair(type, null)
             }
         }
 
