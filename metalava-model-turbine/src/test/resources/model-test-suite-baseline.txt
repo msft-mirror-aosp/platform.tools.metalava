@@ -7,8 +7,6 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Test interface no extends list[turbine,java]
   empty class[turbine,java]
 
-com.android.tools.metalava.model.testsuite.CommonMethodItemTest
-
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test @hide in package info[turbine,java]
@@ -16,6 +14,9 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
   test[turbine,java,pkg.UnknownClass.Inner]
   test[turbine,java,pkg.UnknownClass]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  check TypeItem asClass()[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]
