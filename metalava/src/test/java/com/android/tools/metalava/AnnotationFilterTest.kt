@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import org.junit.Assert.assertEquals
+import org.junit.AssumptionViolatedException
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -39,6 +40,7 @@ class AnnotationFilterTest(private val params: Params) {
     data class Params(
         val name: String,
         val patterns: List<String>,
+        val expectedError: String? = null,
         val expectedIncludedAnnotationNames: Set<String> = emptySet(),
         val expectedEmpty: Boolean = false,
         val expectedMatchesSimple: Boolean = false,
@@ -134,15 +136,66 @@ class AnnotationFilterTest(private val params: Params) {
                     expectedMatchesAnnotationName = true,
                     expectedMatchesOtherAnnotationName = true,
                 ),
+                Params(
+                    name = "excluding-no-attributes",
+                    patterns = listOf("!test.pkg.Annotation"),
+                    expectedError =
+                        "Exclude pattern '!test.pkg.Annotation' is invalid as it does not specify attributes",
+                ),
+                Params(
+                    name = "excluding-no-excluding",
+                    patterns =
+                        listOf(
+                            """!test.pkg.Annotation(value = "value")""",
+                            """!test.pkg.Annotation(value = "other")""",
+                        ),
+                    expectedError =
+                        "Patterns for 'test.pkg.Annotation' contains 2 excludes but no includes",
+                ),
+                Params(
+                    name = "excluding-more-specific-first",
+                    patterns =
+                        listOf(
+                            """!test.pkg.Annotation(value = "value")""",
+                            "test.pkg.Annotation",
+                        ),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
+                    expectedMatchesSimple = true,
+                    expectedMatchesNamedOther = true,
+                    expectedMatchesAnnotationName = true,
+                ),
+                Params(
+                    name = "excluding-more-specific-last",
+                    patterns =
+                        listOf(
+                            "test.pkg.Annotation",
+                            """!test.pkg.Annotation(value = "value")""",
+                        ),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
+                    expectedMatchesSimple = true,
+                    expectedMatchesNamedOther = true,
+                    expectedMatchesAnnotationName = true,
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun testParameters() = params
     }
 
     private fun buildFilter(): AnnotationFilter {
-        val builder = AnnotationFilterBuilder()
-        params.patterns.forEach(builder::add)
-        return builder.build()
+        var error: String? = null
+        try {
+            val builder = AnnotationFilterBuilder()
+            params.patterns.forEach(builder::add)
+            val filter = builder.build()
+            if (params.expectedError == null) {
+                return filter
+            }
+        } catch (e: IllegalStateException) {
+            error = e.message
+        }
+
+        assertEquals(params.expectedError, error)
+        throw AssumptionViolatedException("filter was not built")
     }
 
     @Test

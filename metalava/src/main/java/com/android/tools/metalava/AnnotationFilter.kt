@@ -60,12 +60,43 @@ class AnnotationFilterBuilder {
     // Note that the order of calls to this method could affect the return from
     // {@link #firstQualifiedName} .
     fun add(option: String) {
-        inclusionExpressions.add(AnnotationFilterEntry.fromOption(option))
+        val (matchResult, pattern) =
+            if (option.startsWith("!")) {
+                Pair(false, option.substring(1))
+            } else {
+                Pair(true, option)
+            }
+        inclusionExpressions.add(AnnotationFilterEntry.fromOption(pattern, matchResult))
     }
 
     /** Build the [AnnotationFilter]. */
     fun build(): AnnotationFilter {
-        val map = inclusionExpressions.groupByTo(TreeMap()) { it.qualifiedName }
+        // Sort the expressions by match result, so that those expressions that exclude come before
+        // those which include.
+        val map =
+            inclusionExpressions
+                .sortedBy { it.matchResult }
+                .groupByTo(TreeMap()) { it.qualifiedName }
+
+        // Verify that the filter is consistent.
+        for ((fqn, patterns) in map.entries) {
+            val (includes, excludes) = patterns.partition { it.matchResult }
+            if (excludes.isNotEmpty()) {
+                for (exclude in excludes) {
+                    if (exclude.attributes.isEmpty()) {
+                        throw IllegalStateException(
+                            "Exclude pattern '$exclude' is invalid as it does not specify attributes"
+                        )
+                    }
+                }
+
+                if (includes.isEmpty()) {
+                    throw IllegalStateException(
+                        "Patterns for '$fqn' contains ${excludes.size} excludes but no includes"
+                    )
+                }
+            }
+        }
         return ImmutableAnnotationFilter(map)
     }
 }
@@ -90,7 +121,8 @@ private class ImmutableAnnotationFilter(
 
     private fun matches(annotation: AnnotationFilterEntry): Boolean {
         val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
-        return entries.any { entry -> annotationsMatch(entry, annotation) }
+        return entries.firstOrNull { entry -> annotationsMatch(entry, annotation) }?.matchResult
+            ?: false
     }
 
     override fun getIncludedAnnotationNames(): Set<String> = qualifiedNameToEntries.keys
@@ -155,11 +187,27 @@ private class ImmutableAnnotationFilter(
 // An AnnotationFilterEntry doesn't necessarily have a Codebase like an AnnotationItem does
 private class AnnotationFilterEntry(
     val qualifiedName: String,
-    val attributes: List<AnnotationAttribute>
+    val attributes: List<AnnotationAttribute>,
+    /** The result that will be returned from [AnnotationFilter.matches] when this entry matches. */
+    val matchResult: Boolean,
 ) {
     fun findAttribute(name: String?): AnnotationAttribute? {
         val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
+    }
+
+    override fun toString(): String {
+        return buildString {
+            if (!matchResult) {
+                append("!")
+            }
+            append(qualifiedName)
+            if (attributes.isNotEmpty()) {
+                append("(")
+                attributes.joinTo(this)
+                append(")")
+            }
+        }
     }
 
     companion object {
@@ -168,7 +216,7 @@ private class AnnotationFilterEntry(
             return fromOption(text)
         }
 
-        fun fromOption(text: String): AnnotationFilterEntry {
+        fun fromOption(text: String, matchResult: Boolean = true): AnnotationFilterEntry {
             val index = text.indexOf("(")
 
             val qualifiedName =
@@ -186,7 +234,7 @@ private class AnnotationFilterEntry(
                         text.substring(index + 1, text.lastIndexOf(')'))
                     )
                 }
-            return AnnotationFilterEntry(qualifiedName, attributes)
+            return AnnotationFilterEntry(qualifiedName, attributes, matchResult)
         }
 
         fun fromAnnotationItem(annotationItem: AnnotationItem): AnnotationFilterEntry {
