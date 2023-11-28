@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.cre
 import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
@@ -122,7 +123,7 @@ private constructor(
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers. ")
+        @Deprecated("Exists only for external callers.")
         @JvmStatic
         @MetalavaApi
         @Throws(ApiParseException::class)
@@ -135,6 +136,20 @@ private constructor(
                 filename,
                 apiText,
             )
+        }
+
+        /**
+         * Parse the API signature file from the [inputStream].
+         *
+         * This will consume the whole contents of the [inputStream] but it is the caller's
+         * responsibility to close it.
+         */
+        @JvmStatic
+        @MetalavaApi
+        @Throws(ApiParseException::class)
+        fun parseApi(filename: String, inputStream: InputStream): TextCodebase {
+            val apiText = inputStream.bufferedReader().readText()
+            return parseApi(filename, apiText)
         }
 
         /** Entry point for testing. Take a filename and content separately. */
@@ -340,7 +355,7 @@ private constructor(
 
         cl.setContainingPackage(pkg)
         cl.deprecated = modifiers.isDeprecated()
-        if ("extends" == token) {
+        if ("extends" == token && !isInterface) {
             token = tokenizer.requireToken()
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
@@ -356,16 +371,8 @@ private constructor(
             ext = superClassName
             token = tokenizer.requireToken()
         }
-        if (
-            "implements" == token ||
-                "extends" == token ||
-                isInterface && ext != null && token != "{"
-        ) {
-            // If this is part of a list of interface supertypes, token is already a supertype.
-            // Otherwise, skip to the next token to get the supertype.
-            if (token == "implements" || token == "extends") {
-                token = tokenizer.requireToken()
-            }
+        if ("implements" == token || "extends" == token) {
+            token = tokenizer.requireToken()
             while (true) {
                 var interfaceName = token
                 if ("{" == token) {
@@ -1492,8 +1499,8 @@ class ReferenceResolver(
 
     private fun resolveSuperclasses() {
         for (cl in classes) {
-            // java.lang.Object has no superclass
-            if (cl.isJavaLangObject()) {
+            // java.lang.Object has no superclass and neither do interfaces
+            if (cl.isJavaLangObject() || cl.isInterface()) {
                 continue
             }
             var scName: String? = context.nameOfSuperClass(cl)
@@ -1502,6 +1509,9 @@ class ReferenceResolver(
                     when {
                         cl.isEnum() -> JAVA_LANG_ENUM
                         cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
+                        // Interfaces do not extend java.lang.Object so drop out before the else
+                        // clause.
+                        cl.isInterface() -> return
                         else -> {
                             val existing = cl.superClassType()?.toTypeString()
                             existing ?: JAVA_LANG_OBJECT
@@ -1554,12 +1564,22 @@ class ReferenceResolver(
             for (exception in names) {
                 var exceptionClass: ClassItem? = codebase.mAllClasses[exception]
                 if (exceptionClass == null) {
-                    // Exception not provided by this codebase. Inject a stub.
+                    // Exception not provided by this codebase. Either try and retrieve it from a
+                    // base codebase or create a stub.
                     exceptionClass = getOrCreateClass(exception)
-                    // Set super class to throwable?
-                    if (exception != JAVA_LANG_THROWABLE) {
-                        val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
-                        exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
+
+                    // A class retrieved from another codebase is assumed to have been fully
+                    // resolved by the codebase. However, a stub that has just been created will
+                    // need some additional work. A stub can be differentiated from a ClassItem
+                    // retrieved from another codebase because it belongs to this codebase and is
+                    // a TextClassItem.
+                    if (exceptionClass.codebase == codebase && exceptionClass is TextClassItem) {
+                        // An exception class needs to extend Throwable, unless it is Throwable in
+                        // which case it does not need modifying.
+                        if (exception != JAVA_LANG_THROWABLE) {
+                            val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                            exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
+                        }
                     }
                 }
                 result.add(exceptionClass)
