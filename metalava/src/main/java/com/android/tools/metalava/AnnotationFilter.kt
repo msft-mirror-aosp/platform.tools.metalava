@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
@@ -31,9 +32,9 @@ interface AnnotationFilter {
     // tells whether an annotation is included by this filter
     fun matches(annotationSource: String): Boolean
 
-    // Returns a list of fully qualified annotation names that may be included by this filter.
+    // Returns a sorted set of fully qualified annotation names that may be included by this filter.
     // Note that this filter might incorporate parameters but this function strips them.
-    fun getIncludedAnnotationNames(): List<String>
+    fun getIncludedAnnotationNames(): Set<String>
     // Returns true if [getIncludedAnnotationNames] includes the given qualified name
     fun matchesAnnotationName(qualifiedName: String): Boolean
     // Tells whether there exists an annotation that is accepted by this filter and that
@@ -95,16 +96,16 @@ private class ImmutableAnnotationFilter(
         }
     }
 
-    override fun getIncludedAnnotationNames(): List<String> = includedNames
+    override fun getIncludedAnnotationNames(): Set<String> = includedNames
 
     /** Cache for [getIncludedAnnotationNames] since we call this method over and over again */
-    private val includedNames: List<String> by
+    private val includedNames: Set<String> by
         lazy(LazyThreadSafetyMode.NONE) {
             val annotationNames = mutableListOf<String>()
             for (expression in inclusionExpressions) {
                 annotationNames.add(expression.qualifiedName)
             }
-            annotationNames.toImmutableList()
+            annotationNames.toSortedSet().toImmutableSet()
         }
 
     override fun matchesAnnotationName(qualifiedName: String): Boolean {

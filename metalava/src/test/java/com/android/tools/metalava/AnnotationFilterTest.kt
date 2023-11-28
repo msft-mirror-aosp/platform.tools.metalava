@@ -39,7 +39,7 @@ class AnnotationFilterTest(private val params: Params) {
     data class Params(
         val name: String,
         val patterns: List<String>,
-        val expectedIncludedAnnotationNames: List<String> = emptyList(),
+        val expectedIncludedAnnotationNames: Set<String> = emptySet(),
         val expectedEmpty: Boolean = false,
         val expectedMatchesSimple: Boolean = false,
         val expectedMatchesImplicitValue: Boolean = false,
@@ -65,7 +65,7 @@ class AnnotationFilterTest(private val params: Params) {
                 Params(
                     name = "simple",
                     patterns = listOf("test.pkg.Annotation"),
-                    expectedIncludedAnnotationNames = listOf("test.pkg.Annotation"),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesSimple = true,
                     expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
@@ -74,7 +74,7 @@ class AnnotationFilterTest(private val params: Params) {
                 Params(
                     name = "simple-plus-parentheses",
                     patterns = listOf("test.pkg.Annotation()"),
-                    expectedIncludedAnnotationNames = listOf("test.pkg.Annotation"),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesSimple = true,
                     expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
@@ -83,19 +83,19 @@ class AnnotationFilterTest(private val params: Params) {
                 Params(
                     name = "simple-suffix-plus-value",
                     patterns = listOf("test.pkg.AnnotationSuffix(2)"),
-                    expectedIncludedAnnotationNames = listOf("test.pkg.AnnotationSuffix"),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.AnnotationSuffix"),
                     expectedMatchesSuffix = true,
                 ),
                 Params(
                     name = "other-suffix-plus-value",
                     patterns = listOf("other.OtherAnnotationSuffix(2)"),
-                    expectedIncludedAnnotationNames = listOf("other.OtherAnnotationSuffix"),
+                    expectedIncludedAnnotationNames = setOf("other.OtherAnnotationSuffix"),
                     expectedMatchesSuffix = true,
                 ),
                 Params(
                     name = "implicit-value",
                     patterns = listOf("""test.pkg.Annotation("value")"""),
-                    expectedIncludedAnnotationNames = listOf("test.pkg.Annotation"),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesAnnotationName = true,
@@ -103,7 +103,7 @@ class AnnotationFilterTest(private val params: Params) {
                 Params(
                     name = "named-value",
                     patterns = listOf("""test.pkg.Annotation(value = "value")"""),
-                    expectedIncludedAnnotationNames = listOf("test.pkg.Annotation"),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesAnnotationName = true,
@@ -111,7 +111,7 @@ class AnnotationFilterTest(private val params: Params) {
                 Params(
                     name = "other-value",
                     patterns = listOf("""test.pkg.Annotation(other = "value")"""),
-                    expectedIncludedAnnotationNames = listOf("test.pkg.Annotation"),
+                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesAnnotationName = true,
                 ),
                 Params(
@@ -124,10 +124,9 @@ class AnnotationFilterTest(private val params: Params) {
                         ),
                     // This should probably be a sorted set not a list.
                     expectedIncludedAnnotationNames =
-                        listOf(
-                            "test.pkg.Annotation",
-                            "test.pkg.Annotation",
+                        setOf(
                             "other.OtherAnnotation",
+                            "test.pkg.Annotation",
                         ),
                     expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
@@ -229,6 +228,11 @@ class AnnotationFilterTest(private val params: Params) {
     fun `Test included names`() {
         val filter = buildFilter()
 
-        assertEquals(params.expectedIncludedAnnotationNames, filter.getIncludedAnnotationNames())
+        // Although the names are a set the order matters, however equality of sets ignores order so
+        // convert each set to a list and then compare.
+        assertEquals(
+            params.expectedIncludedAnnotationNames.toList(),
+            filter.getIncludedAnnotationNames().toList()
+        )
     }
 }
