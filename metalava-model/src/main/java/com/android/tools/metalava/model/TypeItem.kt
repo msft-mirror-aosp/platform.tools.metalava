@@ -459,7 +459,7 @@ interface TypeItem {
     }
 }
 
-abstract class DefaultTypeItem : TypeItem {
+abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
@@ -470,7 +470,9 @@ abstract class DefaultTypeItem : TypeItem {
         context: Item?,
         filter: Predicate<Item>?
     ): String {
-        return toTypeString(TypeStringConfiguration(annotations, kotlinStyleNulls, filter))
+        return toTypeString(
+            TypeStringConfiguration(codebase, annotations, kotlinStyleNulls, filter)
+        )
     }
 
     private fun toTypeString(configuration: TypeStringConfiguration): String {
@@ -503,6 +505,7 @@ abstract class DefaultTypeItem : TypeItem {
         /**
          * Configuration options for how to represent a type as a string.
          *
+         * @param codebase The codebase the type is in.
          * @param annotations Whether to include annotations on the type.
          * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
@@ -510,11 +513,12 @@ abstract class DefaultTypeItem : TypeItem {
          * @param filter A filter to apply to the type annotations, if any.
          */
         private data class TypeStringConfiguration(
+            val codebase: Codebase,
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val filter: Predicate<Item>? = null,
         ) {
-            internal val isDefault = !annotations && !kotlinStyleNulls && filter == null
+            val isDefault = !annotations && !kotlinStyleNulls && filter == null
         }
 
         private fun StringBuilder.appendTypeString(
@@ -524,7 +528,7 @@ abstract class DefaultTypeItem : TypeItem {
             when (type) {
                 is PrimitiveTypeItem -> {
                     if (configuration.annotations) {
-                        appendAnnotations(type.modifiers)
+                        appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.kind.primitiveName)
                 }
@@ -545,7 +549,7 @@ abstract class DefaultTypeItem : TypeItem {
 
                         // Print modifiers from the outermost array type in, and the array suffixes.
                         arrayModifiers.forEachIndexed { index, modifiers ->
-                            appendAnnotations(modifiers, leadingSpace = true)
+                            appendAnnotations(modifiers, configuration, leadingSpace = true)
                             // Only the outermost array can be varargs.
                             if (index < arrayModifiers.size - 1 || !type.isVarargs) {
                                 append("[]")
@@ -569,13 +573,13 @@ abstract class DefaultTypeItem : TypeItem {
                         appendTypeString(type.outerClassType!!, configuration)
                         append('.')
                         if (configuration.annotations) {
-                            appendAnnotations(type.modifiers)
+                            appendAnnotations(type.modifiers, configuration)
                         }
                         append(type.className)
                     } else {
                         if (configuration.annotations) {
                             append(type.qualifiedName.substringBeforeLast(type.className))
-                            appendAnnotations(type.modifiers)
+                            appendAnnotations(type.modifiers, configuration)
                             append(type.className)
                         } else {
                             append(type.qualifiedName)
@@ -596,14 +600,14 @@ abstract class DefaultTypeItem : TypeItem {
                 }
                 is VariableTypeItem -> {
                     if (configuration.annotations) {
-                        appendAnnotations(type.modifiers)
+                        appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.name)
                     // TODO: kotlin nulls
                 }
                 is WildcardTypeItem -> {
                     if (configuration.annotations) {
-                        appendAnnotations(type.modifiers)
+                        appendAnnotations(type.modifiers, configuration)
                     }
                     append("?")
                     type.extendsBound?.let {
@@ -623,10 +627,18 @@ abstract class DefaultTypeItem : TypeItem {
 
         private fun StringBuilder.appendAnnotations(
             modifiers: TypeModifiers,
+            configuration: TypeStringConfiguration,
             leadingSpace: Boolean = false,
             trailingSpace: Boolean = true
         ) {
-            val annotations = modifiers.annotations()
+            val annotations =
+                modifiers.annotations().filter { annotation ->
+                    val filter = configuration.filter ?: return@filter true
+                    val qualifiedName = annotation.qualifiedName ?: return@filter true
+                    val annotationClass =
+                        configuration.codebase.findClass(qualifiedName) ?: return@filter true
+                    filter.test(annotationClass)
+                }
             if (annotations.isEmpty()) return
 
             if (leadingSpace) {

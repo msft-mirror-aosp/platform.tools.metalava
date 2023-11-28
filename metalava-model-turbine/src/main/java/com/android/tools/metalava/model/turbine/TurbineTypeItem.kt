@@ -35,7 +35,7 @@ import java.util.function.Predicate
 sealed class TurbineTypeItem(
     open val codebase: Codebase,
     override val modifiers: TypeModifiers,
-) : DefaultTypeItem() {
+) : DefaultTypeItem(codebase) {
 
     override fun toString(): String {
         return toTypeString()
@@ -58,7 +58,7 @@ sealed class TurbineTypeItem(
         context: Item?,
         filter: Predicate<Item>?,
     ): String {
-        if (!kotlinStyleNulls && filter == null) {
+        if (!kotlinStyleNulls) {
             return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
         }
 

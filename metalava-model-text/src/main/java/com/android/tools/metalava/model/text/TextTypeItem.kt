@@ -31,7 +31,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
 
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
-    DefaultTypeItem() {
+    DefaultTypeItem(codebase) {
     override fun toString(): String = type
 
     override fun toTypeString(
@@ -40,7 +40,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         context: Item?,
         filter: Predicate<Item>?
     ): String {
-        if (!kotlinStyleNulls && filter == null) {
+        if (!kotlinStyleNulls) {
             return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
         }
 
