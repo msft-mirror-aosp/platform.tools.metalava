@@ -226,4 +226,10 @@ class PsiFieldItem(
 
         return null
     }
+
+    override fun finishInitialization() {
+        super.finishInitialization()
+
+        fieldType.finishInitialization(this)
+    }
 }

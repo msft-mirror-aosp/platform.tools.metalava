@@ -187,6 +187,24 @@ sealed class PsiTypeItem(
         return TypeConversionUtil.isAssignable(psiType, other.psiType)
     }
 
+    /**
+     * Finishes initialization of a type by correcting its nullability based on the owning item,
+     * which was not constructed yet when the type was created.
+     */
+    internal fun finishInitialization(owner: PsiItem) {
+        val implicitNullness = owner.implicitNullness()
+        if (implicitNullness == true || owner.modifiers.isNullable()) {
+            modifiers.setNullability(TypeNullability.NULLABLE)
+        } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
+            modifiers.setNullability(TypeNullability.NONNULL)
+        }
+
+        // Also set component array types that should be non-null.
+        if (this is PsiArrayTypeItem && owner.impliesNonNullArrayComponents()) {
+            componentType.modifiers.setNullability(TypeNullability.NONNULL)
+        }
+    }
+
     companion object {
         private fun toTypeString(
             codebase: PsiBasedCodebase,

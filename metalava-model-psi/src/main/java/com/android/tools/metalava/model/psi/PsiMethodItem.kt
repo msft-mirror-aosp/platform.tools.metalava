@@ -386,6 +386,8 @@ open class PsiMethodItem(
         super.finishInitialization()
 
         throwsTypes = throwsTypes(codebase, psiMethod)
+        returnType.finishInitialization(this)
+        parameters.forEach { it.finishInitialization() }
     }
 
     companion object {

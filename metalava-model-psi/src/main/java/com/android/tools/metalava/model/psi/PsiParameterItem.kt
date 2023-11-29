@@ -299,6 +299,11 @@ internal constructor(
         }
     }
 
+    override fun finishInitialization() {
+        super.finishInitialization()
+        type.finishInitialization(this)
+    }
+
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
