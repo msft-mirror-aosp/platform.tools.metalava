@@ -16,22 +16,18 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.model.findAnnotation
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEllipsisType
@@ -45,7 +41,6 @@ import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.impl.source.PsiImmediateClassType
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
-import java.util.function.Predicate
 
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
@@ -120,133 +115,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     internal abstract fun duplicate(): PsiTypeItem
 
     companion object {
-        private fun toTypeString(
-            codebase: PsiBasedCodebase,
-            type: PsiType,
-            annotations: Boolean,
-            kotlinStyleNulls: Boolean,
-            context: Item?,
-            filter: Predicate<Item>?
-        ): String {
-            val typeString =
-                if (kotlinStyleNulls || annotations) {
-                    try {
-                        getCanonicalText(
-                            codebase = codebase,
-                            owner = context,
-                            type = type,
-                            annotated = annotations,
-                            mapAnnotations = true,
-                            kotlinStyleNulls = kotlinStyleNulls,
-                            filter = filter
-                        )
-                    } catch (ignore: Throwable) {
-                        type.canonicalText
-                    }
-                } else {
-                    type.canonicalText
-                }
-
-            return TypeItem.formatType(typeString)
-        }
-
-        private fun getCanonicalText(
-            codebase: PsiBasedCodebase,
-            owner: Item?,
-            type: PsiType,
-            annotated: Boolean,
-            mapAnnotations: Boolean,
-            kotlinStyleNulls: Boolean,
-            filter: Predicate<Item>?
-        ): String {
-            return try {
-                if (kotlinStyleNulls && owner?.hasInheritedGenericType() != true) {
-                    // Any nullness annotations on the element to merge in? When we have something
-                    // like
-                    //  @Nullable String foo
-                    // the Nullable annotation can be on the element itself rather than the type,
-                    // so if we print the type without knowing the nullness annotation on the
-                    // element, we'll think it's unannotated and we'll display it as "String!".
-                    val nullness =
-                        owner?.modifiers?.findAnnotation(AnnotationItem::isNullnessAnnotation)
-                    var elementAnnotations =
-                        if (nullness != null) {
-                            listOf(nullness)
-                        } else null
-
-                    val implicitNullness = if (owner != null) owner.implicitNullness() else null
-                    val annotatedType =
-                        if (implicitNullness != null) {
-                            val provider =
-                                if (implicitNullness == true) {
-                                    codebase.getNullableAnnotationProvider()
-                                } else {
-                                    codebase.getNonNullAnnotationProvider()
-                                }
-
-                            // Special handling for implicitly non-null arrays that also have an
-                            // implicitly non-null component type
-                            if (
-                                implicitNullness == false &&
-                                    type is PsiArrayType &&
-                                    owner != null &&
-                                    owner.impliesNonNullArrayComponents()
-                            ) {
-                                type.componentType
-                                    .annotate(provider)
-                                    .createArrayType()
-                                    .annotate(provider)
-                            } else if (
-                                implicitNullness == false &&
-                                    owner is ParameterItem &&
-                                    owner.containingMethod().isEnumSyntheticMethod()
-                            ) {
-                                // Workaround the fact that the Kotlin synthetic enum methods
-                                // do not have nullness information; this must be the parameter
-                                // to the valueOf(String) method.
-                                // See https://youtrack.jetbrains.com/issue/KT-39667.
-                                return JAVA_LANG_STRING
-                            } else {
-                                type.annotate(provider)
-                            }
-                        } else if (
-                            nullness != null &&
-                                owner.modifiers.isVarArg() &&
-                                owner.isKotlin() &&
-                                type is PsiEllipsisType
-                        ) {
-                            // Varargs the annotation applies to the component type instead
-                            val nonNullProvider = codebase.getNonNullAnnotationProvider()
-                            val provider =
-                                if (nullness.isNonNull()) {
-                                    nonNullProvider
-                                } else codebase.getNullableAnnotationProvider()
-                            val componentType = type.componentType.annotate(provider)
-                            elementAnnotations = null
-                            PsiEllipsisType(componentType, nonNullProvider)
-                        } else {
-                            type
-                        }
-                    val printer =
-                        PsiTypePrinter(
-                            codebase,
-                            filter,
-                            mapAnnotations,
-                            kotlinStyleNulls,
-                            annotated
-                        )
-
-                    printer.getAnnotatedCanonicalText(annotatedType, elementAnnotations)
-                } else if (annotated) {
-                    type.getCanonicalText(true)
-                } else {
-                    type.getCanonicalText(false)
-                }
-            } catch (e: Throwable) {
-                return type.getCanonicalText(false)
-            }
-        }
-
         /**
          * Determine if this item implies that its associated type is a non-null array with non-null
          * components. This is true for the synthetic `Enum.values()` method and any annotation

@@ -171,20 +171,6 @@ interface TypeItem {
             return type
         }
 
-        fun formatType(type: String?): String {
-            return if (type == null) {
-                ""
-            } else cleanupGenerics(type)
-        }
-
-        fun cleanupGenerics(signature: String): String {
-            // <T extends java.lang.Object> is the same as <T>
-            //  but NOT for <T extends Object & java.lang.Comparable> -- you can't
-            //  shorten this to <T & java.lang.Comparable
-            // return type.replace(" extends java.lang.Object", "")
-            return signature.replace(" extends java.lang.Object>", ">")
-        }
-
         /**
          * Create a [Comparator] that when given two [TypeItem] will treat them as equal if either
          * returns `null` from [TypeItem.asClass] and will otherwise compare the two [ClassItem]s

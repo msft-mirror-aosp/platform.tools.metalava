@@ -91,10 +91,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
 
     companion object {
-        fun toTypeString(
-            type: String,
-            annotations: Boolean,
-        ): String = if (annotations) type else eraseAnnotations(type)
 
         fun eraseTypeArguments(s: String): String {
             val index = s.indexOf('<')
@@ -118,89 +114,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
 
                 return s.substring(0, index)
             }
-            return s
-        }
-
-        /**
-         * Given a type possibly using the Kotlin-style null syntax, strip out any Kotlin-style null
-         * syntax characters, e.g. "String?" -> "String", but make sure not to damage types like
-         * "Set<? extends Number>".
-         */
-        fun stripKotlinNullChars(s: String): String {
-            var found = false
-            var prev = ' '
-            for (c in s) {
-                if (c == '!' || c == '?' && (prev != '<' && prev != ',' && prev != ' ')) {
-                    found = true
-                    break
-                }
-                prev = c
-            }
-
-            if (!found) {
-                return s
-            }
-
-            val sb = StringBuilder(s.length)
-            for (c in s) {
-                if (c == '!' || c == '?' && (prev != '<' && prev != ',' && prev != ' ')) {
-                    // skip
-                } else {
-                    sb.append(c)
-                }
-                prev = c
-            }
-
-            return sb.toString()
-        }
-
-        private fun eraseAnnotations(type: String): String {
-            if (type.indexOf('@') == -1) {
-                // If using Kotlin-style null syntax, strip those markers as well
-                return stripKotlinNullChars(type)
-            }
-
-            // Assumption: top level annotations appear first
-            val length = type.length
-            var max = length
-
-            var s = type
-            while (true) {
-                val index = s.indexOf('@')
-                if (index == -1 || index >= max) {
-                    break
-                }
-
-                // Find end
-                val end = TextTypeParser.findAnnotationEnd(s, index + 1)
-                val oldLength = s.length
-                s = s.substring(0, index).trim() + s.substring(end).trim()
-                val newLength = s.length
-                val removed = oldLength - newLength
-                max -= removed
-            }
-
-            // Sometimes we have a second type after the max, such as
-            // @androidx.annotation.NonNull java.lang.reflect.@androidx.annotation.NonNull
-            // TypeVariable<...>
-            for (i in s.indices) {
-                val c = s[i]
-                if (Character.isJavaIdentifierPart(c) || c == '.') {
-                    continue
-                } else if (c == '@') {
-                    // Found embedded annotation within the type
-                    val end = TextTypeParser.findAnnotationEnd(s, i + 1)
-                    if (end == -1 || end == length) {
-                        break
-                    }
-
-                    s = s.substring(0, i).trim() + s.substring(end).trim()
-                    break
-                } else {
-                    break
-                }
-            }
-
             return s
         }
     }
