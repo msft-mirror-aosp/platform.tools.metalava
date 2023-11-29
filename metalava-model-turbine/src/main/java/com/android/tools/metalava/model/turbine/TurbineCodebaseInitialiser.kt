@@ -227,12 +227,15 @@ open class TurbineCodebaseInitialiser(
             )
 
         // Setup the SuperClass
-        val superClassItem = cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
-        val superClassType = cls.superClassType()
-        val superClassTypeItem =
-            if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
-            else createType(superClassType, false)
-        classItem.setSuperClass(superClassItem, superClassTypeItem)
+        if (!classItem.isInterface()) {
+            val superClassItem =
+                cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
+            val superClassType = cls.superClassType()
+            val superClassTypeItem =
+                if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
+                else createType(superClassType, false)
+            classItem.setSuperClass(superClassItem, superClassTypeItem)
+        }
 
         // Setup InnerClasses
         val t = cls.children()

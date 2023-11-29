@@ -1,6 +1,4 @@
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
-  Test interface extends list[turbine,java]
-  Test interface no extends list[turbine,java]
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
