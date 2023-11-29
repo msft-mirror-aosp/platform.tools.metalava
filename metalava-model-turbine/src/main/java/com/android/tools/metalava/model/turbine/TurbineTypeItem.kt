@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -33,7 +32,7 @@ import com.google.turbine.binder.sym.TyVarSymbol
 import java.util.function.Predicate
 
 sealed class TurbineTypeItem(
-    open val codebase: Codebase,
+    open val codebase: TurbineBasedCodebase,
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem(codebase) {
 
@@ -41,7 +40,18 @@ sealed class TurbineTypeItem(
         return toTypeString()
     }
 
-    override fun asClass(): TurbineClassItem? = TODO("b/295800205")
+    override fun asClass(): TurbineClassItem? {
+        if (this is TurbineArrayTypeItem) {
+            return this.componentType.asClass()
+        }
+        if (this is TurbineClassTypeItem) {
+            return codebase.findOrCreateClass(this.qualifiedName)
+        }
+        if (this is TurbineVariableTypeItem) {
+            return codebase.findOrCreateClass(this.toErasedTypeString())
+        }
+        return null
+    }
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =
         TODO("b/295800205")
@@ -78,20 +88,20 @@ sealed class TurbineTypeItem(
 }
 
 class TurbinePrimitiveTypeItem(
-    override val codebase: Codebase,
+    override val codebase: TurbineBasedCodebase,
     override val modifiers: TypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers)
 
 class TurbineArrayTypeItem(
-    override val codebase: Codebase,
+    override val codebase: TurbineBasedCodebase,
     override val modifiers: TypeModifiers,
     override val componentType: TurbineTypeItem,
     override val isVarargs: Boolean,
 ) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers)
 
 class TurbineClassTypeItem(
-    override val codebase: Codebase,
+    override val codebase: TurbineBasedCodebase,
     override val modifiers: TypeModifiers,
     override val qualifiedName: String,
     override val parameters: List<TurbineTypeItem>,
