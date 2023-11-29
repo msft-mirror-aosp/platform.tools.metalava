@@ -47,6 +47,7 @@ import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
+import com.google.turbine.model.TurbineFlag
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -211,7 +212,11 @@ open class TurbineCodebaseInitialiser(
 
         // Setup the SuperClass
         val superClassItem = cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
-        classItem.setSuperClass(superClassItem, null)
+        val superClassType = cls.superClassType()
+        val superClassTypeItem =
+            if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
+            else createType(superClassType, false)
+        classItem.setSuperClass(superClassItem, superClassTypeItem)
 
         // Setup InnerClasses
         val t = cls.children()
@@ -220,11 +225,21 @@ open class TurbineCodebaseInitialiser(
         // Set direct interfaces
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
+        // Set interface types
+        classItem.setInterfaceTypes(
+            cls.interfaceTypes()
+                .filter { it.tyKind() != TyKind.ERROR_TY }
+                .map { createType(it, false) }
+        )
+
         // Create fields
         createFields(classItem, cls.fields())
 
         // Create methods
         createMethods(classItem, cls.methods())
+
+        // Create constructors
+        createConstructors(classItem, cls.methods())
 
         // Add to the codebase
         val isTopClass = cls.owner() == null
@@ -234,6 +249,9 @@ open class TurbineCodebaseInitialiser(
         if (isTopClass) {
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
+            // If the class is top class, fix the constructor return type right away. Otherwise wait
+            // for containingClass to be set via setInnerClasses
+            fixCtorReturnType(classItem)
         }
 
         return classItem
@@ -294,7 +312,7 @@ open class TurbineCodebaseInitialiser(
     }
 
     private fun createType(type: Type, isVarArg: Boolean): TurbineTypeItem {
-        return when (type.tyKind()) {
+        return when (val kind = type.tyKind()) {
             TyKind.PRIM_TY -> {
                 type as PrimTy
                 val annotations = createAnnotations(type.annos())
@@ -374,7 +392,7 @@ open class TurbineCodebaseInitialiser(
                     TurbineTypeModifiers(emptyList()),
                     Primitive.VOID
                 )
-            else -> throw IllegalStateException("Invalid type in API surface: $type.tyKind()")
+            else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
     }
 
@@ -410,7 +428,8 @@ open class TurbineCodebaseInitialiser(
         param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
         val modifiers =
             TurbineModifierItem(codebase, annotations = createAnnotations(param.annotations()))
-        val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, sym.name(), typeBounds)
+        val typeParamItem =
+            TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
         codebase.addTypeParameter(sym, typeParamItem)
         return typeParamItem
     }
@@ -424,6 +443,7 @@ open class TurbineCodebaseInitialiser(
             innerClasses.map { cls ->
                 val innerClassItem = findOrCreateClass(cls)
                 innerClassItem.containingClass = classItem
+                fixCtorReturnType(innerClassItem)
                 innerClassItem
             }
     }
@@ -487,7 +507,49 @@ open class TurbineCodebaseInitialiser(
             }
     }
 
+    private fun createConstructors(classItem: TurbineClassItem, methods: List<MethodInfo>) {
+        var hasImplicitDefaultConstructor = false
+        classItem.constructors =
+            methods
+                .filter { it.sym().name() == "<init>" }
+                .map { constructor ->
+                    val annotations = createAnnotations(constructor.annotations())
+                    val constructorModifierItem =
+                        TurbineModifierItem.create(codebase, constructor.access(), annotations)
+                    val typeParams = createTypeParameters(constructor.tyParams())
+                    hasImplicitDefaultConstructor =
+                        (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
+                    val name = classItem.simpleName()
+                    val constructorItem =
+                        TurbineConstructorItem(
+                            codebase,
+                            name,
+                            constructor.sym(),
+                            classItem,
+                            createType(constructor.returnType(), false),
+                            constructorModifierItem,
+                            typeParams,
+                        )
+                    createParameters(constructorItem, constructor.parameters())
+                    constructorItem
+                }
+        classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
+    }
+
     private fun getQualifiedName(binaryName: String): String {
         return binaryName.replace('/', '.').replace('$', '.')
+    }
+
+    /**
+     * Turbine's Binder gives return type of constructors as void. This needs to be changed to
+     * Class.toType().
+     */
+    private fun fixCtorReturnType(classItem: TurbineClassItem) {
+        val result =
+            classItem.constructors.map {
+                it.setReturnType(classItem.toType())
+                it
+            }
+        classItem.constructors = result
     }
 }

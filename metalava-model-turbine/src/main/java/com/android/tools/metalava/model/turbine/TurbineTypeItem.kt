@@ -37,6 +37,10 @@ sealed class TurbineTypeItem(
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem() {
 
+    override fun toString(): String {
+        return toTypeString()
+    }
+
     override fun asClass(): TurbineClassItem? = TODO("b/295800205")
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =
@@ -59,6 +63,15 @@ sealed class TurbineTypeItem(
         }
 
         return unannotatedTypeString()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+
+        return when (other) {
+            is TypeItem -> TypeItem.equalsWithoutSpace(toTypeString(), other.toTypeString())
+            else -> false
+        }
     }
 
     override fun typeArgumentClasses(): List<ClassItem> = TODO("b/295800205")

@@ -74,6 +74,9 @@ interface TypeItem {
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     @MetalavaApi fun arrayDimensions(): Int = 0
 
+    /** Returns the internal name of the type, as seen in bytecode. */
+    fun internalName(): String
+
     fun asClass(): ClassItem?
 
     fun toSimpleType(): String {
@@ -249,7 +252,45 @@ interface TypeItem {
             return signature.replace(" extends java.lang.Object>", ">")
         }
 
-        val comparator: Comparator<TypeItem> = Comparator { type1, type2 ->
+        /**
+         * Create a [Comparator] that when given two [TypeItem] will treat them as equal if either
+         * returns `null` from [TypeItem.asClass] and will otherwise compare the two [ClassItem]s
+         * using [comparator].
+         *
+         * This only defines a partial ordering over [TypeItem].
+         */
+        private fun typeItemAsClassComparator(
+            comparator: Comparator<ClassItem>
+        ): Comparator<TypeItem> {
+            return Comparator { type1, type2 ->
+                val cls1 = type1.asClass()
+                val cls2 = type2.asClass()
+                if (cls1 != null && cls2 != null) {
+                    comparator.compare(cls1, cls2)
+                } else {
+                    0
+                }
+            }
+        }
+
+        /** A total ordering over [TypeItem] comparing [TypeItem.toTypeString]. */
+        private val typeStringComparator =
+            Comparator.comparing<TypeItem, String> { it.toTypeString() }
+
+        /**
+         * A total ordering over [TypeItem] comparing [TypeItem.asClass] using
+         * [ClassItem.fullNameThenQualifierComparator] and then comparing [TypeItem.toTypeString].
+         */
+        val totalComparator: Comparator<TypeItem> =
+            typeItemAsClassComparator(ClassItem.fullNameThenQualifierComparator)
+                .thenComparing(typeStringComparator)
+
+        @Deprecated(
+            "" +
+                "this should not be used as it only defines a partial ordering which means that the " +
+                "source order will affect the result"
+        )
+        val partialComparator: Comparator<TypeItem> = Comparator { type1, type2 ->
             val cls1 = type1.asClass()
             val cls2 = type2.asClass()
             if (cls1 != null && cls2 != null) {
@@ -429,6 +470,11 @@ abstract class DefaultTypeItem : TypeItem {
         return cachedErasedType
     }
 
+    override fun internalName(): String {
+        // Default implementation; PSI subclass is more accurate
+        return toSlashFormat(toErasedTypeString())
+    }
+
     companion object {
         private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
             when (type) {
@@ -447,6 +493,66 @@ abstract class DefaultTypeItem : TypeItem {
                     throw IllegalStateException(
                         "should never visit $type of type ${type.javaClass} while generating erased type string"
                     )
+            }
+        }
+
+        // Copied from doclava1
+        private fun toSlashFormat(typeName: String): String {
+            var name = typeName
+            var dimension = ""
+            while (name.endsWith("[]")) {
+                dimension += "["
+                name = name.substring(0, name.length - 2)
+            }
+
+            val base: String
+            base =
+                when (name) {
+                    "void" -> "V"
+                    "byte" -> "B"
+                    "boolean" -> "Z"
+                    "char" -> "C"
+                    "short" -> "S"
+                    "int" -> "I"
+                    "long" -> "J"
+                    "float" -> "F"
+                    "double" -> "D"
+                    else -> "L" + getInternalName(name) + ";"
+                }
+
+            return dimension + base
+        }
+
+        /**
+         * Computes the internal class name of the given fully qualified class name. For example, it
+         * converts foo.bar.Foo.Bar into foo/bar/Foo$Bar
+         *
+         * @param qualifiedName the fully qualified class name
+         * @return the internal class name
+         */
+        private fun getInternalName(qualifiedName: String): String {
+            if (qualifiedName.indexOf('.') == -1) {
+                return qualifiedName
+            }
+
+            // If class name contains $, it's not an ambiguous inner class name.
+            if (qualifiedName.indexOf('$') != -1) {
+                return qualifiedName.replace('.', '/')
+            }
+            // Let's assume that components that start with Caps are class names.
+            return buildString {
+                var prev: String? = null
+                for (part in qualifiedName.split(".")) {
+                    if (!prev.isNullOrEmpty()) {
+                        if (Character.isUpperCase(prev[0])) {
+                            append('$')
+                        } else {
+                            append('/')
+                        }
+                    }
+                    append(part)
+                    prev = part
+                }
             }
         }
     }

@@ -17,31 +17,36 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.binder.sym.MethodSymbol
 
-internal class TurbineTypeParameterItem(
+class TurbineConstructorItem(
     codebase: Codebase,
+    private val name: String,
+    methodSymbol: MethodSymbol,
+    containingClass: TurbineClassItem,
+    returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
-    internal val symbol: TyVarSymbol,
-    name: String = symbol.name(),
-    private val bounds: List<TypeItem>,
+    typeParameters: TypeParameterList,
 ) :
-    TurbineClassItem(
+    TurbineMethodItem(
         codebase,
-        name,
-        name,
-        name,
+        methodSymbol,
+        containingClass,
+        returnType,
         modifiers,
-        TurbineClassType.TYPE_PARAMETER,
-        TypeParameterList.NONE
+        typeParameters
     ),
-    TypeParameterItem {
+    ConstructorItem {
 
-    // Java does not supports reified generics
-    override fun isReified(): Boolean = false
+    override fun name(): String = name
 
-    override fun typeBounds(): List<TypeItem> = bounds
+    override var superConstructor: ConstructorItem? = null
+
+    override fun isConstructor(): Boolean = true
+
+    internal fun setReturnType(type: TurbineTypeItem) {
+        returnType = type
+    }
 }
