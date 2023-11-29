@@ -9,6 +9,9 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
   test[turbine,java,pkg.UnknownClass.Inner]
   test[turbine,java,pkg.UnknownClass]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test inner types from classpath[turbine,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]
   Test annotations on multidimensional array[turbine,java]

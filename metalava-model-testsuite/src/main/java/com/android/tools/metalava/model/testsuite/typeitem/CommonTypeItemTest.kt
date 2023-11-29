@@ -846,6 +846,64 @@ class CommonTypeItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test inner types from classpath`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.Map;
+
+                    public class Test {
+                        public Map.Entry<String,String> foo() {
+                            return new Map.Entry<String,String>();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    import java.util.Map;
+
+                    class Test {
+                        fun foo(): Map.Entry<String,String> {
+                            return Map.Entry<String,String>()
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Outer();
+                        method public java.util.Map.Entry<java.lang.String,java.lang.String> foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Test").methods().single()
+
+            // Map.Entry<String,String>
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map.Entry")
+            assertThat(innerType.className).isEqualTo("Entry")
+
+            val outerType = innerType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("java.util.Map")
+            assertThat(outerType.className).isEqualTo("Map")
+            assertThat(outerType.outerClassType).isNull()
+        }
+    }
+
+    @Test
     fun `Test inner parameterized types`() {
         runCodebaseTest(
             java(
