@@ -1109,9 +1109,11 @@ class ApiAnalyzer(
                         )
                     }
 
-                    var hiddenClass = findHiddenClasses(returnType, stubImportPackages)
-                    if (hiddenClass != null && !hiddenClass.isFromClassPath()) {
-                        if (hiddenClass.qualifiedName() == returnType.asClass()?.qualifiedName()) {
+                    val returnHiddenClasses = findHiddenClasses(returnType, stubImportPackages)
+                    val returnClassName = (returnType as? ClassTypeItem)?.qualifiedName
+                    for (hiddenClass in returnHiddenClasses) {
+                        if (hiddenClass.isFromClassPath()) continue
+                        if (hiddenClass.qualifiedName() == returnClassName) {
                             // Return type is hidden
                             reporter.report(
                                 Issues.UNAVAILABLE_SYMBOL,
@@ -1143,9 +1145,11 @@ class ApiAnalyzer(
                                 )
                             }
 
-                            hiddenClass = findHiddenClasses(t, stubImportPackages)
-                            if (hiddenClass != null && !hiddenClass.isFromClassPath()) {
-                                if (hiddenClass.qualifiedName() == t.asClass()?.qualifiedName()) {
+                            val parameterHiddenClasses = findHiddenClasses(t, stubImportPackages)
+                            val parameterClassName = (t as? ClassTypeItem)?.qualifiedName
+                            for (hiddenClass in parameterHiddenClasses) {
+                                if (hiddenClass.isFromClassPath()) continue
+                                if (hiddenClass.qualifiedName() == parameterClassName) {
                                     // Parameter type is hidden
                                     reporter.report(
                                         Issues.UNAVAILABLE_SYMBOL,
@@ -1413,30 +1417,27 @@ class ApiAnalyzer(
      *
      * @param ti the type information to examine for references to hidden classes.
      * @param stubImportPackages the possibly null set of imported package names.
-     * @return a reference to a hidden class or null if there are none
+     * @return all references to hidden classes referenced by the type
      */
-    private fun findHiddenClasses(ti: TypeItem?, stubImportPackages: Set<String>?): ClassItem? {
-        ti ?: return null
-        val ci = ti.asClass() ?: return null
-        return findHiddenClasses(ci, stubImportPackages)
-    }
-
-    private fun findHiddenClasses(ci: ClassItem, stubImportPackages: Set<String>?): ClassItem? {
-        if (
-            stubImportPackages != null &&
-                stubImportPackages.contains(ci.containingPackage().qualifiedName())
-        ) {
-            return null
-        }
-        if (ci.isHiddenOrRemoved()) return ci
-        for (tii in ci.toType().typeArgumentClasses()) {
-            // Avoid infinite recursion in the case of Foo<T extends Foo>
-            if (tii != ci) {
-                val hiddenClass = findHiddenClasses(tii, stubImportPackages)
-                if (hiddenClass != null) return hiddenClass
+    private fun findHiddenClasses(ti: TypeItem, stubImportPackages: Set<String>?): Set<ClassItem> {
+        val hiddenClasses = mutableSetOf<ClassItem>()
+        ti.accept(
+            object : BaseTypeVisitor() {
+                override fun visitClassType(classType: ClassTypeItem) {
+                    val asClass = classType.asClass() ?: return
+                    if (
+                        stubImportPackages != null &&
+                            stubImportPackages.contains(asClass.containingPackage().qualifiedName())
+                    ) {
+                        return
+                    }
+                    if (asClass.isHiddenOrRemoved()) {
+                        hiddenClasses.add(asClass)
+                    }
+                }
             }
-        }
-        return null
+        )
+        return hiddenClasses
     }
 }
 
