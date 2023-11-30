@@ -3449,7 +3449,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package android.content {
                   public class Context {
                     field public static final String BUGREPORT_SERVICE = "bugreport";
-                    method public File getPreloadsFileCache();
+                    method public java.io.File getPreloadsFileCache();
                   }
                 }
                 """,
@@ -3460,6 +3460,7 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.content;
 
                     import android.annotation.SystemApi;
+                    import java.io.File;
 
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";

@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -46,41 +45,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
             }
         }
         return codebase.getOrCreateClass(cls)
-    }
-
-    private fun qualifiedTypeName(): String = type
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-
-        return when (other) {
-            // Note: when we support type-use annotations, this is not safe: there could be a string
-            // literal inside which is significant
-            is TextTypeItem -> TypeItem.equalsWithoutSpace(toString(), other.toString())
-            is TypeItem -> {
-                val thisString = toTypeString()
-                val otherString = other.toTypeString()
-                if (TypeItem.equalsWithoutSpace(thisString, otherString)) {
-                    return true
-                }
-                if (
-                    thisString.startsWith(JAVA_LANG_PREFIX) &&
-                        thisString.endsWith(otherString) &&
-                        thisString.length == otherString.length + JAVA_LANG_PREFIX.length
-                ) {
-                    // When reading signature files, it's sometimes ambiguous whether a name
-                    // references a java.lang. implicit class or a type parameter.
-                    return true
-                }
-
-                return false
-            }
-            else -> false
-        }
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedTypeName().hashCode()
     }
 
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
