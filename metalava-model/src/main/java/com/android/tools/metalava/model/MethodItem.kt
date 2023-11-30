@@ -165,30 +165,6 @@ interface MethodItem : MemberItem {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-
-        for (parameter in parameters()) {
-            parameter.acceptTypes(visitor)
-        }
-
-        for (exception in throwsTypes()) {
-            exception.acceptTypes(visitor)
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-    }
-
     companion object {
         private fun compareMethods(
             o1: MethodItem,
