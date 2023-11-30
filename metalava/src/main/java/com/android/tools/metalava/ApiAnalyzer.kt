@@ -24,7 +24,9 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -1022,49 +1024,22 @@ class ApiAnalyzer(
                     }
                 }
 
+                /** Check that the type doesn't refer to any hidden classes. */
                 private fun checkTypeReferencesHidden(item: Item, type: TypeItem) {
-                    if (type is PrimitiveTypeItem) {
-                        return
-                    }
-
-                    val cls = type.asClass()
-
-                    // Don't flag type parameters like T
-                    if (cls?.isTypeParameter == true) {
-                        return
-                    }
-
-                    // class may be null for things like array types and ellipsis types,
-                    // but iterating through the type argument classes below will find and
-                    // check the component class
-                    if (cls != null && !filterReference.test(cls) && !cls.isFromClassPath()) {
-                        reporter.report(
-                            Issues.HIDDEN_TYPE_PARAMETER,
-                            item,
-                            "${item.toString().capitalize()} references hidden type $type."
-                        )
-                    }
-
-                    type
-                        .typeArgumentClasses()
-                        .filter { it != cls }
-                        .forEach { checkTypeReferencesHidden(item, it) }
-                }
-
-                private fun checkTypeReferencesHidden(item: Item, cls: ClassItem) {
-                    if (!filterReference.test(cls)) {
-                        if (!cls.isFromClassPath()) {
-                            reporter.report(
-                                Issues.HIDDEN_TYPE_PARAMETER,
-                                item,
-                                "${item.toString().capitalize()} references hidden type $cls."
-                            )
+                    type.accept(
+                        object : BaseTypeVisitor() {
+                            override fun visitClassType(classType: ClassTypeItem) {
+                                val cls = classType.asClass() ?: return
+                                if (!filterReference.test(cls) && !cls.isFromClassPath()) {
+                                    reporter.report(
+                                        Issues.HIDDEN_TYPE_PARAMETER,
+                                        item,
+                                        "${item.toString().capitalize()} references hidden type $classType."
+                                    )
+                                }
+                            }
                         }
-                    } else {
-                        cls.typeArgumentClasses()
-                            .filter { it != cls }
-                            .forEach { checkTypeReferencesHidden(item, it) }
-                    }
+                    )
                 }
             }
         )

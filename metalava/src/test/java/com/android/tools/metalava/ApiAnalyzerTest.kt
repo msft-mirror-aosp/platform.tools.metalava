@@ -195,18 +195,19 @@ class ApiAnalyzerTest : DriverTest() {
     }
 
     @Test
-    // TODO(b/301076671): Types using nested classes are not properly handled
     fun `Test that usage of a hidden class as type parameter of an outer class is flagged`() {
         check(
-            // This should also warn on fieldReferencesHidden4
+            // TODO(b/301076671): This should also warn on fieldReferencesHidden4 for the
+            // ReferencesHidden check
             expectedIssues =
                 """
                 src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (as field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
                 src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (as field type argument class) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
                 src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (as field type argument class) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
                 src/test/pkg/Foo.java:3: warning: Field Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
-                src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type class test.pkg.Hidden. [HiddenTypeParameter]
-                src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type class test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
             """
                     .trimIndent(),
             expectedFail = DefaultLintErrorMessage,

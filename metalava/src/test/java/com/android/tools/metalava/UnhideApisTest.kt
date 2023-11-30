@@ -159,12 +159,12 @@ class UnhideApisTest : DriverTest() {
                     src/test/pkg1/Usage.java:10: error: Class test.pkg1.Class7 is not public but was referenced (as parameter type) from public parameter list in test.pkg1.Usage.mySort(java.util.List<test.pkg1.Class7> list, T element) [ReferencesHidden]
                     src/test/pkg1/Usage.java:11: error: Class test.pkg1.Class8 is not public but was referenced (as parameter type) from public parameter myargs in test.pkg1.Usage.ellipsisType(test.pkg1.Class8... myargs) [ReferencesHidden]
                     src/test/pkg1/Usage.java:12: error: Class test.pkg1.Class9 is not public but was referenced (as parameter type) from public parameter myargs in test.pkg1.Usage.arrayType(test.pkg1.Class9[] myargs) [ReferencesHidden]
-                    src/test/pkg1/Usage.java:12: warning: Parameter myargs references hidden type test.pkg1.Class9[]. [HiddenTypeParameter]
-                    src/test/pkg1/Usage.java:11: warning: Parameter myargs references hidden type test.pkg1.Class8.... [HiddenTypeParameter]
-                    src/test/pkg1/Usage.java:10: warning: Parameter list references hidden type class test.pkg1.Class7. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:12: warning: Parameter myargs references hidden type test.pkg1.Class9. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:11: warning: Parameter myargs references hidden type test.pkg1.Class8. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:10: warning: Parameter list references hidden type test.pkg1.Class7. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:7: warning: Field Usage.myClass1 references hidden type test.pkg1.Class3. [HiddenTypeParameter]
-                    src/test/pkg1/Usage.java:8: warning: Field Usage.myClass2 references hidden type class test.pkg1.Class4. [HiddenTypeParameter]
-                    src/test/pkg1/Usage.java:9: warning: Field Usage.myClass3 references hidden type class test.pkg1.Class5. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:8: warning: Field Usage.myClass2 references hidden type test.pkg1.Class4. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:9: warning: Field Usage.myClass3 references hidden type test.pkg1.Class5. [HiddenTypeParameter]
                     """,
             expectedFail = DefaultLintErrorMessage,
             api =
