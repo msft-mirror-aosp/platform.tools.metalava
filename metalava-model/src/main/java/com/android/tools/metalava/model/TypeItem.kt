@@ -110,8 +110,6 @@ interface TypeItem {
         return toTypeString().replace("...", "").replace("[]", "")
     }
 
-    fun typeArgumentClasses(): List<ClassItem>
-
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {

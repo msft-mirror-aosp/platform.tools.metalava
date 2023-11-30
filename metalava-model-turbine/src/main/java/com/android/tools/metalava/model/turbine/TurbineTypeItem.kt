@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
@@ -73,8 +72,6 @@ sealed class TurbineTypeItem(
             else -> false
         }
     }
-
-    override fun typeArgumentClasses(): List<ClassItem> = TODO("b/295800205")
 }
 
 class TurbinePrimitiveTypeItem(
