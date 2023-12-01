@@ -20,6 +20,8 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.reporter.Issues
 import java.util.Locale
 import kotlin.test.assertEquals
@@ -64,12 +66,6 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-  --add-nonessential-overrides-classes TEXT  Specifies a list of qualified class names where all visible overriding
-                                             methods are added to signature files. This is a no-op when --format does
-                                             not specify --add-additional-overrides=yes.
-
-                                             The list of qualified class names should be separated with ':'(colon).
-                                             (default: [])
   -h, --help                                 Show this message and exit
 
 $ISSUE_REPORTING_OPTIONS_HELP
@@ -149,9 +145,9 @@ API sources:
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
-                                             Sets the source level for Java source files; default is 1.8.
+                                             Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.8.
+                                             Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -208,13 +204,6 @@ Generating Stubs:
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected.)
---write-stubs-source-list <file>
-                                             Write the list of generated stub files into the given source list file. If
-                                             generating documentation stubs and you haven't also specified
-                                             --write-doc-stubs-source-list, this list will refer to the documentation
-                                             stubs; otherwise it's the non-documentation stubs.
---write-doc-stubs-source-list <file>
-                                             Write the list of generated doc stub files into the given source list file
 
 
 Diffs and Checks:
