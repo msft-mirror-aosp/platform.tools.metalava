@@ -686,6 +686,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
                 ),
             )
+        val stubsWithoutNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    Foo() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+                ),
+            )
         checkFlaggedApis(
             java(
                 """
@@ -748,20 +760,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include Foo.
                         expectedApi =
                             """
                                 // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
                             """,
-                        // TODO(b/314196587): - Fix this. This is broken, it should include stubs
-                        //  for Foo.
-                        expectedStubPaths = emptyArray(),
-                        // TODO(b/314196587): - Fix this. There should be no errors.
-                        expectedIssues =
-                            """
-                                released-api.txt:2: error: Removed package test.pkg [RemovedPackage]
-                            """,
-                        expectedFail = "Aborting: Found compatibility problems",
+                        expectedStubs = stubsWithoutNewMembers,
                     ),
                     // The following system expectations verify what happens with a class that was
                     // previously released as part of the system API but which is annotated with
@@ -786,23 +793,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include Foo.
                         expectedApi =
                             """
                                 // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
                             """,
                         // The system API stubs without flagged APIs include the class but exclude
                         // the new methods because the class was present in the previously released
                         // system API but the methods were not.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include stubs
-                        //  for Foo.
-                        expectedStubPaths = emptyArray(),
-                        // TODO(b/314196587): - Fix this. There should be no errors.
-                        expectedIssues =
-                            """
-                                released-api.txt:2: error: Removed package test.pkg [RemovedPackage]
-                            """,
-                        expectedFail = "Aborting: Found compatibility problems",
+                        expectedStubs = stubsWithoutNewMembers,
                     ),
                     // The following module lib expectations verify what happens with a class that
                     // was previously released as part of the module lib API but which is annotated
@@ -827,23 +829,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include Foo.
                         expectedApi =
                             """
                                 // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
                             """,
                         // The module lib API stubs without flagged APIs include the class but
                         // exclude the new methods because the class was present in the previously
                         // released module lib API but the methods were not.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include stubs
-                        //  for Foo.
-                        expectedStubPaths = emptyArray(),
-                        // TODO(b/314196587): - Fix this. There should be no errors.
-                        expectedIssues =
-                            """
-                                released-api.txt:2: error: Removed package test.pkg [RemovedPackage]
-                            """,
-                        expectedFail = "Aborting: Found compatibility problems",
+                        expectedStubs = stubsWithoutNewMembers,
                     ),
                 ),
         )
@@ -862,6 +859,19 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
                     public final int field = 2; // 0x2
+                    }
+                """
+                ),
+            )
+        val stubsWithoutNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    Foo() { throw new RuntimeException("Stub!"); }
                     }
                 """
                 ),
@@ -931,23 +941,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include Foo.
                         expectedApi =
                             """
                                 // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
                             """,
-                        // The system API stubs without flagged APIs include the class but exclude
-                        // the new methods because the class was present in the previously released
-                        // system API but the methods were not.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include stubs
-                        //  for Foo.
-                        expectedStubPaths = emptyArray(),
-                        // TODO(b/314196587): - Fix this. There should be no errors.
-                        expectedIssues =
-                            """
-                                released-api.txt:2: error: Removed package test.pkg [RemovedPackage]
-                            """,
-                        expectedFail = "Aborting: Found compatibility problems",
+                        expectedStubs = stubsWithoutNewMembers,
                     ),
                     // The following module lib expectations verify what happens with a class that
                     // was previously released as part of the module lib API but which is annotated
@@ -972,23 +974,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
                         // not exist in the previously released API so have been removed.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include Foo.
                         expectedApi =
                             """
                                 // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
                             """,
                         // The module lib API stubs without flagged APIs include the class but
                         // exclude the new methods because the class was present in the previously
                         // released module lib API but the methods were not.
-                        // TODO(b/314196587): - Fix this. This is broken, it should include stubs
-                        //  for Foo.
-                        expectedStubPaths = emptyArray(),
-                        // TODO(b/314196587): - Fix this. There should be no errors.
-                        expectedIssues =
-                            """
-                                released-api.txt:2: error: Removed package test.pkg [RemovedPackage]
-                            """,
-                        expectedFail = "Aborting: Found compatibility problems",
+                        expectedStubs = stubsWithoutNewMembers,
                     ),
                 ),
         )
