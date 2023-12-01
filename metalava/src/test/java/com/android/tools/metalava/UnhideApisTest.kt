@@ -45,9 +45,9 @@ class UnhideApisTest : DriverTest() {
                 """
             src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden1 is not public but was referenced (in field type) from public field test.pkg.Foo.hidden1 [ReferencesHidden]
             src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden2 is hidden but was referenced (in field type) from public field test.pkg.Foo.hidden2 [ReferencesHidden]
-            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden1 is not public but was referenced (as type argument) from public class test.pkg.Foo [ReferencesHidden]
-            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden2 is hidden but was referenced (as type argument) from public class test.pkg.Foo [ReferencesHidden]
-            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden3 is hidden but was referenced (as type argument) from public class test.pkg.Foo [ReferencesHidden]
+            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden1 is not public but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
+            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden2 is hidden but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
+            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden3 is hidden but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden1 is not public but was referenced (in parameter type) from public parameter hidden1 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2) [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden2 is hidden but was referenced (in parameter type) from public parameter hidden2 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2) [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden3 is hidden but was referenced (as exception) from public method test.pkg.Foo.method(test.pkg.Hidden1,test.pkg.Hidden2) [ReferencesHidden]

@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -1264,9 +1265,7 @@ class ApiAnalyzer(
             )
         }
         // cant strip any of the type's generics
-        for (cls in cl.typeArgumentClasses()) {
-            cantStripThis(cls, filter, notStrippable, stubImportPackages, cl, "as type argument")
-        }
+        cantStripThis(cl.typeParameterList(), filter, notStrippable, stubImportPackages, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
@@ -1338,16 +1337,13 @@ class ApiAnalyzer(
             if (!filter.test(method)) {
                 continue
             }
-            for (typeParameterClass in method.typeArgumentClasses()) {
-                cantStripThis(
-                    typeParameterClass,
-                    filter,
-                    notStrippable,
-                    stubImportPackages,
-                    method,
-                    "as type parameter"
-                )
-            }
+            cantStripThis(
+                method.typeParameterList(),
+                filter,
+                notStrippable,
+                stubImportPackages,
+                method
+            )
             for (parameter in method.parameters()) {
                 cantStripThis(
                     parameter.type(),
@@ -1376,6 +1372,27 @@ class ApiAnalyzer(
                 stubImportPackages,
                 "in return type"
             )
+        }
+    }
+
+    private fun cantStripThis(
+        typeParameterList: TypeParameterList,
+        filter: Predicate<Item>,
+        notStrippable: MutableSet<ClassItem>,
+        stubImportPackages: Set<String>?,
+        context: Item
+    ) {
+        for (typeParameter in typeParameterList.typeParameters()) {
+            for (bound in typeParameter.typeBounds()) {
+                cantStripThis(
+                    bound,
+                    context,
+                    filter,
+                    notStrippable,
+                    stubImportPackages,
+                    "as type parameter"
+                )
+            }
         }
     }
 

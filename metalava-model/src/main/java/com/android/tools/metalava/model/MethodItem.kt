@@ -485,12 +485,8 @@ interface MethodItem : MemberItem {
 
         if (returnType().hasHiddenType(filterReference)) return true
 
-        if (typeParameterList().typeParameterCount() > 0) {
-            for (argument in typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
-                }
-            }
+        for (typeParameter in typeParameterList().typeParameters()) {
+            if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
         }
 
         return false
