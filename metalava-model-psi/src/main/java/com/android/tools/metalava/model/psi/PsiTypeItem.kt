@@ -35,17 +35,13 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiArrayType
-import com.intellij.psi.PsiCapturedWildcardType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledElement
-import com.intellij.psi.PsiDisjunctionType
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiEllipsisType
-import com.intellij.psi.PsiIntersectionType
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaToken
-import com.intellij.psi.PsiLambdaExpressionType
 import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiRecursiveElementVisitor
@@ -54,7 +50,6 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterList
-import com.intellij.psi.PsiTypeVisitor
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.util.PsiTypesUtil
@@ -67,7 +62,7 @@ sealed class PsiTypeItem(
     open val codebase: PsiBasedCodebase,
     open val psiType: PsiType,
     override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
-) : DefaultTypeItem() {
+) : DefaultTypeItem(codebase) {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var asClass: PsiClassItem? = null
@@ -82,6 +77,10 @@ sealed class PsiTypeItem(
         context: Item?,
         filter: Predicate<Item>?
     ): String {
+        if (!kotlinStyleNulls) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+        }
+
         if (filter != null) {
             // No caching when specifying filter.
             // TODO: When we support type use annotations, here we need to deal with markRecent
@@ -161,92 +160,6 @@ sealed class PsiTypeItem(
 
     override fun hashCode(): Int {
         return psiType.hashCode()
-    }
-
-    override fun typeArgumentClasses(): List<ClassItem> {
-        if (this is PrimitiveTypeItem) {
-            return emptyList()
-        }
-
-        val classes = mutableListOf<ClassItem>()
-        psiType.accept(
-            object : PsiTypeVisitor<PsiType>() {
-                override fun visitType(type: PsiType): PsiType {
-                    return type
-                }
-
-                override fun visitClassType(classType: PsiClassType): PsiType {
-                    codebase.findClass(classType)?.let {
-                        if (!it.isTypeParameter && !classes.contains(it)) {
-                            classes.add(it)
-                        }
-                    }
-                    for (type in classType.parameters) {
-                        type.accept(this)
-                    }
-                    return classType
-                }
-
-                override fun visitWildcardType(wildcardType: PsiWildcardType): PsiType {
-                    if (wildcardType.isExtends) {
-                        wildcardType.extendsBound.accept(this)
-                    }
-                    if (wildcardType.isSuper) {
-                        wildcardType.superBound.accept(this)
-                    }
-                    if (wildcardType.isBounded) {
-                        wildcardType.bound?.accept(this)
-                    }
-                    return wildcardType
-                }
-
-                override fun visitPrimitiveType(primitiveType: PsiPrimitiveType): PsiType {
-                    return primitiveType
-                }
-
-                override fun visitEllipsisType(ellipsisType: PsiEllipsisType): PsiType {
-                    ellipsisType.componentType.accept(this)
-                    return ellipsisType
-                }
-
-                override fun visitArrayType(arrayType: PsiArrayType): PsiType {
-                    arrayType.componentType.accept(this)
-                    return arrayType
-                }
-
-                override fun visitLambdaExpressionType(
-                    lambdaExpressionType: PsiLambdaExpressionType
-                ): PsiType {
-                    for (superType in lambdaExpressionType.superTypes) {
-                        superType.accept(this)
-                    }
-                    return lambdaExpressionType
-                }
-
-                override fun visitCapturedWildcardType(
-                    capturedWildcardType: PsiCapturedWildcardType
-                ): PsiType {
-                    capturedWildcardType.upperBound.accept(this)
-                    return capturedWildcardType
-                }
-
-                override fun visitDisjunctionType(disjunctionType: PsiDisjunctionType): PsiType {
-                    for (type in disjunctionType.disjunctions) {
-                        type.accept(this)
-                    }
-                    return disjunctionType
-                }
-
-                override fun visitIntersectionType(intersectionType: PsiIntersectionType): PsiType {
-                    for (type in intersectionType.conjuncts) {
-                        type.accept(this)
-                    }
-                    return intersectionType
-                }
-            }
-        )
-
-        return classes
     }
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
@@ -823,6 +736,9 @@ class PsiClassTypeItem(
                 create(codebase, psiOuterClassType) as ClassTypeItem
             }
         }
+    // This should be able to use `psiType.name`, but that sometimes returns null when run on the
+    // AndroidX codebase.
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
