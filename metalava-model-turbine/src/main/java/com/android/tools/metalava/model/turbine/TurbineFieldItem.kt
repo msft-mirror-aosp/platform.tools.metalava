@@ -19,14 +19,14 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 
 class TurbineFieldItem(
     override val codebase: Codebase,
     private val name: String,
     private val containingClass: TurbineClassItem,
-    override val modifiers: ModifierList,
+    private val type: TurbineTypeItem,
+    override val modifiers: TurbineModifierItem,
 ) : TurbineItem(codebase, modifiers), FieldItem {
 
     override var inheritedFrom: ClassItem? = null
@@ -48,9 +48,7 @@ class TurbineFieldItem(
 
     override fun hashCode(): Int = name.hashCode()
 
-    override fun type(): TypeItem {
-        TODO("b/295800205")
-    }
+    override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         TODO("b/295800205")

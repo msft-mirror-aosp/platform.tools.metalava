@@ -807,11 +807,13 @@ class ApiLintTest : DriverTest() {
                         public @Nullable ListenableFuture<String> okAsync() { return null; }
                         public void ok2(@Nullable ListenableFuture<String> param) { }
 
-                        public interface BadFuture<T> extends Future<T> {
+                        public interface BadFuture<T> extends AnotherInterface, Future<T> {
                         }
                         public static abstract class BadFutureClass<T> implements Future<T> {
                         }
                         public class BadCompletableFuture<T> extends CompletableFuture<T> {
+                        }
+                        public interface AnotherInterface {
                         }
                     }
                     """
@@ -883,10 +885,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/RegistrationInterface.java:6: error: Found registerOverriddenUnpairedCallback but not unregisterOverriddenUnpairedCallback in android.pkg.RegistrationInterface [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:8: error: Found registerUnpairedCallback but not unregisterUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:12: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration]
-                src/android/pkg/RegistrationMethods.java:13: error: Callback methods should be named register/unregister; was addCallback [RegistrationName]
+                src/android/pkg/RegistrationMethods.java:13: error: Found addUnpairedCallback but not removeUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:18: error: Found addUnpairedListener but not removeUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:19: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration]
-                src/android/pkg/RegistrationMethods.java:20: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName]
+                src/android/pkg/RegistrationMethods.java:20: error: Found registerUnpairedListener but not unregisterUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -905,14 +907,14 @@ class ApiLintTest : DriverTest() {
                         @Override
                         public void registerOverriddenUnpairedCallback(@Nullable Runnable r) { }
                         public void unregisterMismatchedCallback(@Nullable Runnable r) { }
-                        public void addCallback(@Nullable Runnable r) { }
+                        public void addUnpairedCallback(@Nullable Runnable r) { }
 
                         public void addOkListener(@Nullable Runnable r) { } // OK
                         public void removeOkListener(@Nullable Runnable r) { } // OK
 
                         public void addUnpairedListener(@Nullable Runnable r) { }
                         public void removeMismatchedListener(@Nullable Runnable r) { }
-                        public void registerWrongListener(@Nullable Runnable r) { }
+                        public void registerUnpairedListener(@Nullable Runnable r) { }
                     }
                     """
                     ),
@@ -1125,22 +1127,24 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/Bad.java:12: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:12: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:13: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorArgument]
-                src/android/pkg/Bad.java:37: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
-                src/android/pkg/Bad.java:40: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:42: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
-                src/android/pkg/Bad.java:44: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:19: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:22: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:25: warning: android.pkg.Bad does not declare a `getPluralWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetter(Collection<String>) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:31: warning: android.pkg.Bad does not declare a getter method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetters(Collection<String>) (expected one of: [getPluralWithoutMatchingGetters(), getPluralWithoutMatchingGetterses()]) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:44: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:56: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:50: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+                src/android/pkg/Bad.java:13: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:13: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:14: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorArgument]
+                src/android/pkg/Bad.java:38: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
+                src/android/pkg/Bad.java:41: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis]
+                src/android/pkg/Bad.java:43: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
+                src/android/pkg/Bad.java:45: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis]
+                src/android/pkg/Bad.java:20: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:23: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:26: warning: android.pkg.Bad does not declare a `getPluralWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetter(java.util.Collection<java.lang.String>) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:32: warning: android.pkg.Bad does not declare a getter method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetters(java.util.Collection<java.lang.String>) (expected one of: [getPluralWithoutMatchingGetters(), getPluralWithoutMatchingGetterses()]) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:45: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:57: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
+                src/android/pkg/Bad.java:51: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+                src/test/pkg/BadClass.java:4: warning: Builder must be final: test.pkg.BadClass.Builder [StaticFinalBuilder]
+                src/test/pkg/BadInterface.java:4: warning: Builder must be final: test.pkg.BadInterface.Builder [StaticFinalBuilder]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1260,6 +1264,7 @@ class ApiLintTest : DriverTest() {
 
                     import androidx.annotation.NonNull;
                     import androidx.annotation.Nullable;
+                    import java.util.Collection;
 
                     public class Bad {
 
@@ -1318,6 +1323,59 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class GoodInterface {
+                        public interface Builder extends java.lang.Runnable {
+                            @NonNull
+                            GoodInterface build();
+                        }
+                    }
+                        """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class GoodClass {
+                        public static abstract class Builder extends Base {
+                            @NonNull
+                            public abstract GoodClass build();
+                        }
+                        public class Base {}
+                    }
+                        """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class BadInterface {
+                        public interface Builder {
+                            @NonNull
+                            BadInterface build();
+                        }
+                    }
+                        """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class BadClass {
+                        public static abstract class Builder {
+                            @NonNull
+                            public abstract BadClass build();
+                        }
+                    }
+                        """
+                            .trimIndent()
                     ),
                     androidxNonNullSource,
                     androidxNullableSource
@@ -3979,10 +4037,12 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:10: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3995,11 +4055,17 @@ class ApiLintTest : DriverTest() {
                         public class Foo {
                             // Not annotated
                             public String bar(String baz);
+
+                            // Partially annotated
+                            @Nullable public String x(String y);
                         }
-                        // Not allowed to mark override method Nullable if parent is not annotated
-                        // Not allowed to mark override parameter NonNull if parent is not annotated
                         public class Bar extends Foo {
+                            // Not allowed to mark override method Nullable if parent is not annotated
+                            // Not allowed to mark override parameter NonNull if parent is not annotated
                             @Nullable @Override public String bar(@NonNull String baz);
+                            // It is allowed to mark the override method Nullable if the parent is Nullable.
+                            // Not allowed to mark override parameter if parent is not annotated.
+                            @Nullable @Override public String x(@NonNull String y);
                         }
                     """
                     ),
@@ -4266,9 +4332,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        
+
                         import java.util.Map;
-                        
+
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
                             @Nullable
@@ -4276,7 +4342,7 @@ class ApiLintTest : DriverTest() {
                                 return super.get((K) key);
                             }
                         }
-                        
+
                     """
                     )
                 )
@@ -4303,9 +4369,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        
+
                         import java.util.Map;
-                        
+
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
                             @Nullable

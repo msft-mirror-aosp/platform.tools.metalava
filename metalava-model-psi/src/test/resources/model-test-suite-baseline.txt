@@ -1,2 +1,8 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  check TypeItem asClass()[psi,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
+  Type string[psi,java,null annotated parameterized inner type - annotated]
