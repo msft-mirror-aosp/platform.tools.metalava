@@ -18,7 +18,6 @@ package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.ANDROID_FLAGGED_API
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -203,8 +202,7 @@ class ApiLint(
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit =
-            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
+        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(config.apiPredicateConfig),
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
