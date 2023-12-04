@@ -9,3 +9,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,null annotated parameterized inner type - annotated]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test explicit Object bound[psi,java]
+  Test reified type parameter[psi,kotlin]
+  Test type parameter bounds with multiple class parameters[psi,java]

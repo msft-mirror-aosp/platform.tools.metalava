@@ -44,23 +44,4 @@ internal class TurbineTypeParameterItem(
     override fun isReified(): Boolean = false
 
     override fun typeBounds(): List<TypeItem> = bounds
-
-    internal fun toSource(): String {
-        val sb = StringBuilder()
-        sb.append(simpleName())
-        if (!typeBounds().isEmpty()) {
-            sb.append(" extends ")
-            var first = true
-            for (bound in typeBounds()) {
-                if (!first) {
-                    sb.append(" ")
-                    sb.append("&")
-                    sb.append(" ")
-                }
-                first = false
-                sb.append(bound.toString())
-            }
-        }
-        return sb.toString()
-    }
 }

@@ -29,4 +29,23 @@ interface TypeParameterItem : ClassItem {
     fun typeBounds(): List<TypeItem>
 
     fun isReified(): Boolean
+
+    fun toSource(): String {
+        val sb = StringBuilder()
+        sb.append(simpleName())
+        if (!typeBounds().isEmpty()) {
+            sb.append(" extends ")
+            var first = true
+            for (bound in typeBounds()) {
+                if (!first) {
+                    sb.append(" ")
+                    sb.append("&")
+                    sb.append(" ")
+                }
+                first = false
+                sb.append(bound.toString())
+            }
+        }
+        return sb.toString()
+    }
 }
