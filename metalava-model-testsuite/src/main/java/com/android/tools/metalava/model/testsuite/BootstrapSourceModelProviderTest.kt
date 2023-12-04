@@ -689,10 +689,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    import java.util.List;
+                    import java.util.Map;
                     import java.io.Serializable;
 
-                    class Test<@Nullable T,U extends List<? super U>,V extends  Comparable & Serializable> {
+                    class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
                         public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo(Q a, R b, S c) {}
                     }
 
@@ -718,7 +718,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(methodParameterNames, methodTypeParameterList.typeParameterNames())
 
             assertEquals(
-                "<T, U extends java.util.List<? super U>, V extends java.lang.Comparable & java.io.Serializable>",
+                "<T, U extends java.util.Map<? super U, java.lang.String>, V extends java.lang.Comparable & java.io.Serializable>",
                 classTypeParameterList.toString()
             )
             assertEquals("", annoTypeParameterList.toString())
