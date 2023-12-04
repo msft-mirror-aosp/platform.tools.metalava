@@ -33,12 +33,6 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             )
         }
 
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-            val apiFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
-            val apiReference = getReferenceFilter(apiPredicateConfig)
-            return apiFilter.and(elidingPredicate(apiReference, apiPredicateConfig))
-        }
-
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
         }
@@ -55,12 +49,6 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
                 matchRemoved = true,
                 config = apiPredicateConfig,
             )
-        }
-
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
-            val removedFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
-            val removedReference = getReferenceFilter(apiPredicateConfig)
-            return removedFilter.and(elidingPredicate(removedReference, apiPredicateConfig))
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
@@ -89,7 +77,11 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
 
     abstract fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
-    abstract fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+    open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        val nonElidingFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
+        val referenceFilter = getReferenceFilter(apiPredicateConfig)
+        return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
+    }
 
     abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
