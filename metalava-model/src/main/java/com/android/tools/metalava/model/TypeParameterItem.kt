@@ -32,8 +32,11 @@ interface TypeParameterItem : ClassItem {
 
     fun toSource(): String {
         val sb = StringBuilder()
+        if (isReified()) {
+            sb.append("reified ")
+        }
         sb.append(simpleName())
-        if (!typeBounds().isEmpty()) {
+        if (typeBounds().isNotEmpty()) {
             sb.append(" extends ")
             var first = true
             for (bound in typeBounds()) {
@@ -43,7 +46,7 @@ interface TypeParameterItem : ClassItem {
                     sb.append(" ")
                 }
                 first = false
-                sb.append(bound.toString())
+                sb.append(bound.toTypeString(spaceBetweenParameters = true))
             }
         }
         return sb.toString()
