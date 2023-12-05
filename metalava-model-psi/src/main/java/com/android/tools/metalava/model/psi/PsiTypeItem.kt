@@ -74,10 +74,17 @@ sealed class PsiTypeItem(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?
+        filter: Predicate<Item>?,
+        spaceBetweenParameters: Boolean
     ): String {
         if (!kotlinStyleNulls) {
-            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+            return super.toTypeString(
+                annotations,
+                kotlinStyleNulls,
+                context,
+                filter,
+                spaceBetweenParameters
+            )
         }
 
         if (filter != null) {
