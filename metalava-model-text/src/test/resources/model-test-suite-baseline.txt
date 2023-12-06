@@ -4,7 +4,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of constructor returns[text,signature]
   Test implicit nullability of equals parameter[text,signature]
   Test implicit nullability of toString[text,signature]
-  Test nullability of outer classes[text,signature]
   Test nullability set through item annotations[text,signature]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest

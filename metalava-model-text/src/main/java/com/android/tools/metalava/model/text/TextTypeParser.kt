@@ -397,10 +397,9 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     }
 
     /**
-     * Creates a class name for the class represented by [type] with optional qualified name prefix
-     * [outerQualifiedName].
+     * Creates a class name for the class represented by [type] with optional [outerClassType].
      *
-     * For instance, `test.pkg.Outer<P1>` would be the [outerQualifiedName] when parsing `Inner<P2>`
+     * For instance, `test.pkg.Outer<P1>` would be the [outerClassType] when parsing `Inner<P2>`
      * from the [original] type `test.pkg.Outer<P1>.Inner<P2>`.
      */
     private fun createClassType(
@@ -412,7 +411,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         nullability: TypeNullability?
     ): TextClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
-        val allAnnotations = annotations + classAnnotations
 
         val (qualifiedName, fullName) =
             if (outerClassType != null) {
@@ -427,6 +425,14 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
 
         val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+        // If this is an outer class type (there's a remainder), call it non-null and don't apply
+        // the leading annotations (they belong to the inner class type).
+        val classModifiers =
+            if (remainder != null) {
+                modifiers(classAnnotations, TypeNullability.NONNULL)
+            } else {
+                modifiers(classAnnotations + annotations, nullability)
+            }
         val classType =
             TextClassTypeItem(
                 codebase,
@@ -434,7 +440,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
                 qualifiedName,
                 params,
                 outerClassType,
-                modifiers(allAnnotations, nullability)
+                classModifiers
             )
 
         if (remainder != null) {
@@ -449,7 +455,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
                 remainder.substring(1),
                 classType,
                 typeParams,
-                emptyList(),
+                annotations,
                 nullability
             )
         }
