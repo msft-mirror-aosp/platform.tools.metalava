@@ -29,18 +29,12 @@ interface SourceFileItem : Item {
 
     override fun parent(): PackageItem? = containingPackage()
 
-    override fun containingClass(strict: Boolean): ClassItem? = null
+    override fun containingClass(): ClassItem? = null
 
     override fun type(): TypeItem? = null
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) return
-
-        classes().forEach { it.acceptTypes(visitor) }
     }
 }
 

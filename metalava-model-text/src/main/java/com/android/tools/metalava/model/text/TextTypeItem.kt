@@ -16,46 +16,37 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
-import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
-import kotlin.math.min
 
-const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
-
-class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
-
+sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
+    DefaultTypeItem(codebase) {
     override fun toString(): String = type
 
-    override fun toErasedTypeString(context: Item?): String {
-        return toTypeString(
-            outerAnnotations = false,
-            innerAnnotations = false,
-            erased = true,
-            kotlinStyleNulls = false,
-            context = context
-        )
-    }
-
     override fun toTypeString(
-        outerAnnotations: Boolean,
-        innerAnnotations: Boolean,
-        erased: Boolean,
+        annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
         filter: Predicate<Item>?
     ): String {
-        val typeString = toTypeString(type, outerAnnotations, innerAnnotations, erased, context)
+        if (!kotlinStyleNulls) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+        }
 
-        if (innerAnnotations && kotlinStyleNulls && !primitive && context != null) {
+        val typeString = toTypeString(type, annotations)
+
+        if (kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
             var nullable: Boolean? = context.implicitNullness()
 
             if (nullable == null) {
@@ -79,7 +70,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
     }
 
     override fun asClass(): ClassItem? {
-        if (primitive) {
+        if (this is PrimitiveTypeItem) {
             return null
         }
         val cls = run {
@@ -95,7 +86,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         return codebase.getOrCreateClass(cls)
     }
 
-    fun qualifiedTypeName(): String = type
+    private fun qualifiedTypeName(): String = type
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -130,84 +121,8 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         return qualifiedTypeName().hashCode()
     }
 
-    override fun arrayDimensions(): Int {
-        val type = toErasedTypeString()
-        var dimensions = 0
-        for (c in type) {
-            if (c == '[') {
-                dimensions++
-            }
-        }
-        return dimensions
-    }
-
-    private fun findTypeVariableBounds(
-        typeParameterList: TypeParameterList,
-        name: String
-    ): List<TypeItem> {
-        for (p in typeParameterList.typeParameters()) {
-            if (p.simpleName() == name) {
-                val bounds = p.typeBounds()
-                if (bounds.isNotEmpty()) {
-                    return bounds
-                }
-            }
-        }
-
-        return emptyList()
-    }
-
-    private fun findTypeVariableBounds(context: Item?, name: String): List<TypeItem> {
-        if (context is MethodItem) {
-            val bounds = findTypeVariableBounds(context.typeParameterList(), name)
-            if (bounds.isNotEmpty()) {
-                return bounds
-            }
-            return findTypeVariableBounds(context.containingClass().typeParameterList(), name)
-        } else if (context is ClassItem) {
-            return findTypeVariableBounds(context.typeParameterList(), name)
-        }
-
-        return emptyList()
-    }
-
-    override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
-        return if (isLikelyTypeParameter(toTypeString())) {
-            val typeParameter =
-                TextTypeParameterItem.create(
-                    codebase,
-                    context as? TypeParameterListOwner,
-                    toTypeString()
-                )
-
-            if (context != null && typeParameter.typeBounds().isEmpty()) {
-                val bounds = findTypeVariableBounds(context, typeParameter.simpleName())
-                if (bounds.isNotEmpty()) {
-                    val filtered = bounds.filter { !it.isJavaLangObject() }
-                    if (filtered.isNotEmpty()) {
-                        return TextTypeParameterItem.create(
-                            codebase,
-                            context as? TypeParameterListOwner,
-                            toTypeString(),
-                            bounds
-                        )
-                    }
-                }
-            }
-
-            typeParameter
-        } else {
-            null
-        }
-    }
-
-    override val primitive: Boolean
-        get() = TextTypeParser.isPrimitive(type)
-
-    override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
-
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        return TextTypeItem(codebase, convertTypeString(replacementMap))
+        return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }
 
     override fun markRecent() = codebase.unsupported()
@@ -215,76 +130,10 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
     override fun scrubAnnotations() = codebase.unsupported()
 
     companion object {
-        // heuristic to guess if a given type parameter is a type variable
-        fun isLikelyTypeParameter(typeString: String): Boolean {
-            val first = typeString[0]
-            if (!Character.isUpperCase((first)) && first != '_') {
-                // This rules out primitives which otherwise don't have
-                return false
-            }
-            for (c in typeString) {
-                if (c == '.') {
-                    // This rules out qualified class names
-                    return false
-                }
-                if (c == ' ' || c == '[' || c == '<') {
-                    return true
-                }
-                // I'd like to check for all uppercase here but there are APIs which
-                // violate this, such as AsyncTask where the type variable names include "Result"
-            }
-
-            return true
-        }
-
         fun toTypeString(
             type: String,
-            outerAnnotations: Boolean,
-            innerAnnotations: Boolean,
-            erased: Boolean,
-            context: Item? = null
-        ): String {
-            return if (erased) {
-                val raw = eraseTypeArguments(type)
-                val concrete = eraseTypeArguments(substituteTypeParameters(raw, context))
-                if (outerAnnotations && innerAnnotations) {
-                    concrete
-                } else {
-                    eraseAnnotations(concrete, outerAnnotations, innerAnnotations)
-                }
-            } else {
-                if (outerAnnotations && innerAnnotations) {
-                    type
-                } else {
-                    eraseAnnotations(type, outerAnnotations, innerAnnotations)
-                }
-            }
-        }
-
-        private fun substituteTypeParameters(s: String, context: Item?): String {
-            if (context is TypeParameterListOwner) {
-                var end = s.indexOf('[')
-                if (end == -1) {
-                    end = s.length
-                }
-                if (s[0].isUpperCase() && s.lastIndexOf('.', end) == -1) {
-                    val v = s.substring(0, end)
-                    val parameter = context.resolveParameter(v)
-                    if (parameter != null) {
-                        val bounds = parameter.typeBounds()
-                        if (bounds.isNotEmpty()) {
-                            return bounds.first().toTypeString() + s.substring(end)
-                        }
-                        @Suppress("ConstantConditionIf")
-                        if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
-                            return JAVA_LANG_OBJECT + s.substring(end)
-                        }
-                    }
-                }
-            }
-
-            return s
-        }
+            annotations: Boolean,
+        ): String = if (annotations) type else eraseAnnotations(type)
 
         fun eraseTypeArguments(s: String): String {
             val index = s.indexOf('<')
@@ -344,37 +193,15 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
             return sb.toString()
         }
 
-        private fun eraseAnnotations(type: String, outer: Boolean, inner: Boolean): String {
+        private fun eraseAnnotations(type: String): String {
             if (type.indexOf('@') == -1) {
                 // If using Kotlin-style null syntax, strip those markers as well
                 return stripKotlinNullChars(type)
             }
 
-            assert(inner || !outer) // Can't supply outer=true,inner=false
-
             // Assumption: top level annotations appear first
             val length = type.length
-            var max =
-                if (!inner) length
-                else {
-                    val space = type.indexOf(' ')
-                    val generics = type.indexOf('<')
-                    val first =
-                        if (space != -1) {
-                            if (generics != -1) {
-                                min(space, generics)
-                            } else {
-                                space
-                            }
-                        } else {
-                            generics
-                        }
-                    if (first != -1) {
-                        first
-                    } else {
-                        length
-                    }
-                }
+            var max = length
 
             var s = type
             while (true) {
@@ -417,3 +244,50 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         }
     }
 }
+
+/** A [PrimitiveTypeItem] parsed from a signature file. */
+internal class TextPrimitiveTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val kind: PrimitiveTypeItem.Primitive,
+    override val modifiers: TypeModifiers
+) : PrimitiveTypeItem, TextTypeItem(codebase, type)
+
+/** An [ArrayTypeItem] parsed from a signature file. */
+internal class TextArrayTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val componentType: TypeItem,
+    override val isVarargs: Boolean,
+    override val modifiers: TypeModifiers
+) : ArrayTypeItem, TextTypeItem(codebase, type)
+
+/** A [ClassTypeItem] parsed from a signature file. */
+internal class TextClassTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val qualifiedName: String,
+    override val parameters: List<TypeItem>,
+    override val outerClassType: ClassTypeItem?,
+    override val modifiers: TypeModifiers
+) : ClassTypeItem, TextTypeItem(codebase, type) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
+}
+
+/** A [VariableTypeItem] parsed from a signature file. */
+internal class TextVariableTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val name: String,
+    override val asTypeParameter: TypeParameterItem,
+    override val modifiers: TypeModifiers
+) : VariableTypeItem, TextTypeItem(codebase, type)
+
+/** A [WildcardTypeItem] parsed from a signature file. */
+internal class TextWildcardTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val extendsBound: TypeItem?,
+    override val superBound: TypeItem?,
+    override val modifiers: TypeModifiers
+) : WildcardTypeItem, TextTypeItem(codebase, type)

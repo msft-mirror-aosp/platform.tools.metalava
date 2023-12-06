@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import java.util.function.Predicate
 
+@MetalavaApi
 interface MethodItem : MemberItem {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
@@ -27,13 +28,13 @@ interface MethodItem : MemberItem {
         get() = null
 
     /** Whether this method is a constructor */
-    fun isConstructor(): Boolean
+    @MetalavaApi fun isConstructor(): Boolean
 
     /** The type of this field. Returns the containing class for constructors */
-    fun returnType(): TypeItem
+    @MetalavaApi fun returnType(): TypeItem
 
     /** The list of parameters */
-    fun parameters(): List<ParameterItem>
+    @MetalavaApi fun parameters(): List<ParameterItem>
 
     /** Returns true if this method is a Kotlin extension method */
     fun isExtensionMethod(): Boolean
@@ -58,7 +59,7 @@ interface MethodItem : MemberItem {
      * Any type parameters for the class, if any, as a source string (with fully qualified class
      * names)
      */
-    fun typeParameterList(): TypeParameterList
+    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
     fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
@@ -164,30 +165,6 @@ interface MethodItem : MemberItem {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-
-        for (parameter in parameters()) {
-            parameter.acceptTypes(visitor)
-        }
-
-        for (exception in throwsTypes()) {
-            exception.acceptTypes(visitor)
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-    }
-
     companion object {
         private fun compareMethods(
             o1: MethodItem,
@@ -249,14 +226,48 @@ interface MethodItem : MemberItem {
                 compareMethods(o1, o2, true)
             }
 
+        /**
+         * Compare two types to see if they are considered the same.
+         *
+         * Same means, functionally equivalent at both compile time and runtime.
+         *
+         * TODO: Compare annotations to see for example whether you've refined the nullness policy;
+         *   if so, that should be included
+         */
+        private fun sameType(
+            t1: TypeItem,
+            t2: TypeItem,
+            addAdditionalOverrides: Boolean,
+        ): Boolean {
+            // Compare the types in two ways.
+            // 1. Using `TypeItem.equals(TypeItem)` which is basically a textual comparison that
+            //    ignores type parameter bounds but includes everuthing else that is present in the
+            //    string representation of the type apart from white space differences. This is
+            //    needed to preserve methods that change annotations, e.g. adding `@NonNull`, which
+            //    are significant to the API, and also to preserver legacy behavior to reduce churn
+            //    in API signature files.
+            // 2. Comparing their erased types which takes into account type parameter bounds but
+            //    ignores annotations and generic types. Comparing erased types will retain more
+            //    methods overrides in the signature file so only do it when adding additional
+            //    overrides.
+            return t1 == t2 &&
+                (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
+        }
+
         fun sameSignature(
             method: MethodItem,
             superMethod: MethodItem,
-            compareRawTypes: Boolean = false
+            addAdditionalOverrides: Boolean,
         ): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
-            if (method.returnType() != superMethod.returnType()) {
+            if (
+                !sameType(
+                    method.returnType(),
+                    superMethod.returnType(),
+                    addAdditionalOverrides = addAdditionalOverrides
+                )
+            ) {
                 return false
             }
 
@@ -284,18 +295,9 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (compareRawTypes) {
-                    if (pt1.toErasedTypeString() != pt2.toErasedTypeString()) {
-                        return false
-                    }
-                } else {
-                    if (pt1 != pt2) {
-                        return false
-                    }
+                if (!sameType(pt1, pt2, addAdditionalOverrides)) {
+                    return false
                 }
-
-                // TODO: Compare annotations to see for example whether
-                // you've refined the nullness policy; if so, that should be included
             }
 
             // Also compare throws lists
@@ -343,8 +345,8 @@ interface MethodItem : MemberItem {
         return when {
             modifiers.hasJvmSyntheticAnnotation() -> false
             isConstructor() -> false
-            (!returnType().primitive) -> true
-            parameters().any { !it.type().primitive } -> true
+            (returnType() !is PrimitiveTypeItem) -> true
+            parameters().any { it.type() !is PrimitiveTypeItem } -> true
             else -> false
         }
     }
@@ -354,7 +356,7 @@ interface MethodItem : MemberItem {
             return true
         }
 
-        if (!isConstructor() && !returnType().primitive) {
+        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
             if (!modifiers.hasNullnessInfo()) {
                 return false
             }
@@ -409,6 +411,16 @@ interface MethodItem : MemberItem {
     }
 
     /**
+     * Returns true if overloads of the method should be checked separately when checking signature
+     * of the method.
+     *
+     * This works around the issue of actual method not generating overloads for @JvmOverloads
+     * annotation when the default is specified on expect side
+     * (https://youtrack.jetbrains.com/issue/KT-57537).
+     */
+    fun shouldExpandOverloads(): Boolean = false
+
+    /**
      * Returns true if this method is a signature match for the given method (e.g. can be
      * overriding). This checks that the name and parameter lists match, but ignores differences in
      * parameter names, return value types and throws list types.
@@ -435,8 +447,8 @@ interface MethodItem : MemberItem {
             if (typeString1 == typeString2) {
                 continue
             }
-            val type1 = parameter1.type().toErasedTypeString(this)
-            val type2 = parameter2.type().toErasedTypeString(other)
+            val type1 = parameter1.type().toErasedTypeString()
+            val type2 = parameter2.type().toErasedTypeString()
 
             if (type1 != type2) {
                 if (!checkGenericParameterTypes(typeString1, typeString2)) {
@@ -468,32 +480,10 @@ interface MethodItem : MemberItem {
      */
     fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
         for (parameter in parameters()) {
-            val type = parameter.type()
-            if (type.hasTypeArguments()) {
-                for (argument in type.typeArgumentClasses()) {
-                    if (!filterReference.test(argument)) {
-                        return true
-                    }
-                }
-            }
-            val clz = type.asClass() ?: continue
-            if (!filterReference.test(clz)) {
-                return true
-            }
+            if (parameter.type().hasHiddenType(filterReference)) return true
         }
 
-        val returnType = returnType()
-        val returnTypeClass = returnType.asClass()
-        if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
-            return true
-        }
-        if (returnType.hasTypeArguments()) {
-            for (argument in returnType.typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
-                }
-            }
-        }
+        if (returnType().hasHiddenType(filterReference)) return true
 
         if (typeParameterList().typeParameterCount() > 0) {
             for (argument in typeArgumentClasses()) {
@@ -506,18 +496,21 @@ interface MethodItem : MemberItem {
         return false
     }
 
-    override fun hasShowAnnotationInherited(): Boolean {
-        if (super.hasShowAnnotationInherited()) {
-            return true
+    /** Checks if there is a reference to a hidden class anywhere in the type. */
+    private fun TypeItem.hasHiddenType(filterReference: Predicate<Item>): Boolean {
+        return when (this) {
+            is PrimitiveTypeItem -> false
+            is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
+            is ClassTypeItem ->
+                asClass()?.let { !filterReference.test(it) } == true ||
+                    outerClassType?.hasHiddenType(filterReference) == true ||
+                    parameters.any { it.hasHiddenType(filterReference) }
+            is VariableTypeItem -> !filterReference.test(asTypeParameter)
+            is WildcardTypeItem ->
+                extendsBound?.hasHiddenType(filterReference) == true ||
+                    superBound?.hasHiddenType(filterReference) == true
+            else -> throw IllegalStateException("Unrecognized type: $this")
         }
-        return superMethods().any { it.hasShowAnnotationInherited() }
-    }
-
-    override fun onlyShowForStubPurposesInherited(): Boolean {
-        if (super.onlyShowForStubPurposesInherited()) {
-            return true
-        }
-        return superMethods().any { it.onlyShowForStubPurposesInherited() }
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
@@ -556,7 +549,10 @@ interface MethodItem : MemberItem {
 
     private fun computeRequiresOverride(): Boolean {
         val isVisible = !hidden || hasShowAnnotation()
-        return if (!modifiers.isAbstract()) {
+
+        // When the method is a concrete, non-default method, its overriding method is not required
+        // to be shown in the signature file.
+        return if (!modifiers.isAbstract() && !modifiers.isDefault()) {
             false
         } else if (superMethods().isEmpty()) {
             // If the method is abstract and is not overriding any parent methods,
@@ -572,6 +568,30 @@ interface MethodItem : MemberItem {
                     it.containingClass().isJavaLangObject() || it.requiresOverride()
                 }
         }
+    }
+
+    private fun getUniqueSuperInterfaceMethods(
+        superInterfaceMethods: List<MethodItem>
+    ): List<MethodItem> {
+        val visitCountMap = mutableMapOf<ClassItem, Int>()
+
+        // perform BFS on all super interfaces of each super interface methods'
+        // containing interface to determine the leaf interface of each unique hierarchy.
+        superInterfaceMethods.forEach {
+            val superInterface = it.containingClass()
+            val queue = mutableListOf(superInterface)
+            while (queue.isNotEmpty()) {
+                val s = queue.removeFirst()
+                visitCountMap[s] = visitCountMap.getOrDefault(s, 0) + 1
+                queue.addAll(
+                    s.interfaceTypes().mapNotNull { interfaceType -> interfaceType.asClass() }
+                )
+            }
+        }
+
+        // If visit count is greater than 1, it means the interface is within the hierarchy of
+        // another method, thus filter out.
+        return superInterfaceMethods.filter { visitCountMap[it.containingClass()]!! == 1 }
     }
 
     /**
@@ -590,12 +610,41 @@ interface MethodItem : MemberItem {
                     // it only required override when it is directly (not transitively) overriding
                     // it and the signature differs (e.g. visibility or modifier
                     // changes)
-                    !sameSignature(this, it.first())
+                    !sameSignature(
+                        this,
+                        it.first(),
+                        // This method is only called when add-additional-overrides=yes.
+                        addAdditionalOverrides = true,
+                    )
                 } else {
-                    it.all { superMethod ->
-                        superMethod.containingClass().isJavaLangObject() ||
-                            superMethod.requiresOverride()
-                    }
+                    // Since a class can extend a single class except Object,
+                    // there is only one non-Object super class method at max.
+                    val superClassMethods =
+                        it.firstOrNull { superMethod ->
+                            superMethod.containingClass().isClass() &&
+                                !superMethod.containingClass().isJavaLangObject()
+                        }
+
+                    // Assume a class implements two interfaces A and B;
+                    // A provides a default super method, and B provides an abstract super method.
+                    // In such case, the child method is a required overriding method when:
+                    // - A and B do not extend each other or
+                    // - A is a super interface of B
+                    // On the other hand, the child method is not a required overriding method when:
+                    // - B is a super interface of A
+                    // Given this, we should make decisions only based on the leaf interface of each
+                    // unique hierarchy.
+                    val uniqueSuperInterfaceMethods =
+                        getUniqueSuperInterfaceMethods(
+                            it.filter { superMethod -> superMethod.containingClass().isInterface() }
+                        )
+
+                    // If super method is non-null, whether this method is required
+                    // is determined by whether the super method requires override.
+                    // If super method is null, this method is required if there is a
+                    // unique super interface that requires override.
+                    superClassMethods?.requiresOverride()
+                        ?: uniqueSuperInterfaceMethods.any { s -> s.requiresOverride() }
                 }
             }) ||
             // To inherit methods with override-equivalent signatures
