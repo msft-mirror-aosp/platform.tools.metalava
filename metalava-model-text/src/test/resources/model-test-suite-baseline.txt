@@ -1,3 +1,13 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
+  Test nullability of arrays[text,signature]
+  Test nullability of classes with parameters[text,signature]
+  Test nullability of multi-dimensional arrays[text,signature]
+  Test nullability of outer classes[text,signature]
+  Test nullability of primitives[text,signature]
+  Test nullability of simple classes[text,signature]
+  Test nullability of varargs[text,signature]
+  Test nullability of wildcards[text,signature]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test reified type parameter[text,signature]
 

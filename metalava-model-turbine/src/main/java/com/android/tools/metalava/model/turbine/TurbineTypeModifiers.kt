@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 
 /** Modifiers for a [TurbineTypeItem]. */
 internal class TurbineTypeModifiers(initialAnnotations: List<AnnotationItem>) : TypeModifiers {
@@ -31,5 +32,13 @@ internal class TurbineTypeModifiers(initialAnnotations: List<AnnotationItem>) : 
 
     override fun removeAnnotation(annotation: AnnotationItem) {
         annotations.remove(annotation)
+    }
+
+    override fun nullability(): TypeNullability {
+        TODO("Not yet implemented")
+    }
+
+    override fun setNullability(newNullability: TypeNullability) {
+        TODO("Not yet implemented")
     }
 }
