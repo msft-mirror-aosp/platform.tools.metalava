@@ -93,9 +93,6 @@ interface Item {
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Visits all types in this item hierarchy */
-    fun acceptTypes(visitor: TypeVisitor)
-
     /** Get a mutable version of modifiers for this item */
     fun mutableModifiers(): MutableModifierList
 
@@ -203,40 +200,12 @@ interface Item {
      */
     fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
 
-    /**
-     * Returns true if this item has any show for stub purposes annotations and that is the only
-     * show annotation.
-     *
-     * See [Showability.forStubsOnly]
-     */
-    fun onlyShowForStubPurposes(): Boolean = showability.showForStubsOnly()
-
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean =
         modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
 
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
-
-    /**
-     * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
-
-    /**
-     * Same as [onlyShowForStubPurposes], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
 
     fun sourceFile(): SourceFileItem? {
         var curr: Item? = this

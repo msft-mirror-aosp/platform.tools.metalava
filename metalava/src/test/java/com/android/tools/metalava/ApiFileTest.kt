@@ -22,6 +22,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java
@@ -1741,6 +1742,7 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2029,6 +2031,7 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             api =
                 """
                     package test.pkg {
@@ -3200,6 +3203,122 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test whether partial or total ordering`() {
+        check(
+            format = FileFormat.V2,
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends other.Bar mine.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends mine.Bar other.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
@@ -3248,6 +3367,74 @@ class ApiFileTest : DriverTest() {
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
+                    method public void close();
+                  }
+                }
+                package android.util {
+                  public interface AttributeSet {
+                  }
+                }
+                package my {
+                  public interface AutoCloseable {
+                  }
+                }
+                package org.xmlpull.v1 {
+                  public interface XmlPullParser {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
+        // Real-world example: XmlResourceParser
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.content.res;
+                    import android.util.AttributeSet;
+                    import org.xmlpull.v1.XmlPullParser;
+                    import my.AutoCloseable;
+
+                    @SuppressWarnings("UnnecessaryInterfaceModifier")
+                    public interface XmlResourceParser extends XmlPullParser, AttributeSet, AutoCloseable {
+                        public void close();
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.util;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface AttributeSet {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package my;
+                    public interface AutoCloseable {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package org.xmlpull.v1;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface XmlPullParser {
+                    }
+                    """
+                    )
+                ),
+            api =
+                """
+                package android.content.res {
+                  public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
                     method public void close();
                   }
                 }
@@ -3623,6 +3810,7 @@ class ApiFileTest : DriverTest() {
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -4798,8 +4986,11 @@ class ApiFileTest : DriverTest() {
                         )
 
                         class SomeOptionalJvmOverloads @JvmOverloads constructor(
-                            private val foo: Int,
-                            private val bar: Int = 0
+                            private val p1: Int,
+                            private val p2: Int = 0,
+                            private val p3: Int,
+                            private val p4: Int = 0,
+                            private val p5: Int
                         )
 
                         class SomeOptionalNoJvmOverloads(
@@ -4822,14 +5013,94 @@ class ApiFileTest : DriverTest() {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo);
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
+                    ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
+                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Kotlin expect-actual with JvmOverloads`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "src/commonMain/test/pkg/Expect.kt",
+                        """
+                        package test.pkg
+
+                        expect class AllOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        expect class SomeOptionalJvmOverloads @JvmOverloads constructor(
+                            private val p1: Int,
+                            private val p2: Int = 0,
+                            private val p3: Int,
+                            private val p4: Int = 0,
+                            private val p5: Int
+                        )
+
+                        expect class AllOptionalJvmOverloadsBothSides @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+                    """
+                    ),
+                    kotlin(
+                        "src/jvmMain/test/pkg/Actual.kt",
+                        """
+                        package test.pkg
+
+                        actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
+                            private val foo: Int,
+                            private val bar: Int
+                        )
+
+                        actual class SomeOptionalJvmOverloads @JvmOverloads actual constructor(
+                            private val p1: Int,
+                            private val p2: Int,
+                            private val p3: Int,
+                            private val p4: Int,
+                            private val p5: Int
+                        )
+
+                        actual class AllOptionalJvmOverloadsBothSides @JvmOverloads actual constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+                    """
+                    )
+                ),
+            api =
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class AllOptionalJvmOverloads {
+                        ctor public AllOptionalJvmOverloads();
+                        ctor public AllOptionalJvmOverloads(optional int foo);
+                        ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
+                      }
+                      public final class AllOptionalJvmOverloadsBothSides {
+                        ctor public AllOptionalJvmOverloadsBothSides();
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo);
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo, optional int bar);
+                      }
+                      public final class SomeOptionalJvmOverloads {
+                        ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
+                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
+                      }
+                    }
+                """
         )
     }
 
@@ -5732,93 +6003,60 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `FlaggedApi annotated items can be hidden if requested via command line`() {
-        fun checkFlaggedApi(api: String, extraArguments: Array<String>) {
-            check(
-                format = FileFormat.V2,
-                sourceFiles =
-                    arrayOf(
-                        java(
-                            """
-                        package test.pkg;
-
-                        import android.annotation.FlaggedApi;
-                        import android.annotation.SystemApi;
-
-                        public class Foo {
-                            @FlaggedApi("foo/bar")
-                            public void flaggedPublicApi() {}
-
-                            /** @hide */
-                            @SystemApi
-                            @FlaggedApi("foo/bar")
-                            public void flaggedSystemApi() {}
-                        }
-                    """
-                        ),
-                        systemApiSource,
-                        flaggedApiSource
-                    ),
-                api = api,
-                extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + extraArguments
-            )
-        }
-
-        // public api scope, including flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
-                  }
-                }
-            """,
-            extraArguments = arrayOf()
-        )
-
-        // public api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                  }
-                }
-            """,
-            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "android.annotation.FlaggedApi")
-        )
-
-        // system api scope, including flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
-                  }
-                }
-            """,
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "android.annotation.SystemApi")
-        )
-
-        // system api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api = """
-                // Signature format: 2.0
-            """,
-            extraArguments =
+    fun `Type-use annotations can be included in signature files`() {
+        check(
+            sourceFiles =
                 arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_ANNOTATION,
-                    "android.annotation.FlaggedApi"
-                )
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                            public @interface TypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                            public @interface MethodAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE})
+                            public @interface MethodAndTypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                @MethodAnnotation
+                                @MethodAndTypeAnnotation
+                                public @TypeAnnotation List<@TypeAnnotation String> foo() {}
+                            }
+                        """
+                    )
+                ),
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.pkg.MethodAndTypeAnnotation @test.pkg.MethodAnnotation public foo(): java.util.@test.pkg.MethodAndTypeAnnotation @test.pkg.TypeAnnotation List<java.lang.@test.pkg.TypeAnnotation String!>!;
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE}) public @interface MethodAndTypeAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD) public @interface MethodAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
+                      }
+                    }
+                """
         )
     }
 }
