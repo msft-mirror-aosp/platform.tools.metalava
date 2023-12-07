@@ -23,9 +23,7 @@ import com.android.tools.metalava.model.MutableModifierList
 abstract class TurbineItem(
     override val codebase: Codebase,
     override val modifiers: TurbineModifierItem
-) : DefaultItem() {
-
-    @Suppress("LeakingThis") override var deprecated = modifiers.isDeprecated()
+) : DefaultItem(modifiers) {
 
     override var docOnly: Boolean = false
 

@@ -369,9 +369,11 @@ interface Item {
     }
 }
 
-abstract class DefaultItem : Item {
+abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
+
+    final override var deprecated = modifiers.isDeprecated()
 
     override val isPublic: Boolean
         get() = modifiers.isPublic()
