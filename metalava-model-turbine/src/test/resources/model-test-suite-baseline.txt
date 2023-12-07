@@ -1,6 +1,3 @@
-com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  200 - test TypeParameterList name strings[turbine,java]
-
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
 
