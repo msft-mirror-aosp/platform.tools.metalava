@@ -129,7 +129,7 @@ class ConvertJarsToSignatureFiles(
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {
-                                if (old.deprecated && old !is PackageItem) {
+                                if (old.originallyDeprecated && old !is PackageItem) {
                                     new.deprecateIfRequired("previous signature file for $old")
                                 }
                             }
@@ -242,8 +242,9 @@ class ConvertJarsToSignatureFiles(
     /** Mark the [Item] as deprecated if required. */
     private fun Item?.deprecateIfRequired(source: String) {
         this ?: return
-        if (!deprecated) {
-            deprecated = true
+        if (!originallyDeprecated) {
+            // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
+            mutableModifiers().setDeprecated(true)
             progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }

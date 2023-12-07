@@ -258,8 +258,8 @@ private constructor(
                     // and was not explicitly qualified.
                     item is FieldItem ->
                         if (item.inheritedFromAncestor) item.originallyDeprecated
-                        else item.deprecated
-                    else -> item.deprecated
+                        else item.effectivelyDeprecated
+                    else -> item.effectivelyDeprecated
                 }
             if (writeDeprecated) {
                 writer.write("@Deprecated")
