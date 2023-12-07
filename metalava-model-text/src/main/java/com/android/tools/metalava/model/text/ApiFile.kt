@@ -354,7 +354,6 @@ private constructor(
             )
 
         cl.setContainingPackage(pkg)
-        cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token && !isInterface) {
             token = getAnnotationCompleteToken(tokenizer, tokenizer.requireToken())
             var superClassName = token
@@ -615,7 +614,6 @@ private constructor(
         val parameters = parseParameterList(api, tokenizer, typeParams)
         method =
             TextConstructorItem(api, name, cl, modifiers, cl.toType(), parameters, tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
@@ -690,7 +688,6 @@ private constructor(
             modifiers.setAbstract(true)
         }
         method = TextMethodItem(api, name, cl, modifiers, returnType, parameters, tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
@@ -767,7 +764,6 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val field = TextFieldItem(api, name, cl, modifiers, type, value, tokenizer.pos())
-        field.deprecated = modifiers.isDeprecated()
         if (isEnum) {
             cl.addEnumConstant(field)
         } else {
@@ -983,7 +979,6 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val property = TextPropertyItem(api, name, cl, modifiers, type, tokenizer.pos())
-        property.deprecated = modifiers.isDeprecated()
         cl.addProperty(property)
     }
 

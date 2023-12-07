@@ -48,7 +48,7 @@ abstract class TextItem(
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 
-    override var deprecated = false
+    @Suppress("LeakingThis") override var deprecated = modifiers.isDeprecated()
 
     override fun isCloned(): Boolean = false
 
