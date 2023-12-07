@@ -369,7 +369,10 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
+abstract class DefaultItem : Item {
+
+    final override val sortingRank: Int = nextRank.getAndIncrement()
+
     override val isPublic: Boolean
         get() = modifiers.isPublic()
 
