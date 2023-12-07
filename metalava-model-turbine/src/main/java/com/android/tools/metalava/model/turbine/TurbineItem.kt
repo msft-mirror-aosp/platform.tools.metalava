@@ -25,7 +25,7 @@ abstract class TurbineItem(
     override val modifiers: TurbineModifierItem
 ) : DefaultItem() {
 
-    override var deprecated: Boolean = false
+    @Suppress("LeakingThis") override var deprecated = modifiers.isDeprecated()
 
     override var docOnly: Boolean = false
 
