@@ -325,7 +325,6 @@ open class PsiMethodItem(
             method.modifiers,
             method,
             target = AnnotationTarget.INTERNAL,
-            includeDeprecated = true,
             removeAbstract = false,
             removeFinal = false,
         )
@@ -355,7 +354,6 @@ open class PsiMethodItem(
                 parameter.modifiers,
                 parameter,
                 target = AnnotationTarget.INTERNAL,
-                includeDeprecated = true,
             )
             sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))
