@@ -1,6 +1,9 @@
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
 
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test deprecated parameter by annotation[turbine,java]
+
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test @hide in package info[turbine,java]
