@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -242,6 +243,138 @@ class ApiAnalyzerTest : DriverTest() {
                             .trimIndent()
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Test inheriting methods from hidden class preserves deprecated status`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            class Hidden {
+                                /** @deprecated */
+                                public <T> void foo(@Deprecated T t) {}
+
+                                /** @deprecated */
+                                public void bar() {}
+
+                                public void baz(@Deprecated int i) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Concrete extends Hidden<String> {
+                            }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            // The @Deprecated is not present on the baz() parameter as deprecated annotations are
+            // not written out for method parameters.
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Concrete {
+                        ctor public Concrete();
+                        method @Deprecated public void bar();
+                        method public void baz(int);
+                        method @Deprecated public <T> void foo(T);
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Concrete {
+                            public Concrete() { throw new RuntimeException("Stub!"); }
+                            /** @deprecated */
+                            @Deprecated
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** @deprecated */
+                            @Deprecated
+                            public <T> void foo(T t) { throw new RuntimeException("Stub!"); }
+                            public void baz(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test inheriting methods from hidden generic class preserves deprecated status`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            class Hidden<T> {
+                                /** @deprecated */
+                                public void foo(@Deprecated T t) {}
+
+                                /** @deprecated */
+                                public void bar() {}
+
+                                public void baz(@Deprecated int i) {}
+                            }
+
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Concrete extends Hidden<String> {
+                            }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            // The @Deprecated is not present on the baz() parameter as deprecated annotations are
+            // not written out for method parameters.
+            // The @Deprecated is missing from the bar() and foo() methods.
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Concrete {
+                        ctor public Concrete();
+                        method public void bar();
+                        method public void baz(int);
+                        method public void foo(String);
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Concrete {
+                            public Concrete() { throw new RuntimeException("Stub!"); }
+                            /** @deprecated */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** @deprecated */
+                            public void foo(java.lang.String t) { throw new RuntimeException("Stub!"); }
+                            public void baz(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 }
