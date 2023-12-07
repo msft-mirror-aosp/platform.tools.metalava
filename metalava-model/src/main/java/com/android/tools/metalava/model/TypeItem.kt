@@ -189,16 +189,6 @@ interface TypeItem {
         return typeArguments.map { it.trim() }
     }
 
-    /**
-     * Mark nullness annotations in the type as recent.
-     *
-     * TODO: This isn't very clean; we should model individual annotations.
-     */
-    fun markRecent()
-
-    /** Ensure that we don't include any annotations in the type strings for this type. */
-    fun scrubAnnotations()
-
     companion object {
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
