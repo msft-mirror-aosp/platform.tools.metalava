@@ -882,6 +882,9 @@ class ApiAnalyzer(
                             // Instead, these
                             // are added to the documentation by the [DocAnalyzer].
                             !item.isKotlin() &&
+                            // Don't warn about this on ParameterItem as there is no way to provide
+                            // a deprecation message in Javadoc for parameters.
+                            item !is ParameterItem &&
                             // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's
                             // correct
                             // and expected to *not* combine this with @deprecated in the text;

@@ -83,6 +83,7 @@ internal constructor(
                 documentation?.contains("@deprecated") == true ||
                     // Check for @Deprecated annotation
                     ((element as? PsiDocCommentOwner)?.isDeprecated == true) ||
+                    hasDeprecatedAnnotation(modifiers) ||
                     // Check for @Deprecated on sourcePsi
                     isDeprecatedFromSourcePsi(element)
             ) {
@@ -91,6 +92,12 @@ internal constructor(
 
             return modifiers
         }
+
+        private fun hasDeprecatedAnnotation(modifiers: PsiModifierItem) =
+            modifiers.annotations?.any {
+                it.qualifiedName == "Deprecated" ||
+                    it.qualifiedName?.endsWith(".Deprecated") == true
+            } == true
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
             if (element is UMethod) {

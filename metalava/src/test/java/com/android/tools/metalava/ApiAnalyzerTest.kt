@@ -277,8 +277,6 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V2,
-            // The @Deprecated is not present on the baz() parameter as deprecated annotations are
-            // not written out for method parameters.
             api =
                 """
                     // Signature format: 2.0
@@ -286,8 +284,8 @@ class ApiAnalyzerTest : DriverTest() {
                       public class Concrete {
                         ctor public Concrete();
                         method @Deprecated public void bar();
-                        method public void baz(int);
-                        method @Deprecated public <T> void foo(T);
+                        method public void baz(@Deprecated int);
+                        method @Deprecated public <T> void foo(@Deprecated T);
                       }
                     }
                 """,
@@ -304,8 +302,8 @@ class ApiAnalyzerTest : DriverTest() {
                             public void bar() { throw new RuntimeException("Stub!"); }
                             /** @deprecated */
                             @Deprecated
-                            public <T> void foo(T t) { throw new RuntimeException("Stub!"); }
-                            public void baz(int i) { throw new RuntimeException("Stub!"); }
+                            public <T> void foo(@Deprecated T t) { throw new RuntimeException("Stub!"); }
+                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
