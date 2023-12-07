@@ -180,7 +180,7 @@ interface ModifierList {
             item: Item,
             target: AnnotationTarget,
             // TODO: "deprecated" isn't a modifier; clarify method name
-            includeDeprecated: Boolean = false,
+            includeDeprecated: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
             omitCommonPackages: Boolean = false,
