@@ -226,9 +226,6 @@ interface ClassItem : Item {
 
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
-    // This replaces the "real" super class
-    fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem? = superClass?.toType())
-
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
 
@@ -250,40 +247,6 @@ interface ClassItem : Item {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = toType()
-        visitor.visitType(type, this)
-
-        // TODO: Visit type parameter list (at least the bounds types, e.g. View in <T extends View>
-        superClass()?.let { visitor.visitType(it.toType(), it) }
-
-        if (visitor.includeInterfaces) {
-            for (itf in interfaceTypes()) {
-                val owner = itf.asClass()
-                owner?.let { visitor.visitType(itf, it) }
-            }
-        }
-
-        for (constructor in constructors()) {
-            constructor.acceptTypes(visitor)
-        }
-        for (field in fields()) {
-            field.acceptTypes(visitor)
-        }
-        for (method in methods()) {
-            method.acceptTypes(visitor)
-        }
-        for (cls in innerClasses()) {
-            cls.acceptTypes(visitor)
-        }
-
-        visitor.afterVisitType(type, this)
     }
 
     companion object {
@@ -313,17 +276,19 @@ interface ClassItem : Item {
             }
         }
 
-        val nameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.simpleName().compareTo(b.simpleName())
-        }
+        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
+        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
 
-        val fullNameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.fullName().compareTo(b.fullName())
-        }
+        /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
+        private val qualifiedComparator: Comparator<ClassItem> =
+            Comparator.comparing { it.qualifiedName() }
 
-        val qualifiedComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.qualifiedName().compareTo(b.qualifiedName())
-        }
+        /**
+         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
+         * [ClassItem.qualifiedName].
+         */
+        val fullNameThenQualifierComparator: Comparator<ClassItem> =
+            fullNameComparator.thenComparing(qualifiedComparator)
 
         fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
     }
@@ -413,6 +378,27 @@ interface ClassItem : Item {
         return null
     }
 
+    /**
+     * Find the [MethodItem] in this.
+     *
+     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
+     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
+     *
+     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
+     * subclass) whose parameters match the supplied parameters string. Parameters are matched
+     * against a candidate [MethodItem] as follows:
+     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
+     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
+     * * Everything after `<` is removed.
+     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
+     *   on the [ParameterItem.type].
+     *
+     * If every parameter matches then the matched [MethodItem] is returned. If no `candidate`
+     * matches then it returns 'null`.
+     *
+     * @param methodName the name of the method or [simpleName] if looking for constructors.
+     * @param parameters the comma separated erased types of the parameters.
+     */
     fun findMethod(methodName: String, parameters: String): MethodItem? {
         if (methodName == simpleName()) {
             // Constructor
@@ -445,7 +431,7 @@ interface ClassItem : Item {
             if (index != -1) {
                 parameterString = parameterString.substring(0, index)
             }
-            val parameter = parameters[i].type().toErasedTypeString(method)
+            val parameter = parameters[i].type().toErasedTypeString()
             if (parameter != parameterString) {
                 return false
             }
