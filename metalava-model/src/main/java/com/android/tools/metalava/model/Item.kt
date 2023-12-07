@@ -79,6 +79,12 @@ interface Item {
     val originallyDeprecated: Boolean
 
     /**
+     * True if this item has been marked as deprecated or is a descendant of a non-package item that
+     * has been marked as deprecated.
+     */
+    var effectivelyDeprecated: Boolean
+
+    /**
      * True if this item has been marked deprecated.
      *
      * The meaning of this property changes over time. Initially, when reading sources it indicates
@@ -384,6 +390,8 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override var originallyDeprecated = modifiers.isDeprecated()
+
+    final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
 

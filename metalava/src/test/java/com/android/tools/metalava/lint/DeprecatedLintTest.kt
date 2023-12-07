@@ -38,8 +38,7 @@ class DeprecatedLintTest(private val deprecatedState: DeprecatedState) : DriverT
         ),
         DEPRECATED_CLASS(
             context = Context("/** @deprecated */", ""),
-            // ApiLint ignores deprecation status on containing class so this will fail.
-            expectedFail = DefaultLintErrorMessage,
+            expectedFail = "",
         ),
         ;
 

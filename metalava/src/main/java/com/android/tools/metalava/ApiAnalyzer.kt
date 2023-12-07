@@ -611,6 +611,13 @@ class ApiAnalyzer(
     private fun propagateHiddenRemovedAndDocOnly() {
         packages.accept(
             object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
+                override fun visitItem(item: Item) {
+                    val parent = item.parent() ?: return
+                    if (parent !is PackageItem && parent.effectivelyDeprecated) {
+                        item.effectivelyDeprecated = true
+                    }
+                }
+
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true

@@ -222,11 +222,7 @@ private constructor(
     ) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
-        if (item.deprecated) {
-            return
-        }
-
-        if (item is ParameterItem && item.containingMethod().deprecated) {
+        if (item.effectivelyDeprecated) {
             return
         }
 
