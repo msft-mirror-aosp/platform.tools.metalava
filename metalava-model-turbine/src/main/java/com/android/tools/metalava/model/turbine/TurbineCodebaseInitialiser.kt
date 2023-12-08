@@ -280,6 +280,12 @@ open class TurbineCodebaseInitialiser(
             fixCtorReturnType(classItem)
         }
 
+        // Set the throwslist for methods
+        classItem.methods.forEach { it.setThrowsTypes() }
+
+        // Set the throwslist for constructors
+        classItem.constructors.forEach { it.setThrowsTypes() }
+
         return classItem
     }
 
@@ -521,6 +527,7 @@ open class TurbineCodebaseInitialiser(
                             typeParams,
                         )
                     createParameters(methodItem, method.parameters())
+                    methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
                 }
     }
@@ -572,6 +579,7 @@ open class TurbineCodebaseInitialiser(
                             typeParams,
                         )
                     createParameters(constructorItem, constructor.parameters())
+                    constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
@@ -612,5 +620,12 @@ open class TurbineCodebaseInitialiser(
 
     private fun isDeprecated(javadoc: String?): Boolean {
         return javadoc?.contains("@deprecated") ?: false
+    }
+
+    private fun getThrowsList(throwsTypes: List<Type>): List<String> {
+        return throwsTypes.mapNotNull { it ->
+            val sym = (it as? ClassTy)?.sym()
+            sym?.let { getQualifiedName(it.binaryName()) }
+        }
     }
 }

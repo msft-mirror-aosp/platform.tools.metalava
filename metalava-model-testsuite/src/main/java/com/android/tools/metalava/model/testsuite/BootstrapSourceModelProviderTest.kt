@@ -728,4 +728,35 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `210 Test Method exception list`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.io.IOException;
+
+                    public class Test {
+                        public Test() {}
+                        public void foo() throws TestException, IOException {}
+                    }
+
+                    public class TestException extends Exception {
+                        public TestException(String str) {
+                            super(str);
+                        }
+                    }
+                """
+            ),
+        ) { codebase ->
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testExceptionClass = codebase.assertClass("test.pkg.TestException")
+            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+            val methodItem = testClass.assertMethod("foo", "")
+
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), methodItem.throwsTypes())
+        }
+    }
 }

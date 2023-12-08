@@ -33,6 +33,7 @@ open class TurbineMethodItem(
 ) : TurbineItem(codebase, modifiers), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
+    internal lateinit var throwsClassNames: List<String>
     private lateinit var throwsTypes: List<ClassItem>
     internal lateinit var parameters: List<ParameterItem>
 
@@ -125,4 +126,9 @@ open class TurbineMethodItem(
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
     override fun typeParameterList(): TypeParameterList = typeParameters
+
+    internal fun setThrowsTypes() {
+        val result = throwsClassNames.map { codebase.findOrCreateClass(it)!! }
+        throwsTypes = result.sortedWith(ClassItem.fullNameComparator)
+    }
 }
