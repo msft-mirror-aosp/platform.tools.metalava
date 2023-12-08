@@ -21,15 +21,20 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 
 /** Modifiers for a [TurbineTypeItem]. */
-internal class TurbineTypeModifiers(initialAnnotations: List<AnnotationItem>) : TypeModifiers {
+internal class TurbineTypeModifiers(
+    initialAnnotations: List<AnnotationItem>,
+    knownNullability: TypeNullability? = null
+) : TypeModifiers {
     private val annotations = initialAnnotations.toMutableList()
 
-    // Find if there is a nullness annotation on the type, default to platform nullness if not.
+    // Use the defined nullability, or find if there is a nullness annotation on the
+    // type, defaulting to platform nullness if not.
     private var nullability =
-        annotations
-            .firstOrNull { it.isNullnessAnnotation() }
-            ?.let { TypeNullability.ofAnnotation(it) }
-            ?: TypeNullability.PLATFORM
+        knownNullability
+            ?: annotations
+                .firstOrNull { it.isNullnessAnnotation() }
+                ?.let { TypeNullability.ofAnnotation(it) }
+                ?: TypeNullability.PLATFORM
 
     override fun annotations(): List<AnnotationItem> = annotations
 
