@@ -95,8 +95,14 @@ internal constructor(
 
         private fun hasDeprecatedAnnotation(modifiers: PsiModifierItem) =
             modifiers.annotations?.any {
-                it.qualifiedName == "Deprecated" ||
-                    it.qualifiedName?.endsWith(".Deprecated") == true
+                it.qualifiedName?.let { qualifiedName ->
+                    qualifiedName == "Deprecated" ||
+                        qualifiedName.endsWith(".Deprecated") ||
+                        // DeprecatedForSdk that do not apply to this API surface have been filtered
+                        // out so if any are left then treat it as a standard Deprecated annotation.
+                        qualifiedName == ANDROID_DEPRECATED_FOR_SDK
+                }
+                    ?: false
             } == true
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
