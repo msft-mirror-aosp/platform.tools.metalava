@@ -411,4 +411,59 @@ class ApiAnalyzerTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test inherited method from hidden class into deprecated class inherits deprecated status`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            class Hidden {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            /** @deprecated */
+                            public class Concrete extends Hidden<String> {
+                            }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public class Concrete {
+                        ctor @Deprecated public Concrete();
+                        method @Deprecated public void bar();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Concrete {
+                            @Deprecated
+                            public Concrete() { throw new RuntimeException("Stub!"); }
+                            @Deprecated
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }
