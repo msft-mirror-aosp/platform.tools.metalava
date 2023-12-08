@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -25,7 +24,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
 open class TurbineMethodItem(
-    codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: TurbineClassItem,
     protected var returnType: TurbineTypeItem,
