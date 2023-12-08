@@ -1,6 +1,3 @@
-com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  210 test reference between innerclass and outerclass[turbine,java]
-
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
 

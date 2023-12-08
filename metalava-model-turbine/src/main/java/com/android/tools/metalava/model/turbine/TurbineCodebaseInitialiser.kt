@@ -193,10 +193,18 @@ open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
-            classItem = createClass(sym)
+            // Inner class should not be created directly from here. Instead create its
+            // TopLevelClass which
+            // will automatically create the innerclass via createInnerClasses method
+            if (sym.binaryName().contains("$")) {
+                val topClassSym = getClassSymbol(className)!!
+                createClass(topClassSym)
+            } else {
+                createClass(sym)
+            }
         }
 
-        return classItem
+        return codebase.findClass(className)!!
     }
 
     private fun createClass(sym: ClassSymbol): TurbineClassItem {
@@ -244,10 +252,6 @@ open class TurbineCodebaseInitialiser(
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
-        // Setup InnerClasses
-        val t = cls.children()
-        setInnerClasses(classItem, t.values.asList())
-
         // Set direct interfaces
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
@@ -285,6 +289,10 @@ open class TurbineCodebaseInitialiser(
 
         // Set the throwslist for constructors
         classItem.constructors.forEach { it.setThrowsTypes() }
+
+        // Create InnerClasses.
+        val children = cls.children()
+        createInnerClasses(classItem, children.values.asList())
 
         return classItem
     }
@@ -467,13 +475,13 @@ open class TurbineCodebaseInitialiser(
     }
 
     /** This method sets up the inner class hierarchy. */
-    private fun setInnerClasses(
+    private fun createInnerClasses(
         classItem: TurbineClassItem,
         innerClasses: ImmutableList<ClassSymbol>
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = findOrCreateClass(cls)
+                val innerClassItem = createClass(cls)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem
