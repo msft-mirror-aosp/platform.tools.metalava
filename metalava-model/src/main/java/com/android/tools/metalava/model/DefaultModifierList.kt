@@ -320,7 +320,7 @@ class DefaultModifierList(
                     same == DEPRECATED &&
                         // Only differ in deprecated: not significant if implied by containing class
                         isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.deprecated == true
+                        (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
                 ) {
                     return true
                 }
