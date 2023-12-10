@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class ApiAnalyzerTest : DriverTest() {
@@ -375,6 +376,42 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
+        )
+    }
+
+    @Test
+    fun `Test deprecated class and parameters are output in kotlin`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @Deprecated
+                            class Foo(
+                                @Deprecated var i: Int,
+                                @Deprecated var b: Boolean,
+                            )
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public final class Foo {
+                        ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
+                        method @Deprecated public boolean getB();
+                        method @Deprecated public int getI();
+                        method @Deprecated public void setB(boolean);
+                        method @Deprecated public void setI(int);
+                        property @Deprecated public final boolean b;
+                        property @Deprecated public final int i;
+                      }
+                    }
+                """,
         )
     }
 }
