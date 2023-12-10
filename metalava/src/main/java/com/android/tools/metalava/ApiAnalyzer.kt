@@ -895,7 +895,7 @@ class ApiAnalyzer(
 
                 override fun visitItem(item: Item) {
                     if (
-                        item.deprecated &&
+                        item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation
@@ -1111,9 +1111,9 @@ class ApiAnalyzer(
                             m,
                             "Reference to unavailable method " + m.name()
                         )
-                    } else if (m.deprecated) {
-                        // don't bother reporting deprecated methods
-                        // unless they are public
+                    } else if (m.originallyDeprecated) {
+                        // don't bother reporting deprecated methods unless they are public and
+                        // explicitly marked as deprecated.
                         reporter.report(
                             Issues.DEPRECATED,
                             m,
@@ -1226,7 +1226,7 @@ class ApiAnalyzer(
                         }
                     }
                 }
-            } else if (cl.deprecated) {
+            } else if (cl.originallyDeprecated) {
                 // not hidden, but deprecated
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
             }
