@@ -765,4 +765,31 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(listOf(ioExceptionClass, testExceptionClass), methodItem.throwsTypes())
         }
     }
+
+    @Test
+    fun `210 test reference between innerclass and outerclass`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer {
+                        class Inner extends Outer {}
+                        class Inner1 extends Inner {
+                            class InnerInner extends Outer {}
+                        }
+                    }
+                """
+            ),
+        ) { codebase ->
+            val outerClass = codebase.assertClass("test.pkg.Outer")
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+            val innerClass1 = codebase.assertClass("test.pkg.Outer.Inner1")
+            val innerInnerClass = codebase.assertClass("test.pkg.Outer.Inner1.InnerInner")
+
+            assertEquals(outerClass, innerClass.containingClass())
+            assertEquals(outerClass, innerClass1.containingClass())
+            assertEquals(innerClass1, innerInnerClass.containingClass())
+        }
+    }
 }
