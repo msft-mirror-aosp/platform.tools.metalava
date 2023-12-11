@@ -61,6 +61,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val revertAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -352,11 +353,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
             ANDROID_FLAGGED_API ->
-                // If FlaggedApi annotations are hidden in general then do not output them at all.
-                // This means that if some FlaggedApi annotations with specific flags are not hidden
-                // then the annotations will not be written out to the signature files. That is
-                // expected as those APIs are intended to be released.
-                if (config.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+                // If FlaggedApi annotations are being reverted in general then do not output them
+                // at all. This means that if some FlaggedApi annotations with specific flags are
+                // not reverted then the annotations will not be written out to the signature files.
+                // That is expected as those APIs are intended to be released and should look like
+                // any other API.
+                if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
                     return NO_ANNOTATION_TARGETS
                 } else {
                     return ANNOTATION_SIGNATURE_ONLY
@@ -581,9 +583,8 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
-                config.hideAnnotations.matches(annotationItem) ->
-                    if (annotationItem.qualifiedName == ANDROID_FLAGGED_API) REVERT_UNSTABLE_API
-                    else HIDE
+                config.hideAnnotations.matches(annotationItem) -> HIDE
+                config.revertAnnotations.matches(annotationItem) -> REVERT_UNSTABLE_API
                 else -> Showability.NO_EFFECT
             }
         }
