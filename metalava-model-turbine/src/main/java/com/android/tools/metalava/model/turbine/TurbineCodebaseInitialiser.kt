@@ -153,7 +153,7 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifiers = TurbineModifierItem.create(codebase, 0, null)
+            val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
@@ -203,6 +203,7 @@ open class TurbineCodebaseInitialiser(
 
         var cls: TypeBoundClass? = sourceClassMap[sym]
         cls = if (cls != null) cls else envClassMap.get(sym)!!
+        val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
@@ -213,7 +214,13 @@ open class TurbineCodebaseInitialiser(
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
-        val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
+        val modifierItem =
+            TurbineModifierItem.create(
+                codebase,
+                cls.access(),
+                annotations,
+                isDeprecated(decl?.javadoc())
+            )
         val typeParameters = createTypeParameters(cls.typeParameterTypes())
         val classItem =
             TurbineClassItem(
@@ -446,7 +453,7 @@ open class TurbineCodebaseInitialiser(
         upperBounds.bounds().mapTo(typeBounds) { createType(it, false) }
         param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
         val modifiers =
-            TurbineModifierItem(codebase, annotations = createAnnotations(param.annotations()))
+            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =
             TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
         codebase.addTypeParameter(sym, typeParamItem)
@@ -473,7 +480,12 @@ open class TurbineCodebaseInitialiser(
             fields.map { field ->
                 val annotations = createAnnotations(field.annotations())
                 val fieldModifierItem =
-                    TurbineModifierItem.create(codebase, field.access(), annotations)
+                    TurbineModifierItem.create(
+                        codebase,
+                        field.access(),
+                        annotations,
+                        isDeprecated(field.decl()?.javadoc())
+                    )
                 val type = createType(field.type(), false)
                 TurbineFieldItem(
                     codebase,
@@ -492,7 +504,12 @@ open class TurbineCodebaseInitialiser(
                 .map { method ->
                     val annotations = createAnnotations(method.annotations())
                     val methodModifierItem =
-                        TurbineModifierItem.create(codebase, method.access(), annotations)
+                        TurbineModifierItem.create(
+                            codebase,
+                            method.access(),
+                            annotations,
+                            isDeprecated(method.decl()?.javadoc())
+                        )
                     val typeParams = createTypeParameters(method.tyParams())
                     val methodItem =
                         TurbineMethodItem(
@@ -513,7 +530,7 @@ open class TurbineCodebaseInitialiser(
             parameters.mapIndexed { idx, parameter ->
                 val annotations = createAnnotations(parameter.annotations())
                 val parameterModifierItem =
-                    TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                    TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type = createType(parameter.type(), parameterModifierItem.isVarArg())
                 TurbineParameterItem(
                     codebase,
@@ -534,7 +551,12 @@ open class TurbineCodebaseInitialiser(
                 .map { constructor ->
                     val annotations = createAnnotations(constructor.annotations())
                     val constructorModifierItem =
-                        TurbineModifierItem.create(codebase, constructor.access(), annotations)
+                        TurbineModifierItem.create(
+                            codebase,
+                            constructor.access(),
+                            annotations,
+                            isDeprecated(constructor.decl()?.javadoc())
+                        )
                     val typeParams = createTypeParameters(constructor.tyParams())
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
@@ -586,5 +608,9 @@ open class TurbineCodebaseInitialiser(
     private fun createLookupKey(name: String): LookupKey {
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
+    }
+
+    private fun isDeprecated(javadoc: String?): Boolean {
+        return javadoc?.contains("@deprecated") ?: false
     }
 }
