@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -636,7 +637,10 @@ class PsiClassTypeItem(
                 null
             } else {
                 val psiOuterClassType = codebase.createPsiType(outerClassName, psiType.psiContext)
-                create(codebase, psiOuterClassType) as ClassTypeItem
+                (create(codebase, psiOuterClassType) as PsiClassTypeItem).apply {
+                    // An outer class reference can't be null.
+                    modifiers.setNullability(TypeNullability.NONNULL)
+                }
             }
         }
     // This should be able to use `psiType.name`, but that sometimes returns null when run on the

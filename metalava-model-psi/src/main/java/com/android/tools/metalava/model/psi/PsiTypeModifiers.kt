@@ -19,11 +19,15 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
+import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiType
+import com.intellij.psi.PsiWildcardType
 
 /** Modifiers for a [PsiTypeItem]. */
-internal class PsiTypeModifiers(private val annotations: MutableList<PsiAnnotationItem>) :
-    TypeModifiers {
+internal class PsiTypeModifiers(
+    private val annotations: MutableList<PsiAnnotationItem>,
+    private var nullability: TypeNullability
+) : TypeModifiers {
     override fun annotations(): List<AnnotationItem> = annotations
 
     override fun addAnnotation(annotation: AnnotationItem) {
@@ -34,20 +38,29 @@ internal class PsiTypeModifiers(private val annotations: MutableList<PsiAnnotati
         annotations.remove(annotation)
     }
 
-    override fun nullability(): TypeNullability {
-        TODO("Not yet implemented")
-    }
+    override fun nullability(): TypeNullability = nullability
 
     override fun setNullability(newNullability: TypeNullability) {
-        TODO("Not yet implemented")
+        nullability = newNullability
     }
 
     companion object {
         /** Creates modifiers in the given [codebase] based on the annotations of the [type]. */
         fun create(codebase: PsiBasedCodebase, type: PsiType): PsiTypeModifiers {
-            return PsiTypeModifiers(
-                type.annotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
-            )
+            val annotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
+            // Some types have defined nullness, otherwise look at the annotations and default to
+            // platform nullness.
+            val nullability =
+                when (type) {
+                    is PsiPrimitiveType -> TypeNullability.NONNULL
+                    is PsiWildcardType -> TypeNullability.UNDEFINED
+                    else ->
+                        annotations
+                            .firstOrNull { it.isNullnessAnnotation() }
+                            ?.let { TypeNullability.ofAnnotation(it) }
+                            ?: TypeNullability.PLATFORM
+                }
+            return PsiTypeModifiers(annotations.toMutableList(), nullability)
         }
     }
 }
