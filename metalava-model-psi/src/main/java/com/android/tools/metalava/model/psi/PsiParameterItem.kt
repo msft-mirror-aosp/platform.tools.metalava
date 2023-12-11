@@ -364,7 +364,7 @@ internal constructor(
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    type = PsiTypeItem.create(codebase, original.type)
+                    type = original.type.duplicate()
                 )
             parameter.modifiers.setOwner(parameter)
             return parameter

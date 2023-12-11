@@ -44,6 +44,8 @@ internal class PsiTypeModifiers(
         nullability = newNullability
     }
 
+    fun duplicate() = PsiTypeModifiers(annotations.toMutableList(), nullability)
+
     companion object {
         /** Creates modifiers in the given [codebase] based on the annotations of the [type]. */
         fun create(codebase: PsiBasedCodebase, type: PsiType): PsiTypeModifiers {
