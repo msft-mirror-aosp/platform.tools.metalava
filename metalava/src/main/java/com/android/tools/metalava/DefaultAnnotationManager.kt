@@ -530,19 +530,21 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         if (item is MethodItem) {
-            // If any of a method's super methods are part of a hidden unstable API then treat the
-            // method as if it is too.
-            val hideUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.hideUnstableApi() }
-            if (hideUnstableApi) {
-                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
+            // If any of a method's super methods are part of a unstable API that needs to be
+            // reverted then treat the method as if it is too.
+            val revertUnstableApi =
+                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+            if (revertUnstableApi) {
+                itemShowability =
+                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
             }
         }
 
         val containingClass = item.containingClass()
         if (containingClass != null) {
-            if (containingClass.showability.hideUnstableApi()) {
-                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
+            if (containingClass.showability.revertUnstableApi()) {
+                itemShowability =
+                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
             }
         }
 
@@ -580,7 +582,7 @@ private class LazyAnnotationInfo(
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
                 config.hideAnnotations.matches(annotationItem) ->
-                    if (annotationItem.qualifiedName == ANDROID_FLAGGED_API) HIDE_UNSTABLE_API
+                    if (annotationItem.qualifiedName == ANDROID_FLAGGED_API) REVERT_UNSTABLE_API
                     else HIDE
                 else -> Showability.NO_EFFECT
             }
@@ -632,11 +634,11 @@ private class LazyAnnotationInfo(
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to not be shown.
          */
-        val HIDE_UNSTABLE_API =
+        val REVERT_UNSTABLE_API =
             Showability(
-                show = ShowOrHide.HIDE_UNSTABLE_API,
-                recursive = ShowOrHide.HIDE_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.HIDE_UNSTABLE_API,
+                show = ShowOrHide.REVERT_UNSTABLE_API,
+                recursive = ShowOrHide.REVERT_UNSTABLE_API,
+                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
 
         /**
