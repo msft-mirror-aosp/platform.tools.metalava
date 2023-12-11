@@ -894,6 +894,13 @@ class ApiAnalyzer(
                 }
 
                 override fun visitItem(item: Item) {
+                    // None of the checks in this apply to [ParameterItem]. The deprecation checks
+                    // do not apply as there is no way to provide an `@deprecation` tag in Javadoc
+                    // for parameters. The unhidden showability annotation check
+                    // ('UnhiddemSystemApi`) does not apply as you cannot annotation a
+                    // [ParameterItem] with a showability annotation.
+                    if (item is ParameterItem) return
+
                     if (
                         item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
@@ -903,9 +910,6 @@ class ApiAnalyzer(
                             // Instead, these
                             // are added to the documentation by the [DocAnalyzer].
                             !item.isKotlin() &&
-                            // Don't warn about this on ParameterItem as there is no way to provide
-                            // a deprecation message in Javadoc for parameters.
-                            item !is ParameterItem &&
                             // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's
                             // correct
                             // and expected to *not* combine this with @deprecated in the text;
