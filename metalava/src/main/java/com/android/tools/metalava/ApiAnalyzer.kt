@@ -947,21 +947,25 @@ class ApiAnalyzer(
                             !item.originallyHidden &&
                             !item.hasShowSingleAnnotation()
                     ) {
-                        val annotationName =
-                            item.modifiers
-                                .annotations()
-                                // As item.hasShowAnnotation() is true there must be at least one
-                                // annotation that matches the following predicate.
-                                .first(AnnotationItem::isShowAnnotation)
-                                // All show annotations must have a non-null string otherwise they
-                                // would not have been matched.
-                                .qualifiedName!!
-                                .removePrefix(ANDROID_ANNOTATION_PREFIX)
-                        reporter.report(
-                            Issues.UNHIDDEN_SYSTEM_API,
-                            item,
-                            "@$annotationName APIs must also be marked @hide: ${item.describe()}"
-                        )
+                        item.modifiers
+                            .annotations()
+                            // Find the first show annotation. Just because item.hasShowAnnotation()
+                            // is true does not mean that there must be one show annotation as a
+                            // revert annotation could be treated as a show annotation on one item
+                            // and a hide annotation on another but is neither a show or hide
+                            // annotation.
+                            .firstOrNull(AnnotationItem::isShowAnnotation)
+                            // All show annotations must have a non-null string otherwise they
+                            // would not have been matched.
+                            ?.qualifiedName
+                            ?.removePrefix(ANDROID_ANNOTATION_PREFIX)
+                            ?.let { annotationName ->
+                                reporter.report(
+                                    Issues.UNHIDDEN_SYSTEM_API,
+                                    item,
+                                    "@$annotationName APIs must also be marked @hide: ${item.describe()}"
+                                )
+                            }
                     }
                 }
 
