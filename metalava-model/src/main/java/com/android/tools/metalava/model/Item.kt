@@ -223,7 +223,7 @@ interface Item {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
 
-    fun sourceFile(): SourceFileItem? {
+    fun sourceFile(): SourceFile? {
         var curr: Item? = this
         while (curr != null) {
             if (curr is ClassItem && curr.isTopLevelClass()) {

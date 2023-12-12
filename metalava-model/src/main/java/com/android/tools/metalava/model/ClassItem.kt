@@ -434,7 +434,7 @@ interface ClassItem : Item {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFileItem? = null
+    fun getSourceFile(): SourceFile? = null
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention
