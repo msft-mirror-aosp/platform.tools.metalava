@@ -167,7 +167,8 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
         val s = convertTypeString(replacementMap)
-        return create(codebase, codebase.createPsiType(s, (owner as? PsiItem)?.psi()))
+        // This is a string based type conversion, so there is no Kotlin type information.
+        return create(codebase, codebase.createPsiType(s, (owner as? PsiItem)?.psi()), null)
     }
 
     override fun hasTypeArguments(): Boolean {
@@ -355,18 +356,22 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
             }
         }
 
-        fun create(codebase: PsiBasedCodebase, psiType: PsiType): PsiTypeItem {
+        internal fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiType,
+            kotlinType: KotlinTypeInfo?
+        ): PsiTypeItem {
             return when (psiType) {
-                is PsiPrimitiveType -> PsiPrimitiveTypeItem(codebase, psiType)
-                is PsiArrayType -> PsiArrayTypeItem(codebase, psiType)
+                is PsiPrimitiveType -> PsiPrimitiveTypeItem(codebase, psiType, kotlinType)
+                is PsiArrayType -> PsiArrayTypeItem(codebase, psiType, kotlinType)
                 is PsiClassType -> {
                     if (psiType.resolve() is PsiTypeParameter) {
-                        PsiVariableTypeItem(codebase, psiType)
+                        PsiVariableTypeItem(codebase, psiType, kotlinType)
                     } else {
-                        PsiClassTypeItem(codebase, psiType)
+                        PsiClassTypeItem(codebase, psiType, kotlinType)
                     }
                 }
-                is PsiWildcardType -> PsiWildcardTypeItem(codebase, psiType)
+                is PsiWildcardType -> PsiWildcardTypeItem(codebase, psiType, kotlinType)
                 // There are other [PsiType]s, but none can appear in API surfaces.
                 else -> throw IllegalStateException("Invalid type in API surface: $psiType")
             }
@@ -592,8 +597,10 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
 internal class PsiPrimitiveTypeItem(
     override val codebase: PsiBasedCodebase,
     override val psiType: PsiPrimitiveType,
+    kotlinType: KotlinTypeInfo? = null,
     override val kind: PrimitiveTypeItem.Primitive = getKind(psiType),
-    override val modifiers: PsiTypeModifiers = PsiTypeModifiers.create(codebase, psiType)
+    override val modifiers: PsiTypeModifiers =
+        PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : PrimitiveTypeItem, PsiTypeItem(codebase, psiType) {
     override fun duplicate(): PsiPrimitiveTypeItem =
         PsiPrimitiveTypeItem(
@@ -625,9 +632,12 @@ internal class PsiPrimitiveTypeItem(
 internal class PsiArrayTypeItem(
     override val codebase: PsiBasedCodebase,
     override val psiType: PsiArrayType,
-    override val componentType: PsiTypeItem = create(codebase, psiType.componentType),
+    kotlinType: KotlinTypeInfo? = null,
+    override val componentType: PsiTypeItem =
+        create(codebase, psiType.componentType, kotlinType?.forArrayComponentType()),
     override val isVarargs: Boolean = psiType is PsiEllipsisType,
-    override val modifiers: PsiTypeModifiers = PsiTypeModifiers.create(codebase, psiType)
+    override val modifiers: PsiTypeModifiers =
+        PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : ArrayTypeItem, PsiTypeItem(codebase, psiType) {
     override fun duplicate(): PsiArrayTypeItem =
         PsiArrayTypeItem(
@@ -643,12 +653,14 @@ internal class PsiArrayTypeItem(
 internal class PsiClassTypeItem(
     override val codebase: PsiBasedCodebase,
     override val psiType: PsiClassType,
+    kotlinType: KotlinTypeInfo? = null,
     override val qualifiedName: String = computeQualifiedName(psiType),
-    override val parameters: List<PsiTypeItem> = psiType.parameters.map { create(codebase, it) },
+    override val parameters: List<PsiTypeItem> = computeParameters(codebase, psiType, kotlinType),
     override val outerClassType: PsiClassTypeItem? = computeOuterClass(psiType, codebase),
     // This should be able to use `psiType.name`, but that sometimes returns null.
     override val className: String = ClassTypeItem.computeClassName(qualifiedName),
-    override val modifiers: PsiTypeModifiers = PsiTypeModifiers.create(codebase, psiType)
+    override val modifiers: PsiTypeModifiers =
+        PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
     override fun duplicate(): PsiClassTypeItem =
         PsiClassTypeItem(
@@ -662,6 +674,16 @@ internal class PsiClassTypeItem(
         )
 
     companion object {
+        private fun computeParameters(
+            codebase: PsiBasedCodebase,
+            psiType: PsiClassType,
+            kotlinType: KotlinTypeInfo?
+        ): List<PsiTypeItem> {
+            return psiType.parameters.mapIndexed { i, param ->
+                create(codebase, param, kotlinType?.forParameter(i))
+            }
+        }
+
         private fun computeQualifiedName(psiType: PsiClassType): String {
             // It should be possible to do `psiType.rawType().canonicalText` instead, but this
             // doesn't
@@ -685,7 +707,7 @@ internal class PsiClassTypeItem(
                 } else {
                     val psiOuterClassType =
                         codebase.createPsiType(outerClassName, psiType.psiContext)
-                    (create(codebase, psiOuterClassType) as PsiClassTypeItem).apply {
+                    (create(codebase, psiOuterClassType, null) as PsiClassTypeItem).apply {
                         // An outer class reference can't be null.
                         modifiers.setNullability(TypeNullability.NONNULL)
                     }
@@ -699,8 +721,10 @@ internal class PsiClassTypeItem(
 internal class PsiVariableTypeItem(
     override val codebase: PsiBasedCodebase,
     override val psiType: PsiClassType,
+    kotlinType: KotlinTypeInfo? = null,
     override val name: String = psiType.name,
-    override val modifiers: PsiTypeModifiers = PsiTypeModifiers.create(codebase, psiType),
+    override val modifiers: PsiTypeModifiers =
+        PsiTypeModifiers.create(codebase, psiType, kotlinType),
 ) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
     override val asTypeParameter: TypeParameterItem by lazy {
         codebase.findClass(psiType) as TypeParameterItem
@@ -719,9 +743,12 @@ internal class PsiVariableTypeItem(
 internal class PsiWildcardTypeItem(
     override val codebase: PsiBasedCodebase,
     override val psiType: PsiWildcardType,
-    override val extendsBound: PsiTypeItem? = createBound(psiType.extendsBound, codebase),
-    override val superBound: PsiTypeItem? = createBound(psiType.superBound, codebase),
-    override val modifiers: PsiTypeModifiers = PsiTypeModifiers.create(codebase, psiType)
+    kotlinType: KotlinTypeInfo? = null,
+    override val extendsBound: PsiTypeItem? =
+        createBound(psiType.extendsBound, codebase, kotlinType),
+    override val superBound: PsiTypeItem? = createBound(psiType.superBound, codebase, kotlinType),
+    override val modifiers: PsiTypeModifiers =
+        PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : WildcardTypeItem, PsiTypeItem(codebase, psiType) {
     override fun duplicate(): PsiWildcardTypeItem =
         PsiWildcardTypeItem(
@@ -737,11 +764,16 @@ internal class PsiWildcardTypeItem(
          * If a [PsiWildcardType] doesn't have a bound, the bound is represented as the null
          * [PsiType] instead of just `null`.
          */
-        private fun createBound(bound: PsiType, codebase: PsiBasedCodebase): PsiTypeItem? {
+        private fun createBound(
+            bound: PsiType,
+            codebase: PsiBasedCodebase,
+            kotlinType: KotlinTypeInfo?
+        ): PsiTypeItem? {
             return if (bound == PsiTypes.nullType()) {
                 null
             } else {
-                create(codebase, bound)
+                // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
+                create(codebase, bound, kotlinType)
             }
         }
     }

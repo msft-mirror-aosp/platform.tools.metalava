@@ -424,7 +424,7 @@ open class PsiMethodItem(
             val modifiers = modifiers(codebase, psiMethod, commentText)
             val parameters = parameterList(codebase, psiMethod)
             val psiReturnType = psiMethod.returnType
-            val returnType = codebase.getType(psiReturnType!!)
+            val returnType = codebase.getType(psiReturnType!!, psiMethod)
             val method =
                 PsiMethodItem(
                     codebase = codebase,

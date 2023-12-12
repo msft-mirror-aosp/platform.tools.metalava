@@ -340,7 +340,7 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = codebase.getType(workaroundPsiType)
+            val type = codebase.getType(workaroundPsiType, psiParameter)
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,

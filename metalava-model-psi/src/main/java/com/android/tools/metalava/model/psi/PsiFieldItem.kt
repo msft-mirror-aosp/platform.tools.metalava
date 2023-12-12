@@ -163,7 +163,7 @@ class PsiFieldItem(
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type)
+            val fieldType = codebase.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 

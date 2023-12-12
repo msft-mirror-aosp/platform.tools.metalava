@@ -7,16 +7,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inherited nullability of Kotlin type variables[psi,kotlin]
   Test inner parameterized types with annotations[psi,java]
-  Test nullability of Kotlin properties and accessors[psi,kotlin]
-  Test nullability of arrays[psi,kotlin]
-  Test nullability of classes with parameters[psi,kotlin]
-  Test nullability of extension function type[psi,kotlin]
-  Test nullability of multi-dimensional arrays[psi,kotlin]
-  Test nullability of typealias[psi,kotlin]
   Test nullability of varargs[psi,kotlin]
-  Test nullability of wildcards[psi,kotlin]
-  Test nullness of Kotlin enum members[psi,kotlin]
-  Test nullness of Kotlin lambda type[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,null annotated parameterized inner type - annotated]
