@@ -1630,4 +1630,255 @@ class CommonTypeModifiersTest : BaseModelTest() {
         runCodebaseTest(javaSource) { nullabilityTest(it, true) }
         runCodebaseTest(kotlinSource) { nullabilityTest(it, false) }
     }
+
+    @Test
+    fun `Test nullability set through item annotations`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import org.jetbrains.annotations.Nullable;
+                        public class Foo {
+                            public @Nullable String foo() {}
+                        }
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package org.jetbrains.annotations;
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+                        @Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER })
+                        public @interface Nullable {}
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        // - kotlin-name-type-order=yes
+                        // - include-type-use-annotations=yes
+                        // - kotlin-style-nulls=no
+                        package test.pkg {
+                          public class Foo {
+                            method public @Nullable foo(): String;
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val strType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            // The annotation is on the item, not the type.
+            assertNullable(strType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of constants`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                public class Foo {
+                    public final String nonNullStringConstant = "non null value";
+                    public final String nullStringConstant = null;
+                    public String nonConstantString = "non null value";
+                }
+            """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    field public final String nonNullStringConstant = "non null value";
+                    field public final String nullStringConstant;
+                    field public String nonConstantString;
+                  }
+                }
+            """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val nonNullConstantType =
+                fooClass.fields().single { it.name() == "nonNullStringConstant" }.type()
+            // Nullability not set through an annotation.
+            assertNonNull(nonNullConstantType, expectAnnotation = false)
+
+            val nullConstantType =
+                fooClass.fields().single { it.name() == "nullStringConstant" }.type()
+            assertPlatform(nullConstantType)
+
+            val nonConstantType =
+                fooClass.fields().single { it.name() == "nullStringConstant" }.type()
+            assertPlatform(nonConstantType)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of constructor returns`() {
+        runNullabilityTest(
+            java(
+                """
+                package test.pkg;
+                public class Foo {}
+            """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                  }
+                }
+            """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                package test.pkg
+                class Foo
+            """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                  }
+                }
+            """
+                    .trimIndent()
+            )
+        ) { codebase, _ ->
+            val ctorReturn =
+                codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
+            // Constructor returns are always non-null without needing an annotation
+            assertNonNull(ctorReturn, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of equals parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        @Override
+                        public boolean equals(Object other) {}
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    // - include-type-use-annotations=yes
+                    // - kotlin-style-nulls=no
+                    package test.pkg {
+                      public class Foo {
+                        method public equals(other: Object): boolean;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val equals = codebase.assertClass("test.pkg.Foo").methods().single()
+            val objType = equals.parameters().single().type()
+            // equals must accept null
+            assertNullable(objType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of toString`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        @Override
+                        public String toString() {}
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    // - include-type-use-annotations=yes
+                    // - kotlin-style-nulls=no
+                    package test.pkg {
+                      public class Foo {
+                        method public toString(): String;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val strType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            // toString must not return null
+            assertNonNull(strType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of annotation members`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public @interface Foo {
+                        String[] value();
+                    }
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    annotation class Foo {
+                        fun value(): Array<String>
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    // - include-type-use-annotations=yes
+                    // - kotlin-style-nulls=no
+                    package test.pkg {
+                      public @interface Foo {
+                        method public value(): String[]
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val strArray = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            assertNonNull(strArray, expectAnnotation = false)
+            assertNonNull((strArray as ArrayTypeItem).componentType, expectAnnotation = false)
+        }
+    }
 }
