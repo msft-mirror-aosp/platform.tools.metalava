@@ -204,6 +204,8 @@ interface ClassItem : Item {
 
     override fun type(): TypeItem? = null
 
+    override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
+
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
 
