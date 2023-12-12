@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
 import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
+import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -93,7 +94,9 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
     fun nullability(): TypeNullability {
         return if (analysisSession != null && ktType != null) {
             analysisSession.run {
-                if (ktType.isMarkedNullable) {
+                if (analysisSession.isInheritedGenericType(ktType)) {
+                    TypeNullability.UNDEFINED
+                } else if (ktType.isMarkedNullable) {
                     TypeNullability.NULLABLE
                 } else {
                     TypeNullability.NONNULL
@@ -169,6 +172,15 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
                     }
                 }
             }
+        }
+
+        // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
+        fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {
+            return ktType is KtTypeParameterType &&
+                // explicitly nullable, e.g., T?
+                !ktType.isMarkedNullable &&
+                // non-null upper bound, e.g., T : Any
+                ktType.canBeNull
         }
     }
 }
