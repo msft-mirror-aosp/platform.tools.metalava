@@ -19,9 +19,12 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
@@ -127,6 +130,33 @@ open class TurbineCodebaseInitialiser(
         }
         createAllPackages()
         createAllClasses()
+        correctNullability()
+    }
+
+    /**
+     * Corrects the nullability of types in the codebase based on their context items. If an item is
+     * non-null or nullable, its type is too.
+     */
+    private fun correctNullability() {
+        codebase.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    val type = item.type() ?: return
+                    val implicitNullness = item.implicitNullness()
+                    if (implicitNullness == true || item.modifiers.isNullable()) {
+                        type.modifiers.setNullability(TypeNullability.NULLABLE)
+                    } else if (implicitNullness == false || item.modifiers.isNonNull()) {
+                        type.modifiers.setNullability(TypeNullability.NONNULL)
+                    }
+                    // Also make array components for annotation types non-null
+                    if (
+                        type is ArrayTypeItem && item.containingClass()?.isAnnotationType() == true
+                    ) {
+                        type.componentType.modifiers.setNullability(TypeNullability.NONNULL)
+                    }
+                }
+            }
+        )
     }
 
     private fun createAllPackages() {
