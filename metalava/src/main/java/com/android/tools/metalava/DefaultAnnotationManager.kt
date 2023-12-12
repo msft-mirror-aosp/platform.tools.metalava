@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
@@ -66,6 +67,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+        val previouslyReleasedRemovedCodebaseProvider: () -> Codebase? = { null },
     )
 
     /**

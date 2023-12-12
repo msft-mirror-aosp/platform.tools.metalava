@@ -429,8 +429,24 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
+                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedRemovedCodebaseProvider = { previouslyReleasedRemovedCodebase },
             )
         )
+    }
+
+    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+
+    private var previouslyReleasedApi: File? = null
+
+    private val previouslyReleasedCodebase by lazy {
+        previouslyReleasedApi?.let { file -> signatureFileCache.load(file) }
+    }
+
+    private var previouslyReleasedRemovedApi: File? = null
+
+    private val previouslyReleasedRemovedCodebase by lazy {
+        previouslyReleasedRemovedApi?.let { file -> signatureFileCache.load(file) }
     }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
@@ -982,10 +998,12 @@ class Options(
                 }
                 ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
+                    previouslyReleasedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
+                    previouslyReleasedRemovedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
                 }
                 ARG_CHECK_COMPATIBILITY_BASE_API -> {
