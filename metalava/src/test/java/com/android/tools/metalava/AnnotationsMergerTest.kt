@@ -495,7 +495,7 @@ class AnnotationsMergerTest : DriverTest() {
                             public interface Example {
                                 void aNotAnnotated();
                                 void bHidden();
-                                @test.annotation.Hide @test.annotation.Show void cShown();
+                                @test.annotation.Show void cShown();
                             }
                         """
                     ),
@@ -505,7 +505,6 @@ class AnnotationsMergerTest : DriverTest() {
 
                             public interface Example {
                                 void aNotAnnotated();
-                                // The annotation on the following method is ignored.
                                 @test.annotation.Hide void bHidden();
                                 @test.annotation.Hide void cShown();
                             }
@@ -527,7 +526,6 @@ class AnnotationsMergerTest : DriverTest() {
                     package test.pkg {
                       public interface Example {
                         method public void aNotAnnotated();
-                        method public void bHidden();
                         method public void cShown();
                       }
                     }

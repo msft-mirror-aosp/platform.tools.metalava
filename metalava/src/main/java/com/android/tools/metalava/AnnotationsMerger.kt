@@ -111,27 +111,37 @@ class AnnotationsMerger(
         )
     }
 
+    /**
+     * Given a list of directories containing various files, scan those files merging them into the
+     * [codebase].
+     *
+     * All `.java` files are collated and
+     */
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
         mergeJavaStubsCodebase: (SourceCodebase) -> Unit
     ) {
-        val javaStubFiles = mutableListOf<File>()
-        mergeAnnotations.forEach { mergeFileOrDir(it, mergeFile, javaStubFiles) }
-        if (javaStubFiles.isNotEmpty()) {
-            // Set up class path to contain our main sources such that we can
-            // resolve types in the stubs
-            val roots = mutableListOf<File>()
-            extractRoots(reporter, options.sources, roots)
-            roots.addAll(options.sourcePath)
-            val javaStubsCodebase =
-                sourceParser.parseSources(
-                    javaStubFiles,
-                    "Codebase loaded from stubs",
-                    sourcePath = roots,
-                    classPath = options.classpath
-                )
-            mergeJavaStubsCodebase(javaStubsCodebase)
+        // Process each file (which are almost certainly directories) separately. That allows for a
+        // single Java class to merge in annotations from multiple separate files.
+        mergeAnnotations.forEach {
+            val javaStubFiles = mutableListOf<File>()
+            mergeFileOrDir(it, mergeFile, javaStubFiles)
+            if (javaStubFiles.isNotEmpty()) {
+                // Set up class path to contain our main sources such that we can
+                // resolve types in the stubs
+                val roots = mutableListOf<File>()
+                extractRoots(reporter, options.sources, roots)
+                roots.addAll(options.sourcePath)
+                val javaStubsCodebase =
+                    sourceParser.parseSources(
+                        javaStubFiles,
+                        "Codebase loaded from stubs",
+                        sourcePath = roots,
+                        classPath = options.classpath
+                    )
+                mergeJavaStubsCodebase(javaStubsCodebase)
+            }
         }
     }
 
