@@ -55,6 +55,7 @@ import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
 import java.util.function.Predicate
+import org.jetbrains.uast.kotlin.isKotlin
 
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
@@ -190,7 +191,12 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
      */
     internal fun finishInitialization(owner: PsiItem) {
         val implicitNullness = owner.implicitNullness()
-        if (implicitNullness == true || owner.modifiers.isNullable()) {
+        // Kotlin varargs can't be null, but the annotation for the component type ends up on the
+        // context item, so avoid setting Kotlin varargs to nullable.
+        if (
+            (implicitNullness == true || owner.modifiers.isNullable()) &&
+                !(owner.isKotlin() && this is ArrayTypeItem && isVarargs)
+        ) {
             modifiers.setNullability(TypeNullability.NULLABLE)
         } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
             modifiers.setNullability(TypeNullability.NONNULL)
