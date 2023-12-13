@@ -106,6 +106,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
+                config.revertAnnotations,
             )
         annotationNameToKeyFactory =
             filters
