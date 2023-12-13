@@ -456,6 +456,86 @@ class AnnotationsMergerTest : DriverTest() {
     }
 
     @Test
+    fun `Merge inclusion annotations from multiple Java stub files`() {
+        check(
+            format = FileFormat.V2,
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void bHidden();
+                                void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface HiddenExample {
+                                void method();
+                            }
+                        """
+                    ),
+                ),
+            hideAnnotations = arrayOf("test.annotation.Hide"),
+            showAnnotations = arrayOf("test.annotation.Show"),
+            showUnannotated = true,
+            mergeInclusionAnnotations =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void bHidden();
+                                @test.annotation.Hide @test.annotation.Show void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                // The annotation on the following method is ignored.
+                                @test.annotation.Hide void bHidden();
+                                @test.annotation.Hide void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            @test.annotation.Hide
+                            public interface HiddenExample {
+                                void method();
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public interface Example {
+                        method public void aNotAnnotated();
+                        method public void bHidden();
+                        method public void cShown();
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
     fun `Merge inclusion annotations from Java stub files using --show-single-annotation`() {
         check(
             format = FileFormat.V2,
