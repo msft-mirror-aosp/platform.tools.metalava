@@ -895,19 +895,7 @@ class Options(
                     allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
-                ARG_HIDE_ANNOTATION -> {
-                    val annotation = getValue(args, ++index)
-                    // TODO(b/313398274): Remove special ANDROID_FLAGGED_API handling once the build
-                    //  has been switched to use `--revert-annotation`.
-                    if (
-                        annotation.startsWith(ANDROID_FLAGGED_API) ||
-                            annotation.startsWith("!" + ANDROID_FLAGGED_API)
-                    ) {
-                        revertAnnotationsBuilder.add(annotation)
-                    } else {
-                        hideAnnotationsBuilder.add(annotation)
-                    }
-                }
+                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true

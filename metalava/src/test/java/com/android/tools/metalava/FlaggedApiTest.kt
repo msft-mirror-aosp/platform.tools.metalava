@@ -40,17 +40,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments =
-            surface.args +
-                // TODO(b/313398274): Remove testing of ARG_HIDE_ANNOTATION once the build has been
-                //  switched to use `--revert-annotation`.
-                // Alternate between ARG_REVERT_ANNOTATION and ARG_HIDE_ANNOTATION to make sure that
-                // they both work.
-                if ((surface.ordinal + 7 * flagged.ordinal) % 2 == 0) flagged.args
-                else
-                    flagged.args.map {
-                        if (it == ARG_REVERT_ANNOTATION) ARG_HIDE_ANNOTATION else it
-                    }
+        val extraArguments = surface.args + flagged.args
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
