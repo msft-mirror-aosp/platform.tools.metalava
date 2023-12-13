@@ -213,15 +213,8 @@ interface ClassItem : Item {
      */
     @MetalavaApi fun typeParameterList(): TypeParameterList
 
-    /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
-
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
-    }
-
-    fun isAbstractClass(): Boolean {
-        return modifiers.isAbstract()
     }
 
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
