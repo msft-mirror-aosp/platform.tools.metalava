@@ -425,20 +425,24 @@ class AnnotationsMergerTest : DriverTest() {
             showAnnotations = arrayOf("test.annotation.Show"),
             showUnannotated = true,
             mergeInclusionAnnotations =
-                """
-                package test.pkg;
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
 
-                public interface Example {
-                    void aNotAnnotated();
-                    @test.annotation.Hide void bHidden();
-                    @test.annotation.Hide @test.annotation.Show void cShown();
-                }
+                            public interface Example {
+                                void aNotAnnotated();
+                                @test.annotation.Hide void bHidden();
+                                @test.annotation.Hide @test.annotation.Show void cShown();
+                            }
 
-                @test.annotation.Hide
-                public interface HiddenExample {
-                    void method();
-                }
-                """,
+                            @test.annotation.Hide
+                            public interface HiddenExample {
+                                void method();
+                            }
+                        """
+                    ),
+                ),
             api =
                 """
                 package test.pkg {
@@ -478,16 +482,20 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             showUnannotated = true,
             mergeInclusionAnnotations =
-                """
-                package test.pkg;
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
 
-                @test.annotation.Hide
-                @test.annotation.Show
-                public interface Example {
-                    void aNotAnnotated();
-                    @test.annotation.Show void bShown();
-                }
-                """,
+                            @test.annotation.Hide
+                            @test.annotation.Show
+                            public interface Example {
+                                void aNotAnnotated();
+                                @test.annotation.Show void bShown();
+                            }
+                        """
+                    ),
+                ),
             api =
                 """
                 package test.pkg {
@@ -519,14 +527,18 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"),
             mergeInclusionAnnotations =
-                """
-                package java.net;
+                arrayOf(
+                    java(
+                        """
+                            package java.net;
 
-                public class Example {
-                    void aNotAnnotated();
-                    @test.annotation.Show void bShown();
-                }
-                """,
+                            public class Example {
+                                void aNotAnnotated();
+                                @test.annotation.Show void bShown();
+                            }
+                        """
+                    ),
+                ),
             api =
                 """
                 package java.net {
@@ -580,12 +592,16 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"),
             mergeInclusionAnnotations =
-                """
-                package java.util;
+                arrayOf(
+                    java(
+                        """
+                            package java.util;
 
-                public class LinkedHashMap extends java.util.HashMap {
-                }
-                """,
+                            public class LinkedHashMap extends java.util.HashMap {
+                            }
+                        """
+                    ),
+                ),
             api = "" // This test is checking that it doesn't crash
         )
     }
