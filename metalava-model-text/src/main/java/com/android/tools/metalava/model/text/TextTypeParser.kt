@@ -281,7 +281,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
                 else {
                     deepComponentAnnotations.joinToString(" ") + " "
                 }
-            return "$leadingAnnotations$deepComponentType"
+            return "$leadingAnnotations${deepComponentType.type}"
         }
     }
 

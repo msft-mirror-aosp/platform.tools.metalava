@@ -32,8 +32,6 @@ import java.util.function.Predicate
 
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
     DefaultTypeItem(codebase) {
-    override fun toString(): String = type
-
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
