@@ -57,8 +57,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
@@ -313,14 +311,8 @@ class AnnotationsMerger(
                 }
 
                 private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
-                    val type = (typeItem as? PsiTypeItem)?.psiType ?: return
-                    val typeAnnotations = type.annotations
-                    if (typeAnnotations.isNotEmpty()) {
-                        for (annotation in typeAnnotations) {
-                            val codebase = new.codebase as PsiBasedCodebase
-                            val annotationItem = PsiAnnotationItem.create(codebase, annotation)
-                            mergeAnnotation(annotationItem, new.modifiers, new)
-                        }
+                    for (annotation in typeItem.modifiers.annotations()) {
+                        mergeAnnotation(annotation, new.modifiers, new)
                     }
                 }
             }
