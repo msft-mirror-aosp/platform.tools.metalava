@@ -275,6 +275,14 @@ class AnnotationsMerger(
                 }
 
                 override fun removed(old: Item, from: Item?) {
+                    // Do not report missing items if there are no annotations to copy.
+                    if (old.modifiers.annotations().isEmpty()) {
+                        old.type()?.let { typeItem ->
+                            if (typeItem.modifiers.annotations().isEmpty()) return
+                        }
+                            ?: return
+                    }
+
                     reporter.report(
                         Issues.UNMATCHED_MERGE_ANNOTATION,
                         old,
