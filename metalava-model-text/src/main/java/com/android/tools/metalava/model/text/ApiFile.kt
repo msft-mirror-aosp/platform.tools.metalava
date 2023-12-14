@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
@@ -39,7 +40,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
-import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -472,40 +472,6 @@ private constructor(
         } else {
             Pair(type.substring(0, paramIndex), create(api, type.substring(paramIndex)))
         }
-    }
-
-    private fun processKotlinTypeSuffix(
-        startingType: String,
-        annotations: MutableList<String>
-    ): String {
-        var type = startingType
-        var varArgs = false
-        if (type.endsWith("...")) {
-            type = type.substring(0, type.length - 3)
-            varArgs = true
-        }
-        if (kotlinStyleNulls) {
-            if (varArgs) {
-                mergeAnnotations(annotations, ANDROIDX_NONNULL)
-            } else if (type.endsWith("?")) {
-                type = type.substring(0, type.length - 1)
-                mergeAnnotations(annotations, ANDROIDX_NULLABLE)
-            } else if (type.endsWith("!")) {
-                type = type.substring(0, type.length - 1)
-            } else if (!type.endsWith("!")) {
-                if (!isPrimitive(type)) { // Don't add nullness on primitive types like void
-                    mergeAnnotations(annotations, ANDROIDX_NONNULL)
-                }
-            }
-        } else if (type.endsWith("?") || type.endsWith("!")) {
-            throw ApiParseException(
-                "Format $format does not support Kotlin-style null type syntax: $type"
-            )
-        }
-        if (varArgs) {
-            type = "$type..."
-        }
-        return type
     }
 
     /**
@@ -1233,10 +1199,22 @@ private constructor(
             token = tokenizer.current
         }
 
-        // TODO: this should be handled by [obtainTypeFromString]
-        type = processKotlinTypeSuffix(type, annotations)
-
-        return api.typeResolver.obtainTypeFromString(type, typeParameters)
+        val parsedType = api.typeResolver.obtainTypeFromString(type, typeParameters)
+        if (kotlinStyleNulls) {
+            // Treat varargs as non-null for consistency with the psi model.
+            if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
+                mergeAnnotations(annotations, ANDROIDX_NONNULL)
+            } else {
+                // Add an annotation to the context item for the type's nullability if applicable.
+                val nullability = parsedType.modifiers.nullability()
+                if (parsedType !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
+                    mergeAnnotations(annotations, ANDROIDX_NONNULL)
+                } else if (nullability == TypeNullability.NULLABLE) {
+                    mergeAnnotations(annotations, ANDROIDX_NULLABLE)
+                }
+            }
+        }
+        return parsedType
     }
 
     /**
