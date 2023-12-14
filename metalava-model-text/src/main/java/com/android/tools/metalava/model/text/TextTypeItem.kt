@@ -51,7 +51,14 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
 
         val typeString = toTypeString(type, annotations)
 
-        if (kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
+        if (
+            kotlinStyleNulls &&
+                this !is PrimitiveTypeItem &&
+                context != null &&
+                // Don't re-add a suffix if it is already present
+                !typeString.endsWith("!") &&
+                !typeString.endsWith("?")
+        ) {
             var nullable: Boolean? = context.implicitNullness()
 
             if (nullable == null) {
