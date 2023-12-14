@@ -573,7 +573,6 @@ class AnnotationsMergerTest : DriverTest() {
 
                             public interface Example {
                                 void aNotAnnotated();
-                                // This annotation is not passed through to the API signature file.
                                 @android.annotation.FlaggedApi("flag")
                                 void cShown();
                             }
@@ -585,7 +584,7 @@ class AnnotationsMergerTest : DriverTest() {
                     package test.pkg {
                       public interface Example {
                         method public void aNotAnnotated();
-                        method public void cShown();
+                        method @FlaggedApi("flag") public void cShown();
                       }
                     }
                 """
