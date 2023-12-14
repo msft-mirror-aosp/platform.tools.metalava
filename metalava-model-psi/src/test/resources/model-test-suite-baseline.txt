@@ -6,6 +6,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
+  Test nullability of outer classes[psi,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,null annotated parameterized inner type - annotated]

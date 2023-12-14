@@ -25,6 +25,7 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiWildcardType
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.components.buildClassType
 import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
 import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
@@ -144,6 +145,26 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
                     }
                 }
                     ?: (ktType as? KtNonErrorClassType)?.ownTypeArguments?.getOrNull(index)?.type
+            }
+        )
+    }
+
+    /**
+     * Creates [KotlinTypeInfo] for the outer class type of this [ktType], assuming it is a class.
+     */
+    fun forOuterClass(): KotlinTypeInfo {
+        return KotlinTypeInfo(
+            analysisSession,
+            analysisSession?.run {
+                (ktType as? KtNonErrorClassType)?.classId?.outerClassId?.let { outerClassId ->
+                    buildClassType(outerClassId) {
+                        // Add the parameters of the class type with nullability information.
+                        ktType.qualifiers
+                            .firstOrNull { it.name == outerClassId.shortClassName }
+                            ?.typeArguments
+                            ?.forEach { argument(it) }
+                    }
+                }
             }
         )
     }
