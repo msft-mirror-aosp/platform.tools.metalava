@@ -324,18 +324,24 @@ class AnnotationsMerger(
         val visitor =
             object : ComparisonVisitor() {
                 override fun compare(old: Item, new: Item) {
-                    // Transfer any show/hide annotations from the external to the main codebase.
-                    // Also copy any FlaggedApi annotations.
-                    for (annotation in old.modifiers.annotations()) {
-                        val qualifiedName = annotation.qualifiedName ?: continue
-                        if (
-                            (annotation.isShowabilityAnnotation() ||
-                                qualifiedName == ANDROID_FLAGGED_API) &&
-                                new.modifiers.findAnnotation(qualifiedName) == null
-                        ) {
-                            new.mutableModifiers().addAnnotation(annotation)
+                    // Find any show/hide annotations or FlaggedApi annotations to copy from the
+                    // external to the main codebase. If there are none to copy then return.
+                    val annotationsToCopy =
+                        old.modifiers.annotations().filter { annotation ->
+                            val qualifiedName = annotation.qualifiedName
+                            annotation.isShowabilityAnnotation() ||
+                                qualifiedName == ANDROID_FLAGGED_API
+                        }
+                    if (annotationsToCopy.isEmpty()) return
+
+                    // Copy the annotations to the main item.
+                    val modifiers = new.mutableModifiers()
+                    for (annotation in annotationsToCopy) {
+                        if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
+                            modifiers.addAnnotation(annotation)
                         }
                     }
+
                     // The hidden field in the main codebase is already initialized. So if the
                     // element is hidden in the external codebase, hide it in the main codebase
                     // too.
