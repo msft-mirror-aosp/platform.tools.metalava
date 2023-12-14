@@ -37,6 +37,8 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.isNullableAnnotation
+import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
@@ -1212,6 +1214,21 @@ private constructor(
                 } else if (nullability == TypeNullability.NULLABLE) {
                     mergeAnnotations(annotations, ANDROIDX_NULLABLE)
                 }
+            }
+        } else if (parsedType.modifiers.nullability() == TypeNullability.PLATFORM) {
+            // See if the type has nullability from the context item annotations.
+            val nullabilityFromContext =
+                annotations
+                    .singleOrNull { isNullnessAnnotation(it) }
+                    ?.let {
+                        if (isNullableAnnotation(it)) {
+                            TypeNullability.NULLABLE
+                        } else {
+                            TypeNullability.NONNULL
+                        }
+                    }
+            if (nullabilityFromContext != null) {
+                return parsedType.duplicate(nullabilityFromContext)
             }
         }
         return parsedType

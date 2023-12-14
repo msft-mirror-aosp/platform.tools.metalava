@@ -1665,7 +1665,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         // - kotlin-style-nulls=no
                         package test.pkg {
                           public class Foo {
-                            method public @Nullable foo(): String;
+                            method @Nullable public foo(): String;
                           }
                         }
                     """
