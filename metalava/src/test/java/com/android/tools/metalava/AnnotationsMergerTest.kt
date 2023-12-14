@@ -534,6 +534,65 @@ class AnnotationsMergerTest : DriverTest() {
     }
 
     @Test
+    fun `Merge @FlaggedApi inclusion annotations from Java stub files`() {
+        check(
+            format = FileFormat.V2,
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void cShown();
+                            }
+                        """
+                    ),
+                ),
+            hideAnnotations = arrayOf("test.annotation.Hide"),
+            showAnnotations = arrayOf("test.annotation.Show"),
+            showUnannotated = true,
+            mergeInclusionAnnotations =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void bHidden();
+                                @test.annotation.Hide @test.annotation.Show void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                // This annotation is not passed through to the API signature file.
+                                @android.annotation.FlaggedApi("flag")
+                                void cShown();
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public interface Example {
+                        method public void aNotAnnotated();
+                        method public void cShown();
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
     fun `Merge inclusion annotations from Java stub files using --show-single-annotation`() {
         check(
             format = FileFormat.V2,
