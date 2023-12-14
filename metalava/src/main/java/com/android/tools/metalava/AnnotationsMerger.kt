@@ -55,6 +55,7 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.extractRoots
@@ -322,20 +323,33 @@ class AnnotationsMerger(
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
         val visitor =
-            object : ComparisonVisitor() {
-                override fun compare(old: Item, new: Item) {
+            object : TraversingVisitor() {
+                override fun visitItem(item: Item): TraversalAction {
                     // Find any show/hide annotations or FlaggedApi annotations to copy from the
                     // external to the main codebase. If there are none to copy then return.
                     val annotationsToCopy =
-                        old.modifiers.annotations().filter { annotation ->
+                        item.modifiers.annotations().filter { annotation ->
                             val qualifiedName = annotation.qualifiedName
                             annotation.isShowabilityAnnotation() ||
                                 qualifiedName == ANDROID_FLAGGED_API
                         }
-                    if (annotationsToCopy.isEmpty()) return
+                    if (annotationsToCopy.isEmpty()) {
+                        // Just because there are no annotations on an [Item] does not mean that
+                        // there will not be on the children so make sure to visit them as normal.
+                        return TraversalAction.CONTINUE
+                    }
+
+                    // Find the item to which the annotations should be copied, if any.
+                    val mainItem =
+                        item.findCorrespondingItemIn(codebase)
+                            ?: run {
+                                // If an [Item] cannot be found then there is no point in visiting
+                                // its children as they will not be found either.
+                                return TraversalAction.SKIP_CHILDREN
+                            }
 
                     // Copy the annotations to the main item.
-                    val modifiers = new.mutableModifiers()
+                    val modifiers = mainItem.mutableModifiers()
                     for (annotation in annotationsToCopy) {
                         if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
                             modifiers.addAnnotation(annotation)
@@ -345,15 +359,17 @@ class AnnotationsMerger(
                     // The hidden field in the main codebase is already initialized. So if the
                     // element is hidden in the external codebase, hide it in the main codebase
                     // too.
-                    if (old.hidden) {
-                        new.hidden = true
+                    if (item.hidden) {
+                        mainItem.hidden = true
                     }
-                    if (old.originallyHidden) {
-                        new.originallyHidden = true
+                    if (item.originallyHidden) {
+                        mainItem.originallyHidden = true
                     }
+
+                    return TraversalAction.CONTINUE
                 }
             }
-        CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        externalCodebase.accept(visitor)
     }
 
     internal fun error(message: String) {
