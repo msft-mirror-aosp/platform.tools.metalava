@@ -395,7 +395,10 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge inclusion annotations from Java stub files`() {
         check(
             format = FileFormat.V2,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    inclusion/src/test/pkg/Example.java:13: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -439,6 +442,9 @@ class AnnotationsMergerTest : DriverTest() {
                             @test.annotation.Hide
                             public interface HiddenExample {
                                 void method();
+                                @test.annotation.Hide
+                                void notPresentWithAnnotations();
+                                void notPresentWithoutAnnotations();
                             }
                         """
                     ),

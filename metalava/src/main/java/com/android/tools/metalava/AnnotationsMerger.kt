@@ -339,10 +339,17 @@ class AnnotationsMerger(
                         return TraversalAction.CONTINUE
                     }
 
-                    // Find the item to which the annotations should be copied, if any.
+                    // Find the item to which the annotations should be copied, reporting an issue
+                    // if it could not be found.
                     val mainItem =
                         item.findCorrespondingItemIn(codebase)
                             ?: run {
+                                reporter.report(
+                                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                                    item,
+                                    "inclusion annotations were given for $item but no matching item was found"
+                                )
+
                                 // If an [Item] cannot be found then there is no point in visiting
                                 // its children as they will not be found either.
                                 return TraversalAction.SKIP_CHILDREN
