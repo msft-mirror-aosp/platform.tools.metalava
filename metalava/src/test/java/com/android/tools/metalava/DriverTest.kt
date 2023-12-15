@@ -236,6 +236,100 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
+    /** Test information related to a baseline file. */
+    data class BaselineTestInfo(
+        /**
+         * The contents of the input baseline.
+         *
+         * If this is `null` then no baseline testing is performed.
+         */
+        val inputContents: String? = null,
+
+        /** The contents of the expected updated baseline. */
+        val expectedOutputContents: String? = null,
+    ) {
+        init {
+            if (inputContents == null && expectedOutputContents != null) {
+                error("`inputContents` must be non-null as `expectedOutputContents` is non-null")
+            }
+        }
+    }
+
+    /** Represents a check that can be performed on a baseline file. */
+    @Suppress("ArrayInDataClass")
+    private data class BaselineCheck(
+        /** The option for the input baseline, used in test failure messages. */
+        val baselineOption: String,
+
+        /** The args to pass to metalava. */
+        val args: Array<String>,
+
+        /**
+         * The input/output file.
+         *
+         * If this is `null` then no check is performed.
+         */
+        val file: File?,
+
+        /** The test info. */
+        val testInfo: BaselineTestInfo,
+    ) {
+        /** Apply the baseline check. */
+        fun apply() {
+            if (file == null) {
+                return
+            }
+            assertTrue(
+                "${file.path} does not exist even though $baselineOption was used",
+                file.exists()
+            )
+            val actualText = readFile(file)
+
+            // Compare against:
+            // If "update baseline" is set, use it.
+            // Otherwise, the original baseline.
+            val sourceFile = testInfo.expectedOutputContents ?: testInfo.inputContents ?: ""
+            assertEquals(
+                stripComments(sourceFile, DOT_XML, stripLineComments = false).trimIndent(),
+                actualText
+            )
+        }
+    }
+
+    private fun buildBaselineCheck(
+        baselineOption: String,
+        updateBaselineOption: String,
+        filename: String,
+        info: BaselineTestInfo,
+    ): BaselineCheck {
+        if (info.inputContents != null) {
+            val baselineFile = temporaryFolder.newFile(filename)
+            baselineFile?.writeText(info.inputContents.trimIndent())
+            return if (info.expectedOutputContents == null) {
+                BaselineCheck(
+                    baselineOption,
+                    arrayOf(baselineOption, baselineFile.path),
+                    baselineFile,
+                    info
+                )
+            } else {
+                BaselineCheck(
+                    baselineOption,
+                    arrayOf(
+                        baselineOption,
+                        baselineFile.path,
+                        updateBaselineOption,
+                        baselineFile.path
+                    ),
+                    baselineFile,
+                    info,
+                )
+            }
+        } else {
+            return BaselineCheck("", emptyArray(), null, info)
+        }
+    }
+
     @Suppress("DEPRECATION")
     protected fun check(
         /** Any jars to add to the class path */
@@ -807,57 +901,37 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        fun buildBaselineArgs(
-            argBaseline: String,
-            argUpdateBaseline: String,
-            filename: String,
-            baselineContent: String?,
-            updateContent: String?,
-        ): Pair<Array<String>, File?> {
-            if (baselineContent != null) {
-                val baselineFile = temporaryFolder.newFile(filename)
-                baselineFile?.writeText(baselineContent.trimIndent())
-                return if (updateContent == null) {
-                    Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
-                } else {
-                    Pair(
-                        arrayOf(
-                            argBaseline,
-                            baselineFile.path,
-                            argUpdateBaseline,
-                            baselineFile.path
-                        ),
-                        baselineFile
-                    )
-                }
-            } else {
-                return Pair(emptyArray(), null)
-            }
-        }
-
-        val (baselineArgs, baselineFile) =
-            buildBaselineArgs(
+        val baselineTestInfo =
+            BaselineTestInfo(
+                baseline,
+                updateBaseline,
+            )
+        val baselineCheck =
+            buildBaselineCheck(
                 ARG_BASELINE,
                 ARG_UPDATE_BASELINE,
                 "baseline.txt",
-                baseline,
-                updateBaseline
+                baselineTestInfo,
             )
-        val (baselineApiLintArgs, baselineApiLintFile) =
-            buildBaselineArgs(
+        val baselineApiLintTestInfo = BaselineTestInfo(baselineApiLint, updateBaselineApiLint)
+        val baselineApiLintCheck =
+            buildBaselineCheck(
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT,
                 "baseline-api-lint.txt",
-                baselineApiLint,
-                updateBaselineApiLint
+                baselineApiLintTestInfo,
             )
-        val (baselineCheckCompatibilityReleasedArgs, baselineCheckCompatibilityReleasedFile) =
-            buildBaselineArgs(
+        val baselineCheckCompatibilityReleasedTestInfo =
+            BaselineTestInfo(
+                baselineCheckCompatibilityReleased,
+                updateBaselineCheckCompatibilityReleased,
+            )
+        val baselineCheckCompatibilityReleasedCheck =
+            buildBaselineCheck(
                 ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
                 ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
                 "baseline-check-released.txt",
-                baselineCheckCompatibilityReleased,
-                updateBaselineCheckCompatibilityReleased
+                baselineCheckCompatibilityReleasedTestInfo,
             )
 
         val importedPackageArgs = mutableListOf<String>()
@@ -985,9 +1059,9 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *proguardKeepArguments,
                 *manifestFileArgs,
                 *applyApiLevelsXmlArgs,
-                *baselineArgs,
-                *baselineApiLintArgs,
-                *baselineCheckCompatibilityReleasedArgs,
+                *baselineCheck.args,
+                *baselineApiLintCheck.args,
+                *baselineCheckCompatibilityReleasedCheck.args,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
@@ -1063,40 +1137,9 @@ abstract class DriverTest : TemporaryFolderOwner {
             parseDocument(apiXmlFile.readText(), false)
         }
 
-        fun checkBaseline(
-            arg: String,
-            baselineContent: String?,
-            updateBaselineContent: String?,
-            file: File?
-        ) {
-            if (file == null) {
-                return
-            }
-            assertTrue("${file.path} does not exist even though $arg was used", file.exists())
-            val actualText = readFile(file)
-
-            // Compare against:
-            // If "update baseline" is set, use it.
-            // Otherwise, the original baseline.
-            val sourceFile = updateBaselineContent ?: baselineContent ?: ""
-            assertEquals(
-                stripComments(sourceFile, DOT_XML, stripLineComments = false).trimIndent(),
-                actualText
-            )
-        }
-        checkBaseline(ARG_BASELINE, baseline, updateBaseline, baselineFile)
-        checkBaseline(
-            ARG_BASELINE_API_LINT,
-            baselineApiLint,
-            updateBaselineApiLint,
-            baselineApiLintFile
-        )
-        checkBaseline(
-            ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
-            baselineCheckCompatibilityReleased,
-            updateBaselineCheckCompatibilityReleased,
-            baselineCheckCompatibilityReleasedFile
-        )
+        baselineCheck.apply()
+        baselineApiLintCheck.apply()
+        baselineCheckCompatibilityReleasedCheck.apply()
 
         if (dexApi != null && dexApiFile != null) {
             assertTrue(
