@@ -271,26 +271,25 @@ abstract class DriverTest : TemporaryFolderOwner {
          */
         val file: File?,
 
-        /** The test info. */
-        val testInfo: BaselineTestInfo,
+        /** The expected contents of [file]. */
+        val expectedFileContents: String,
     ) {
         /** Apply the baseline check. */
         fun apply() {
-            if (file == null) {
-                return
-            }
+            file ?: return
+
             assertTrue(
                 "${file.path} does not exist even though $baselineOption was used",
                 file.exists()
             )
-            val actualText = readFile(file)
 
-            // Compare against:
-            // If "update baseline" is set, use it.
-            // Otherwise, the original baseline.
-            val sourceFile = testInfo.expectedOutputContents ?: testInfo.inputContents ?: ""
+            val actualText = readFile(file)
             assertEquals(
-                stripComments(sourceFile, DOT_XML, stripLineComments = false).trimIndent(),
+                stripComments(
+                    expectedFileContents.trimIndent(),
+                    DOT_TXT,
+                    stripLineComments = false
+                ),
                 actualText
             )
         }
@@ -302,32 +301,34 @@ abstract class DriverTest : TemporaryFolderOwner {
         filename: String,
         info: BaselineTestInfo,
     ): BaselineCheck {
-        if (info.inputContents != null) {
+        return info.inputContents?.let { inputContents ->
             val baselineFile = temporaryFolder.newFile(filename)
-            baselineFile?.writeText(info.inputContents.trimIndent())
-            return if (info.expectedOutputContents == null) {
+            baselineFile?.writeText(inputContents.trimIndent())
+            val args = arrayOf(baselineOption, baselineFile.path)
+
+            info.expectedOutputContents?.let { expectedOutputContents ->
+                // As expected output contents are provided add extra arguments to output the
+                // baseline and then compare the baseline file against the expected output. Use the
+                // update baseline option in any error messages.
                 BaselineCheck(
-                    baselineOption,
-                    arrayOf(baselineOption, baselineFile.path),
+                    updateBaselineOption,
+                    args + arrayOf(updateBaselineOption, baselineFile.path),
                     baselineFile,
-                    info
-                )
-            } else {
-                BaselineCheck(
-                    baselineOption,
-                    arrayOf(
-                        baselineOption,
-                        baselineFile.path,
-                        updateBaselineOption,
-                        baselineFile.path
-                    ),
-                    baselineFile,
-                    info,
+                    expectedOutputContents,
                 )
             }
-        } else {
-            return BaselineCheck("", emptyArray(), null, info)
+                ?:
+                // As no expected output is provided then compare the baseline file against the
+                // supplied input contents to make sure that they have not changed. Use the
+                // basic baseline option in any error messages.
+                BaselineCheck(
+                    baselineOption,
+                    args,
+                    baselineFile,
+                    inputContents,
+                )
         }
+            ?: BaselineCheck("", emptyArray(), null, "")
     }
 
     @Suppress("DEPRECATION")
