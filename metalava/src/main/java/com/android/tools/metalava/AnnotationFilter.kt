@@ -110,7 +110,11 @@ private class ImmutableAnnotationFilter(
     }
 
     override fun matches(annotation: AnnotationItem): Boolean {
-        if (annotation.qualifiedName == null || isEmpty()) {
+        val qualifiedName = annotation.qualifiedName
+        // If the annotation name is not in the map of annotation names that can be matched then
+        // this can never match so return immediately rather than generating the source
+        // representation of the annotation.
+        if (qualifiedName !in qualifiedNameToEntries) {
             return false
         }
         val wrapper = AnnotationFilterEntry.fromAnnotationItem(annotation)
