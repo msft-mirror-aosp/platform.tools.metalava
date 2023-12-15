@@ -451,23 +451,15 @@ abstract class DriverTest : TemporaryFolderOwner {
         validateNullabilityFromList: String? = null,
         /** Hook for performing additional initialization of the project directory */
         projectSetup: ((File) -> Unit)? = null,
-        /** Content of the baseline file to use, if any */
-        baseline: String? = null,
+        /** [ARG_BASELINE] and [ARG_UPDATE_BASELINE] */
+        baselineTestInfo: BaselineTestInfo = BaselineTestInfo(),
+        /** [ARG_BASELINE_API_LINT] and [ARG_UPDATE_BASELINE_API_LINT] */
+        baselineApiLintTestInfo: BaselineTestInfo = BaselineTestInfo(),
         /**
-         * If non-null, we expect the baseline file to be updated to this. [baseline] must also be
-         * set.
+         * [ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED] and
+         * [ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED]
          */
-        updateBaseline: String? = null,
-
-        /** [ARG_BASELINE_API_LINT] */
-        baselineApiLint: String? = null,
-        /** [ARG_UPDATE_BASELINE_API_LINT] */
-        updateBaselineApiLint: String? = null,
-
-        /** [ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED] */
-        baselineCheckCompatibilityReleased: String? = null,
-        /** [ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED] */
-        updateBaselineCheckCompatibilityReleased: String? = null,
+        baselineCheckCompatibilityReleasedTestInfo: BaselineTestInfo = BaselineTestInfo(),
 
         /** [ARG_ERROR_MESSAGE_API_LINT] */
         errorMessageApiLint: String? = null,
@@ -901,11 +893,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        val baselineTestInfo =
-            BaselineTestInfo(
-                baseline,
-                updateBaseline,
-            )
         val baselineCheck =
             buildBaselineCheck(
                 ARG_BASELINE,
@@ -913,18 +900,12 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "baseline.txt",
                 baselineTestInfo,
             )
-        val baselineApiLintTestInfo = BaselineTestInfo(baselineApiLint, updateBaselineApiLint)
         val baselineApiLintCheck =
             buildBaselineCheck(
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT,
                 "baseline-api-lint.txt",
                 baselineApiLintTestInfo,
-            )
-        val baselineCheckCompatibilityReleasedTestInfo =
-            BaselineTestInfo(
-                baselineCheckCompatibilityReleased,
-                updateBaselineCheckCompatibilityReleased,
             )
         val baselineCheckCompatibilityReleasedCheck =
             buildBaselineCheck(
