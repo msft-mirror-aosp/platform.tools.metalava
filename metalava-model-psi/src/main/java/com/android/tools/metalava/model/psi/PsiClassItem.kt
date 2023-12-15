@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFileItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -186,7 +186,7 @@ internal constructor(
         private set
 
     override fun toType(): TypeItem {
-        return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
+        return codebase.getType(codebase.getClassType(psiClass))
     }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
@@ -205,7 +205,7 @@ internal constructor(
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter
 
-    override fun getSourceFile(): SourceFileItem? {
+    override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
         }
@@ -222,7 +222,7 @@ internal constructor(
                 null
             }
 
-        return PsiSourceFileItem(codebase, containingFile, uFile)
+        return PsiSourceFile(codebase, containingFile, uFile)
     }
 
     override fun finishInitialization() {
@@ -270,7 +270,7 @@ internal constructor(
         // Map them to PsiTypeItems.
         val interfaceTypes =
             interfaces.map {
-                val type = PsiTypeItem.create(codebase, it)
+                val type = codebase.getType(it)
                 // ensure that we initialize classes eagerly too, so that they're registered etc
                 type.asClass()
                 type
@@ -281,7 +281,7 @@ internal constructor(
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
-                this.superClassType = PsiTypeItem.create(codebase, superType)
+                this.superClassType = codebase.getType(superType)
                 this.superClass = this.superClassType?.asClass()
             }
         }
