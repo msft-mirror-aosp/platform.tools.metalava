@@ -247,6 +247,9 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         /** The contents of the expected updated baseline. */
         val expectedOutputContents: String? = null,
+
+        /** Indicates whether testing of the baseline should suppress reporting of issues or not. */
+        val silentUpdate: Boolean = true,
     ) {
         init {
             if (inputContents == null && expectedOutputContents != null) {
@@ -307,13 +310,19 @@ abstract class DriverTest : TemporaryFolderOwner {
             val args = arrayOf(baselineOption, baselineFile.path)
 
             info.expectedOutputContents?.let { expectedOutputContents ->
+                // If silent update is request then use the same baseline file for update as for the
+                // input, otherwise create a separate update file.
+                val updateFile =
+                    if (info.silentUpdate) baselineFile
+                    else temporaryFolder.newFile("update-$filename")
+
                 // As expected output contents are provided add extra arguments to output the
                 // baseline and then compare the baseline file against the expected output. Use the
                 // update baseline option in any error messages.
                 BaselineCheck(
                     updateBaselineOption,
-                    args + arrayOf(updateBaselineOption, baselineFile.path),
-                    baselineFile,
+                    args + arrayOf(updateBaselineOption, updateFile.path),
+                    updateFile,
                     expectedOutputContents,
                 )
             }

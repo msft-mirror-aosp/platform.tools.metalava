@@ -40,15 +40,54 @@ class VisiblySynchronizedTest : DriverTest() {
                 """
                     src/android/pkg/CheckSynchronization.java:12: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable) [VisiblySynchronized]
                     src/android/pkg/CheckSynchronization.java:14: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization.java:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization.java:23: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized]
+                    src/android/pkg/CheckSynchronization.java:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized]
                     src/android/pkg/CheckSynchronization2.kt:5: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1() [VisiblySynchronized]
                     src/android/pkg/CheckSynchronization2.kt:8: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:12: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3() [VisiblySynchronized]
-                    src/android/pkg/CheckSynchronization2.kt:15: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized]
                     src/android/pkg/CheckSynchronization2.kt:17: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized]
                 """,
-            expectedFail = DefaultLintErrorMessage,
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            VisiblySynchronized: CLASS_LITERAL_EXPRESSION:
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5()
+                            VisiblySynchronized: DOT_QUALIFIED_EXPRESSION:
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2()
+                            VisiblySynchronized: PsiClassObjectAccessExpression:CheckSynchronization.class:
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3()
+                            VisiblySynchronized: PsiThisExpression:this:
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2()
+                            VisiblySynchronized: THIS_EXPRESSION:
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1()
+                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod1(Runnable):
+                                Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable)
+                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod2():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2()
+                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod3():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3()
+                            VisiblySynchronized: android.pkg.CheckSynchronization#errorMethod4():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod4()
+                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod1():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1()
+                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod2():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2()
+                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod3():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3()
+                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod4():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4()
+                            VisiblySynchronized: android.pkg.CheckSynchronization2#errorMethod5():
+                                Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5()
+                        """,
+                    silentUpdate = false,
+                ),
+            expectedFail =
+                """
+                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
+
+                """
+                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -69,11 +108,11 @@ class VisiblySynchronizedTest : DriverTest() {
                                     synchronized(this) {
                                     }
                                 }
-                                public void errorMethod2() {
+                                public void errorMethod3() {
                                     synchronized(CheckSynchronization.class) {
                                     }
                                 }
-                                public void errorMethod3() {
+                                public void errorMethod4() {
                                     if (true) {
                                         synchronized(CheckSynchronization.class) {
                                         }
