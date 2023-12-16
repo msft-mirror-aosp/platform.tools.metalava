@@ -92,12 +92,12 @@ abstract class DriverTest : TemporaryFolderOwner {
         return File(temporaryFolder.root.path, "public-api.txt")
     }
 
-    protected fun runDriver(
+    private fun runDriver(
         // The SameParameterValue check reports that this is passed the same value because the first
         // value that is passed is always the same but this is a varargs parameter so other values
         // that are passed matter, and they are not the same.
-        @Suppress("SameParameterValue") vararg args: String,
-        expectedFail: String = "",
+        args: Array<String>,
+        expectedFail: String,
         reporterEnvironment: ReporterEnvironment,
     ): String {
         // Capture the actual input and output from System.out/err and compare it to the output
@@ -122,7 +122,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     stderr = writer,
                     reporterEnvironment = reporterEnvironment,
                 )
-            val exitCode = run(executionEnvironment, arrayOf(*args))
+            val exitCode = run(executionEnvironment, args)
             if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
@@ -158,7 +158,11 @@ abstract class DriverTest : TemporaryFolderOwner {
                         } else {
                             // no compatibility error; check for other errors now, and
                             // if one is found, fail right away
-                            assertEquals(expectedFail.trimIndent(), actualFail)
+                            assertEquals(
+                                "expectedFail does not match actual failures",
+                                expectedFail.trimIndent(),
+                                actualFail
+                            )
                         }
                     }
                 }
@@ -248,6 +252,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
+        /** Expected paths of stub files created */
+        stubPaths: Array<String>? = null,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -268,7 +274,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** Qualifier annotations to merge in (in Java stub format) */
         @Language("JAVA") mergeJavaStubAnnotations: String? = null,
         /** Inclusion annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeInclusionAnnotations: String? = null,
+        mergeInclusionAnnotations: Array<TestFile> = emptyArray(),
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSources: Array<String> = emptyArray(),
         apiClassResolution: ApiClassResolution = ApiClassResolution.API,
@@ -525,14 +531,17 @@ abstract class DriverTest : TemporaryFolderOwner {
             }
 
         val inclusionAnnotationsArgs =
-            if (mergeInclusionAnnotations != null) {
-                val cls = ClassName(mergeInclusionAnnotations)
-                val pkg = cls.packageName
-                val relative = pkg?.replace('.', File.separatorChar) ?: "."
-                val merged = File(project, "inclusion/$relative/${cls.className}.java")
-                merged.parentFile?.mkdirs()
-                merged.writeText(mergeInclusionAnnotations.trimIndent())
-                arrayOf(ARG_MERGE_INCLUSION_ANNOTATIONS, merged.path)
+            if (mergeInclusionAnnotations.isNotEmpty()) {
+                // Create each file in their own directory.
+                mergeInclusionAnnotations
+                    .flatMapIndexed { i, testFile ->
+                        val suffix = if (i == 0) "" else i.toString()
+                        val targetDir = File(project, "inclusion$suffix")
+                        targetDir.mkdirs()
+                        testFile.createFile(targetDir)
+                        listOf(ARG_MERGE_INCLUSION_ANNOTATIONS, targetDir.path)
+                    }
+                    .toTypedArray()
             } else {
                 emptyArray()
             }
@@ -772,7 +781,7 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         var stubsDir: File? = null
         val stubsArgs =
-            if (stubFiles.isNotEmpty()) {
+            if (stubFiles.isNotEmpty() || stubPaths != null) {
                 stubsDir = newFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -939,8 +948,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         // test.
         options = Options()
 
-        val actualOutput =
-            runDriver(
+        val args =
+            arrayOf(
                 ARG_NO_COLOR,
 
                 // Tell metalava where to store temp folder: place them under the
@@ -998,25 +1007,36 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
+            )
+
+        val actualOutput =
+            runDriver(
+                args = args,
                 expectedFail = actualExpectedFail,
                 reporterEnvironment = reporterEnvironment,
             )
 
         if (expectedIssues != null || allReportedIssues.toString() != "") {
             assertEquals(
+                "expectedIssues does not match actual issues reported",
                 expectedIssues?.trimIndent()?.trim() ?: "",
                 allReportedIssues.toString().trim(),
             )
         }
         if (errorSeverityExpectedIssues != null) {
             assertEquals(
+                "errorSeverityExpectedIssues does not match actual issues reported",
                 errorSeverityExpectedIssues.trimIndent().trim(),
                 errorSeverityReportedIssues.toString().trim(),
             )
         }
 
         if (expectedOutput != null) {
-            assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
+            assertEquals(
+                "expectedOutput does not match actual output",
+                expectedOutput.trimIndent().trim(),
+                actualOutput.trim()
+            )
         }
 
         if (api != null) {
@@ -1165,19 +1185,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertEquals(validateNullability, actualReport)
         }
 
+        val stubsCreated =
+            stubsDir
+                ?.walkTopDown()
+                ?.filter { it.isFile }
+                ?.map { it.relativeTo(stubsDir).path }
+                ?.sorted()
+                ?.joinToString("\n")
+
+        if (stubPaths != null) {
+            assertEquals("stub paths", stubPaths.joinToString("\n"), stubsCreated)
+        }
+
         if (stubFiles.isNotEmpty()) {
             for (expected in stubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
                 if (!actual.exists()) {
-                    val existing =
-                        stubsDir
-                            .walkTopDown()
-                            .filter { it.isFile }
-                            .map { it.path }
-                            .joinToString("\n  ")
                     throw FileNotFoundException(
                         "Could not find a generated stub for ${expected.targetRelativePath}. " +
-                            "Found these files: \n  $existing"
+                            "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
                 val actualContents = readFile(actual)
@@ -1695,6 +1721,33 @@ val systemApiSource: TestFile =
     @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
     @Retention(RetentionPolicy.SOURCE)
     public @interface SystemApi {
+        enum Client {
+            /**
+             * Specifies that the intended clients of a SystemApi are privileged apps.
+             * This is the default value for {@link #client}.
+             */
+            PRIVILEGED_APPS,
+
+            /**
+             * Specifies that the intended clients of a SystemApi are used by classes in
+             * <pre>BOOTCLASSPATH</pre> in mainline modules. Mainline modules can also expose
+             * this type of system APIs too when they're used only by the non-updatable
+             * platform code.
+             */
+            MODULE_LIBRARIES,
+
+            /**
+             * Specifies that the system API is available only in the system server process.
+             * Use this to expose APIs from code loaded by the system server process <em>but</em>
+             * not in <pre>BOOTCLASSPATH</pre>.
+             */
+            SYSTEM_SERVER
+        }
+
+        /**
+         * The intended client of this SystemAPI.
+         */
+        Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
     }
     """
         )

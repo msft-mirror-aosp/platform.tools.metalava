@@ -137,7 +137,7 @@ internal fun processFlags(
             jdkHome = options.jdkHome,
         )
 
-    val signatureFileCache = SignatureFileCache(annotationManager)
+    val signatureFileCache = options.signatureFileCache
 
     val actionContext =
         ActionContext(
@@ -649,8 +649,13 @@ private fun ActionContext.loadFromSources(
                 else -> signatureFileCache.load(file = previousApiFile)
             }
         val apiLintReporter = reporterApiLint as DefaultReporter
-        ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
-            .check()
+        ApiLint.check(
+            codebase,
+            previous,
+            apiLintReporter,
+            options.manifest,
+            options.apiVisitorConfig,
+        )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
         )
@@ -791,7 +796,7 @@ private fun createStubFiles(
     if (docStubs) {
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
-            val overview = codebase.getPackageDocs()?.getOverviewDocumentation(empty)
+            val overview = empty.overviewDocumentation
             if (!overview.isNullOrBlank()) {
                 stubWriter.writeDocOverview(empty, overview)
             }

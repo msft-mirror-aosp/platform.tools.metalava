@@ -35,13 +35,20 @@ internal constructor(
         fun create(
             codebase: Codebase,
             flag: Int,
-            annotations: List<AnnotationItem>?
+            annotations: List<AnnotationItem>?,
+            isDeprecatedViaDoc: Boolean,
         ): TurbineModifierItem {
-            if (flag == 0) {
-                // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                return TurbineModifierItem(codebase, annotations = annotations)
-            }
-            return TurbineModifierItem(codebase, computeFlag(flag), annotations)
+            var modifierItem =
+                when (flag) {
+                    0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
+                        TurbineModifierItem(codebase, annotations = annotations)
+                    }
+                    else -> {
+                        TurbineModifierItem(codebase, computeFlag(flag), annotations)
+                    }
+                }
+            modifierItem.setDeprecated(isDeprecated(annotations) || isDeprecatedViaDoc)
+            return modifierItem
         }
 
         /**
@@ -81,6 +88,9 @@ internal constructor(
             if (flag and TurbineFlag.ACC_SEALED != 0) {
                 result = result or SEALED
             }
+            if (flag and TurbineFlag.ACC_VARARGS != 0) {
+                result = result or VARARG
+            }
 
             // Visibility Modifiers
             if (flag and TurbineFlag.ACC_PUBLIC != 0) {
@@ -94,6 +104,10 @@ internal constructor(
             }
 
             return result
+        }
+
+        private fun isDeprecated(annotations: List<AnnotationItem>?): Boolean {
+            return annotations?.any { it.qualifiedName == "java.lang.Deprecated" } ?: false
         }
     }
 }
