@@ -35,10 +35,6 @@ sealed class TurbineTypeItem(
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem(codebase) {
 
-    override fun toString(): String {
-        return toTypeString()
-    }
-
     override fun asClass(): TurbineClassItem? {
         if (this is TurbineArrayTypeItem) {
             return this.componentType.asClass()
@@ -54,12 +50,6 @@ sealed class TurbineTypeItem(
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =
         TODO("b/295800205")
-
-    override fun markRecent() = TODO("b/295800205")
-
-    override fun scrubAnnotations() {
-        TODO("b/295800205")
-    }
 
     override fun toTypeString(
         annotations: Boolean,
