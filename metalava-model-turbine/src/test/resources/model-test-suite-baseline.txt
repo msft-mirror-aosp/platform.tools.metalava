@@ -1,7 +1,3 @@
-com.android.tools.metalava.model.testsuite.CommonClassItemTest
-  Test mapTypeVariables with interfaces[turbine,java]
-  Test mapTypeVariables with multiple layers of super classes[turbine,java]
-
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test @hide in package info[turbine,java]
