@@ -684,14 +684,23 @@ interface ClassItem : Item {
     var stubConstructor: ConstructorItem?
 
     /**
-     * Creates a map of type variables from this class to the given target class. If class A<X,Y>
-     * extends B<X,Y>, and B is declared as class B<M,N>, this returns the map {"X"->"M", "Y"->"N"}.
-     * There could be multiple intermediate classes between this class and the target class, and in
-     * some cases we could be substituting in a concrete class, e.g. class MyClass extends
-     * B<String,Number> would return the map {"java.lang.String"->"M", "java.lang.Number"->"N"}.
+     * Creates a map of type parameters of the target class to the type variables substituted for
+     * those parameters by this class.
      *
-     * If [reverse] is true, compute the reverse map: keys are the variables in the target and the
-     * values are the variables in the source.
+     * If this class is declared as `class A<X,Y> extends B<X,Y>`, and target class `B` is declared
+     * as `class B<M,N>`, this method returns the map `{"M"->"X", "N"->"Y"}`.
+     *
+     * There could be multiple intermediate classes between this class and the target class, and in
+     * some cases we could be substituting in a concrete class, e.g. if this class is declared as
+     * `class MyClass extends Parent<String,Number>` and target class `Parent` is declared as `class
+     * Parent<M,N>` would return the map `{"M"->"java.lang.String", "N"->"java.lang.Number"}`.
+     *
+     * The target class can be an interface. If the interface can be found through multiple paths in
+     * the class hierarchy, this method returns the mapping from the first path found in terms of
+     * declaration order. For instance, given declarations `class C<X, Y> implements I1<X>, I2<Y>`,
+     * `interface I1<T1> implements Root<T1>`, `interface I2<T2> implements Root<T2>`, and
+     * `interface Root<T>`, this method will return `{"T"->"X"}` as the mapping from `C` to `Root`,
+     * not `{"T"->"Y"}`.
      */
     fun mapTypeVariables(target: ClassItem): Map<String, String> = codebase.unsupported()
 

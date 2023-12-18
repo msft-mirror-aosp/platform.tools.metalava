@@ -1,6 +1,13 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   200 - test TypeParameterList name strings[psi,java]
 
+com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  Test basic mapTypeVariables[psi,kotlin]
+  Test mapTypeVariables with concrete classes[psi,kotlin]
+  Test mapTypeVariables with diamond interface[psi,kotlin]
+  Test mapTypeVariables with interfaces[psi,kotlin]
+  Test mapTypeVariables with multiple layers of super classes[psi,kotlin]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   check TypeItem asClass()[psi,java]
 
