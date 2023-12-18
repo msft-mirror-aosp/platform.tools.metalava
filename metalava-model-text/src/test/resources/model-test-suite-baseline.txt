@@ -1,10 +1,3 @@
-com.android.tools.metalava.model.testsuite.CommonClassItemTest
-  Test basic mapTypeVariables[text,signature]
-  Test mapTypeVariables with concrete classes[text,signature]
-  Test mapTypeVariables with diamond interface[text,signature]
-  Test mapTypeVariables with interfaces[text,signature]
-  Test mapTypeVariables with multiple layers of super classes[text,signature]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of annotation members[text,signature]
   Test implicit nullability of constants[text,signature]

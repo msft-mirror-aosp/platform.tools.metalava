@@ -702,7 +702,62 @@ interface ClassItem : Item {
      * `interface Root<T>`, this method will return `{"T"->"X"}` as the mapping from `C` to `Root`,
      * not `{"T"->"Y"}`.
      */
-    fun mapTypeVariables(target: ClassItem): Map<String, String> = codebase.unsupported()
+    fun mapTypeVariables(target: ClassItem): Map<String, String> {
+        // The string representation of the type to use in the map: don't include parameters of
+        // class types, for consistency with the old psi implementation.
+        fun TypeItem.mapTypeString(): String =
+            when (this) {
+                is ClassTypeItem -> qualifiedName
+                else -> toTypeString()
+            }
+        return mapTypeVariablesAsTypes(target)
+            .map { (t1, t2) -> Pair(t1.mapTypeString(), t2.mapTypeString()) }
+            .toMap()
+    }
+
+    /**
+     * Like [mapTypeVariables], but instead of using strings for the map from type parameters of
+     * [target] to substituted types from this class, uses the actual [TypeItem]s.
+     */
+    fun mapTypeVariablesAsTypes(target: ClassItem): Map<TypeItem, TypeItem> {
+        // Gather the supertypes to check for [target]. It is only possible for [target] to be found
+        // in the class hierarchy through this class's interfaces if [target] is an interface.
+        val candidates =
+            if (target.isInterface()) {
+                interfaceTypes() + superClassType()
+            } else {
+                listOf(superClassType())
+            }
+
+        for (superClassType in candidates.filterNotNull()) {
+            superClassType as? ClassTypeItem ?: continue
+            // Convert the type to a class and then back to a type: this will produce a class type
+            // with the type parameters of the declared class, instead of the type variables used in
+            // this class declaration.
+            // E.g. for `class A<X,Y> extends B<X,Y>`, and `class B<M,N>`, the superClassType has
+            // parameters ["X", "Y"] and the declaredClassType has parameters ["M", 'N"].
+            val asClass = superClassType.asClass() ?: continue
+            val declaredClassType = asClass.toType() as? ClassTypeItem ?: continue
+
+            if (asClass.qualifiedName() == target.qualifiedName()) {
+                // The target has been found, return the map directly.
+                return mapTypeVariables(declaredClassType, superClassType)
+            } else {
+                // This superClassType isn't target, but maybe it has target as a superclass.
+                val nextLevelMap = asClass.mapTypeVariablesAsTypes(target)
+                if (nextLevelMap.isNotEmpty()) {
+                    val thisLevelMap = mapTypeVariables(declaredClassType, superClassType)
+                    // Link the two maps by removing intermediate type variables.
+                    return nextLevelMap.mapValues { (_, value) -> thisLevelMap[value] ?: value }
+                }
+            }
+        }
+        return emptyMap()
+    }
+
+    /** Creates a map between the parameters of [c1] and the parameters of [c2]. */
+    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem) =
+        c1.parameters.zip(c2.parameters).toMap()
 
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
