@@ -2498,42 +2498,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check Kotlin operators`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/KotlinOperatorTest.java:6: info: Method can be invoked with an indexing operator from Kotlin: `get` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:7: info: Method can be invoked with an indexing operator from Kotlin: `set` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:8: info: Method can be invoked with function call syntax from Kotlin: `invoke` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:9: info: Method can be invoked as a binary operator from Kotlin: `plus` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:9: error: Only one of `plus` and `plusAssign` methods should be present for Kotlin [UniqueKotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:10: info: Method can be invoked as a compound assignment operator from Kotlin: `plusAssign` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class KotlinOperatorTest {
-                        public int get(int i) { return i + 2; }
-                        public void set(int i, int j, int k) { }
-                        public void invoke(int i, int j, int k) { }
-                        public int plus(@Nullable JavaClass other) { return 0; }
-                        public void plusAssign(@Nullable JavaClass other) { }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Return collections instead of arrays`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
@@ -2940,71 +2904,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     )
-                )
-        )
-    }
-
-    @Test
-    fun `KotlinOperator check only applies when not using operator modifier`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/A.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
-                src/android/pkg/Bar.kt:4: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
-                src/android/pkg/Foo.java:8: info: Method can be invoked as a binary operator from Kotlin: `div` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-
-                        import androidx.annotation.Nullable;
-
-                        public class Foo {
-                            private Foo() { }
-                            @Nullable
-                            public Foo div(int value) { }
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        class Bar {
-                            operator fun div(value: Int): Bar { TODO() }
-                            fun plus(value: Int): Bar { TODO() }
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        class FontFamily(val fonts: List<String>) : List<String> by fonts
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        class B: A() {
-                            override fun get(i: Int): A {
-                                return A()
-                            }
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package android.pkg
-                        open class A {
-                            open fun get(i: Int): A {
-                                return A()
-                            }
-                        }
-                    """
-                    ),
-                    androidxNullableSource
                 )
         )
     }
