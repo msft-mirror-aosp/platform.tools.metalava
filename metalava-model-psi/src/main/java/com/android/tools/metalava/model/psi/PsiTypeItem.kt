@@ -247,7 +247,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
             filter: Predicate<Item>?
         ): String {
             return try {
-                if (kotlinStyleNulls) {
+                if (kotlinStyleNulls && owner?.hasInheritedGenericType() != true) {
                     // Any nullness annotations on the element to merge in? When we have something
                     // like
                     //  @Nullable String foo
