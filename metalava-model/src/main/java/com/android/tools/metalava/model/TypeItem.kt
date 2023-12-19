@@ -480,6 +480,7 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.kind.primitiveName)
+                    // Primitives must be non-null.
                 }
                 is ArrayTypeItem -> {
                     // The ordering of array annotations means this can't just use a recursive
@@ -492,18 +493,22 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                             arrayModifiers.add(deepComponentType.modifiers)
                             deepComponentType = deepComponentType.componentType
                         }
+                        val suffixes = arrayModifiers.map { it.nullability().suffix }.reversed()
 
                         // Print the innermost component type.
                         appendTypeString(deepComponentType, configuration)
 
                         // Print modifiers from the outermost array type in, and the array suffixes.
-                        arrayModifiers.forEachIndexed { index, modifiers ->
+                        arrayModifiers.zip(suffixes).forEachIndexed { index, (modifiers, suffix) ->
                             appendAnnotations(modifiers, configuration, leadingSpace = true)
                             // Only the outermost array can be varargs.
                             if (index < arrayModifiers.size - 1 || !type.isVarargs) {
                                 append("[]")
                             } else {
                                 append("...")
+                            }
+                            if (configuration.kotlinStyleNulls) {
+                                append(suffix)
                             }
                         }
                     } else {
@@ -514,8 +519,10 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         } else {
                             append("[]")
                         }
+                        if (configuration.kotlinStyleNulls) {
+                            append(type.modifiers.nullability().suffix)
+                        }
                     }
-                    // TODO: kotlin nulls
                 }
                 is ClassTypeItem -> {
                     if (type.outerClassType != null) {
@@ -548,14 +555,18 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         }
                         append(">")
                     }
-                    // TODO: kotlin nulls
+                    if (configuration.kotlinStyleNulls) {
+                        append(type.modifiers.nullability().suffix)
+                    }
                 }
                 is VariableTypeItem -> {
                     if (configuration.annotations) {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.name)
-                    // TODO: kotlin nulls
+                    if (configuration.kotlinStyleNulls) {
+                        append(type.modifiers.nullability().suffix)
+                    }
                 }
                 is WildcardTypeItem -> {
                     if (configuration.annotations) {
@@ -573,6 +584,8 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         append(" super ")
                         appendTypeString(it, configuration)
                     }
+                    // It doesn't make sense to have a nullness suffix on a wildcard, this should be
+                    // handled by the bound.
                 }
             }
         }
@@ -585,6 +598,11 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         ) {
             val annotations =
                 modifiers.annotations().filter { annotation ->
+                    // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
+                    if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
+                        return@filter false
+                    }
+
                     val filter = configuration.filter ?: return@filter true
                     val qualifiedName = annotation.qualifiedName ?: return@filter true
                     val annotationClass =
