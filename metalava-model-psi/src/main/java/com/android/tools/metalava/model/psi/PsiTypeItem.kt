@@ -45,12 +45,14 @@ import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiRecursiveElementVisitor
 import com.intellij.psi.PsiReferenceList
+import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterList
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
+import com.intellij.psi.impl.source.PsiImmediateClassType
 import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
@@ -682,7 +684,17 @@ internal class PsiClassTypeItem(
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?
         ): List<PsiTypeItem> {
-            return psiType.parameters.mapIndexed { i, param ->
+            val psiParameters =
+                psiType.parameters.toList().ifEmpty {
+                    // Sometimes an immediate class type has no parameters even though the class
+                    // does have them -- find the class parameters and convert them to types.
+                    (psiType as? PsiImmediateClassType)?.resolve()?.typeParameters?.mapNotNull {
+                        PsiSubstitutor.EMPTY.substitute(it)
+                    }
+                        ?: emptyList()
+                }
+
+            return psiParameters.mapIndexed { i, param ->
                 create(codebase, param, kotlinType?.forParameter(i))
             }
         }
