@@ -50,73 +50,7 @@ import java.util.function.Predicate
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
     DefaultTypeItem(codebase) {
-    private var toString: String? = null
-    private var toAnnotatedString: String? = null
     private var asClass: PsiClassItem? = null
-
-    fun toTypeStringWithOldKotlinNulls(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        context: Item?,
-        filter: Predicate<Item>?
-    ): String {
-        if (filter != null) {
-            // No caching when specifying filter.
-            // TODO: When we support type use annotations, here we need to deal with markRecent
-            //  and clearAnnotations not really having done their job.
-            return toTypeString(
-                codebase = codebase,
-                type = psiType,
-                annotations = annotations,
-                kotlinStyleNulls = kotlinStyleNulls,
-                context = context,
-                filter = filter
-            )
-        }
-
-        return when {
-            kotlinStyleNulls && annotations -> {
-                if (toAnnotatedString == null) {
-                    toAnnotatedString =
-                        toTypeString(
-                            codebase = codebase,
-                            type = psiType,
-                            annotations = annotations,
-                            kotlinStyleNulls = kotlinStyleNulls,
-                            context = context,
-                            filter = filter
-                        )
-                }
-                toAnnotatedString!!
-            }
-            kotlinStyleNulls || annotations ->
-                toTypeString(
-                    codebase = codebase,
-                    type = psiType,
-                    annotations = annotations,
-                    kotlinStyleNulls = kotlinStyleNulls,
-                    context = context,
-                    filter = filter
-                )
-            else -> {
-                if (toString == null) {
-                    toString =
-                        TypeItem.formatType(
-                            getCanonicalText(
-                                codebase = codebase,
-                                owner = context,
-                                type = psiType,
-                                annotated = false,
-                                mapAnnotations = false,
-                                kotlinStyleNulls = kotlinStyleNulls,
-                                filter = filter
-                            )
-                        )
-                }
-                toString!!
-            }
-        }
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
