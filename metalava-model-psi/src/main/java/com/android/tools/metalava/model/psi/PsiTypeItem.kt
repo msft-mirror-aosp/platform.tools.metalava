@@ -57,7 +57,6 @@ import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
 import java.util.function.Predicate
-import org.jetbrains.uast.kotlin.isKotlin
 
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
@@ -66,23 +65,12 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     private var toAnnotatedString: String? = null
     private var asClass: PsiClassItem? = null
 
-    override fun toTypeString(
+    fun toTypeStringWithOldKotlinNulls(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
+        filter: Predicate<Item>?
     ): String {
-        if (!kotlinStyleNulls) {
-            return super.toTypeString(
-                annotations,
-                kotlinStyleNulls,
-                context,
-                filter,
-                spaceBetweenParameters
-            )
-        }
-
         if (filter != null) {
             // No caching when specifying filter.
             // TODO: When we support type use annotations, here we need to deal with markRecent
