@@ -79,6 +79,10 @@ sealed class TurbineTypeItem(
             else -> false
         }
     }
+
+    override fun hashCode(): Int {
+        return toTypeString().hashCode()
+    }
 }
 
 class TurbinePrimitiveTypeItem(
