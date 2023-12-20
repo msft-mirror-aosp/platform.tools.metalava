@@ -120,13 +120,9 @@ interface TypeItem {
         return convertTypeString(typeString, replacementMap)
     }
 
-    fun isJavaLangObject(): Boolean {
-        return toTypeString() == JAVA_LANG_OBJECT
-    }
+    fun isJavaLangObject(): Boolean = false
 
-    fun isString(): Boolean {
-        return toTypeString() == JAVA_LANG_STRING
-    }
+    fun isString(): Boolean = false
 
     fun defaultValue(): Any? = null
 
@@ -755,6 +751,10 @@ interface ClassTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
+
+    override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
