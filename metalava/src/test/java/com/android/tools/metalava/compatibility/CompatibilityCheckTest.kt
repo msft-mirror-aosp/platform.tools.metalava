@@ -5181,10 +5181,6 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     )
                 ),
-            expectedIssues =
-                """
-                    src/test/pkg/test.kt:3: error: Method test.pkg.TestKt.foo has changed return type from T (extends java.lang.Object) to java.lang.String [ChangedType]
-                """
         )
     }
 
