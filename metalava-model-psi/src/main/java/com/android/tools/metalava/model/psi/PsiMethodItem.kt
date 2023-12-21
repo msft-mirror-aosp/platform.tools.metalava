@@ -16,18 +16,13 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.util.PsiTypesUtil
-import java.io.StringWriter
-import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -306,83 +301,6 @@ open class PsiMethodItem(
             parameters.any { it.hasDefaultValue() }
     }
 
-    /**
-     * Converts the method to a stub that can be converted back to a PsiMethod.
-     *
-     * Note: This must not be used for emitting stub jars. For that, see
-     * [com.android.tools.metalava.stub.StubWriter].
-     *
-     * @param replacementMap a map that specifies replacement types for formal type parameters.
-     */
-    @Language("JAVA")
-    internal fun toStubForCloning(replacementMap: Map<String, String> = emptyMap()): String {
-        val method = this
-        // There are type variables; we have to recreate the method signature
-        val sb = StringBuilder(100)
-
-        val modifierString = StringWriter()
-        ModifierList.write(
-            modifierString,
-            method.modifiers,
-            method,
-            target = AnnotationTarget.INTERNAL,
-            removeAbstract = false,
-            removeFinal = false,
-        )
-        sb.append(modifierString.toString())
-
-        val typeParameters = typeParameterList().toString()
-        if (typeParameters.isNotEmpty()) {
-            sb.append(' ')
-            sb.append(TypeItem.convertTypeString(typeParameters, replacementMap))
-        }
-
-        val returnType = method.returnType()
-        sb.append(returnType.convertTypeString(replacementMap))
-
-        sb.append(' ')
-        sb.append(method.name())
-
-        sb.append("(")
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
-            if (i > 0) {
-                sb.append(", ")
-            }
-
-            val parameterModifierString = StringWriter()
-            ModifierList.write(
-                parameterModifierString,
-                parameter.modifiers,
-                parameter,
-                target = AnnotationTarget.INTERNAL,
-            )
-            sb.append(parameterModifierString.toString())
-            sb.append(parameter.type().convertTypeString(replacementMap))
-            sb.append(' ')
-            sb.append(parameter.name())
-        }
-        sb.append(")")
-
-        val throws = method.throwsTypes().asSequence().sortedWith(ClassItem.fullNameComparator)
-        if (throws.any()) {
-            sb.append(" throws ")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
-                if (i > 0) {
-                    sb.append(", ")
-                }
-                // No need to replace variables; we can't have type arguments for exceptions
-                sb.append(type.qualifiedName())
-            }
-        }
-
-        sb.append(" { return ")
-        val defaultValue = PsiTypesUtil.getDefaultValueOfType(method.psiMethod.returnType)
-        sb.append(defaultValue)
-        sb.append("; }")
-
-        return sb.toString()
-    }
-
     override fun finishInitialization() {
         super.finishInitialization()
 
@@ -459,6 +377,9 @@ open class PsiMethodItem(
             containingClass: PsiClassItem,
             original: PsiMethodItem
         ): PsiMethodItem {
+            val replacementMap = containingClass.mapTypeVariablesAsTypes(original.containingClass())
+            val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -467,8 +388,9 @@ open class PsiMethodItem(
                     name = original.name(),
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    returnType = original.returnType.duplicate() as PsiTypeItem,
-                    parameters = PsiParameterItem.create(codebase, original.parameters())
+                    returnType = returnType,
+                    parameters =
+                        PsiParameterItem.create(codebase, original.parameters(), replacementMap)
                 )
             method.modifiers.setOwner(method)
             method.source = original

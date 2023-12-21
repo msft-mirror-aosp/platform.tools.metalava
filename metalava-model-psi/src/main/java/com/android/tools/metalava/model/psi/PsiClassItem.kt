@@ -305,13 +305,13 @@ internal constructor(
         this.fields = fields
     }
 
-    override fun mapTypeVariables(target: ClassItem): Map<String, String> {
+    override fun mapTypeVariablesAsTypes(target: ClassItem): Map<TypeItem, TypeItem> {
         // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
         // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
         return if (isKotlin()) {
             emptyMap()
         } else {
-            super.mapTypeVariables(target)
+            super.mapTypeVariablesAsTypes(target)
         }
     }
 
@@ -329,18 +329,7 @@ internal constructor(
 
     override fun createMethod(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
-
-        val replacementMap = mapTypeVariables(template.containingClass())
-        val newMethod: PsiMethodItem
-        if (replacementMap.isEmpty()) {
-            newMethod = PsiMethodItem.create(codebase, this, method)
-        } else {
-            val stub = method.toStubForCloning(replacementMap)
-            val psiMethod = codebase.createPsiMethod(stub, psiClass)
-            newMethod = PsiMethodItem.create(codebase, this, psiMethod)
-            newMethod.inheritedMethod = method.inheritedMethod
-            newMethod.documentation = method.documentation
-        }
+        val newMethod = PsiMethodItem.create(codebase, this, method)
 
         if (template.throwsTypes().isEmpty()) {
             newMethod.setThrowsTypes(emptyList())
