@@ -717,6 +717,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val method1ParameterNames = listOf("Q", "R", "S")
             val method2TypeParameterNames = listOf("A", "B")
 
+            assertEquals(true, classItem.hasTypeVariables())
             assertEquals(classParameterNames, classTypeParameterList.typeParameterNames())
             assertEquals(emptyList(), annoTypeParameterList.typeParameterNames())
             assertEquals(method1ParameterNames, method1TypeParameterList.typeParameterNames())

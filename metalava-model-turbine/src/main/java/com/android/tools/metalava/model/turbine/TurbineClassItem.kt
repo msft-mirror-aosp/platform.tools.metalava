@@ -110,9 +110,7 @@ open class TurbineClassItem(
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    override fun hasTypeVariables(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun hasTypeVariables(): Boolean = typeParameters.typeParameterCount() > 0
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
