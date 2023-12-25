@@ -793,4 +793,30 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(innerClass1, innerInnerClass.containingClass())
         }
     }
+
+    @Test
+    fun `220 test ClassItem createDefaultConstructor`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public final class Test<T extends String> {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val ctorItem = classItem.createDefaultConstructor()
+
+            assertEquals("Test", ctorItem.name())
+            assertEquals(classItem, ctorItem.containingClass())
+            assertEquals(classItem.toType(), ctorItem.returnType())
+            assertEquals(
+                ctorItem.modifiers.getVisibilityLevel(),
+                classItem.modifiers.getVisibilityLevel()
+            )
+            assertEquals(emptyList(), ctorItem.throwsTypes())
+            assertEquals(emptyList(), ctorItem.parameters())
+        }
+    }
 }

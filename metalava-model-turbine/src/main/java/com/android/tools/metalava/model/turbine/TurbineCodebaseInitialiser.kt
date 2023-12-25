@@ -270,6 +270,7 @@ open class TurbineCodebaseInitialiser(
                 simpleName,
                 fullName,
                 qualifiedName,
+                sym,
                 modifierItem,
                 TurbineClassType.getClassType(cls.kind()),
                 typeParameters
