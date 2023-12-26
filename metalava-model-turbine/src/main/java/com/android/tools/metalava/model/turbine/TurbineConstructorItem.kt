@@ -72,6 +72,7 @@ class TurbineConstructorItem(
                     modifiers,
                     parameters,
                 )
+            modifiers.setOwner(ctorItem)
             ctorItem.parameters = emptyList()
             ctorItem.throwsClassNames = emptyList()
             ctorItem.setThrowsTypes()

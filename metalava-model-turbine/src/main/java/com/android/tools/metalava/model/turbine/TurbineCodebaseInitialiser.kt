@@ -187,6 +187,7 @@ open class TurbineCodebaseInitialiser(
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
+            modifiers.setOwner(turbinePkgItem)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -275,6 +276,7 @@ open class TurbineCodebaseInitialiser(
                 TurbineClassType.getClassType(cls.kind()),
                 typeParameters
             )
+        modifierItem.setOwner(classItem)
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
@@ -540,6 +542,7 @@ open class TurbineCodebaseInitialiser(
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =
             TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
+        modifiers.setOwner(typeParamItem)
         codebase.addTypeParameter(sym, typeParamItem)
         return typeParamItem
     }
@@ -571,13 +574,16 @@ open class TurbineCodebaseInitialiser(
                         isDeprecated(field.decl()?.javadoc())
                     )
                 val type = createType(field.type(), false)
-                TurbineFieldItem(
-                    codebase,
-                    field.name(),
-                    classItem,
-                    type,
-                    fieldModifierItem,
-                )
+                val fieldItem =
+                    TurbineFieldItem(
+                        codebase,
+                        field.name(),
+                        classItem,
+                        type,
+                        fieldModifierItem,
+                    )
+                fieldModifierItem.setOwner(fieldItem)
+                fieldItem
             }
     }
 
@@ -604,6 +610,7 @@ open class TurbineCodebaseInitialiser(
                             methodModifierItem,
                             typeParams,
                         )
+                    methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters())
                     methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
@@ -617,14 +624,17 @@ open class TurbineCodebaseInitialiser(
                 val parameterModifierItem =
                     TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type = createType(parameter.type(), parameterModifierItem.isVarArg())
-                TurbineParameterItem(
-                    codebase,
-                    parameter.name(),
-                    methodItem,
-                    idx,
-                    type,
-                    parameterModifierItem,
-                )
+                val parameterItem =
+                    TurbineParameterItem(
+                        codebase,
+                        parameter.name(),
+                        methodItem,
+                        idx,
+                        type,
+                        parameterModifierItem,
+                    )
+                parameterModifierItem.setOwner(parameterItem)
+                parameterItem
             }
     }
 
@@ -656,6 +666,7 @@ open class TurbineCodebaseInitialiser(
                             constructorModifierItem,
                             typeParams,
                         )
+                    constructorModifierItem.setOwner(constructorItem)
                     createParameters(constructorItem, constructor.parameters())
                     constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
                     constructorItem
