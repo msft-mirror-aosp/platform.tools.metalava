@@ -275,6 +275,7 @@ open class TurbineCodebaseInitialiser(
                 TurbineClassType.getClassType(cls.kind()),
                 typeParameters
             )
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
         if (!classItem.isInterface()) {

@@ -289,6 +289,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val fieldMod3 = fieldItem3.mutableModifiers()
             assertEquals(true, packageMod.isPublic())
             assertEquals(true, classMod1.isPublic())
+            assertEquals(false, classMod1.isSynchronized())
             assertEquals(true, fieldMod1.isPrivate())
             assertEquals(false, fieldMod1.isPackagePrivate())
             assertEquals(false, fieldMod2.isPrivate())
