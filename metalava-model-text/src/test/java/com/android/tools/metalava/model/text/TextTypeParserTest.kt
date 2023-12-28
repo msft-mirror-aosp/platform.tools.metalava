@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert
 import org.junit.Test
 
 class TextTypeParserTest : Assertions {
@@ -41,6 +43,27 @@ class TextTypeParserTest : Assertions {
                     .toString()
             )
             .isEqualTo("[java.util.List<java.lang.String>[]]")
+    }
+
+    @Test
+    fun `Test type parameter strings with annotations`() {
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                )
+            )
+            .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
+        assertThat(TextTypeParser.typeParameterStrings("<@test.pkg.C String>"))
+            .containsExactly("@test.pkg.C String")
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
+                )
+            )
+            .containsExactly(
+                "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+                "@test.pkg.C String"
+            )
     }
 
     @Test
@@ -93,11 +116,37 @@ class TextTypeParserTest : Assertions {
 
     @Test
     fun `Test splitting Kotlin nullability suffix`() {
-        assertThat(TextTypeParser.splitNullabilitySuffix("String!")).isEqualTo(Pair("String", "!"))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String?")).isEqualTo(Pair("String", "?"))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String")).isEqualTo(Pair("String", ""))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String!", true))
+            .isEqualTo(Pair("String", TypeNullability.PLATFORM))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String?", true))
+            .isEqualTo(Pair("String", TypeNullability.NULLABLE))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String", true))
+            .isEqualTo(Pair("String", TypeNullability.NONNULL))
         // Check that wildcards work
-        assertThat(TextTypeParser.splitNullabilitySuffix("?")).isEqualTo(Pair("?", ""))
+        assertThat(TextTypeParser.splitNullabilitySuffix("?", true))
+            .isEqualTo(Pair("?", TypeNullability.UNDEFINED))
+        assertThat(TextTypeParser.splitNullabilitySuffix("T", true))
+            .isEqualTo(Pair("T", TypeNullability.NONNULL))
+    }
+
+    @Test
+    fun `Test splitting Kotlin nullability suffix when kotlinStyleNulls is false`() {
+        assertThat(TextTypeParser.splitNullabilitySuffix("String", false))
+            .isEqualTo(Pair("String", null))
+        assertThat(TextTypeParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
+
+        Assert.assertThrows(
+            "Format does not support Kotlin-style null type syntax: String!",
+            ApiParseException::class.java
+        ) {
+            TextTypeParser.splitNullabilitySuffix("String!", false)
+        }
+        Assert.assertThrows(
+            "Format does not support Kotlin-style null type syntax: String?",
+            ApiParseException::class.java
+        ) {
+            TextTypeParser.splitNullabilitySuffix("String?", false)
+        }
     }
 
     /**
@@ -347,6 +396,19 @@ class TextTypeParserTest : Assertions {
             original = "Outer.Inner<P2>",
             expectedClassName = "Outer",
             expectedParams = ".Inner<P2>",
+            expectedAnnotations = emptyList()
+        )
+        testClassAnnotations(
+            original = "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+            expectedClassName = "java.lang.Integer",
+            expectedParams = null,
+            expectedAnnotations = listOf("@androidx.annotation.IntRange(from=5,to=10)")
+        )
+        testClassAnnotations(
+            original =
+                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+            expectedClassName = "java.util.List",
+            expectedParams = "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
             expectedAnnotations = emptyList()
         )
     }

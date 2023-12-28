@@ -413,7 +413,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(i: int, map: java.util.Map<java.lang.String, java.lang.Object>, arr: String[]): String;
+                    method public foo(i: int, map: java.util.Map<java.lang.String,java.lang.Object>, arr: String[]): String;
                   }
                 }
             """
@@ -456,7 +456,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(_: int, _: java.util.Map<java.lang.String, java.lang.Object>, _: String[]): String;
+                    method public foo(_: int, _: java.util.Map<java.lang.String,java.lang.Object>, _: String[]): String;
                   }
                 }
             """
@@ -500,7 +500,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class MyTest {
-                    method public abstract getParameterAnnotations(): @C java.lang.annotation.Annotation? @A [] @B []!;
+                    method public abstract getParameterAnnotations(): java.lang.annotation.@C Annotation? @A [] @B []!;
                   }
                 }
             """
@@ -513,19 +513,19 @@ class SignatureInputOutputTest {
             val annotationArrayArray = method.returnType()
             assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
             assertThat(annotationArrayArray.modifiers.annotations().map { it.qualifiedName })
-                .containsExactly("A")
+                .containsExactly("androidx.annotation.A")
 
             val annotationArray = (annotationArrayArray as ArrayTypeItem).componentType
             assertThat(annotationArray).isInstanceOf(ArrayTypeItem::class.java)
             assertThat(annotationArray.modifiers.annotations().map { it.qualifiedName })
-                .containsExactly("B")
+                .containsExactly("androidx.annotation.B")
 
             val annotation = (annotationArray as ArrayTypeItem).componentType
             assertThat(annotation).isInstanceOf(ClassTypeItem::class.java)
             assertThat((annotation as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.lang.annotation.Annotation")
             assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
-                .containsExactly("C")
+                .containsExactly("androidx.annotation.C")
 
             // TODO (b/300081840): test nullability of types
         }
