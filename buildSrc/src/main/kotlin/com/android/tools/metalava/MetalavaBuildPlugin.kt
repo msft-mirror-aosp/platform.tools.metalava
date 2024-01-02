@@ -17,6 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.build.api.dsl.Lint
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
+import com.android.tools.metalava.buildinfo.addTaskToAggregateBuildInfoFileTask
+import com.android.tools.metalava.buildinfo.configureBuildInfoTask
 import java.io.File
 import java.io.StringReader
 import java.util.Properties
@@ -115,10 +119,23 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     fun configurePublishing(project: Project) {
+        val projectRepo = project.layout.buildDirectory.dir("repo")
+        val archiveTaskProvider =
+            configurePublishingArchive(
+                project,
+                publicationName,
+                repositoryName,
+                getBuildId(),
+                getDistributionDirectory(project),
+                projectRepo,
+            )
+
         project.extensions.getByType<PublishingExtension>().apply {
             publications {
                 it.create<MavenPublication>(publicationName) {
                     from(project.components["java"])
+                    suppressPomMetadataWarningsFor("testFixturesApiElements")
+                    suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
                     pom { pom ->
                         pom.licenses { spec ->
                             spec.license { license ->
@@ -138,11 +155,20 @@ class MetalavaBuildPlugin : Plugin<Project> {
                             scm.url.set("https://android.googlesource.com/platform/tools/metalava/")
                         }
                     }
+
+                    val buildInfoTask =
+                        configureBuildInfoTask(
+                            project,
+                            this,
+                            isBuildingOnServer(),
+                            getDistributionDirectory(project),
+                            archiveTaskProvider
+                        )
+                    project.addTaskToAggregateBuildInfoFileTask(buildInfoTask)
                 }
             }
             repositories { handler ->
                 handler.maven { repository ->
-                    repository.name = repositoryName
                     repository.url =
                         project.uri(
                             "file://${
@@ -150,23 +176,12 @@ class MetalavaBuildPlugin : Plugin<Project> {
                             }/repo/m2repository"
                         )
                 }
+                handler.maven { repository ->
+                    repository.name = repositoryName
+                    repository.url = project.uri(projectRepo)
+                }
             }
         }
-        val archiveTaskProvider =
-            configurePublishingArchive(
-                project,
-                publicationName,
-                repositoryName,
-                getBuildId(),
-                getDistributionDirectory(project)
-            )
-
-        configureBuildInfoTask(
-            project,
-            isBuildingOnServer(),
-            getDistributionDirectory(project),
-            archiveTaskProvider
-        )
 
         // Add a buildId into Gradle Metadata file so we can tell which build it is from.
         project.tasks.withType(GenerateModuleMetadata::class.java).configureEach { task ->
@@ -205,7 +220,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
+            rootProject.layout.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {
@@ -220,7 +235,7 @@ private fun Project.getMetalavaVersion(): VersionProviderWrapper {
  * The build server will copy the contents of the distribution directory and make it available for
  * download.
  */
-private fun getDistributionDirectory(project: Project): File {
+internal fun getDistributionDirectory(project: Project): File {
     return if (System.getenv("DIST_DIR") != null) {
         File(System.getenv("DIST_DIR"))
     } else {
