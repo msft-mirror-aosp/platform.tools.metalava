@@ -279,8 +279,8 @@ internal class JavaStubWriter(
                                 val map =
                                     constructor
                                         .containingClass()
-                                        .mapTypeVariables(it.containingClass())
-                                val cast = map[type.toTypeString()] ?: typeString
+                                        .mapTypeVariablesAsTypes(it.containingClass())
+                                val cast = map[type]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)

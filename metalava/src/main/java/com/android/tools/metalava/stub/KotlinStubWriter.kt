@@ -133,9 +133,8 @@ internal class KotlinStubWriter(
                 // to remember to do this!!
                 val s = superClass.asClass()
                 if (s != null) {
-                    val map = cls.mapTypeVariables(s)
-                    val replaced = superClass.convertTypeString(map)
-                    writer.print(replaced)
+                    val replaced = superClass.convertType(cls, s)
+                    writer.print(replaced.toTypeString())
                     return true
                 }
             }
