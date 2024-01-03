@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
@@ -82,10 +81,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
 
     override fun hashCode(): Int {
         return qualifiedTypeName().hashCode()
-    }
-
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }
 
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem

@@ -115,15 +115,13 @@ interface TypeItem {
     fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
-        val map = from.mapTypeVariables(to)
+        val map = from.mapTypeVariablesAsTypes(to)
         if (map.isNotEmpty()) {
             return convertType(map)
         }
 
         return this
     }
-
-    fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
 
     fun convertTypeString(replacementMap: Map<String, String>?): String {
         val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)

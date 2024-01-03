@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -46,9 +45,6 @@ sealed class TurbineTypeItem(
         }
         return null
     }
-
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =
-        TODO("b/295800205")
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

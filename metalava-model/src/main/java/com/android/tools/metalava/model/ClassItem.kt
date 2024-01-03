@@ -637,7 +637,7 @@ interface ClassItem : Item {
             val cls = type.asClass() ?: continue
             if (predicate.test(cls)) {
                 if (hasTypeVariables() && type.hasTypeArguments()) {
-                    val replacementMap = target.mapTypeVariables(this)
+                    val replacementMap = target.mapTypeVariablesAsTypes(this)
                     if (replacementMap.isNotEmpty()) {
                         val mapped = type.convertType(replacementMap)
                         types.add(mapped)

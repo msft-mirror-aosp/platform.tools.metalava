@@ -70,12 +70,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         return psiType.hashCode()
     }
 
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        val s = convertTypeString(replacementMap)
-        // This is a string based type conversion, so there is no Kotlin type information.
-        return create(codebase, codebase.createPsiType(s, (owner as? PsiItem)?.psi()), null)
-    }
-
     override fun hasTypeArguments(): Boolean {
         val type = psiType
         return type is PsiClassType && type.hasParameters()
