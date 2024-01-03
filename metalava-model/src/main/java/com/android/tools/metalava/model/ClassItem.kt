@@ -703,15 +703,8 @@ interface ClassItem : Item {
      * not `{"T"->"Y"}`.
      */
     fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        // The string representation of the type to use in the map: don't include parameters of
-        // class types, for consistency with the old psi implementation.
-        fun TypeItem.mapTypeString(): String =
-            when (this) {
-                is ClassTypeItem -> qualifiedName
-                else -> toTypeString()
-            }
         return mapTypeVariablesAsTypes(target)
-            .map { (t1, t2) -> Pair(t1.mapTypeString(), t2.mapTypeString()) }
+            .map { (t1, t2) -> Pair(t1.toTypeString(), t2.toTypeString()) }
             .toMap()
     }
 
@@ -756,8 +749,19 @@ interface ClassItem : Item {
     }
 
     /** Creates a map between the parameters of [c1] and the parameters of [c2]. */
-    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem) =
-        c1.parameters.zip(c2.parameters).toMap()
+    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem): Map<TypeItem, TypeItem> {
+        // Don't include parameters of class types, for consistency with the old psi implementation.
+        // TODO (b/319300404): remove this section
+        val c2Params =
+            c2.parameters.map {
+                if (it is ClassTypeItem && it.parameters.isNotEmpty()) {
+                    it.duplicate(it.outerClassType, parameters = emptyList())
+                } else {
+                    it
+                }
+            }
+        return c1.parameters.zip(c2Params).toMap()
+    }
 
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
