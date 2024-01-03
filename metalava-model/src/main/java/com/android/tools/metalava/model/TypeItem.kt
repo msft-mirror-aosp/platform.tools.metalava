@@ -50,7 +50,6 @@ interface TypeItem {
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        context: Item? = null,
         filter: Predicate<Item>? = null,
         spaceBetweenParameters: Boolean = false
     ): String
@@ -92,8 +91,8 @@ interface TypeItem {
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(context: Item? = null): String {
-        var s = toTypeString(context = context)
+    fun toCanonicalType(): String {
+        var s = toTypeString()
         while (s.contains(JAVA_LANG_PREFIX)) {
             s = s.replace(JAVA_LANG_PREFIX, "")
         }
@@ -388,7 +387,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        context: Item?,
         filter: Predicate<Item>?,
         spaceBetweenParameters: Boolean
     ): String {
