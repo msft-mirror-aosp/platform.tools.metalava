@@ -7,6 +7,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
   test[turbine,java,pkg.UnknownClass]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test convertType[turbine,java]
   Test inner types from classpath[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest

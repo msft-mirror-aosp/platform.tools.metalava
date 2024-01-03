@@ -6161,4 +6161,54 @@ class ApiFileTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Test signature including parameterized converted type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface VisibleInterface<V> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.RestrictTo;
+                            @RestrictTo(RestrictTo.Scope.LIBRARY)
+                            public interface HiddenInterface<H> extends VisibleInterface<H> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo<F> implements HiddenInterface<List<F>> {}
+                        """
+                    ),
+                    restrictToSource
+                ),
+            // When `HiddenInterface` is hidden, the implements clause for `Foo` is converted to
+            // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
+            // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
+            // `List` for legacy reasons.
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
+                        ctor public Foo();
+                      }
+                      public interface VisibleInterface<V> {
+                      }
+                    }
+                """,
+            skipEmitPackages = listOf("androidx.annotation"),
+            hideAnnotations = arrayOf("androidx.annotation.RestrictTo"),
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
+        )
+    }
 }
