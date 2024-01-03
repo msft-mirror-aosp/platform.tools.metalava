@@ -129,6 +129,9 @@ internal class TextPrimitiveTypeItem(
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextPrimitiveTypeItem(codebase, type, kind, modifiers.duplicate(withNullability))
     }
+
+    // Text types are immutable, so the modifiers don't actually need to be duplicated.
+    override fun duplicate(): TypeItem = this
 }
 
 /** An [ArrayTypeItem] parsed from a signature file. */
@@ -147,6 +150,10 @@ internal class TextArrayTypeItem(
             isVarargs,
             modifiers.duplicate(withNullability)
         )
+    }
+
+    override fun duplicate(componentType: TypeItem): ArrayTypeItem {
+        return TextArrayTypeItem(codebase, type, componentType, isVarargs, modifiers)
     }
 }
 
@@ -171,6 +178,10 @@ internal class TextClassTypeItem(
             modifiers.duplicate(withNullability)
         )
     }
+
+    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
+        return TextClassTypeItem(codebase, type, qualifiedName, parameters, outerClass, modifiers)
+    }
 }
 
 /** A [VariableTypeItem] parsed from a signature file. */
@@ -190,6 +201,9 @@ internal class TextVariableTypeItem(
             modifiers.duplicate(withNullability)
         )
     }
+
+    // Text types are immutable, so the modifiers don't actually need to be duplicated.
+    override fun duplicate(): TypeItem = this
 }
 
 /** A [WildcardTypeItem] parsed from a signature file. */
@@ -208,5 +222,9 @@ internal class TextWildcardTypeItem(
             superBound,
             modifiers.duplicate(withNullability)
         )
+    }
+
+    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem {
+        return TextWildcardTypeItem(codebase, type, extendsBound, superBound, modifiers)
     }
 }

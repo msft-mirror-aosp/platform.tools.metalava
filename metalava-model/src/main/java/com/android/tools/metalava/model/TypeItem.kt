@@ -103,6 +103,17 @@ interface TypeItem {
         return s
     }
 
+    /**
+     * Makes substitutions to the type based on the [replacementMap]. For instance, if the
+     * [replacementMap] contains `{T -> String}`, calling this method on `T` would return `String`,
+     * and calling it on `List<T>` would return `List<String>` (in both cases the modifiers on the
+     * `String` will be independently mutable from the `String` in the [replacementMap]). Calling it
+     * on an unrelated type like `int` would return a duplicate of that type.
+     *
+     * This method is intended to be used in conjunction with [ClassItem.mapTypeVariables],
+     */
+    fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
+
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {
@@ -128,6 +139,9 @@ interface TypeItem {
     fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
+
+    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
+    fun duplicate(): TypeItem
 
     companion object {
         /** Shortens types, if configured */
@@ -716,6 +730,10 @@ interface PrimitiveTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return (replacementMap[this] ?: this).duplicate()
+    }
 }
 
 /** Represents an array type, including vararg types. */
@@ -730,6 +748,19 @@ interface ArrayTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [componentType] in place of this type's component.
+     */
+    fun duplicate(componentType: TypeItem): ArrayTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(componentType.convertType(replacementMap))
     }
 }
 
@@ -758,6 +789,24 @@ interface ClassTypeItem : TypeItem {
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
+    override fun duplicate(): ClassTypeItem =
+        duplicate(outerClassType?.duplicate(), parameters.map { it.duplicate() })
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [outerClass] and [parameters] in place of this
+     * type's outer class and parameters.
+     */
+    fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(
+                outerClassType?.convertType(replacementMap) as? ClassTypeItem,
+                parameters.map { it.convertType(replacementMap) }
+            )
+    }
+
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
         fun computeClassName(qualifiedName: String): String {
@@ -782,6 +831,10 @@ interface VariableTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return (replacementMap[this] ?: this).duplicate()
+    }
 }
 
 /**
@@ -797,5 +850,23 @@ interface WildcardTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun duplicate(): WildcardTypeItem =
+        duplicate(extendsBound?.duplicate(), superBound?.duplicate())
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [extendsBound] and [superBound] in place of this
+     * type's bounds.
+     */
+    fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(
+                extendsBound?.convertType(replacementMap),
+                superBound?.convertType(replacementMap)
+            )
     }
 }

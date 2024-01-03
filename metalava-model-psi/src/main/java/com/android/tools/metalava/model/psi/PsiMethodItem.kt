@@ -467,7 +467,7 @@ open class PsiMethodItem(
                     name = original.name(),
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    returnType = original.returnType.duplicate(),
+                    returnType = original.returnType.duplicate() as PsiTypeItem,
                     parameters = PsiParameterItem.create(codebase, original.parameters())
                 )
             method.modifiers.setOwner(method)

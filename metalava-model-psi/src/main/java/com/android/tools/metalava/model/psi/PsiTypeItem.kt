@@ -112,8 +112,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         }
     }
 
-    internal abstract fun duplicate(): PsiTypeItem
-
     companion object {
         /**
          * Determine if this item implies that its associated type is a non-null array with non-null
@@ -208,11 +206,11 @@ internal class PsiArrayTypeItem(
     override val modifiers: PsiTypeModifiers =
         PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : ArrayTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(): PsiArrayTypeItem =
+    override fun duplicate(componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             codebase = codebase,
             psiType = psiType,
-            componentType = componentType.duplicate(),
+            componentType = componentType as PsiTypeItem,
             isVarargs = isVarargs,
             modifiers = modifiers.duplicate()
         )
@@ -232,13 +230,13 @@ internal class PsiClassTypeItem(
     override val modifiers: PsiTypeModifiers =
         PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(): PsiClassTypeItem =
+    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem =
         PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
-            parameters = parameters.map { it.duplicate() },
-            outerClassType = outerClassType?.duplicate(),
+            parameters = parameters.map { it as PsiTypeItem },
+            outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate()
         )
@@ -333,12 +331,12 @@ internal class PsiWildcardTypeItem(
     override val modifiers: PsiTypeModifiers =
         PsiTypeModifiers.create(codebase, psiType, kotlinType)
 ) : WildcardTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(): PsiWildcardTypeItem =
+    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem =
         PsiWildcardTypeItem(
             codebase = codebase,
             psiType = psiType,
-            extendsBound = extendsBound?.duplicate(),
-            superBound = superBound?.duplicate(),
+            extendsBound = extendsBound as? PsiTypeItem,
+            superBound = superBound as? PsiTypeItem,
             modifiers = modifiers.duplicate()
         )
 
