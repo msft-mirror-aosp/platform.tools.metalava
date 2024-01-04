@@ -39,6 +39,16 @@ class TextTypeParameterItem(
     ),
     TypeParameterItem {
 
+    override fun toType(): TextTypeItem {
+        return TextVariableTypeItem(
+            codebase,
+            name,
+            name,
+            this,
+            TextTypeModifiers.create(codebase, emptyList(), null)
+        )
+    }
+
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
             val boundsStringList = bounds(typeParameterString, owner)
