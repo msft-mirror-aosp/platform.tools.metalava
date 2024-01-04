@@ -17,20 +17,32 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.VisibilityLevel
 
 class TurbinePackageItem(
-    override val codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val qualifiedName: String,
-    override val modifiers: ModifierList,
-) : PackageItem, TurbineItem(codebase, modifiers) {
+    modifiers: TurbineModifierItem,
+) : TurbineItem(codebase, modifiers), PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
     private var containingPackage: PackageItem? = null
 
+    companion object {
+        fun create(
+            codebase: TurbineBasedCodebase,
+            qualifiedName: String,
+            modifiers: TurbineModifierItem,
+        ): TurbinePackageItem {
+            if (modifiers.isPackagePrivate()) {
+                // packages are always public (if not hidden explicitly with private)
+                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            }
+            return TurbinePackageItem(codebase, qualifiedName, modifiers)
+        }
+    }
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
