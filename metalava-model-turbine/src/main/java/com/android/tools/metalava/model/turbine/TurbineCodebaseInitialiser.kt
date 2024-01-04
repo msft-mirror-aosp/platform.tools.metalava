@@ -19,10 +19,14 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -39,6 +43,8 @@ import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
 import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
+import com.google.turbine.binder.lookup.LookupKey
+import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.diag.TurbineLog
@@ -49,6 +55,7 @@ import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
@@ -83,6 +90,8 @@ open class TurbineCodebaseInitialiser(
     /** Map between ClassSymbols and TurbineClass for classes present in classPath */
     private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
 
+    private lateinit var index: TopLevelIndex
+
     /**
      * Binds the units with the help of Turbine's binder.
      *
@@ -115,12 +124,39 @@ open class TurbineCodebaseInitialiser(
                 )!!
             sourceClassMap = bindingResult.units()
             envClassMap = bindingResult.classPathEnv()
+            index = bindingResult.tli()
         } catch (e: Throwable) {
             throw e
         }
-
         createAllPackages()
         createAllClasses()
+        correctNullability()
+    }
+
+    /**
+     * Corrects the nullability of types in the codebase based on their context items. If an item is
+     * non-null or nullable, its type is too.
+     */
+    private fun correctNullability() {
+        codebase.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    val type = item.type() ?: return
+                    val implicitNullness = item.implicitNullness()
+                    if (implicitNullness == true || item.modifiers.isNullable()) {
+                        type.modifiers.setNullability(TypeNullability.NULLABLE)
+                    } else if (implicitNullness == false || item.modifiers.isNonNull()) {
+                        type.modifiers.setNullability(TypeNullability.NONNULL)
+                    }
+                    // Also make array components for annotation types non-null
+                    if (
+                        type is ArrayTypeItem && item.containingClass()?.isAnnotationType() == true
+                    ) {
+                        type.componentType.modifiers.setNullability(TypeNullability.NONNULL)
+                    }
+                }
+            }
+        )
     }
 
     private fun createAllPackages() {
@@ -148,7 +184,7 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifiers = TurbineModifierItem.create(codebase, 0, null)
+            val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
@@ -169,22 +205,44 @@ open class TurbineCodebaseInitialiser(
         }
     }
 
+    /** Tries to create a class if not already present in codebase's classmap */
+    internal fun findOrCreateClass(name: String): TurbineClassItem? {
+        var classItem = codebase.findClass(name)
+
+        if (classItem == null) {
+            val symbol = getClassSymbol(name)
+            symbol?.let { createClass(symbol) }
+            classItem = codebase.findClass(name)
+        }
+
+        return classItem
+    }
+
     /** Creates a class if not already present in codebase's classmap */
     private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
         val className = getQualifiedName(sym.binaryName())
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
-            classItem = createClass(sym)
+            // Inner class should not be created directly from here. Instead create its
+            // TopLevelClass which
+            // will automatically create the innerclass via createInnerClasses method
+            if (sym.binaryName().contains("$")) {
+                val topClassSym = getClassSymbol(className)!!
+                createClass(topClassSym)
+            } else {
+                createClass(sym)
+            }
         }
 
-        return classItem
+        return codebase.findClass(className)!!
     }
 
     private fun createClass(sym: ClassSymbol): TurbineClassItem {
 
         var cls: TypeBoundClass? = sourceClassMap[sym]
         cls = if (cls != null) cls else envClassMap.get(sym)!!
+        val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
@@ -195,7 +253,13 @@ open class TurbineCodebaseInitialiser(
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
-        val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
+        val modifierItem =
+            TurbineModifierItem.create(
+                codebase,
+                cls.access(),
+                annotations,
+                isDeprecated(decl?.javadoc())
+            )
         val typeParameters = createTypeParameters(cls.typeParameterTypes())
         val classItem =
             TurbineClassItem(
@@ -209,16 +273,15 @@ open class TurbineCodebaseInitialiser(
             )
 
         // Setup the SuperClass
-        val superClassItem = cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
-        val superClassType = cls.superClassType()
-        val superClassTypeItem =
-            if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
-            else createType(superClassType, false)
-        classItem.setSuperClass(superClassItem, superClassTypeItem)
-
-        // Setup InnerClasses
-        val t = cls.children()
-        setInnerClasses(classItem, t.values.asList())
+        if (!classItem.isInterface()) {
+            val superClassItem =
+                cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
+            val superClassType = cls.superClassType()
+            val superClassTypeItem =
+                if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
+                else createType(superClassType, false)
+            classItem.setSuperClass(superClassItem, superClassTypeItem)
+        }
 
         // Set direct interfaces
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
@@ -251,6 +314,16 @@ open class TurbineCodebaseInitialiser(
             // for containingClass to be set via setInnerClasses
             fixCtorReturnType(classItem)
         }
+
+        // Set the throwslist for methods
+        classItem.methods.forEach { it.setThrowsTypes() }
+
+        // Set the throwslist for constructors
+        classItem.constructors.forEach { it.setThrowsTypes() }
+
+        // Create InnerClasses.
+        val children = cls.children()
+        createInnerClasses(classItem, children.values.asList())
 
         return classItem
     }
@@ -314,7 +387,8 @@ open class TurbineCodebaseInitialiser(
             TyKind.PRIM_TY -> {
                 type as PrimTy
                 val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
+                // Primitives are always non-null.
+                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.NONNULL)
                 when (type.primkind()) {
                     PrimKind.BOOLEAN ->
                         TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BOOLEAN)
@@ -344,6 +418,8 @@ open class TurbineCodebaseInitialiser(
                 // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
                 // Outer, Outer.Inner and Outer.Inner.Inner1
                 for (simpleClass in type.classes()) {
+                    // For all outer class types, set the nullability to non-null.
+                    outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
                     outerClass = createSimpleClassType(simpleClass, outerClass)
                 }
                 outerClass!!
@@ -357,7 +433,8 @@ open class TurbineCodebaseInitialiser(
             TyKind.WILD_TY -> {
                 type as WildTy
                 val annotations = createAnnotations(type.annotations())
-                val modifiers = TurbineTypeModifiers(annotations)
+                // Wildcards themselves don't have a defined nullability.
+                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.UNDEFINED)
                 when (type.boundKind()) {
                     BoundKind.UPPER -> {
                         val upperBound = createType(type.bound(), false)
@@ -381,13 +458,15 @@ open class TurbineCodebaseInitialiser(
             TyKind.VOID_TY ->
                 TurbinePrimitiveTypeItem(
                     codebase,
-                    TurbineTypeModifiers(emptyList()),
+                    // Primitives are always non-null.
+                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             TyKind.NONE_TY ->
                 TurbinePrimitiveTypeItem(
                     codebase,
-                    TurbineTypeModifiers(emptyList()),
+                    // Primitives are always non-null.
+                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
@@ -425,7 +504,7 @@ open class TurbineCodebaseInitialiser(
         upperBounds.bounds().mapTo(typeBounds) { createType(it, false) }
         param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
         val modifiers =
-            TurbineModifierItem(codebase, annotations = createAnnotations(param.annotations()))
+            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =
             TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
         codebase.addTypeParameter(sym, typeParamItem)
@@ -433,13 +512,13 @@ open class TurbineCodebaseInitialiser(
     }
 
     /** This method sets up the inner class hierarchy. */
-    private fun setInnerClasses(
+    private fun createInnerClasses(
         classItem: TurbineClassItem,
         innerClasses: ImmutableList<ClassSymbol>
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = findOrCreateClass(cls)
+                val innerClassItem = createClass(cls)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem
@@ -452,7 +531,12 @@ open class TurbineCodebaseInitialiser(
             fields.map { field ->
                 val annotations = createAnnotations(field.annotations())
                 val fieldModifierItem =
-                    TurbineModifierItem.create(codebase, field.access(), annotations)
+                    TurbineModifierItem.create(
+                        codebase,
+                        field.access(),
+                        annotations,
+                        isDeprecated(field.decl()?.javadoc())
+                    )
                 val type = createType(field.type(), false)
                 TurbineFieldItem(
                     codebase,
@@ -471,7 +555,12 @@ open class TurbineCodebaseInitialiser(
                 .map { method ->
                     val annotations = createAnnotations(method.annotations())
                     val methodModifierItem =
-                        TurbineModifierItem.create(codebase, method.access(), annotations)
+                        TurbineModifierItem.create(
+                            codebase,
+                            method.access(),
+                            annotations,
+                            isDeprecated(method.decl()?.javadoc())
+                        )
                     val typeParams = createTypeParameters(method.tyParams())
                     val methodItem =
                         TurbineMethodItem(
@@ -483,6 +572,7 @@ open class TurbineCodebaseInitialiser(
                             typeParams,
                         )
                     createParameters(methodItem, method.parameters())
+                    methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
                 }
     }
@@ -492,7 +582,7 @@ open class TurbineCodebaseInitialiser(
             parameters.mapIndexed { idx, parameter ->
                 val annotations = createAnnotations(parameter.annotations())
                 val parameterModifierItem =
-                    TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                    TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type = createType(parameter.type(), parameterModifierItem.isVarArg())
                 TurbineParameterItem(
                     codebase,
@@ -513,7 +603,12 @@ open class TurbineCodebaseInitialiser(
                 .map { constructor ->
                     val annotations = createAnnotations(constructor.annotations())
                     val constructorModifierItem =
-                        TurbineModifierItem.create(codebase, constructor.access(), annotations)
+                        TurbineModifierItem.create(
+                            codebase,
+                            constructor.access(),
+                            annotations,
+                            isDeprecated(constructor.decl()?.javadoc())
+                        )
                     val typeParams = createTypeParameters(constructor.tyParams())
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
@@ -529,6 +624,7 @@ open class TurbineCodebaseInitialiser(
                             typeParams,
                         )
                     createParameters(constructorItem, constructor.parameters())
+                    constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
@@ -549,5 +645,32 @@ open class TurbineCodebaseInitialiser(
                 it
             }
         classItem.constructors = result
+    }
+
+    /**
+     * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
+     * returns only top-level classes, this method will return the ClassSymbol of outermost class
+     * for inner classes.
+     */
+    private fun getClassSymbol(name: String): ClassSymbol? {
+        val result = index.scope().lookup(createLookupKey(name))
+        return result?.let { it.sym() as ClassSymbol }
+    }
+
+    /** Creates a LookupKey from a given name */
+    private fun createLookupKey(name: String): LookupKey {
+        val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
+        return LookupKey(ImmutableList.copyOf(idents))
+    }
+
+    private fun isDeprecated(javadoc: String?): Boolean {
+        return javadoc?.contains("@deprecated") ?: false
+    }
+
+    private fun getThrowsList(throwsTypes: List<Type>): List<String> {
+        return throwsTypes.mapNotNull { it ->
+            val sym = (it as? ClassTy)?.sym()
+            sym?.let { getQualifiedName(it.binaryName()) }
+        }
     }
 }
