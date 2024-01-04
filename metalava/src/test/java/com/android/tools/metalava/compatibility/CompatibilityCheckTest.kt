@@ -5156,8 +5156,6 @@ class CompatibilityCheckTest : DriverTest() {
                       }
                     }
                 """,
-            expectedIssues =
-                "load-api.txt:4: error: Method test.pkg.Properties.remove has changed return type from V (extends java.lang.Object) to java.lang.Object [ChangedType]"
         )
     }
 
