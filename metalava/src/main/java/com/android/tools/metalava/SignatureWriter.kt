@@ -221,7 +221,6 @@ class SignatureWriter(
             modifiers = item.modifiers,
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
-            includeDeprecated = true,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
             omitCommonPackages = true
         )
@@ -382,7 +381,7 @@ class SignatureWriter(
         var typeString =
             type.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls && !item.hasInheritedGenericType(),
+                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
                 context = item,
                 filter = filterReference
             )
