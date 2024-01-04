@@ -279,7 +279,14 @@ internal class PsiClassTypeItem(
                     null
                 } else {
                     val psiOuterClassType =
-                        codebase.createPsiType(outerClassName, psiType.psiContext)
+                        codebase.createPsiType(
+                            outerClassName,
+                            // The context psi element allows variable types to be resolved (with no
+                            // context, they would be interpreted as class types). The [psiContext]
+                            // works in most cases, but is null when creating a type directly from a
+                            // class declaration, so the resolved [psiType] provides context then.
+                            psiType.psiContext ?: psiType.resolve()
+                        )
                     (create(codebase, psiOuterClassType, kotlinType?.forOuterClass())
                             as PsiClassTypeItem)
                         .apply {
