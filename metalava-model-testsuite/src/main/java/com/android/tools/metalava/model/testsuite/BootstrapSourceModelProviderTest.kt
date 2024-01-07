@@ -863,4 +863,72 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("5", paramItem.defaultValue())
         }
     }
+
+    @Test
+    fun `240 test documentations`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    /*
+                        A Header Comment
+                    */
+                    /**
+                        A JavaDoc Header Comment
+                    */
+                    package test.pkg;
+
+                    /** Class documentation */
+                    public class Test {
+                        /** Field Doc */
+                        public int field;
+                        /**
+                         * Method documentation
+                         * Multiple
+                         * Lines
+                         */
+                         public void foo() {}
+                         // Non javadoc comment
+                         public static int field1 = 5;
+
+                         class Inner {}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val pkgItem = codebase.assertPackage("test.pkg")
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
+            val methodItem = classItem.methods().single()
+            val fieldItem = classItem.assertField("field")
+            val fieldItem1 = classItem.assertField("field1")
+            val sourceFile = classItem.sourceFile()!!
+            val headerComment =
+                """
+                    /*
+                        A Header Comment
+                    */
+                    /**
+                        A JavaDoc Header Comment
+                    */
+
+                """
+                    .trimIndent()
+            val methodComment =
+                """
+                    /**
+                         * Method documentation
+                         * Multiple
+                         * Lines
+                         */
+                """
+                    .trimIndent()
+            assertEquals(null, innerClassItem.getSourceFile())
+            assertEquals(headerComment, sourceFile.getHeaderComments())
+            assertEquals(methodComment, methodItem.documentation)
+            assertEquals("/** Class documentation */", classItem.documentation)
+            assertEquals("/** Field Doc */", fieldItem.documentation)
+            assertEquals("", fieldItem1.documentation)
+            assertEquals("", pkgItem.documentation)
+        }
+    }
 }

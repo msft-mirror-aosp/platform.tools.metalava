@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.ClassSymbol
@@ -37,9 +38,13 @@ open class TurbineClassItem(
     modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
+    private val document: String,
+    private val source: SourceFile?
 ) : TurbineItem(codebase, modifiers), ClassItem {
 
     override var artifact: String? = null
+
+    override var documentation: String = document
 
     override var hasPrivateConstructor: Boolean = false
 
@@ -189,4 +194,6 @@ open class TurbineClassItem(
         }
         return other is ClassItem && qualifiedName() == other.qualifiedName()
     }
+
+    override fun getSourceFile(): SourceFile? = source
 }

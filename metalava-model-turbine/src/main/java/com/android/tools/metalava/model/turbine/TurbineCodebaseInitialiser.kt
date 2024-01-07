@@ -248,6 +248,9 @@ open class TurbineCodebaseInitialiser(
         cls = if (cls != null) cls else envClassMap.get(sym)!!
         val decl = (cls as? SourceTypeBoundClass)?.decl()
 
+        val isTopClass = cls.owner() == null
+        val isFromClassPath = !(cls is SourceTypeBoundClass)
+
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
         val pkgItem = findOrCreatePackage(pkgName)
@@ -257,14 +260,19 @@ open class TurbineCodebaseInitialiser(
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
+        val documentation = decl?.javadoc() ?: ""
         val modifierItem =
             TurbineModifierItem.create(
                 codebase,
                 cls.access(),
                 annotations,
-                isDeprecated(decl?.javadoc())
+                isDeprecated(documentation)
             )
         val typeParameters = createTypeParameters(cls.typeParameterTypes())
+        val sourceFile =
+            if (isTopClass && !isFromClassPath)
+                TurbineSourceFile(codebase, (cls as SourceTypeBoundClass).source().source())
+            else null
         val classItem =
             TurbineClassItem(
                 codebase,
@@ -274,7 +282,9 @@ open class TurbineCodebaseInitialiser(
                 sym,
                 modifierItem,
                 TurbineClassType.getClassType(cls.kind()),
-                typeParameters
+                typeParameters,
+                getCommentedDoc(documentation),
+                sourceFile,
             )
         modifierItem.setOwner(classItem)
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
@@ -310,7 +320,6 @@ open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods())
 
         // Add to the codebase
-        val isTopClass = cls.owner() == null
         codebase.addClass(classItem, isTopClass)
 
         // Add the class to corresponding PackageItem
@@ -574,6 +583,7 @@ open class TurbineCodebaseInitialiser(
                         isDeprecated(field.decl()?.javadoc())
                     )
                 val type = createType(field.type(), false)
+                val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
                     TurbineFieldItem(
                         codebase,
@@ -581,6 +591,7 @@ open class TurbineCodebaseInitialiser(
                         classItem,
                         type,
                         fieldModifierItem,
+                        getCommentedDoc(documentation),
                     )
                 fieldModifierItem.setOwner(fieldItem)
                 fieldItem
@@ -601,6 +612,7 @@ open class TurbineCodebaseInitialiser(
                             isDeprecated(method.decl()?.javadoc())
                         )
                     val typeParams = createTypeParameters(method.tyParams())
+                    val documentation = method.decl()?.javadoc() ?: ""
                     val methodItem =
                         TurbineMethodItem(
                             codebase,
@@ -609,6 +621,7 @@ open class TurbineCodebaseInitialiser(
                             createType(method.returnType(), false),
                             methodModifierItem,
                             typeParams,
+                            getCommentedDoc(documentation),
                         )
                     methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters())
@@ -656,6 +669,7 @@ open class TurbineCodebaseInitialiser(
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
                     val name = classItem.simpleName()
+                    val documentation = constructor.decl()?.javadoc() ?: ""
                     val constructorItem =
                         TurbineConstructorItem(
                             codebase,
@@ -665,6 +679,7 @@ open class TurbineCodebaseInitialiser(
                             createType(constructor.returnType(), false),
                             constructorModifierItem,
                             typeParams,
+                            getCommentedDoc(documentation),
                         )
                     constructorModifierItem.setOwner(constructorItem)
                     createParameters(constructorItem, constructor.parameters())
@@ -716,5 +731,16 @@ open class TurbineCodebaseInitialiser(
             val sym = (it as? ClassTy)?.sym()
             sym?.let { getQualifiedName(it.binaryName()) }
         }
+    }
+
+    private fun getCommentedDoc(doc: String): String {
+        return buildString {
+                if (doc != "") {
+                    append("/**")
+                    append(doc)
+                    append("*/")
+                }
+            }
+            .toString()
     }
 }
