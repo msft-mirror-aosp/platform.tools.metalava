@@ -225,12 +225,14 @@ open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
-            // Inner class should not be created directly from here. Instead create its
-            // TopLevelClass which
-            // will automatically create the innerclass via createInnerClasses method
+            // For inner classes, create the outer class first if not created.
             if (sym.binaryName().contains("$")) {
                 val topClassSym = getClassSymbol(className)!!
-                createClass(topClassSym)
+                if (codebase.findClass(getQualifiedName(topClassSym.binaryName())) != null) {
+                    createClass(sym) // Create the inner class if top class exists
+                } else {
+                    createClass(topClassSym) // Create the outer class if it doesn't exist
+                }
             } else {
                 createClass(sym)
             }
@@ -312,7 +314,7 @@ open class TurbineCodebaseInitialiser(
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
             // If the class is top class, fix the constructor return type right away. Otherwise wait
-            // for containingClass to be set via setInnerClasses
+            // for containingClass to be set via createInnerClasses
             fixCtorReturnType(classItem)
         }
 
@@ -547,7 +549,7 @@ open class TurbineCodebaseInitialiser(
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = createClass(cls)
+                val innerClassItem = findOrCreateClass(cls)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem

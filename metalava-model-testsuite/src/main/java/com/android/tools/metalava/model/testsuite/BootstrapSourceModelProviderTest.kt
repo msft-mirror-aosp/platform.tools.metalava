@@ -774,10 +774,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Outer {
-                        class Inner extends Outer {}
                         class Inner1 extends Inner {
                             class InnerInner extends Outer {}
                         }
+                        class Inner extends Outer {}
                     }
                 """
             ),
