@@ -331,6 +331,12 @@ open class TurbineCodebaseInitialiser(
             fixCtorReturnType(classItem)
         }
 
+        // Do not emit to signature file if it is from classpath
+        if (isFromClassPath) {
+            pkgItem.emit = false
+            classItem.emit = false
+        }
+
         // Set the throwslist for methods
         classItem.methods.forEach { it.setThrowsTypes() }
 

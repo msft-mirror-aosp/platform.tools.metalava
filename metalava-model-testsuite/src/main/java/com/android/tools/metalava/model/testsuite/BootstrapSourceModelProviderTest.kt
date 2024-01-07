@@ -324,12 +324,21 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
             ),
         ) { codebase ->
+            val pkgItem = codebase.assertPackage("test.pkg")
             val classItem = codebase.assertClass("test.pkg.Test")
+            val utilPkgItem = codebase.assertPackage("java.util")
             val utilClassItem = codebase.assertClass("java.util.Date")
+            val langPkgItem = codebase.assertPackage("java.lang")
             val objectClassItem = codebase.assertClass("java.lang.Object")
             assertEquals(utilClassItem, classItem.superClass())
             assertEquals(objectClassItem, utilClassItem.superClass())
             assertEquals(3, utilClassItem.allInterfaces().count())
+            assertEquals(false, utilPkgItem.emit)
+            assertEquals(false, utilClassItem.emit)
+            assertEquals(false, langPkgItem.emit)
+            assertEquals(false, objectClassItem.emit)
+            assertEquals(true, pkgItem.emit)
+            assertEquals(true, classItem.emit)
         }
     }
 
