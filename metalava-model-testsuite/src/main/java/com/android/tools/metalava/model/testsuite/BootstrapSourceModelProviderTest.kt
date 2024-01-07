@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -444,6 +445,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
+            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
 
             assertEquals(annoClassItem2, customAnno2.resolve())
             assertNotNull(custAnno2Attr1)

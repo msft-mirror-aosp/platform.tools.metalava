@@ -78,6 +78,8 @@ open class TurbineClassItem(
 
     internal var hasImplicitDefaultConstructor = false
 
+    private var retention: AnnotationRetention? = null
+
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
             val interfaces = mutableSetOf<TurbineClassItem>()
@@ -113,7 +115,16 @@ open class TurbineClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun getRetention(): AnnotationRetention {
-        TODO("b/295800205")
+        retention?.let {
+            return it
+        }
+
+        if (!isAnnotationType()) {
+            error("getRetention() should only be called on annotation classes")
+        }
+
+        retention = ClassItem.findRetention(this)
+        return retention!!
     }
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
