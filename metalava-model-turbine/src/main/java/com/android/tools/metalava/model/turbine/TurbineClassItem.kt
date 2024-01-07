@@ -25,12 +25,15 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.binder.sym.MethodSymbol
 
 open class TurbineClassItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
+    private val classSymbol: ClassSymbol,
     modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
@@ -110,9 +113,12 @@ open class TurbineClassItem(
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    override fun hasTypeVariables(): Boolean {
-        TODO("b/295800205")
+    override fun createDefaultConstructor(): ConstructorItem {
+        val sym = MethodSymbol(0, classSymbol, name)
+        return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
     }
+
+    override fun hasTypeVariables(): Boolean = typeParameters.typeParameterCount() > 0
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 

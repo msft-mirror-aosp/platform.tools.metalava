@@ -289,6 +289,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val fieldMod3 = fieldItem3.mutableModifiers()
             assertEquals(true, packageMod.isPublic())
             assertEquals(true, classMod1.isPublic())
+            assertEquals(false, classMod1.isSynchronized())
             assertEquals(true, fieldMod1.isPrivate())
             assertEquals(false, fieldMod1.isPackagePrivate())
             assertEquals(false, fieldMod2.isPrivate())
@@ -717,6 +718,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val method1ParameterNames = listOf("Q", "R", "S")
             val method2TypeParameterNames = listOf("A", "B")
 
+            assertEquals(true, classItem.hasTypeVariables())
             assertEquals(classParameterNames, classTypeParameterList.typeParameterNames())
             assertEquals(emptyList(), annoTypeParameterList.typeParameterNames())
             assertEquals(method1ParameterNames, method1TypeParameterList.typeParameterNames())
@@ -790,6 +792,70 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(outerClass, innerClass.containingClass())
             assertEquals(outerClass, innerClass1.containingClass())
             assertEquals(innerClass1, innerInnerClass.containingClass())
+        }
+    }
+
+    @Test
+    fun `220 test ClassItem createDefaultConstructor`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public final class Test<T extends String> {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val ctorItem = classItem.createDefaultConstructor()
+
+            assertEquals("Test", ctorItem.name())
+            assertEquals(classItem, ctorItem.containingClass())
+            assertEquals(classItem.toType(), ctorItem.returnType())
+            assertEquals(
+                ctorItem.modifiers.getVisibilityLevel(),
+                classItem.modifiers.getVisibilityLevel()
+            )
+            assertEquals(emptyList(), ctorItem.throwsTypes())
+            assertEquals(emptyList(), ctorItem.parameters())
+        }
+    }
+
+    @Test
+    fun `230 test public name and default value of parameters`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.lang.annotation.ElementType;
+
+                    public class Test {
+                        public void foo(@ParameterName("TestParam") @DefaultValue(5) int parameter) {
+                        }
+                    }
+
+                    @Target(value={ElementType.PARAMETER})
+                    @interface DefaultValue {
+                        int value();
+                    }
+
+                    @Target(value={ElementType.PARAMETER})
+                    @interface ParameterName {
+                        String value();
+                    }
+                """
+            ),
+        ) { codebase ->
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val paramItem = methodItem.parameters().single()
+
+            assertEquals("parameter", paramItem.name())
+            assertEquals(methodItem, paramItem.containingMethod())
+            assertEquals("TestParam", paramItem.publicName())
+            assertEquals(true, paramItem.hasDefaultValue())
+            assertEquals(true, paramItem.isDefaultValueKnown())
+            assertEquals("5", paramItem.defaultValue())
         }
     }
 }
