@@ -252,50 +252,74 @@ open class ApiVisitor(
     }
 
     inner class VisitCandidate(val cls: ClassItem) {
-        val innerClasses: Sequence<VisitCandidate>
-        private val constructors: Sequence<MethodItem>
-        private val methods: Sequence<MethodItem>
-        private val fields: Sequence<FieldItem>
-        private val properties: Sequence<PropertyItem>
-
-        init {
-            constructors =
-                cls.constructors()
-                    .asSequence()
-                    .filter { filterEmit.test(it) }
-                    .sortedWith(methodComparator)
-
-            methods =
-                cls.methods()
-                    .asSequence()
-                    .filter { filterEmit.test(it) }
-                    .sortedWith(methodComparator)
-
-            val fieldSequence =
-                if (inlineInheritedFields) {
-                    cls.filteredFields(filterEmit, showUnannotated).asSequence()
+        val innerClasses by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val clsInnerClasses = cls.innerClasses()
+                if (clsInnerClasses.isEmpty()) {
+                    emptyList()
                 } else {
-                    cls.fields().asSequence().filter { filterEmit.test(it) }
+                    clsInnerClasses
+                        .asSequence()
+                        .sortedWith(ClassItem.classNameSorter())
+                        .map { VisitCandidate(it) }
+                        .toList()
                 }
+            }
 
-            // Sort the fields so that enum constants come first.
-            fields = fieldSequence.sortedWith(fieldComparatorEnumConstantFirst)
-
-            properties =
-                if (cls.properties().isEmpty()) {
-                    emptySequence()
+        private val constructors by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val clsConstructors = cls.constructors()
+                if (clsConstructors.isEmpty()) {
+                    emptyList()
                 } else {
-                    cls.properties()
+                    clsConstructors
+                        .asSequence()
+                        .filter { filterEmit.test(it) }
+                        .sortedWith(methodComparator)
+                        .toList()
+                }
+            }
+
+        private val methods by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val clsMethods = cls.methods()
+                if (clsMethods.isEmpty()) {
+                    emptyList()
+                } else {
+                    clsMethods
+                        .asSequence()
+                        .filter { filterEmit.test(it) }
+                        .sortedWith(methodComparator)
+                        .toList()
+                }
+            }
+
+        private val fields by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val fieldSequence =
+                    if (inlineInheritedFields) {
+                        cls.filteredFields(filterEmit, showUnannotated).asSequence()
+                    } else {
+                        cls.fields().asSequence().filter { filterEmit.test(it) }
+                    }
+
+                // Sort the fields so that enum constants come first.
+                fieldSequence.sortedWith(fieldComparatorEnumConstantFirst)
+            }
+
+        private val properties by
+            lazy(LazyThreadSafetyMode.NONE) {
+                val clsProperties = cls.properties()
+                if (clsProperties.isEmpty()) {
+                    emptyList()
+                } else {
+                    clsProperties
                         .asSequence()
                         .filter { filterEmit.test(it) }
                         .sortedWith(PropertyItem.comparator)
+                        .toList()
                 }
-
-            innerClasses =
-                cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
-                    VisitCandidate(it)
-                }
-        }
+            }
 
         /** Whether the class body contains any Item's (other than inner Classes) */
         fun nonEmpty(): Boolean {
