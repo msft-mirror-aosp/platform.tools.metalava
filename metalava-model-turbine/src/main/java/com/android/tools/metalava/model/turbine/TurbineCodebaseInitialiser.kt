@@ -69,6 +69,7 @@ import com.google.turbine.type.Type.WildTy.BoundKind
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
+import kotlin.collections.ArrayDeque
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -186,6 +187,7 @@ open class TurbineCodebaseInitialiser(
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
+            modifiers.setOwner(turbinePkgItem)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -224,12 +226,14 @@ open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
-            // Inner class should not be created directly from here. Instead create its
-            // TopLevelClass which
-            // will automatically create the innerclass via createInnerClasses method
+            // For inner classes, create the outer class first if not created.
             if (sym.binaryName().contains("$")) {
                 val topClassSym = getClassSymbol(className)!!
-                createClass(topClassSym)
+                if (codebase.findClass(getQualifiedName(topClassSym.binaryName())) != null) {
+                    createClass(sym) // Create the inner class if top class exists
+                } else {
+                    createClass(topClassSym) // Create the outer class if it doesn't exist
+                }
             } else {
                 createClass(sym)
             }
@@ -267,10 +271,13 @@ open class TurbineCodebaseInitialiser(
                 simpleName,
                 fullName,
                 qualifiedName,
+                sym,
                 modifierItem,
                 TurbineClassType.getClassType(cls.kind()),
                 typeParameters
             )
+        modifierItem.setOwner(classItem)
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
         if (!classItem.isInterface()) {
@@ -311,7 +318,7 @@ open class TurbineCodebaseInitialiser(
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
             // If the class is top class, fix the constructor return type right away. Otherwise wait
-            // for containingClass to be set via setInnerClasses
+            // for containingClass to be set via createInnerClasses
             fixCtorReturnType(classItem)
         }
 
@@ -405,11 +412,7 @@ open class TurbineCodebaseInitialiser(
                 }
             }
             TyKind.ARRAY_TY -> {
-                type as ArrayTy
-                val componentType = createType(type.elementType(), false)
-                val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
-                TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
+                createArrayType(type as ArrayTy, isVarArg)
             }
             TyKind.CLASS_TY -> {
                 type as ClassTy
@@ -473,6 +476,38 @@ open class TurbineCodebaseInitialiser(
         }
     }
 
+    private fun createArrayType(type: ArrayTy, isVarArg: Boolean): TurbineTypeItem {
+        // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
+        // order. This method attaches annotations in the correct order by applying them in reverse
+        val modifierStack = ArrayDeque<TurbineTypeModifiers>()
+        var curr: Type = type
+        while (curr.tyKind() == TyKind.ARRAY_TY) {
+            curr as ArrayTy
+            val annotations = createAnnotations(curr.annos())
+            modifierStack.addLast(TurbineTypeModifiers(annotations))
+            curr = curr.elementType()
+        }
+        var componentType = createType(curr, false)
+        while (modifierStack.isNotEmpty()) {
+            val modifiers = modifierStack.removeFirst()
+            if (modifierStack.isEmpty()) {
+                // Outermost array. Should be called with correct value of isvararg
+                componentType = createSimpleArrayType(modifiers, componentType, isVarArg)
+            } else {
+                componentType = createSimpleArrayType(modifiers, componentType, false)
+            }
+        }
+        return componentType
+    }
+
+    private fun createSimpleArrayType(
+        modifiers: TurbineTypeModifiers,
+        componentType: TurbineTypeItem,
+        isVarArg: Boolean
+    ): TurbineTypeItem {
+        return TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
+    }
+
     private fun createSimpleClassType(
         type: SimpleClassTy,
         outerClass: TurbineClassTypeItem?
@@ -507,6 +542,7 @@ open class TurbineCodebaseInitialiser(
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =
             TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
+        modifiers.setOwner(typeParamItem)
         codebase.addTypeParameter(sym, typeParamItem)
         return typeParamItem
     }
@@ -518,7 +554,7 @@ open class TurbineCodebaseInitialiser(
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = createClass(cls)
+                val innerClassItem = findOrCreateClass(cls)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem
@@ -538,13 +574,16 @@ open class TurbineCodebaseInitialiser(
                         isDeprecated(field.decl()?.javadoc())
                     )
                 val type = createType(field.type(), false)
-                TurbineFieldItem(
-                    codebase,
-                    field.name(),
-                    classItem,
-                    type,
-                    fieldModifierItem,
-                )
+                val fieldItem =
+                    TurbineFieldItem(
+                        codebase,
+                        field.name(),
+                        classItem,
+                        type,
+                        fieldModifierItem,
+                    )
+                fieldModifierItem.setOwner(fieldItem)
+                fieldItem
             }
     }
 
@@ -571,6 +610,7 @@ open class TurbineCodebaseInitialiser(
                             methodModifierItem,
                             typeParams,
                         )
+                    methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters())
                     methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
@@ -584,14 +624,17 @@ open class TurbineCodebaseInitialiser(
                 val parameterModifierItem =
                     TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type = createType(parameter.type(), parameterModifierItem.isVarArg())
-                TurbineParameterItem(
-                    codebase,
-                    parameter.name(),
-                    methodItem,
-                    idx,
-                    type,
-                    parameterModifierItem,
-                )
+                val parameterItem =
+                    TurbineParameterItem(
+                        codebase,
+                        parameter.name(),
+                        methodItem,
+                        idx,
+                        type,
+                        parameterModifierItem,
+                    )
+                parameterModifierItem.setOwner(parameterItem)
+                parameterItem
             }
     }
 
@@ -623,6 +666,7 @@ open class TurbineCodebaseInitialiser(
                             constructorModifierItem,
                             typeParams,
                         )
+                    constructorModifierItem.setOwner(constructorItem)
                     createParameters(constructorItem, constructor.parameters())
                     constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
                     constructorItem
