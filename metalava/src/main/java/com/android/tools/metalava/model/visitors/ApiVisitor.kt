@@ -240,12 +240,22 @@ open class ApiVisitor(
         return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
     }
 
+    companion object {
+        /**
+         * Comparator that will order [FieldItem]s such that those for which
+         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
+         */
+        private val fieldComparatorEnumConstantFirst =
+            Comparator.comparing(FieldItem::isEnumConstant)
+                .reversed()
+                .thenComparing(FieldItem.comparator)
+    }
+
     inner class VisitCandidate(val cls: ClassItem) {
         val innerClasses: Sequence<VisitCandidate>
         private val constructors: Sequence<MethodItem>
         private val methods: Sequence<MethodItem>
         private val fields: Sequence<FieldItem>
-        private val enums: Sequence<FieldItem>
         private val properties: Sequence<PropertyItem>
 
         init {
@@ -261,21 +271,15 @@ open class ApiVisitor(
                     .filter { filterEmit.test(it) }
                     .sortedWith(methodComparator)
 
-            val fieldComparator = FieldItem.comparator
-
             val fieldSequence =
                 if (inlineInheritedFields) {
                     cls.filteredFields(filterEmit, showUnannotated).asSequence()
                 } else {
                     cls.fields().asSequence().filter { filterEmit.test(it) }
                 }
-            if (cls.isEnum()) {
-                fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(fieldComparator)
-                enums = fieldSequence.filter { it.isEnumConstant() }.sortedWith(fieldComparator)
-            } else {
-                fields = fieldSequence.sortedWith(fieldComparator)
-                enums = emptySequence()
-            }
+
+            // Sort the fields so that enum constants come first.
+            fields = fieldSequence.sortedWith(fieldComparatorEnumConstantFirst)
 
             properties =
                 if (cls.properties().isEmpty()) {
@@ -295,11 +299,7 @@ open class ApiVisitor(
 
         /** Whether the class body contains any Item's (other than inner Classes) */
         fun nonEmpty(): Boolean {
-            return !(constructors.none() &&
-                methods.none() &&
-                enums.none() &&
-                fields.none() &&
-                properties.none())
+            return !(constructors.none() && methods.none() && fields.none() && properties.none())
         }
 
         fun accept() {
@@ -329,9 +329,6 @@ open class ApiVisitor(
 
                 for (property in properties) {
                     property.accept(this@ApiVisitor)
-                }
-                for (enumConstant in enums) {
-                    enumConstant.accept(this@ApiVisitor)
                 }
                 for (field in fields) {
                     field.accept(this@ApiVisitor)
