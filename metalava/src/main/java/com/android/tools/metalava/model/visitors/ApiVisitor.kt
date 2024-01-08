@@ -259,17 +259,18 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
     init {
         val filterEmit = visitor.filterEmit
 
+        val methodComparator = visitor.methodComparator ?: MethodItem.comparator
+
         constructors =
             cls.constructors()
                 .asSequence()
                 .filter { filterEmit.test(it) }
-                .sortedWith(MethodItem.comparator)
+                .sortedWith(methodComparator)
 
         methods =
-            cls.methods()
-                .asSequence()
-                .filter { filterEmit.test(it) }
-                .sortedWith(MethodItem.comparator)
+            cls.methods().asSequence().filter { filterEmit.test(it) }.sortedWith(methodComparator)
+
+        val fieldComparator = visitor.fieldComparator ?: FieldItem.comparator
 
         val fieldSequence =
             if (visitor.inlineInheritedFields) {
@@ -278,10 +279,10 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
                 cls.fields().asSequence().filter { filterEmit.test(it) }
             }
         if (cls.isEnum()) {
-            fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(FieldItem.comparator)
-            enums = fieldSequence.filter { it.isEnumConstant() }.sortedWith(FieldItem.comparator)
+            fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(fieldComparator)
+            enums = fieldSequence.filter { it.isEnumConstant() }.sortedWith(fieldComparator)
         } else {
-            fields = fieldSequence.sortedWith(FieldItem.comparator)
+            fields = fieldSequence.sortedWith(fieldComparator)
             enums = emptySequence()
         }
 
@@ -327,30 +328,11 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
             visitor.visitItem(cls)
             visitor.visitClass(cls)
 
-            val sortedConstructors =
-                if (visitor.methodComparator != null) {
-                    constructors.sortedWith(visitor.methodComparator)
-                } else {
-                    constructors
-                }
-            val sortedMethods =
-                if (visitor.methodComparator != null) {
-                    methods.sortedWith(visitor.methodComparator)
-                } else {
-                    methods
-                }
-            val sortedFields =
-                if (visitor.fieldComparator != null) {
-                    fields.sortedWith(visitor.fieldComparator)
-                } else {
-                    fields
-                }
-
-            for (constructor in sortedConstructors) {
+            for (constructor in constructors) {
                 constructor.accept(visitor)
             }
 
-            for (method in sortedMethods) {
+            for (method in methods) {
                 method.accept(visitor)
             }
 
@@ -360,7 +342,7 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
             for (enumConstant in enums) {
                 enumConstant.accept(visitor)
             }
-            for (field in sortedFields) {
+            for (field in fields) {
                 field.accept(visitor)
             }
         }
