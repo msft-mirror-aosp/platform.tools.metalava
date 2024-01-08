@@ -239,118 +239,121 @@ open class ApiVisitor(
     private fun shouldEmitAnyClass(vc: VisitCandidate): Boolean {
         return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
     }
-}
 
-class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
-    val innerClasses: Sequence<VisitCandidate>
-    private val constructors: Sequence<MethodItem>
-    private val methods: Sequence<MethodItem>
-    private val fields: Sequence<FieldItem>
-    private val enums: Sequence<FieldItem>
-    private val properties: Sequence<PropertyItem>
+    class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
+        val innerClasses: Sequence<VisitCandidate>
+        private val constructors: Sequence<MethodItem>
+        private val methods: Sequence<MethodItem>
+        private val fields: Sequence<FieldItem>
+        private val enums: Sequence<FieldItem>
+        private val properties: Sequence<PropertyItem>
 
-    init {
-        val filterEmit = visitor.filterEmit
+        init {
+            val filterEmit = visitor.filterEmit
 
-        val methodComparator = visitor.methodComparator
+            val methodComparator = visitor.methodComparator
 
-        constructors =
-            cls.constructors()
-                .asSequence()
-                .filter { filterEmit.test(it) }
-                .sortedWith(methodComparator)
-
-        methods =
-            cls.methods().asSequence().filter { filterEmit.test(it) }.sortedWith(methodComparator)
-
-        val fieldComparator = FieldItem.comparator
-
-        val fieldSequence =
-            if (visitor.inlineInheritedFields) {
-                cls.filteredFields(filterEmit, visitor.showUnannotated).asSequence()
-            } else {
-                cls.fields().asSequence().filter { filterEmit.test(it) }
-            }
-        if (cls.isEnum()) {
-            fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(fieldComparator)
-            enums = fieldSequence.filter { it.isEnumConstant() }.sortedWith(fieldComparator)
-        } else {
-            fields = fieldSequence.sortedWith(fieldComparator)
-            enums = emptySequence()
-        }
-
-        properties =
-            if (cls.properties().isEmpty()) {
-                emptySequence()
-            } else {
-                cls.properties()
+            constructors =
+                cls.constructors()
                     .asSequence()
                     .filter { filterEmit.test(it) }
-                    .sortedWith(PropertyItem.comparator)
+                    .sortedWith(methodComparator)
+
+            methods =
+                cls.methods()
+                    .asSequence()
+                    .filter { filterEmit.test(it) }
+                    .sortedWith(methodComparator)
+
+            val fieldComparator = FieldItem.comparator
+
+            val fieldSequence =
+                if (visitor.inlineInheritedFields) {
+                    cls.filteredFields(filterEmit, visitor.showUnannotated).asSequence()
+                } else {
+                    cls.fields().asSequence().filter { filterEmit.test(it) }
+                }
+            if (cls.isEnum()) {
+                fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(fieldComparator)
+                enums = fieldSequence.filter { it.isEnumConstant() }.sortedWith(fieldComparator)
+            } else {
+                fields = fieldSequence.sortedWith(fieldComparator)
+                enums = emptySequence()
             }
 
-        innerClasses =
-            cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
-                VisitCandidate(it, visitor)
-            }
-    }
+            properties =
+                if (cls.properties().isEmpty()) {
+                    emptySequence()
+                } else {
+                    cls.properties()
+                        .asSequence()
+                        .filter { filterEmit.test(it) }
+                        .sortedWith(PropertyItem.comparator)
+                }
 
-    /** Whether the class body contains any Item's (other than inner Classes) */
-    fun nonEmpty(): Boolean {
-        return !(constructors.none() &&
-            methods.none() &&
-            enums.none() &&
-            fields.none() &&
-            properties.none())
-    }
-
-    fun accept() {
-        if (!visitor.include(this)) {
-            return
+            innerClasses =
+                cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
+                    VisitCandidate(it, visitor)
+                }
         }
 
-        val emitThis = visitor.shouldEmitClass(this)
-        if (emitThis) {
-            if (!visitor.visitingPackage) {
-                visitor.visitingPackage = true
-                val pkg = cls.containingPackage()
-                visitor.visitItem(pkg)
-                visitor.visitPackage(pkg)
-            }
-
-            visitor.visitItem(cls)
-            visitor.visitClass(cls)
-
-            for (constructor in constructors) {
-                constructor.accept(visitor)
-            }
-
-            for (method in methods) {
-                method.accept(visitor)
-            }
-
-            for (property in properties) {
-                property.accept(visitor)
-            }
-            for (enumConstant in enums) {
-                enumConstant.accept(visitor)
-            }
-            for (field in fields) {
-                field.accept(visitor)
-            }
+        /** Whether the class body contains any Item's (other than inner Classes) */
+        fun nonEmpty(): Boolean {
+            return !(constructors.none() &&
+                methods.none() &&
+                enums.none() &&
+                fields.none() &&
+                properties.none())
         }
 
-        if (visitor.nestInnerClasses) { // otherwise done below
-            innerClasses.forEach { it.accept() }
-        }
+        fun accept() {
+            if (!visitor.include(this)) {
+                return
+            }
 
-        if (emitThis) {
-            visitor.afterVisitClass(cls)
-            visitor.afterVisitItem(cls)
-        }
+            val emitThis = visitor.shouldEmitClass(this)
+            if (emitThis) {
+                if (!visitor.visitingPackage) {
+                    visitor.visitingPackage = true
+                    val pkg = cls.containingPackage()
+                    visitor.visitItem(pkg)
+                    visitor.visitPackage(pkg)
+                }
 
-        if (!visitor.nestInnerClasses) {
-            innerClasses.forEach { it.accept() }
+                visitor.visitItem(cls)
+                visitor.visitClass(cls)
+
+                for (constructor in constructors) {
+                    constructor.accept(visitor)
+                }
+
+                for (method in methods) {
+                    method.accept(visitor)
+                }
+
+                for (property in properties) {
+                    property.accept(visitor)
+                }
+                for (enumConstant in enums) {
+                    enumConstant.accept(visitor)
+                }
+                for (field in fields) {
+                    field.accept(visitor)
+                }
+            }
+
+            if (visitor.nestInnerClasses) { // otherwise done below
+                innerClasses.forEach { it.accept() }
+            }
+
+            if (emitThis) {
+                visitor.afterVisitClass(cls)
+                visitor.afterVisitItem(cls)
+            }
+
+            if (!visitor.nestInnerClasses) {
+                innerClasses.forEach { it.accept() }
+            }
         }
     }
 }
