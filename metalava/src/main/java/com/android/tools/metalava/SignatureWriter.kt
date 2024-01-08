@@ -50,7 +50,6 @@ class SignatureWriter(
         nestInnerClasses = false,
         inlineInheritedFields = true,
         methodComparator = fileFormat.overloadedMethodOrder.comparator,
-        fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,

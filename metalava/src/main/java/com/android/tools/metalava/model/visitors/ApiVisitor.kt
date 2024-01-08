@@ -45,11 +45,8 @@ open class ApiVisitor(
     /** Whether to include inherited fields too */
     val inlineInheritedFields: Boolean = true,
 
-    /** Comparator to sort methods with, or null to use natural (source) order */
-    val methodComparator: Comparator<MethodItem>? = null,
-
-    /** Comparator to sort fields with, or null to use natural (source) order */
-    val fieldComparator: Comparator<FieldItem>? = null,
+    /** Comparator to sort methods with. */
+    val methodComparator: Comparator<MethodItem> = MethodItem.comparator,
 
     /** The filter to use to determine if we should emit an item */
     val filterEmit: Predicate<Item>,
@@ -109,11 +106,8 @@ open class ApiVisitor(
         /** Whether to match APIs marked for removal instead of the normal API */
         remove: Boolean = false,
 
-        /** Comparator to sort methods with, or null to use natural (source) order */
-        methodComparator: Comparator<MethodItem>? = null,
-
-        /** Comparator to sort fields with, or null to use natural (source) order */
-        fieldComparator: Comparator<FieldItem>? = null,
+        /** Comparator to sort methods with. */
+        methodComparator: Comparator<MethodItem> = MethodItem.comparator,
 
         /**
          * The filter to use to determine if we should emit an item. If null, the default value is
@@ -142,7 +136,6 @@ open class ApiVisitor(
         nestInnerClasses = nestInnerClasses,
         inlineInheritedFields = true,
         methodComparator = methodComparator,
-        fieldComparator = fieldComparator,
         filterEmit = filterEmit
                 ?: ApiPredicate(
                     matchRemoved = remove,
@@ -259,7 +252,7 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
     init {
         val filterEmit = visitor.filterEmit
 
-        val methodComparator = visitor.methodComparator ?: MethodItem.comparator
+        val methodComparator = visitor.methodComparator
 
         constructors =
             cls.constructors()
@@ -270,7 +263,7 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
         methods =
             cls.methods().asSequence().filter { filterEmit.test(it) }.sortedWith(methodComparator)
 
-        val fieldComparator = visitor.fieldComparator ?: FieldItem.comparator
+        val fieldComparator = FieldItem.comparator
 
         val fieldSequence =
             if (visitor.inlineInheritedFields) {

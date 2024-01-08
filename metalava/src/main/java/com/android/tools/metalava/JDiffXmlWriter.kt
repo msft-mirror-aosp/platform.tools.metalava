@@ -55,8 +55,6 @@ class JDiffXmlWriter(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
         inlineInheritedFields = true,
-        methodComparator = MethodItem.comparator,
-        fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
