@@ -165,7 +165,7 @@ open class ApiVisitor(
         // inner classes (which is vital for computing the removed-api for example, where
         // only something like the appearance of a removed method inside an inner class
         // results in the outer class being described in the signature file.
-        val candidate = VisitCandidate(cls, this)
+        val candidate = VisitCandidate(cls)
         candidate.accept()
     }
 
@@ -240,7 +240,7 @@ open class ApiVisitor(
         return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
     }
 
-    class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
+    inner class VisitCandidate(val cls: ClassItem) {
         val innerClasses: Sequence<VisitCandidate>
         private val constructors: Sequence<MethodItem>
         private val methods: Sequence<MethodItem>
@@ -249,10 +249,6 @@ open class ApiVisitor(
         private val properties: Sequence<PropertyItem>
 
         init {
-            val filterEmit = visitor.filterEmit
-
-            val methodComparator = visitor.methodComparator
-
             constructors =
                 cls.constructors()
                     .asSequence()
@@ -268,8 +264,8 @@ open class ApiVisitor(
             val fieldComparator = FieldItem.comparator
 
             val fieldSequence =
-                if (visitor.inlineInheritedFields) {
-                    cls.filteredFields(filterEmit, visitor.showUnannotated).asSequence()
+                if (inlineInheritedFields) {
+                    cls.filteredFields(filterEmit, showUnannotated).asSequence()
                 } else {
                     cls.fields().asSequence().filter { filterEmit.test(it) }
                 }
@@ -293,7 +289,7 @@ open class ApiVisitor(
 
             innerClasses =
                 cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
-                    VisitCandidate(it, visitor)
+                    VisitCandidate(it)
                 }
         }
 
@@ -307,51 +303,51 @@ open class ApiVisitor(
         }
 
         fun accept() {
-            if (!visitor.include(this)) {
+            if (!include(this)) {
                 return
             }
 
-            val emitThis = visitor.shouldEmitClass(this)
+            val emitThis = shouldEmitClass(this)
             if (emitThis) {
-                if (!visitor.visitingPackage) {
-                    visitor.visitingPackage = true
+                if (!visitingPackage) {
+                    visitingPackage = true
                     val pkg = cls.containingPackage()
-                    visitor.visitItem(pkg)
-                    visitor.visitPackage(pkg)
+                    visitItem(pkg)
+                    visitPackage(pkg)
                 }
 
-                visitor.visitItem(cls)
-                visitor.visitClass(cls)
+                visitItem(cls)
+                visitClass(cls)
 
                 for (constructor in constructors) {
-                    constructor.accept(visitor)
+                    constructor.accept(this@ApiVisitor)
                 }
 
                 for (method in methods) {
-                    method.accept(visitor)
+                    method.accept(this@ApiVisitor)
                 }
 
                 for (property in properties) {
-                    property.accept(visitor)
+                    property.accept(this@ApiVisitor)
                 }
                 for (enumConstant in enums) {
-                    enumConstant.accept(visitor)
+                    enumConstant.accept(this@ApiVisitor)
                 }
                 for (field in fields) {
-                    field.accept(visitor)
+                    field.accept(this@ApiVisitor)
                 }
             }
 
-            if (visitor.nestInnerClasses) { // otherwise done below
+            if (nestInnerClasses) { // otherwise done below
                 innerClasses.forEach { it.accept() }
             }
 
             if (emitThis) {
-                visitor.afterVisitClass(cls)
-                visitor.afterVisitItem(cls)
+                afterVisitClass(cls)
+                afterVisitItem(cls)
             }
 
-            if (!visitor.nestInnerClasses) {
+            if (!nestInnerClasses) {
                 innerClasses.forEach { it.accept() }
             }
         }
