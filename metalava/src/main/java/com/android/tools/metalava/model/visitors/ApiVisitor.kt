@@ -279,11 +279,7 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
             }
         if (cls.isEnum()) {
             fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(FieldItem.comparator)
-            enums =
-                fieldSequence
-                    .filter { it.isEnumConstant() }
-                    .filter { filterEmit.test(it) }
-                    .sortedWith(FieldItem.comparator)
+            enums = fieldSequence.filter { it.isEnumConstant() }.sortedWith(FieldItem.comparator)
         } else {
             fields = fieldSequence.sortedWith(FieldItem.comparator)
             enums = emptySequence()
