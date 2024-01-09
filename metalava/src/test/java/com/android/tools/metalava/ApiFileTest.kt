@@ -5672,6 +5672,32 @@ class ApiFileTest : DriverTest() {
                         private fun shouldBePrivate() {}
                     """
                     ),
+                    kotlin(
+                        "test/pkg/Path1.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path1(): Path1
+
+                        interface Path1 {
+                          infix fun xor(path: Path1): Path1
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/Path2.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path2(): Path2
+
+                        fun Path2.copy(): Path2 = TODO()
+
+                        interface Path2 {
+                          infix fun xor(path: Path2): Path2
+                        }
+                    """
+                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5692,6 +5718,15 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
+                  }
+                  public interface Path1 {
+                    method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
+                  }
+                  public interface Path2 {
+                    method public infix test.pkg.Path2 xor(test.pkg.Path2 path);
+                  }
+                  public final class Path2Kt {
+                    method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
                     method @kotlin.PublishedApi internal static void internalYetPublished();

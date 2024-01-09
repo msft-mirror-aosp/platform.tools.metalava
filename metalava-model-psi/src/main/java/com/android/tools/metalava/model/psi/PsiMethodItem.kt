@@ -34,7 +34,6 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
@@ -71,6 +70,8 @@ open class PsiMethodItem(
             parameter.containingMethod = this
         }
     }
+
+    override var emit: Boolean = !modifiers.isExpect()
 
     /**
      * If this item was created by filtering down a different codebase, this temporarily points to
@@ -297,7 +298,7 @@ open class PsiMethodItem(
 
     override fun shouldExpandOverloads(): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
-        return ktFunction.hasActualModifier() &&
+        return modifiers.isActual() &&
             psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
             // It is /technically/ invalid to have actual functions with default values, but
             // some places suppress the compiler error, so we should handle it here too.
