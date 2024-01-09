@@ -942,4 +942,33 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("", pkgItem.documentation)
         }
     }
+
+    @Test
+    fun `260 - check field isEnumConstant`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public enum Test {
+                        ENUM1,
+                        ENUM2,;
+                        static final int IntField = 5;
+                    }
+                    class Test1 {
+                        static final Test field = Test.ENUM2;
+                    }
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val fieldItem1 = classItem.assertField("ENUM1")
+            val fieldItem2 = classItem.assertField("IntField")
+            val nonEnumClassField = codebase.assertClass("test.pkg.Test1").assertField("field")
+
+            assertEquals(true, fieldItem1.isEnumConstant())
+            assertEquals(false, fieldItem2.isEnumConstant())
+            assertEquals(false, nonEnumClassField.isEnumConstant())
+        }
+    }
 }

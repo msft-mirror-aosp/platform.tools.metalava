@@ -33,6 +33,12 @@ class TurbineFieldItem(
 
     internal var initialValueWithoutRequiredConstant: Any? = null
 
+    private val isEnumConstantField by lazy {
+        containingClass.isEnum() &&
+            (type is TurbineClassTypeItem) &&
+            type.asClass() == containingClass
+    }
+
     override var inheritedFrom: ClassItem? = null
 
     override var inheritedField: Boolean = false
@@ -65,6 +71,5 @@ class TurbineFieldItem(
         else initialValueWithoutRequiredConstant
     }
 
-    // TODO("b/295800205")
-    override fun isEnumConstant(): Boolean = false
+    override fun isEnumConstant(): Boolean = isEnumConstantField
 }
