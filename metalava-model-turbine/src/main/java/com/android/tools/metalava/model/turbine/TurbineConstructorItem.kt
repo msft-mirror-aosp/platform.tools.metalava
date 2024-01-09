@@ -29,6 +29,7 @@ class TurbineConstructorItem(
     returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
+    document: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -36,7 +37,8 @@ class TurbineConstructorItem(
         containingClass,
         returnType,
         modifiers,
-        typeParameters
+        typeParameters,
+        document
     ),
     ConstructorItem {
 
@@ -71,6 +73,7 @@ class TurbineConstructorItem(
                     containingClass.toType(),
                     modifiers,
                     parameters,
+                    "",
                 )
             modifiers.setOwner(ctorItem)
             ctorItem.parameters = emptyList()

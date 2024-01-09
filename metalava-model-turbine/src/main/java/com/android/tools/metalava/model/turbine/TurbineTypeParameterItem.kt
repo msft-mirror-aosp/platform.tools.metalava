@@ -28,6 +28,7 @@ internal class TurbineTypeParameterItem(
     internal val symbol: TyVarSymbol,
     name: String = symbol.name(),
     private val bounds: List<TypeItem>,
+    private val document: String = "",
 ) :
     TurbineClassItem(
         codebase,
@@ -37,7 +38,9 @@ internal class TurbineTypeParameterItem(
         ClassSymbol(name),
         modifiers,
         TurbineClassType.TYPE_PARAMETER,
-        TypeParameterList.NONE
+        TypeParameterList.NONE,
+        document,
+        null,
     ),
     TypeParameterItem {
 
