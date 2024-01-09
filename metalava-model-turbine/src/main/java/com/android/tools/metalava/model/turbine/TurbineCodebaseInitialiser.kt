@@ -590,6 +590,7 @@ open class TurbineCodebaseInitialiser(
                     )
                 val type = createType(field.type(), false)
                 val documentation = field.decl()?.javadoc() ?: ""
+                val defaultValue = field.value()?.getValue()
                 val fieldItem =
                     TurbineFieldItem(
                         codebase,
@@ -598,6 +599,7 @@ open class TurbineCodebaseInitialiser(
                         type,
                         fieldModifierItem,
                         getCommentedDoc(documentation),
+                        defaultValue,
                     )
                 fieldModifierItem.setOwner(fieldItem)
                 fieldItem

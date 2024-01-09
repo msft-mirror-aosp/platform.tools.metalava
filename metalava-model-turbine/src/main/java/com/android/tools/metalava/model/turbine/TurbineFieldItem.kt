@@ -27,6 +27,7 @@ class TurbineFieldItem(
     private val type: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     private val document: String,
+    private val constantValue: Any?
 ) : TurbineItem(codebase, modifiers), FieldItem {
 
     override var inheritedFrom: ClassItem? = null
@@ -56,8 +57,7 @@ class TurbineFieldItem(
         TODO("b/295800205")
     }
 
-    // TODO("b/295800205")
-    override fun initialValue(requireConstant: Boolean): Any? = null
+    override fun initialValue(requireConstant: Boolean): Any? = constantValue
 
     // TODO("b/295800205")
     override fun isEnumConstant(): Boolean = false
