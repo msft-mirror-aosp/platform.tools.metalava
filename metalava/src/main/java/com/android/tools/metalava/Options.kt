@@ -265,8 +265,8 @@ class Options(
     /** Internal list backing [excludeAnnotations] */
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
 
-    /** Temporary feature flag. TODO(b/309149849): default to true, then remove. */
-    var updateKotlinNulls = false
+    /** Temporary feature flag. TODO(b/309149849): remove. */
+    var updateKotlinNulls = true
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
