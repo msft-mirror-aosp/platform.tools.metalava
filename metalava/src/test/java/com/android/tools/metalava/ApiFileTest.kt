@@ -5698,6 +5698,24 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
+                    kotlin(
+                        "test/pkg/LazyLayoutItemProvider.kt",
+                        """
+                        package test.pkg
+
+                        interface LazyLayoutItemProvider {
+                          val itemCount: Int
+                          fun getIndex(): Int = -1
+                        }
+
+                        internal fun LazyLayoutItemProvider.findIndexByKey(
+                          key: Any?,
+                          lastKnownIndex: Int,
+                        ): Int = TODO()
+
+                        expect fun getDefaultLazyLayoutKey(index: Int): Any
+                        """
+                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5718,6 +5736,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
+                  }
+                  public interface LazyLayoutItemProvider {
+                    method public default int getIndex();
+                    method public int getItemCount();
+                    property public abstract int itemCount;
                   }
                   public interface Path1 {
                     method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
