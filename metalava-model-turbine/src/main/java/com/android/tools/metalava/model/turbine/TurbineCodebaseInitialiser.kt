@@ -54,8 +54,11 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
+import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
@@ -590,7 +593,6 @@ open class TurbineCodebaseInitialiser(
                     )
                 val type = createType(field.type(), false)
                 val documentation = field.decl()?.javadoc() ?: ""
-                val defaultValue = field.value()?.getValue()
                 val fieldItem =
                     TurbineFieldItem(
                         codebase,
@@ -599,9 +601,11 @@ open class TurbineCodebaseInitialiser(
                         type,
                         fieldModifierItem,
                         getCommentedDoc(documentation),
-                        defaultValue,
                     )
                 fieldModifierItem.setOwner(fieldItem)
+                val optExpr = field.decl()?.init()
+                val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
+                setInitialValue(fieldItem, field.value()?.getValue(), expr)
                 fieldItem
             }
     }
@@ -750,5 +754,31 @@ open class TurbineCodebaseInitialiser(
                 }
             }
             .toString()
+    }
+
+    private fun setInitialValue(fieldItem: TurbineFieldItem, value: Any?, expr: Expression?) {
+        if (value != null) {
+            fieldItem.initialValueWithRequiredConstant = value
+            fieldItem.initialValueWithoutRequiredConstant = value
+            return
+        }
+        if (expr != null) {
+            return when (expr.kind()) {
+                Tree.Kind.LITERAL -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant =
+                        getValue((expr as Literal).value())
+                }
+                // Class Type
+                Tree.Kind.CLASS_LITERAL -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant = expr
+                }
+                else -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant = null
+                }
+            }
+        }
     }
 }
