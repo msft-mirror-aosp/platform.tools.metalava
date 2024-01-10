@@ -115,17 +115,12 @@ interface TypeItem {
     fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
-        val map = from.mapTypeVariablesAsTypes(to)
+        val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {
             return convertType(map)
         }
 
         return this
-    }
-
-    fun convertTypeString(replacementMap: Map<String, String>?): String {
-        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
-        return convertTypeString(typeString, replacementMap)
     }
 
     fun isJavaLangObject(): Boolean = false
@@ -227,34 +222,6 @@ interface TypeItem {
                 ClassItem.fullNameComparator.compare(cls1, cls2)
             } else {
                 type1.toTypeString().compareTo(type2.toTypeString())
-            }
-        }
-
-        fun convertTypeString(typeString: String, replacementMap: Map<String, String>?): String {
-            var string = typeString
-            if (replacementMap != null && replacementMap.isNotEmpty()) {
-                // This is a moved method (typically an implementation of an interface
-                // method provided in a hidden superclass), with generics signatures.
-                // We need to rewrite the generics variables in case they differ
-                // between the classes.
-                if (replacementMap.isNotEmpty()) {
-                    replacementMap.forEach { (from, to) ->
-                        // We can't just replace one string at a time:
-                        // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert
-                        // A,B,C?
-                        // If I do the replacements one letter at a time I end up with C,C,C; if I
-                        // do the substitutions
-                        // simultaneously I get B,C,C. Therefore, we insert "___" as a magical
-                        // prefix to prevent
-                        // scenarios like this, and then we'll drop them afterwards.
-                        string =
-                            string.replace(Regex(pattern = """\b$from\b"""), replacement = "___$to")
-                    }
-                }
-                string = string.replace("___", "")
-                return string
-            } else {
-                return string
             }
         }
 

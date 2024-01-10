@@ -377,7 +377,7 @@ open class PsiMethodItem(
             containingClass: PsiClassItem,
             original: PsiMethodItem
         ): PsiMethodItem {
-            val replacementMap = containingClass.mapTypeVariablesAsTypes(original.containingClass())
+            val replacementMap = containingClass.mapTypeVariables(original.containingClass())
             val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
 
             val method =

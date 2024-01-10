@@ -342,7 +342,7 @@ class ApiAnalyzer(
                     interfaceTypeClasses.add(hiddenInterfaceClass)
 
                     if (hiddenInterfaceClass.hasTypeVariables()) {
-                        val mapping = cls.mapTypeVariablesAsTypes(hiddenSuperClass)
+                        val mapping = cls.mapTypeVariables(hiddenSuperClass)
                         if (mapping.isNotEmpty()) {
                             val mappedType: TypeItem = hiddenInterface.convertType(mapping)
                             interfaceTypes.add(mappedType)
