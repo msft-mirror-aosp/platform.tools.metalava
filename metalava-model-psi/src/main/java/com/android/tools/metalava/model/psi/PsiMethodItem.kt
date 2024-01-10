@@ -380,6 +380,23 @@ open class PsiMethodItem(
             val replacementMap = containingClass.mapTypeVariables(original.containingClass())
             val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
 
+            // This results in a PsiMethodItem that is inconsistent, compared with other
+            // PsiMethodItem. PsiMethodItems created directly from the source are such that:
+            //
+            //    psiMethod.containingClass === containingClass().psiClass
+            //
+            // However, the PsiMethodItem created here contains a psiMethod from a different class,
+            // usually the super class, so:
+            //
+            //    psiMethod.containingClass !== containingClass().psiClass
+            //
+            // If the method was created from the super class then:
+            //
+            //    psiMethod.containingClass === containingClass().superClass().psiClass
+            //
+            // The consequence of this is that the PsiMethodItem does not behave as might be
+            // expected. e.g. superMethods() will find super methods of the method in the super
+            // class, not the PsiMethodItem's containing class.
             val method =
                 PsiMethodItem(
                     codebase = codebase,
