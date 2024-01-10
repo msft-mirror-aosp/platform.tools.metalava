@@ -51,6 +51,8 @@ class PsiFieldItem(
     ),
     FieldItem {
 
+    override var emit: Boolean = !modifiers.isExpect()
+
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
@@ -105,6 +107,7 @@ class PsiFieldItem(
         val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
         duplicated.inheritedFrom = containingClass
         duplicated.inheritedField = inheritedField
+        duplicated.finishInitialization()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -148,24 +151,21 @@ class PsiFieldItem(
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type)
+            val fieldType = codebase.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 
-            val field =
-                PsiFieldItem(
-                    codebase = codebase,
-                    psiField = psiField,
-                    containingClass = containingClass,
-                    name = name,
-                    documentation = commentText,
-                    modifiers = modifiers,
-                    fieldType = fieldType,
-                    isEnumConstant = isEnumConstant,
-                    initialValue = initialValue
-                )
-            field.modifiers.setOwner(field)
-            return field
+            return PsiFieldItem(
+                codebase = codebase,
+                psiField = psiField,
+                containingClass = containingClass,
+                name = name,
+                documentation = commentText,
+                modifiers = modifiers,
+                fieldType = fieldType,
+                isEnumConstant = isEnumConstant,
+                initialValue = initialValue
+            )
         }
     }
 
@@ -210,5 +210,11 @@ class PsiFieldItem(
         }
 
         return null
+    }
+
+    override fun finishInitialization() {
+        super.finishInitialization()
+
+        fieldType.finishInitialization(this)
     }
 }

@@ -16,19 +16,20 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
 class TurbineConstructorItem(
-    codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
     returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
+    document: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -36,7 +37,8 @@ class TurbineConstructorItem(
         containingClass,
         returnType,
         modifiers,
-        typeParameters
+        typeParameters,
+        document
     ),
     ConstructorItem {
 
@@ -48,5 +50,36 @@ class TurbineConstructorItem(
 
     internal fun setReturnType(type: TurbineTypeItem) {
         returnType = type
+    }
+
+    companion object {
+        fun createDefaultConstructor(
+            codebase: TurbineBasedCodebase,
+            containingClass: TurbineClassItem,
+            symbol: MethodSymbol
+        ): TurbineConstructorItem {
+            val name = containingClass.simpleName()
+            val modifiers = TurbineModifierItem(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val parameters = TurbineTypeParameterList(codebase)
+            parameters.typeParameters = emptyList()
+
+            val ctorItem =
+                TurbineConstructorItem(
+                    codebase,
+                    name,
+                    symbol,
+                    containingClass,
+                    containingClass.toType(),
+                    modifiers,
+                    parameters,
+                    "",
+                )
+            modifiers.setOwner(ctorItem)
+            ctorItem.parameters = emptyList()
+            ctorItem.throwsClassNames = emptyList()
+            ctorItem.setThrowsTypes()
+            return ctorItem
+        }
     }
 }

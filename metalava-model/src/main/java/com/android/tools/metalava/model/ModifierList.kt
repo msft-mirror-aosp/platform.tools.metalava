@@ -75,6 +75,10 @@ interface ModifierList {
 
     fun isData(): Boolean = false
 
+    fun isExpect(): Boolean = false
+
+    fun isActual(): Boolean = false
+
     fun isEmpty(): Boolean
 
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
@@ -179,8 +183,6 @@ interface ModifierList {
             modifiers: ModifierList,
             item: Item,
             target: AnnotationTarget,
-            // TODO: "deprecated" isn't a modifier; clarify method name
-            includeDeprecated: Boolean = false,
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
             omitCommonPackages: Boolean = false,
@@ -215,7 +217,6 @@ interface ModifierList {
                 item,
                 target,
                 runtimeAnnotationsOnly,
-                includeDeprecated,
                 writer,
                 separateLines,
                 list,
@@ -336,19 +337,19 @@ interface ModifierList {
             item: Item,
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean,
-            includeDeprecated: Boolean,
             writer: Writer,
             separateLines: Boolean,
             list: ModifierList,
             skipNullnessAnnotations: Boolean,
             omitCommonPackages: Boolean
         ) {
-            //  if includeDeprecated we want to do it
-            //  unless runtimeOnly is false, in which case we'd include it too
-            // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
-            if (item.deprecated && (runtimeAnnotationsOnly || includeDeprecated)) {
-                writer.write("@Deprecated")
-                writer.write(if (separateLines) "\n" else " ")
+            if (item.deprecated) {
+                // Do not write @Deprecated for a parameter unless it was explicitly marked as
+                // deprecated.
+                if (item !is ParameterItem || item.originallyDeprecated) {
+                    writer.write("@Deprecated")
+                    writer.write(if (separateLines) "\n" else " ")
+                }
             }
 
             if (item.hasSuppressCompatibilityMetaAnnotation()) {

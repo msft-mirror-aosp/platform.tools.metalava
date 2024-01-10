@@ -49,6 +49,8 @@ private constructor(
     ),
     PropertyItem {
 
+    override var emit: Boolean = !modifiers.isExpect()
+
     override fun type(): TypeItem = fieldType
 
     override fun name(): String = name
@@ -81,6 +83,11 @@ private constructor(
     }
 
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
+
+    override fun finishInitialization() {
+        super.finishInitialization()
+        fieldType.finishInitialization(this)
+    }
 
     companion object {
         /**
