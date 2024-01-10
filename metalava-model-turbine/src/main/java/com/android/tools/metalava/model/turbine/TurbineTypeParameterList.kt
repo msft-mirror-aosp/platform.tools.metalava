@@ -24,14 +24,6 @@ internal class TurbineTypeParameterList(
 ) : DefaultTypeParameterList() {
 
     internal lateinit var typeParameters: List<TurbineTypeParameterItem>
-    private lateinit var typeParameterNamesList: List<String>
-
-    override fun typeParameterNames(): List<String> {
-        if (!::typeParameterNamesList.isInitialized) {
-            typeParameterNamesList = typeParameters.map { it.simpleName() }
-        }
-        return typeParameterNamesList
-    }
 
     override fun typeParameters(): List<TurbineTypeParameterItem> = typeParameters
 }

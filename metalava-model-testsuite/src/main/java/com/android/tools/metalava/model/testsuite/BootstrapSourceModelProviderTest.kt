@@ -735,10 +735,23 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val method2TypeParameterNames = listOf("A", "B")
 
             assertEquals(true, classItem.hasTypeVariables())
-            assertEquals(classParameterNames, classTypeParameterList.typeParameterNames())
-            assertEquals(emptyList(), annoTypeParameterList.typeParameterNames())
-            assertEquals(method1ParameterNames, method1TypeParameterList.typeParameterNames())
-            assertEquals(method2TypeParameterNames, method2TypeParameterList.typeParameterNames())
+
+            assertEquals(
+                classParameterNames,
+                classTypeParameterList.typeParameters().map { it.simpleName() }
+            )
+            assertEquals(
+                emptyList(),
+                annoTypeParameterList.typeParameters().map { it.simpleName() }
+            )
+            assertEquals(
+                method1ParameterNames,
+                method1TypeParameterList.typeParameters().map { it.simpleName() }
+            )
+            assertEquals(
+                method2TypeParameterNames,
+                method2TypeParameterList.typeParameters().map { it.simpleName() }
+            )
 
             assertEquals(
                 "<T, U extends java.util.Map<? super U, java.lang.String>, V extends java.lang.Comparable & java.io.Serializable>",
