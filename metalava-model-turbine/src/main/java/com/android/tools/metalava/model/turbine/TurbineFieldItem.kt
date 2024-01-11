@@ -41,8 +41,6 @@ class TurbineFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override var inheritedField: Boolean = false
-
     override var documentation: String = document
 
     override fun name(): String = name

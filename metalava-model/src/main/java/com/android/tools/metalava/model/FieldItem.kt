@@ -42,18 +42,15 @@ interface FieldItem : MemberItem {
      */
     fun isEnumConstant(): Boolean
 
-    /**
-     * If this field is inherited from a hidden super class, this property is set. This is necessary
-     * because these fields should not be listed in signature files, whereas in stub files it's
-     * necessary for them to be included.
-     */
-    var inheritedField: Boolean
+    /** True if this field was inherited from an ancestor class or interface. */
+    val inheritedField: Boolean
+        get() = inheritedFrom != null
 
     /**
      * If this field is copied from a super class (typically via [duplicate]) this field points to
      * the original class it was copied from
      */
-    var inheritedFrom: ClassItem?
+    val inheritedFrom: ClassItem?
 
     /**
      * Duplicates this field item.

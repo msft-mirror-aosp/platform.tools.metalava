@@ -546,7 +546,6 @@ interface ClassItem : Item {
                     if (!field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
-                            duplicated.inheritedField = true
                             fields.remove(duplicated)
                             fields.add(duplicated)
                         }
