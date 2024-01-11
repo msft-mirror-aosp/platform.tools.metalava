@@ -56,7 +56,20 @@ interface FieldItem : MemberItem {
     var inheritedFrom: ClassItem?
 
     /**
-     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
+     * Duplicates this field item.
+     *
+     * This is only used when comparing two [Codebase]s, in which case it is called to inherit a
+     * field from a super class/interface when it exists in the other [Codebase]. The resulting
+     * [FieldItem] is expected to behave as if it was part of the [targetContainingClass] but is
+     * otherwise identical to `this`, e.g. if [targetContainingClass] is [hidden] then so should the
+     * returned [FieldItem].
+     *
+     * The [FieldItem.inheritedFrom] property in the returned [FieldItem] is set to
+     * [containingClass] of this [FieldItem].
+     *
+     * @param targetContainingClass the [ClassItem] that will be used as
+     *   [FieldItem.containingClass]. Note, this may be from a different [Codebase] implementation
+     *   than the [FieldItem] so implementations must be careful to avoid an unconditional downcast.
      */
     fun duplicate(targetContainingClass: ClassItem): FieldItem
 

@@ -135,7 +135,21 @@ interface MethodItem : MemberItem {
     @Deprecated("This property should not be accessed directly.") var _requiresOverride: Boolean?
 
     /**
-     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
+     * Duplicates this method item.
+     *
+     * This is only used when comparing two [Codebase]s, in which case it is called to inherit a
+     * method from a super class/interface when it exists in the other [Codebase]. The resulting
+     * [MethodItem] is expected to behave as if it was part of the [targetContainingClass] but is
+     * otherwise identical to `this`, e.g. if [targetContainingClass] is [hidden] then so should the
+     * returned [MethodItem].
+     *
+     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
+     * [containingClass] of this [MethodItem].
+     *
+     * @param targetContainingClass the [ClassItem] that will be used as
+     *   [MethodItem.containingClass]. Note, this may be from a different [Codebase] implementation
+     *   than the [MethodItem] so implementations must be careful to avoid an unconditional
+     *   downcast.
      */
     fun duplicate(targetContainingClass: ClassItem): MethodItem
 

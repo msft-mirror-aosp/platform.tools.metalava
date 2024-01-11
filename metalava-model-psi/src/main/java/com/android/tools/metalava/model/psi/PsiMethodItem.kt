@@ -289,6 +289,13 @@ open class PsiMethodItem(
     }
 
     companion object {
+        /**
+         * Create a [PsiMethodItem].
+         *
+         * The [containingClass] is not necessarily a [PsiClassItem] as this is used to implement
+         * [MethodItem.duplicate] as well as create [PsiMethodItem] from the underlying Psi source
+         * model.
+         */
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
@@ -351,6 +358,11 @@ open class PsiMethodItem(
             return method
         }
 
+        /**
+         * Create a [PsiMethodItem] from a [PsiMethodItem] in a hidden super class.
+         *
+         * @see ClassItem.createMethod
+         */
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
