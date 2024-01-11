@@ -24,6 +24,7 @@ class TurbinePackageItem(
     codebase: TurbineBasedCodebase,
     private val qualifiedName: String,
     modifiers: TurbineModifierItem,
+    override var documentation: String,
 ) : TurbineItem(codebase, modifiers), PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
@@ -35,12 +36,13 @@ class TurbinePackageItem(
             codebase: TurbineBasedCodebase,
             qualifiedName: String,
             modifiers: TurbineModifierItem,
+            documentation: String,
         ): TurbinePackageItem {
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             }
-            return TurbinePackageItem(codebase, qualifiedName, modifiers)
+            return TurbinePackageItem(codebase, qualifiedName, modifiers, documentation)
         }
     }
     // N.A. a package cannot be contained in a class
