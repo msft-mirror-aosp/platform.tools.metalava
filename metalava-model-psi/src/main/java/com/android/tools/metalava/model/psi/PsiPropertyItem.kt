@@ -19,12 +19,10 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UClass
 import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem
@@ -56,18 +54,6 @@ private constructor(
     override fun type(): TypeItem = fieldType
 
     override fun psi() = psiMethod
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {

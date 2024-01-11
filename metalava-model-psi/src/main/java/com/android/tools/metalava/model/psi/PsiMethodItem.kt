@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
@@ -31,7 +30,6 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
-import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UThrowExpression
@@ -154,18 +152,6 @@ open class PsiMethodItem(
     }
 
     override fun throwsTypes(): List<ClassItem> = throwsTypes
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {

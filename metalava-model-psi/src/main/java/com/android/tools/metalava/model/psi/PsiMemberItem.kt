@@ -18,12 +18,14 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MemberItem
-import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiJvmMember
+import org.jetbrains.uast.UClass
 
 abstract class PsiMemberItem
 internal constructor(
     codebase: PsiBasedCodebase,
-    element: PsiElement,
+    element: PsiJvmMember,
     modifiers: PsiModifierItem,
     documentation: String,
     internal val containingClass: ClassItem,
@@ -40,4 +42,16 @@ internal constructor(
     final override fun name() = name
 
     final override fun containingClass() = containingClass
+
+    override fun isCloned(): Boolean {
+        val psiClass = run {
+            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
+            if (p is UClass) {
+                p.sourcePsi as? PsiClass ?: return false
+            } else {
+                p
+            }
+        }
+        return (psi() as PsiJvmMember).containingClass != psiClass
+    }
 }
