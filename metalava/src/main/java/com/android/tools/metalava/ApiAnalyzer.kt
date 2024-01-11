@@ -1093,7 +1093,7 @@ class ApiAnalyzer(
         // then we can't strip it
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
-            .filter { it.isApiCandidate() && it.emit }
+            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
             .forEach { cantStripThis(it, filter, notStrippable, stubImportPackages, it, "self") }
 
         // complain about anything that looks includeable but is not supposed to
@@ -1263,7 +1263,10 @@ class ApiAnalyzer(
             return
         }
 
-        if (!cl.isApiCandidate() && !cl.isTypeParameter) {
+        if (
+            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
+                !cl.isTypeParameter
+        ) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
