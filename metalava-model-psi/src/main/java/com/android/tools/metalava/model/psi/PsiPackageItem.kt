@@ -50,6 +50,8 @@ internal constructor(
 
     override fun containingClass(): ClassItem? = null
 
+    override fun psi() = psiPackage
+
     override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {

@@ -66,6 +66,8 @@ internal constructor(
 
     override fun name(): String = name
 
+    override fun psi() = psiParameter
+
     override fun publicName(): String? {
         if (isKotlin(psiParameter)) {
             // Omit names of some special parameters in Kotlin. None of these parameters may be

@@ -42,7 +42,7 @@ import org.jetbrains.uast.sourcePsiElement
 abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
-    val element: PsiElement,
+    element: PsiElement,
     override val modifiers: PsiModifierItem,
     override var documentation: String
 ) : DefaultItem(modifiers) {
@@ -86,7 +86,7 @@ internal constructor(
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
-    open fun psi(): PsiElement = element
+    abstract fun psi(): PsiElement
 
     override fun location(): Location {
         return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
@@ -105,7 +105,7 @@ internal constructor(
         // That is, we should keep the nullable annotation for that return type.
         if (this is MethodItem && modifiers.isSuspend()) return@lazy false
 
-        when (val sourcePsi = (element as? UElement)?.sourcePsi) {
+        when (sourcePsi) {
             is KtCallableDeclaration -> {
                 analyze(sourcePsi) {
                     // NB: We should not use [KtDeclaration.getReturnKtType]; see its comment:
@@ -134,7 +134,7 @@ internal constructor(
     override fun mutableModifiers(): MutableModifierList = modifiers
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
-        if (element is PsiCompiledElement) {
+        if (psi() is PsiCompiledElement) {
             return null
         }
         if (documentation.isBlank()) {
@@ -217,8 +217,7 @@ internal constructor(
             return
         }
 
-        documentation =
-            mergeDocumentation(documentation, element, comment.trim(), tagSection, append)
+        documentation = mergeDocumentation(documentation, psi(), comment.trim(), tagSection, append)
     }
 
     private fun addUniqueTag(
@@ -299,7 +298,7 @@ internal constructor(
     }
 
     override fun isKotlin(): Boolean {
-        return isKotlin(element)
+        return isKotlin(psi())
     }
 
     companion object {

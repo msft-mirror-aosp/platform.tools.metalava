@@ -76,10 +76,10 @@ private constructor(
         // If no PSI element, is this a synthetic/implicit constructor? If so
         // grab the parent class' PSI element instead for file/location purposes
         val element =
-            if (implicitConstructor && element.containingFile?.virtualFile == null) {
+            if (implicitConstructor && psiMethod.containingFile?.virtualFile == null) {
                 (containingClass() as PsiClassItem).psi()
             } else {
-                element
+                psiMethod
             }
 
         return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))

@@ -121,7 +121,7 @@ open class PsiMethodItem(
     override val synthetic: Boolean
         get() = isEnumSyntheticMethod()
 
-    override fun psi(): PsiMethod = psiMethod
+    override fun psi() = psiMethod
 
     private var superMethods: List<MethodItem>? = null
 

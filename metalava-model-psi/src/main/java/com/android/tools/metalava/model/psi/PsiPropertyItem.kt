@@ -57,6 +57,8 @@ private constructor(
 
     override fun containingClass(): PsiClassItem = containingClass
 
+    override fun psi() = psiMethod
+
     override fun isCloned(): Boolean {
         val psiClass = run {
             val p = containingClass().psi()

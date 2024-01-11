@@ -88,7 +88,7 @@ internal constructor(
 
     override fun isEnum(): Boolean = classType == ClassType.ENUM
 
-    override fun psi(): PsiClass = psiClass
+    override fun psi() = psiClass
 
     override fun isFromClassPath(): Boolean = fromClassPath
 
