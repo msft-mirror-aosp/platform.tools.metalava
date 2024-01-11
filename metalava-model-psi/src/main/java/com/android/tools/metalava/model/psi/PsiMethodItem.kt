@@ -70,7 +70,6 @@ open class PsiMethodItem(
 
     override var emit: Boolean = !modifiers.isExpect()
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     override var property: PsiPropertyItem? = null
@@ -401,7 +400,6 @@ open class PsiMethodItem(
                         PsiParameterItem.create(codebase, original.parameters(), replacementMap)
                 )
             method.modifiers.setOwner(method)
-            method.inheritedMethod = original.inheritedMethod
 
             return method
         }

@@ -198,7 +198,6 @@ open class TextMethodItem(
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     @Deprecated("This property should not be accessed directly.")

@@ -531,7 +531,6 @@ class ApiAnalyzer(
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
                     method.documentation
              */
-            method.inheritedMethod = true
             method.inheritedFrom = it.containingClass()
 
             val name = method.name()

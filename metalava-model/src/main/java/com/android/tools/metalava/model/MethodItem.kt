@@ -114,14 +114,9 @@ interface MethodItem : MemberItem {
         return classes
     }
 
-    /**
-     * If this method is inherited from a hidden super class, but implements a method from a public
-     * interface, this property is set. This is necessary because these methods should not be listed
-     * in signature files (at least not in compatibility mode), whereas in stub files it's necessary
-     * for them to be included (otherwise subclasses may think the method required and not yet
-     * implemented, e.g. the class must be abstract.)
-     */
-    var inheritedMethod: Boolean
+    /** True if this method was inherited from an ancestor class or interface. */
+    val inheritedMethod
+        get() = inheritedFrom != null
 
     /**
      * If this method is inherited from a super class (typically via [duplicate]) this field points
