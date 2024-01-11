@@ -35,19 +35,21 @@ import org.jetbrains.uast.UElement
 class PsiFieldItem(
     codebase: PsiBasedCodebase,
     private val psiField: PsiField,
-    private val containingClass: PsiClassItem,
-    private val name: String,
+    containingClass: PsiClassItem,
+    name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val fieldType: PsiTypeItem,
     private val isEnumConstant: Boolean,
     private val initialValue: Any?
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiField
+        element = psiField,
+        containingClass = containingClass,
+        name = name,
     ),
     FieldItem {
 
@@ -85,15 +87,11 @@ class PsiFieldItem(
 
     override fun isEnumConstant(): Boolean = isEnumConstant
 
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
     override fun psi(): PsiField = psiField
 
     override fun isCloned(): Boolean {
         val psiClass = run {
-            val p = containingClass().psi()
+            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
             if (p is UClass) {
                 p.sourcePsi as? PsiClass ?: return false
             } else {

@@ -44,18 +44,22 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 open class PsiMethodItem(
     codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
-    private val containingClass: ClassItem,
-    private val name: String,
+    // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
+    // TextClassItem.
+    containingClass: ClassItem,
+    name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val returnType: PsiTypeItem,
     private val parameters: List<PsiParameterItem>
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiMethod
+        element = psiMethod,
+        containingClass = containingClass,
+        name = name,
     ),
     MethodItem {
 
@@ -82,10 +86,6 @@ open class PsiMethodItem(
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    override fun name(): String = name
-
-    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         // TODO: Allow mix and matching with other MethodItems?

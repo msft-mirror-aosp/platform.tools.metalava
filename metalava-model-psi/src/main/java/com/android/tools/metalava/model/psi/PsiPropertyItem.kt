@@ -31,8 +31,8 @@ class PsiPropertyItem
 private constructor(
     codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
-    private val name: String,
+    containingClass: PsiClassItem,
+    name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val fieldType: PsiTypeItem,
@@ -41,11 +41,13 @@ private constructor(
     override val constructorParameter: PsiParameterItem?,
     override val backingField: PsiFieldItem?
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiMethod
+        element = psiMethod,
+        containingClass = containingClass,
+        name = name,
     ),
     PropertyItem {
 
@@ -53,15 +55,11 @@ private constructor(
 
     override fun type(): TypeItem = fieldType
 
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
     override fun psi() = psiMethod
 
     override fun isCloned(): Boolean {
         val psiClass = run {
-            val p = containingClass().psi()
+            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
             if (p is UClass) {
                 p.sourcePsi as? PsiClass ?: return false
             } else {
