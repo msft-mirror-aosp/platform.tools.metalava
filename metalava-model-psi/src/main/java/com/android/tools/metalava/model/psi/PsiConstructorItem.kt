@@ -64,8 +64,6 @@ private constructor(
 
     override var superConstructor: ConstructorItem? = null
 
-    override fun isCloned(): Boolean = false
-
     override fun superMethods(): List<MethodItem> = emptyList()
 
     /**

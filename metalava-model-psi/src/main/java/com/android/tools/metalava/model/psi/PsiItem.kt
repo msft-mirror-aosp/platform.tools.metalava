@@ -96,8 +96,6 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    override fun isCloned(): Boolean = false
-
     override fun hasInheritedGenericType(): Boolean = _hasInheritedGenericType
 
     private val _hasInheritedGenericType by lazy {
