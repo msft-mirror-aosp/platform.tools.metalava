@@ -33,7 +33,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
 
 class PsiFieldItem(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiField: PsiField,
     private val containingClass: PsiClassItem,
     private val name: String,

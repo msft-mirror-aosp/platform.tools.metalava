@@ -29,7 +29,7 @@ import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
     private val containingClass: PsiClassItem,
     private val name: String,

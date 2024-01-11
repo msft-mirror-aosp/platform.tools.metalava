@@ -23,7 +23,7 @@ import com.intellij.psi.PsiPackage
 
 class PsiPackageItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: PsiModifierItem,

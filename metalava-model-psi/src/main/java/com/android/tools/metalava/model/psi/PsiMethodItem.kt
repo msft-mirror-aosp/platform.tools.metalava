@@ -42,7 +42,7 @@ import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
 open class PsiMethodItem(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
     private val containingClass: ClassItem,
     private val name: String,
