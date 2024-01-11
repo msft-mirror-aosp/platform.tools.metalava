@@ -70,13 +70,6 @@ open class PsiMethodItem(
 
     override var emit: Boolean = !modifiers.isExpect()
 
-    /**
-     * If this item was created by filtering down a different codebase, this temporarily points to
-     * the original item during construction. This is used to let us initialize for example throws
-     * lists later, when all classes in the codebase have been initialized.
-     */
-    internal var source: PsiMethodItem? = null
-
     override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
@@ -396,7 +389,6 @@ open class PsiMethodItem(
                         PsiParameterItem.create(codebase, original.parameters(), replacementMap)
                 )
             method.modifiers.setOwner(method)
-            method.source = original
             method.inheritedMethod = original.inheritedMethod
 
             return method
