@@ -760,8 +760,11 @@ interface ClassItem : Item {
      *
      * This is used to inherit a [MethodItem] from a super class that will not be part of the API
      * into a class that will be part of the API.
+     *
+     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
+     * [MethodItem.containingClass] of the [template].
      */
-    fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
+    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 

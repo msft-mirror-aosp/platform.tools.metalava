@@ -24,6 +24,7 @@ import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -853,6 +854,36 @@ class CommonClassItemTest : BaseModelTest() {
                 mapOf(t to x),
                 child.mapTypeVariables(root),
             )
+        }
+    }
+
+    @Test
+    fun `Test inheritMethodFromNonApiAncestor`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        class HiddenClass {
+                            public void foo() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class PublicClass extends HiddenClass {}
+                    """
+                ),
+            ),
+        ) { codebase ->
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClassMethod = hiddenClass.methods().single()
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
+            assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+            assertTrue(inheritedMethod.inheritedMethod)
         }
     }
 }

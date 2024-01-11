@@ -122,7 +122,7 @@ interface MethodItem : MemberItem {
      * If this method is inherited from a super class (typically via [duplicate]) this field points
      * to the original class it was inherited from
      */
-    var inheritedFrom: ClassItem?
+    val inheritedFrom: ClassItem?
 
     /**
      * If this method requires override in the child class to prevent error when compiling the stubs

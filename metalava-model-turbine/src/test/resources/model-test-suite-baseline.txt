@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test inheritMethodFromNonApiAncestor[turbine,java]
+
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]

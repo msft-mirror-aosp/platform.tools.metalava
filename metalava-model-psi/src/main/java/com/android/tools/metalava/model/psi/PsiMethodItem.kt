@@ -360,7 +360,7 @@ open class PsiMethodItem(
         /**
          * Create a [PsiMethodItem] from a [PsiMethodItem] in a hidden super class.
          *
-         * @see ClassItem.createMethod
+         * @see ClassItem.inheritMethodFromNonApiAncestor
          */
         internal fun create(
             codebase: PsiBasedCodebase,
