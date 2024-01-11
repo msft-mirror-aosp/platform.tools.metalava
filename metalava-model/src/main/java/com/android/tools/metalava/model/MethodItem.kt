@@ -115,7 +115,7 @@ interface MethodItem : MemberItem {
     }
 
     /** True if this method was inherited from an ancestor class or interface. */
-    val inheritedMethod
+    val inheritedFromAncestor
         get() = inheritedFrom != null
 
     /**

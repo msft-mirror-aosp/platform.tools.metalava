@@ -43,7 +43,7 @@ interface FieldItem : MemberItem {
     fun isEnumConstant(): Boolean
 
     /** True if this field was inherited from an ancestor class or interface. */
-    val inheritedField: Boolean
+    val inheritedFromAncestor: Boolean
         get() = inheritedFrom != null
 
     /**

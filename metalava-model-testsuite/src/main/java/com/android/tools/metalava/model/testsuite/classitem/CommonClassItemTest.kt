@@ -883,7 +883,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
             assertSame(hiddenClass, inheritedMethod.inheritedFrom)
-            assertTrue(inheritedMethod.inheritedMethod)
+            assertTrue(inheritedMethod.inheritedFromAncestor)
         }
     }
 }
