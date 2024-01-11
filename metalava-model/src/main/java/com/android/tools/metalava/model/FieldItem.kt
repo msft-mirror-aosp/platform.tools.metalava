@@ -42,33 +42,12 @@ interface FieldItem : MemberItem {
      */
     fun isEnumConstant(): Boolean
 
-    /** True if this field was inherited from an ancestor class or interface. */
-    val inheritedFromAncestor: Boolean
-        get() = inheritedFrom != null
-
-    /**
-     * If this field is copied from a super class (typically via [duplicate]) this field points to
-     * the original class it was copied from
-     */
-    val inheritedFrom: ClassItem?
-
     /**
      * Duplicates this field item.
      *
-     * This is only used when comparing two [Codebase]s, in which case it is called to inherit a
-     * field from a super class/interface when it exists in the other [Codebase]. The resulting
-     * [FieldItem] is expected to behave as if it was part of the [targetContainingClass] but is
-     * otherwise identical to `this`, e.g. if [targetContainingClass] is [hidden] then so should the
-     * returned [FieldItem].
-     *
-     * The [FieldItem.inheritedFrom] property in the returned [FieldItem] is set to
-     * [containingClass] of this [FieldItem].
-     *
-     * @param targetContainingClass the [ClassItem] that will be used as
-     *   [FieldItem.containingClass]. Note, this may be from a different [Codebase] implementation
-     *   than the [FieldItem] so implementations must be careful to avoid an unconditional downcast.
+     * Override to specialize the return type.
      */
-    fun duplicate(targetContainingClass: ClassItem): FieldItem
+    override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)

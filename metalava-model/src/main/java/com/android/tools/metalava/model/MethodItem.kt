@@ -114,16 +114,6 @@ interface MethodItem : MemberItem {
         return classes
     }
 
-    /** True if this method was inherited from an ancestor class or interface. */
-    val inheritedFromAncestor
-        get() = inheritedFrom != null
-
-    /**
-     * If this method is inherited from a super class (typically via [duplicate]) this field points
-     * to the original class it was inherited from
-     */
-    val inheritedFrom: ClassItem?
-
     /**
      * If this method requires override in the child class to prevent error when compiling the stubs
      */
@@ -132,21 +122,9 @@ interface MethodItem : MemberItem {
     /**
      * Duplicates this method item.
      *
-     * This is only used when comparing two [Codebase]s, in which case it is called to inherit a
-     * method from a super class/interface when it exists in the other [Codebase]. The resulting
-     * [MethodItem] is expected to behave as if it was part of the [targetContainingClass] but is
-     * otherwise identical to `this`, e.g. if [targetContainingClass] is [hidden] then so should the
-     * returned [MethodItem].
-     *
-     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
-     * [containingClass] of this [MethodItem].
-     *
-     * @param targetContainingClass the [ClassItem] that will be used as
-     *   [MethodItem.containingClass]. Note, this may be from a different [Codebase] implementation
-     *   than the [MethodItem] so implementations must be careful to avoid an unconditional
-     *   downcast.
+     * Override to specialize the return type.
      */
-    fun duplicate(targetContainingClass: ClassItem): MethodItem
+    override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
     fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? {
         if (isConstructor()) {
