@@ -1145,4 +1145,120 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test that changing modifiers of public class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    @FlaggedApi("foo/bar")
+                    public class Foo {
+                    }
+                """
+            ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public abstract class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("foo/bar") public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        // TODO(b/316873097): Fix the test. This should be abstract.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        // TODO(b/316873097): Fix the test. This should not be the same as with
+                        //  flagged apis.
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // TODO(b/316873097): Fix the test. There should be some stubs generated.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                ),
+        )
+    }
 }
