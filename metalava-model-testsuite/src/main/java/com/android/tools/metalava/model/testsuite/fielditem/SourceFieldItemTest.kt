@@ -46,7 +46,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldValues =
                 listOf(
@@ -78,7 +78,7 @@ class SourceFieldItemTest : BaseModelTest() {
                       }
                   """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
@@ -110,7 +110,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     class Test2 {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
@@ -135,7 +135,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("ENUM1")
 
@@ -156,7 +156,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
             assertEquals(null, fieldItem.initialValue(true))
@@ -176,7 +176,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
 
@@ -200,7 +200,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
@@ -224,7 +224,7 @@ class SourceFieldItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
             assertEquals(null, fieldItem.initialValue(true))
