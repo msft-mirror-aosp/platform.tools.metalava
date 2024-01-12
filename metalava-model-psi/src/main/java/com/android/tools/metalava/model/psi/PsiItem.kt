@@ -22,12 +22,11 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
+import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.idea.KotlinLanguage
@@ -57,23 +56,6 @@ internal constructor(
 
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
-
-    // a property with a lazily calculated default value
-    inner class LazyDelegate<T>(val defaultValueProvider: () -> T) : ReadWriteProperty<PsiItem, T> {
-        private var currentValue: T? = null
-
-        override operator fun setValue(thisRef: PsiItem, property: KProperty<*>, value: T) {
-            currentValue = value
-        }
-
-        override operator fun getValue(thisRef: PsiItem, property: KProperty<*>): T {
-            if (currentValue == null) {
-                currentValue = defaultValueProvider()
-            }
-
-            return currentValue!!
-        }
-    }
 
     override var originallyHidden: Boolean by LazyDelegate {
         documentation.contains('@') &&

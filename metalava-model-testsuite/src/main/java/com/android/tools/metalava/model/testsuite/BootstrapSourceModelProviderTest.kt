@@ -957,7 +957,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
     }
 
     @Test
-    fun `260 - check field isEnumConstant`() {
+    fun `260 - test enum class and field`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -966,9 +966,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     public enum Test {
                         ENUM1,
                         ENUM2,;
-                        static final int IntField = 5;
+                        public static final int IntField = 5;
+
+                        public Test valueOf(int serial) {
+                            if(serial == 1) {return ENUM1;}
+                            else return ENUM2;
+                        }
+
+                        public int valueOf(Test a, String b) {return 7;}
                     }
-                    class Test1 {
+
+                    enum Test1 {}
+
+                    class Test2 {
                         static final Test field = Test.ENUM2;
                     }
                 """
@@ -977,10 +987,15 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("ENUM1")
             val fieldItem2 = classItem.assertField("IntField")
-            val nonEnumClassField = codebase.assertClass("test.pkg.Test1").assertField("field")
+            val classItem1 = codebase.assertClass("test.pkg.Test1")
+            val nonEnumClassField = codebase.assertClass("test.pkg.Test2").assertField("field")
 
+            assertEquals(true, classItem.isEnum())
+            assertEquals(2, classItem.methods().count())
             assertEquals(true, fieldItem1.isEnumConstant())
             assertEquals(false, fieldItem2.isEnumConstant())
+            assertEquals(true, classItem1.isEnum())
+            assertEquals(0, classItem1.methods().count())
             assertEquals(false, nonEnumClassField.isEnumConstant())
         }
     }
