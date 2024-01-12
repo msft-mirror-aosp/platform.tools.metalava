@@ -208,7 +208,7 @@ abstract class BaseModelTest : Assertions {
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
-        test: CodebaseContext<Codebase>.(Codebase) -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -224,13 +224,13 @@ abstract class BaseModelTest : Assertions {
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
-        test: CodebaseContext<Codebase>.(Codebase) -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             *sources,
         ) { codebase ->
             val context = CodebaseContext(codebase)
-            context.test(codebase)
+            context.test()
         }
     }
 
@@ -243,7 +243,7 @@ abstract class BaseModelTest : Assertions {
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
-        test: CodebaseContext<SourceCodebase>.(SourceCodebase) -> Unit,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -259,14 +259,14 @@ abstract class BaseModelTest : Assertions {
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
-        test: CodebaseContext<SourceCodebase>.(SourceCodebase) -> Unit,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             *sources,
         ) { codebase ->
             codebase as SourceCodebase
             val context = CodebaseContext(codebase)
-            context.test(codebase)
+            context.test()
         }
     }
 

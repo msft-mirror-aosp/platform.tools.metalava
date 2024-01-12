@@ -55,7 +55,7 @@ class CommonClassItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
@@ -90,7 +90,7 @@ class CommonClassItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooMethod = fooClass.methods().single()
 
@@ -126,7 +126,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val fooInterface = codebase.assertClass("test.pkg.Foo")
 
             assertNull(fooInterface.superClassType())
@@ -168,7 +168,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo extends A, B, C {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
             val interfaceC = codebase.assertClass("test.pkg.C")
@@ -204,7 +204,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -241,7 +241,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo extends Bar {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -284,7 +284,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo implements A, B, C {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
             val interfaceC = codebase.assertClass("test.pkg.C")
@@ -333,7 +333,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo extends Bar implements A, B, C {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
@@ -364,7 +364,7 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Bar {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             assertEquals(true, barClass.deprecated)
             assertEquals(true, barClass.originallyDeprecated)
@@ -399,7 +399,7 @@ class CommonClassItemTest : BaseModelTest() {
                     class Bar {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             assertEquals(true, barClass.deprecated)
             assertEquals(true, barClass.originallyDeprecated)
@@ -432,7 +432,7 @@ class CommonClassItemTest : BaseModelTest() {
                     class Bar {}
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             assertEquals(false, barClass.deprecated)
             assertEquals(false, barClass.originallyDeprecated)
@@ -482,7 +482,7 @@ class CommonClassItemTest : BaseModelTest() {
                         .trimIndent()
                 )
             )
-        ) { codebase ->
+        ) {
             val parent = codebase.assertClass("test.pkg.Parent")
             val parentTypeParams = parent.typeParameterList().typeParameters()
             val m = parentTypeParams[0].toType()
@@ -564,7 +564,7 @@ class CommonClassItemTest : BaseModelTest() {
                         .trimIndent()
                 )
             )
-        ) { codebase ->
+        ) {
             val c4 = codebase.assertClass("test.pkg.Class4")
             val i = c4.typeParameterList().typeParameters()[0].toType()
 
@@ -649,7 +649,7 @@ class CommonClassItemTest : BaseModelTest() {
                         .trimIndent()
                 )
             )
-        ) { codebase ->
+        ) {
             val grandparent = codebase.assertClass("test.pkg.Grandparent")
             val grandparentTypeParams = grandparent.typeParameterList().typeParameters()
             val a = grandparentTypeParams[0].toType()
@@ -733,7 +733,7 @@ class CommonClassItemTest : BaseModelTest() {
                         .trimIndent()
                 )
             )
-        ) { codebase ->
+        ) {
             val i3 = codebase.assertClass("test.pkg.Interface3")
             val i3TypeParams = i3.typeParameterList().typeParameters()
             val g = i3TypeParams[0].toType()
@@ -825,7 +825,7 @@ class CommonClassItemTest : BaseModelTest() {
                         .trimIndent()
                 )
             )
-        ) { codebase ->
+        ) {
             val root = codebase.assertClass("test.pkg.Root")
             val t = root.typeParameterList().typeParameters()[0].toType()
 
@@ -876,7 +876,7 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
