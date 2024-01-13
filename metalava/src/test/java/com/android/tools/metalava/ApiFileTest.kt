@@ -6242,7 +6242,6 @@ class ApiFileTest : DriverTest() {
                   public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
                     ctor public SeekableTransitionState(S initialState);
                     method public S getCurrentState();
-                    method internal void setCurrentState${"$"}metalava_module(S);
                     property public S currentState;
                   }
                   public abstract sealed class TransitionState<S> {
