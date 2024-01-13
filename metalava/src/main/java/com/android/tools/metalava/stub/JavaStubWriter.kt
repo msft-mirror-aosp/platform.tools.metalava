@@ -216,7 +216,7 @@ internal class JavaStubWriter(
     private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
         appendDocumentation(constructor, writer, config)
-        appendModifiers(constructor, false)
+        appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
         writer.print(constructor.containingClass().simpleName())
 
@@ -343,7 +343,7 @@ internal class JavaStubWriter(
         // into a concrete method to make the stub compile
         val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
 
-        appendModifiers(method, modifiers, removeAbstract, false)
+        appendModifiers(method, modifiers, removeAbstract)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -384,7 +384,7 @@ internal class JavaStubWriter(
         writer.println()
 
         appendDocumentation(field, writer, config)
-        appendModifiers(field, removeAbstract = false, removeFinal = false)
+        appendModifiers(field)
         writer.print(field.type().toTypeString(annotations = false, filter = filterReference))
         writer.print(' ')
         writer.print(field.name())
@@ -417,7 +417,7 @@ internal class JavaStubWriter(
             if (i > 0) {
                 writer.print(", ")
             }
-            appendModifiers(parameter, false)
+            appendModifiers(parameter)
             writer.print(
                 parameter.type().toTypeString(annotations = false, filter = filterReference)
             )

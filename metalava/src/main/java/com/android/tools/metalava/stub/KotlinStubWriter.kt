@@ -92,7 +92,7 @@ internal class KotlinStubWriter(
     private fun appendModifiers(
         item: Item,
         modifiers: ModifierList,
-        removeAbstract: Boolean,
+        removeAbstract: Boolean = false,
         removeFinal: Boolean = false,
         addPublic: Boolean = false
     ) {
@@ -204,7 +204,7 @@ internal class KotlinStubWriter(
         // into a concrete method to make the stub compile
         val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
 
-        appendModifiers(method, modifiers, removeAbstract, false)
+        appendModifiers(method, modifiers, removeAbstract)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         writer.print("fun ")
@@ -249,9 +249,6 @@ internal class KotlinStubWriter(
             appendModifiers(
                 parameter,
                 parameter.modifiers,
-                removeAbstract = false,
-                removeFinal = false,
-                addPublic = false
             )
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)
