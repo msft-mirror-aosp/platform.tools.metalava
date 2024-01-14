@@ -363,7 +363,6 @@ interface ModifierList {
             runtimeAnnotationsOnly: Boolean = false,
             omitCommonPackages: Boolean = false,
             separateLines: Boolean = false,
-            filterDuplicates: Boolean = false,
             writer: Writer,
             target: AnnotationTarget
         ) {
@@ -418,22 +417,6 @@ interface ModifierList {
                             } else {
                                 writer.write(" ")
                             }
-                            continue
-                        }
-                    }
-
-                    // Optionally filter out duplicates
-                    if (index > 0 && filterDuplicates) {
-                        val qualifiedName = annotation.qualifiedName
-                        var found = false
-                        for (i in 0 until index) {
-                            val prev = annotations[i]
-                            if (prev.qualifiedName == qualifiedName) {
-                                found = true
-                                break
-                            }
-                        }
-                        if (found) {
                             continue
                         }
                     }
