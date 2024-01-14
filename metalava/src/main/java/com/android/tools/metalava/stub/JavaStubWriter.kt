@@ -131,18 +131,14 @@ internal class JavaStubWriter(
     private fun appendModifiers(
         item: Item,
         removeAbstract: Boolean = false,
-        removeFinal: Boolean = false,
-        addPublic: Boolean = false
     ) {
-        appendModifiers(item, item.modifiers, removeAbstract, removeFinal, addPublic)
+        appendModifiers(item, item.modifiers, removeAbstract)
     }
 
     private fun appendModifiers(
         item: Item,
         modifiers: ModifierList,
         removeAbstract: Boolean,
-        removeFinal: Boolean = false,
-        addPublic: Boolean = false
     ) {
         val separateLines = item is ClassItem || item is MethodItem
 
@@ -153,8 +149,6 @@ internal class JavaStubWriter(
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,
             removeAbstract = removeAbstract,
-            removeFinal = removeFinal,
-            addPublic = addPublic,
             separateLines = separateLines
         )
     }

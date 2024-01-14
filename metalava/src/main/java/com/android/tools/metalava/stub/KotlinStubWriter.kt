@@ -93,8 +93,6 @@ internal class KotlinStubWriter(
         item: Item,
         modifiers: ModifierList,
         removeAbstract: Boolean = false,
-        removeFinal: Boolean = false,
-        addPublic: Boolean = false
     ) {
         val separateLines = item is ClassItem || item is MethodItem
 
@@ -106,8 +104,6 @@ internal class KotlinStubWriter(
             runtimeAnnotationsOnly = !generateAnnotations,
             skipNullnessAnnotations = true,
             removeAbstract = removeAbstract,
-            removeFinal = removeFinal,
-            addPublic = addPublic,
             separateLines = separateLines,
             language = Language.KOTLIN
         )

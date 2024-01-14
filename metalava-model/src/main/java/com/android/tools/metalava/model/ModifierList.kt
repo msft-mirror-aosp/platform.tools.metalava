@@ -187,25 +187,14 @@ interface ModifierList {
             skipNullnessAnnotations: Boolean = false,
             omitCommonPackages: Boolean = false,
             removeAbstract: Boolean = false,
-            removeFinal: Boolean = false,
-            addPublic: Boolean = false,
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
             val list =
-                if (removeAbstract || removeFinal || addPublic) {
+                if (removeAbstract) {
                     class AbstractFiltering : ModifierList by modifiers {
                         override fun isAbstract(): Boolean {
                             return if (removeAbstract) false else modifiers.isAbstract()
-                        }
-
-                        override fun isFinal(): Boolean {
-                            return if (removeFinal) false else modifiers.isFinal()
-                        }
-
-                        override fun getVisibilityLevel(): VisibilityLevel {
-                            return if (addPublic) VisibilityLevel.PUBLIC
-                            else modifiers.getVisibilityLevel()
                         }
                     }
                     AbstractFiltering()
