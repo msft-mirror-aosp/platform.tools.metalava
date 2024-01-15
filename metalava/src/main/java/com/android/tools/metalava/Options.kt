@@ -181,7 +181,6 @@ const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_API_LINT = "--api-lint"
-const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -391,8 +390,6 @@ class Options(
 
     /** Whether to validate the API for best practices */
     var checkApi = false
-
-    val checkApiIgnorePrefix: MutableList<String> = mutableListOf()
 
     /** If non-null, an API file to use to hide for controlling what parts of the API are new */
     var checkApiBaselineApiFile: File? = null
@@ -1024,9 +1021,6 @@ class Options(
                             }
                         }
                     }
-                }
-                ARG_API_LINT_IGNORE_PREFIX -> {
-                    checkApiIgnorePrefix.add(getValue(args, ++index))
                 }
 
                 // Extracting API levels
@@ -1674,9 +1668,6 @@ object OptionsHelp {
                 "$ARG_API_LINT [api file]",
                 "Check API for Android API best practices. If a signature file is " +
                     "provided, only the APIs that are new since the API will be checked.",
-                "$ARG_API_LINT_IGNORE_PREFIX [prefix]",
-                "A list of package prefixes to ignore API issues in " +
-                    "when running with $ARG_API_LINT.",
                 "$ARG_MIGRATE_NULLNESS <api file>",
                 "Compare nullness information with the previous stable API " +
                     "and mark newly annotated APIs as under migration.",

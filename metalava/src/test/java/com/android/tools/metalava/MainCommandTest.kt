@@ -220,9 +220,6 @@ Diffs and Checks:
 --api-lint [api file]
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.
---api-lint-ignore-prefix [prefix]
-                                             A list of package prefixes to ignore API issues in when running with
-                                             --api-lint.
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
