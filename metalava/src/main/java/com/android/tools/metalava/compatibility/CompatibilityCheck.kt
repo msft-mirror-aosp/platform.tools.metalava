@@ -58,7 +58,6 @@ import java.util.function.Predicate
  */
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
-    private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null,
     private val reporter: Reporter,
@@ -1043,7 +1042,6 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    oldCodebase,
                     apiType,
                     baseApi,
                     reporter,
