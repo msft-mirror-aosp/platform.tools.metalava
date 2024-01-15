@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
@@ -72,6 +73,8 @@ Options:
   -h, --help                                 Show this message and exit
 
 $ISSUE_REPORTING_OPTIONS_HELP
+
+$COMPATIBILITY_CHECK_OPTIONS_HELP
 
 Signature File Output:
 
@@ -213,13 +216,6 @@ Diffs and Checks:
 --check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
                                              either the public api or the removed api.
---check-compatibility:base <file>
-                                             When performing a compat check, use the provided signature file as a base
-                                             api, which is treated as part of the API being checked. This allows us to
-                                             compute the full API surface from a partial API surface (e.g. the current
-                                             @SystemApi txt file), which allows us to recognize when an API is moved
-                                             from the partial API to the base API and avoid incorrectly flagging this as
-                                             an API removal.
 --api-lint [api file]
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.

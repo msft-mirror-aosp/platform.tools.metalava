@@ -33,6 +33,7 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
@@ -158,7 +159,6 @@ const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
-const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -215,6 +215,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
     private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
+    compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
@@ -599,7 +600,7 @@ class Options(
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
 
     /** The API to use a base for the otherwise checked API during compat checks. */
-    var baseApiForCompatCheck: File? = null
+    val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
 
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -1002,10 +1003,6 @@ class Options(
                     val file = stringToExistingFile(getValue(args, ++index))
                     previouslyReleasedRemovedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
-                }
-                ARG_CHECK_COMPATIBILITY_BASE_API -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    baseApiForCompatCheck = file
                 }
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -1627,12 +1624,6 @@ object OptionsHelp {
                 "--check-compatibility:type:released <file>",
                 "Check compatibility. Type is one of 'api' " +
                     "and 'removed', which checks either the public api or the removed api.",
-                "$ARG_CHECK_COMPATIBILITY_BASE_API <file>",
-                "When performing a compat check, use the provided signature " +
-                    "file as a base api, which is treated as part of the API being checked. This allows us to compute the " +
-                    "full API surface from a partial API surface (e.g. the current @SystemApi txt file), which allows us to " +
-                    "recognize when an API is moved from the partial API to the base API and avoid incorrectly flagging this " +
-                    "as an API removal.",
                 "$ARG_API_LINT [api file]",
                 "Check API for Android API best practices. If a signature file is " +
                     "provided, only the APIs that are new since the API will be checked.",
