@@ -93,7 +93,7 @@ class MainCommand(
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
-    private val optionGroup by
+    internal val optionGroup by
         Options(
             commonOptions = commonOptions,
             issueReportingOptions = issueReportingOptions,

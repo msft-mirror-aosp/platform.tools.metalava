@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
@@ -23,8 +24,10 @@ import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.reporter.Issues
+import java.io.File
 import java.util.Locale
 import kotlin.test.assertEquals
+import org.junit.Assert
 import org.junit.Test
 
 class MainCommandTest :
@@ -403,6 +406,36 @@ error: Case-insensitive issue matching is deprecated, use --hide AddedFinal inst
                     .trimIndent()
 
             verify { assertEquals(-1, exitCode, message = "exitCode") }
+        }
+    }
+
+    @Test
+    fun `Test for @file`() {
+        val dir = temporaryFolder.newFolder()
+        val files = (1..4).map { TestFiles.source("File$it.java", "File$it").createFile(dir) }
+        val fileList =
+            TestFiles.source(
+                "files.lst",
+                """
+            ${files[0]}
+            ${files[1]} ${files[2]}
+            ${files[3]}
+        """
+                    .trimIndent()
+            )
+
+        val file = fileList.createFile(dir)
+
+        commandTest {
+            args += listOf("main", "@$file")
+
+            verify {
+                fun normalize(f: File): String = f.relativeTo(dir).path
+                Assert.assertEquals(
+                    files.map { normalize(it) },
+                    command.optionGroup.sources.map { normalize(it) }
+                )
+            }
         }
     }
 }
