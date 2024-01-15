@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.source.utils.LazyDelegate
 
 abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
@@ -28,9 +29,11 @@ abstract class TurbineItem(
 
     override var documentation: String = ""
 
-    override var hidden: Boolean = false
+    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
-    override var originallyHidden: Boolean = false
+    override var originallyHidden: Boolean by LazyDelegate {
+        documentation.contains("@hide") || documentation.contains("@pending") || hasHideAnnotation()
+    }
 
     override var synthetic: Boolean = false
 
