@@ -1463,47 +1463,15 @@ class Options(
     }
 
     private fun stringToExistingFiles(value: String): List<File> {
-        return stringToExistingFilesOrDirsInternal(value, false)
-    }
-
-    private fun stringToExistingFilesOrDirsInternal(value: String, allowDirs: Boolean): List<File> {
-        val files = mutableListOf<File>()
-        value
+        return value
             .split(File.pathSeparatorChar)
             .map { fileForPathInner(it) }
-            .forEach { file ->
-                if (file.path.startsWith("@")) {
-                    // File list; files to be read are stored inside. SHOULD have been one per line
-                    // but sadly often uses spaces for separation too (so we split by whitespace,
-                    // which means you can't point to files in paths with spaces)
-                    val listFile = File(file.path.substring(1))
-                    if (!allowDirs && !listFile.isFile) {
-                        throw MetalavaCliException("$listFile is not a file")
-                    }
-                    val contents = listFile.readText()
-                    val pathList =
-                        contents
-                            .split("""\s""".toRegex())
-                            .map { it.trim() }
-                            .filter { it.isNotEmpty() }
-                            .toList()
-                    pathList
-                        .asSequence()
-                        .map { File(it) }
-                        .forEach {
-                            if (!allowDirs && !it.isFile) {
-                                throw MetalavaCliException("$it is not a file")
-                            }
-                            files.add(it)
-                        }
-                } else {
-                    if (!allowDirs && !file.isFile) {
-                        throw MetalavaCliException("$file is not a file")
-                    }
-                    files.add(file)
+            .map { file ->
+                if (!file.isFile) {
+                    throw MetalavaCliException("$file is not a file")
                 }
+                file
             }
-        return files
     }
 
     private fun stringToNewOrExistingDir(value: String): File {
