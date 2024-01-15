@@ -33,9 +33,11 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
@@ -157,8 +159,6 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
-const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
@@ -206,7 +206,6 @@ const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
-const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -215,7 +214,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
     private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
-    compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
+    private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
@@ -435,16 +434,12 @@ class Options(
 
     internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
 
-    private var previouslyReleasedApi: File? = null
-
     private val previouslyReleasedCodebase by lazy {
-        previouslyReleasedApi?.let { file -> signatureFileCache.load(file) }
+        compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
     }
 
-    private var previouslyReleasedRemovedApi: File? = null
-
     private val previouslyReleasedRemovedCodebase by lazy {
-        previouslyReleasedRemovedApi?.let { file -> signatureFileCache.load(file) }
+        compatibilityCheckOptions.previouslyReleasedRemovedCodebase(signatureFileCache)
     }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
@@ -593,11 +588,8 @@ class Options(
     /** A signature file to migrate nullness data from */
     var migrateNullsFrom: File? = null
 
-    /** Private backing list for [compatibilityChecks]] */
-    private val mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf()
-
     /** The list of compatibility checks to run */
-    val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
+    val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
     /** The API to use a base for the otherwise checked API during compat checks. */
     val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
@@ -692,12 +684,6 @@ class Options(
      * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.
      */
     private var errorMessageApiLint: String = DefaultLintErrorMessage
-
-    /**
-     * If set, metalava will show this error message when "check-compatibility:*:released" fails.
-     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
-     */
-    private var errorMessageCompatibilityReleased: String? = null
 
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
@@ -983,8 +969,6 @@ class Options(
                     }
                 }
                 ARG_ERROR_MESSAGE_API_LINT -> errorMessageApiLint = getValue(args, ++index)
-                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED ->
-                    errorMessageCompatibilityReleased = getValue(args, ++index)
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
@@ -993,16 +977,6 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
                 ARG_MIGRATE_NULLNESS -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    previouslyReleasedApi = file
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
-                }
-                ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
-                    val file = stringToExistingFile(getValue(args, ++index))
-                    previouslyReleasedRemovedApi = file
-                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
                 }
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -1229,7 +1203,7 @@ class Options(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
                 baseline = baselineCompatibilityReleased ?: baseline,
-                errorMessage = errorMessageCompatibilityReleased,
+                errorMessage = compatibilityCheckOptions.errorMessage,
                 packageFilter = stubPackages,
             )
 
@@ -1621,9 +1595,6 @@ object OptionsHelp {
                     "Documentation stubs (--doc-stubs) are not affected.)",
                 "",
                 "Diffs and Checks:",
-                "--check-compatibility:type:released <file>",
-                "Check compatibility. Type is one of 'api' " +
-                    "and 'removed', which checks either the public api or the removed api.",
                 "$ARG_API_LINT [api file]",
                 "Check API for Android API best practices. If a signature file is " +
                     "provided, only the APIs that are new since the API will be checked.",
@@ -1661,9 +1632,6 @@ object OptionsHelp {
                     "to include.",
                 "$ARG_ERROR_MESSAGE_API_LINT <message>",
                 "If set, $PROGRAM_NAME shows it when errors are detected in $ARG_API_LINT.",
-                "$ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED <message>",
-                "If set, $PROGRAM_NAME shows it " +
-                    "when errors are detected in $ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
                 "",
                 "JDiff:",
                 "$ARG_XML_API <file>",

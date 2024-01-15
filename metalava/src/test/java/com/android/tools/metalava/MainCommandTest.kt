@@ -213,9 +213,6 @@ Generating Stubs:
 
 
 Diffs and Checks:
---check-compatibility:type:released <file>
-                                             Check compatibility. Type is one of 'api' and 'removed', which checks
-                                             either the public api or the removed api.
 --api-lint [api file]
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.
@@ -255,10 +252,6 @@ Diffs and Checks:
                                              to include.
 --error-message:api-lint <message>
                                              If set, metalava shows it when errors are detected in --api-lint.
---error-message:compatibility:released <message>
-                                             If set, metalava shows it when errors are detected in
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
 
 
 JDiff:

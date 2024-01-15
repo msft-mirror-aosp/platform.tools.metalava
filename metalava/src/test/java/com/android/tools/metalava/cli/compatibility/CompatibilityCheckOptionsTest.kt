@@ -29,6 +29,13 @@ Compatibility Checks:
                                              compute the full API surface from a partial API surface (e.g. the current
                                              @SystemApi txt file), which allows us to recognize when an API is moved
                                              from the partial API to the base API and avoid incorrectly flagging this
+  --check-compatibility:api:released <file>  Check compatibility of the previously released API.
+  --check-compatibility:removed:released <file>
+                                             Check compatibility of the previously released but since removed APIs.
+  --error-message:compatibility:released <message>
+                                             If set, this is output when errors are detected in
+                                             --check-compatibility:api:released or
+                                             --check-compatibility:removed:released.
     """
         .trimIndent()
 

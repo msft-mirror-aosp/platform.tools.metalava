@@ -47,7 +47,6 @@ import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField
-import java.io.File
 import java.util.function.Predicate
 
 /**
@@ -63,17 +62,6 @@ class CompatibilityCheck(
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
 ) : ComparisonVisitor() {
-
-    /**
-     * Request for compatibility checks. [file] represents the signature file to be checked.
-     * [apiType] represents which part of the API should be checked, [releaseType] represents what
-     * kind of codebase we are comparing it against.
-     */
-    data class CheckRequest(val file: File, val apiType: ApiType) {
-        override fun toString(): String {
-            return "--check-compatibility:${apiType.flagName}:released $file"
-        }
-    }
 
     var foundProblems = false
 

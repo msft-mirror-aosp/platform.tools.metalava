@@ -16,13 +16,19 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.model.Codebase
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
+const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
+const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
+const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val COMPATIBILITY_CHECK_GROUP = "Compatibility Checks"
@@ -53,4 +59,69 @@ class CompatibilityCheckOptions :
             )
             .existingFile()
             .allowStructuredOptionName()
+
+    private val checkReleasedApi: File? by
+        option(
+                ARG_CHECK_COMPATIBILITY_API_RELEASED,
+                help =
+                    """
+                        Check compatibility of the previously released API.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .allowStructuredOptionName()
+
+    private val checkReleasedRemoved: File? by
+        option(
+                ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED,
+                help =
+                    """
+                        Check compatibility of the previously released but since removed APIs.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .allowStructuredOptionName()
+
+    /**
+     * If set, metalava will show this error message when "check-compatibility:*:released" fails.
+     * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     */
+    internal val errorMessage: String? by
+        option(
+                ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED,
+                help =
+                    """
+                        If set, this is output when errors are detected in
+                        $ARG_CHECK_COMPATIBILITY_API_RELEASED or
+                        $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.
+                    """
+                        .trimIndent(),
+                metavar = "<message>",
+            )
+            .allowStructuredOptionName()
+
+    /**
+     * Request for compatibility checks. [file] represents the signature file to be checked.
+     * [apiType] represents which part of the API should be checked.
+     */
+    data class CheckRequest(val file: File, val apiType: ApiType) {
+        override fun toString(): String {
+            return "--check-compatibility:${apiType.flagName}:released $file"
+        }
+    }
+
+    val compatibilityChecks: List<CheckRequest> by lazy {
+        buildList {
+            checkReleasedApi?.let { add(CheckRequest(it, ApiType.PUBLIC_API)) }
+            checkReleasedRemoved?.let { add(CheckRequest(it, ApiType.REMOVED)) }
+        }
+    }
+
+    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
+        checkReleasedApi?.let { signatureFileCache.load(it) }
+
+    fun previouslyReleasedRemovedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
+        checkReleasedRemoved?.let { signatureFileCache.load(it) }
 }
