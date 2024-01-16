@@ -98,15 +98,10 @@ internal class JavaStubWriter(
                     }
                     appendDocumentation(field, writer, config)
 
-                    // Can't just appendModifiers(field, true, true): enum constants
-                    // don't take modifier lists, only annotations
-                    ModifierList.writeAnnotations(
-                        item = field,
-                        target = annotationTarget,
-                        runtimeAnnotationsOnly = !generateAnnotations,
-                        writer = writer,
-                        skipNullnessAnnotations = false,
-                    )
+                    // Append the modifier list even though the enum constant does not actually have
+                    // modifiers as that will write the annotations which it does have and ignore
+                    // the modifiers.
+                    appendModifiers(field)
 
                     writer.write(field.name())
                 }

@@ -194,15 +194,21 @@ interface ModifierList {
             language: Language = Language.JAVA
         ) {
             writeAnnotations(
+                writer,
                 item,
                 target,
                 runtimeAnnotationsOnly,
-                writer,
                 skipNullnessAnnotations,
             )
 
-            if (item is PackageItem) {
-                // Packages use a modifier list, but only annotations apply
+            if (
+                item is PackageItem ||
+                    (target != AnnotationTarget.SIGNATURE_FILE &&
+                        item is FieldItem &&
+                        item.isEnumConstant())
+            ) {
+                // Packages and enum constants (in a stubs file) use a modifier list, but only
+                // annotations apply.
                 return
             }
 
@@ -312,11 +318,11 @@ interface ModifierList {
             }
         }
 
-        fun writeAnnotations(
+        private fun writeAnnotations(
+            writer: Writer,
             item: Item,
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean = false,
-            writer: Writer,
             skipNullnessAnnotations: Boolean = false,
         ) {
             // Generate annotations on separate lines in stub files for packages, classes and
