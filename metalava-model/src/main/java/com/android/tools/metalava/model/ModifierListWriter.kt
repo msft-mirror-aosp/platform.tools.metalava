@@ -18,30 +18,25 @@ package com.android.tools.metalava.model
 
 import java.io.Writer
 
-object ModifierListWriter {
+class ModifierListWriter(
+    private val writer: Writer,
+    /**
+     * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
+     * [AnnotationTarget.DOC_STUBS_FILE].
+     */
+    private val target: AnnotationTarget,
+    private val runtimeAnnotationsOnly: Boolean = false,
+    private val skipNullnessAnnotations: Boolean = false,
+    private val language: Language = Language.JAVA,
+) {
     /**
      * Write the modifier list (possibly including annotations) to the supplied [writer].
      *
-     * @param target can be one of [AnnotationTarget.SIGNATURE_FILE],
-     *   [AnnotationTarget.SDK_STUBS_FILE] or [AnnotationTarget.DOC_STUBS_FILE].
      * @return true if generating stubs and [Item] is a [MethodItem] and requires a body in order
      *   for the stub to compile.
      */
-    fun write(
-        writer: Writer,
-        item: Item,
-        target: AnnotationTarget,
-        runtimeAnnotationsOnly: Boolean = false,
-        skipNullnessAnnotations: Boolean = false,
-        language: Language = Language.JAVA
-    ): Boolean {
-        writeAnnotations(
-            writer,
-            item,
-            target,
-            runtimeAnnotationsOnly,
-            skipNullnessAnnotations,
-        )
+    fun write(item: Item): Boolean {
+        writeAnnotations(item)
 
         if (
             item is PackageItem ||
@@ -185,13 +180,7 @@ object ModifierListWriter {
         }
     }
 
-    private fun writeAnnotations(
-        writer: Writer,
-        item: Item,
-        target: AnnotationTarget,
-        runtimeAnnotationsOnly: Boolean = false,
-        skipNullnessAnnotations: Boolean = false,
-    ) {
+    private fun writeAnnotations(item: Item) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =

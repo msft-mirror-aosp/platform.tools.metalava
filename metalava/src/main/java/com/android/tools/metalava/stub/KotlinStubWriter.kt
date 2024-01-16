@@ -38,6 +38,15 @@ internal class KotlinStubWriter(
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
+    private val modifierListWriter =
+        ModifierListWriter(
+            writer = writer,
+            target = annotationTarget,
+            runtimeAnnotationsOnly = !generateAnnotations,
+            skipNullnessAnnotations = true,
+            language = Language.KOTLIN,
+        )
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
@@ -85,15 +94,7 @@ internal class KotlinStubWriter(
         }
     }
 
-    private fun appendModifiers(item: Item) =
-        ModifierListWriter.write(
-            writer,
-            item,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-            skipNullnessAnnotations = true,
-            language = Language.KOTLIN
-        )
+    private fun appendModifiers(item: Item) = modifierListWriter.write(item)
 
     private fun generateSuperClassDeclaration(cls: ClassItem): Boolean {
         if (cls.isEnum() || cls.isAnnotationType()) {

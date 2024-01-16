@@ -40,6 +40,13 @@ internal class JavaStubWriter(
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
+    private val modifierListWriter =
+        ModifierListWriter(
+            writer = writer,
+            target = annotationTarget,
+            runtimeAnnotationsOnly = !generateAnnotations,
+        )
+
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
@@ -116,13 +123,7 @@ internal class JavaStubWriter(
         writer.print("}\n\n")
     }
 
-    private fun appendModifiers(item: Item) =
-        ModifierListWriter.write(
-            writer,
-            item,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-        )
+    private fun appendModifiers(item: Item) = modifierListWriter.write(item)
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {

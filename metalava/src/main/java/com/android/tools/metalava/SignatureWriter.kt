@@ -60,6 +60,13 @@ class SignatureWriter(
         }
     }
 
+    private val modifierListWriter =
+        ModifierListWriter(
+            writer = writer,
+            target = AnnotationTarget.SIGNATURE_FILE,
+            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
+        )
+
     internal fun write(text: String) {
         // If a header must only be written out when the file is not empty then write it here as
         // this is not called
@@ -215,12 +222,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        ModifierListWriter.write(
-            writer = writer,
-            item = item,
-            target = AnnotationTarget.SIGNATURE_FILE,
-            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
-        )
+        modifierListWriter.write(item)
     }
 
     /** Get the filtered super class type, ignoring java.lang.Object. */
