@@ -147,9 +147,9 @@ class FastPathTest : DriverTest() {
 
     @Test
     fun `Check fast path not taken`() {
-        // The fast path check is byte for byte to just trim some white lines off the end of the
-        // contents and the fast path should not be taken.
         checkFastPath(
+            // The fast path check is byte for byte to just trim some white lines off the end of the
+            // contents and the fast path should not be taken.
             releaseSignatureContents = SIGNATURE_CONTENTS.trim(),
             sourceFile = java(SOURCE_FILE_CONTENTS),
             expectedFastPathResult = false,
@@ -157,13 +157,25 @@ class FastPathTest : DriverTest() {
     }
 
     @Test
-    fun `Check fast path not performed for removed`() {
+    fun `Check fast path taken for removed`() {
         checkFastPath(
             apiType = ApiType.REMOVED,
             releaseSignatureContents = REMOVED_CONTENTS,
             sourceFile = java(SOURCE_FILE_CONTENTS),
+            expectedFastPathResult = true,
+        )
+    }
+
+    @Test
+    fun `Check fast path not taken for removed`() {
+        checkFastPath(
+            apiType = ApiType.REMOVED,
+            // The fast path check is byte for byte to just trim some white lines off the end of the
+            // contents and the fast path should not be taken.
+            releaseSignatureContents = REMOVED_CONTENTS.trim(),
+            sourceFile = java(SOURCE_FILE_CONTENTS),
             // An expected result of `null` indicates that it was not actually checked.
-            expectedFastPathResult = null,
+            expectedFastPathResult = false,
         )
     }
 
