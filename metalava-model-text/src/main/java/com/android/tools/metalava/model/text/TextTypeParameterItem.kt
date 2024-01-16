@@ -43,7 +43,6 @@ class TextTypeParameterItem(
         return TextVariableTypeItem(
             codebase,
             name,
-            name,
             this,
             TextTypeModifiers.create(codebase, emptyList(), null)
         )
