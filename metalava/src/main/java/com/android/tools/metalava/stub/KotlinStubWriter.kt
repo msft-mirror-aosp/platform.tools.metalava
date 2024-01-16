@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -86,7 +86,7 @@ internal class KotlinStubWriter(
     }
 
     private fun appendModifiers(item: Item) =
-        ModifierList.write(
+        ModifierListWriter.write(
             writer,
             item,
             target = annotationTarget,

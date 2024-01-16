@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -215,7 +215,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        ModifierList.write(
+        ModifierListWriter.write(
             writer = writer,
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
