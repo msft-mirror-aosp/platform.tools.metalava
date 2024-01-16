@@ -56,11 +56,7 @@ internal class KotlinStubWriter(
 
         writer.println("@file:Suppress(\"ALL\")")
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val removeAbstract = cls.modifiers.isAbstract() && (cls.isEnum() || cls.isAnnotationType())
-
-        appendModifiers(cls, cls.modifiers, removeAbstract)
+        appendModifiers(cls, cls.modifiers)
 
         when {
             cls.isAnnotationType() -> writer.print("annotation class")

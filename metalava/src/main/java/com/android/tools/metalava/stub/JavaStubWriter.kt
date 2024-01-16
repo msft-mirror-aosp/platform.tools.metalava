@@ -69,11 +69,7 @@ internal class JavaStubWriter(
         // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
         writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val removeAbstract = cls.modifiers.isAbstract() && (cls.isEnum() || cls.isAnnotationType())
-
-        appendModifiers(cls, removeAbstract)
+        appendModifiers(cls)
 
         when {
             cls.isAnnotationType() -> writer.print("@interface")
