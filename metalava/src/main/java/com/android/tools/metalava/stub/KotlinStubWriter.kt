@@ -85,12 +85,7 @@ internal class KotlinStubWriter(
         }
     }
 
-    private fun appendModifiers(
-        item: Item,
-        removeAbstract: Boolean = false,
-    ) {
-        val separateLines = item is ClassItem || item is MethodItem
-
+    private fun appendModifiers(item: Item, removeAbstract: Boolean = false) =
         ModifierList.write(
             writer,
             item,
@@ -98,10 +93,8 @@ internal class KotlinStubWriter(
             runtimeAnnotationsOnly = !generateAnnotations,
             skipNullnessAnnotations = true,
             removeAbstract = removeAbstract,
-            separateLines = separateLines,
             language = Language.KOTLIN
         )
-    }
 
     private fun generateSuperClassDeclaration(cls: ClassItem): Boolean {
         if (cls.isEnum() || cls.isAnnotationType()) {

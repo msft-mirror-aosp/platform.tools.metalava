@@ -105,7 +105,6 @@ internal class JavaStubWriter(
                         target = annotationTarget,
                         runtimeAnnotationsOnly = !generateAnnotations,
                         writer = writer,
-                        separateLines = true,
                         skipNullnessAnnotations = false,
                     )
 
@@ -122,21 +121,14 @@ internal class JavaStubWriter(
         writer.print("}\n\n")
     }
 
-    private fun appendModifiers(
-        item: Item,
-        removeAbstract: Boolean = false,
-    ) {
-        val separateLines = item is ClassItem || item is MethodItem
-
+    private fun appendModifiers(item: Item, removeAbstract: Boolean = false) =
         ModifierList.write(
             writer,
             item,
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,
             removeAbstract = removeAbstract,
-            separateLines = separateLines
         )
-    }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {

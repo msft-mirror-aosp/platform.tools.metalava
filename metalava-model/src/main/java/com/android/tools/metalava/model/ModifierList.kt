@@ -191,7 +191,6 @@ interface ModifierList {
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
             removeAbstract: Boolean = false,
-            separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
             writeAnnotations(
@@ -199,7 +198,6 @@ interface ModifierList {
                 target,
                 runtimeAnnotationsOnly,
                 writer,
-                separateLines,
                 skipNullnessAnnotations,
             )
 
@@ -319,9 +317,20 @@ interface ModifierList {
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean = false,
             writer: Writer,
-            separateLines: Boolean,
             skipNullnessAnnotations: Boolean = false,
         ) {
+            // Generate annotations on separate lines in stub files for packages, classes and
+            // methods and also for enum constants.
+            val separateLines =
+                target != AnnotationTarget.SIGNATURE_FILE &&
+                    when (item) {
+                        is MethodItem,
+                        is ClassItem,
+                        is PackageItem -> true
+                        is FieldItem -> item.isEnumConstant()
+                        else -> false
+                    }
+
             // Do not write deprecate or suppress compatibility annotations on a package.
             if (item !is PackageItem) {
                 if (item.deprecated) {

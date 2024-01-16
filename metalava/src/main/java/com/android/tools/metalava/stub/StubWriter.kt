@@ -115,7 +115,6 @@ internal class StubWriter(
                 // Package info does not have modifiers but does have annotations.
                 ModifierList.writeAnnotations(
                     item = pkg,
-                    separateLines = true,
                     target = annotationTarget,
                     writer = packageInfoWriter,
                 )
