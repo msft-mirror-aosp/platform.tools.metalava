@@ -85,14 +85,13 @@ internal class KotlinStubWriter(
         }
     }
 
-    private fun appendModifiers(item: Item, removeAbstract: Boolean = false) =
+    private fun appendModifiers(item: Item) =
         ModifierList.write(
             writer,
             item,
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,
             skipNullnessAnnotations = true,
-            removeAbstract = removeAbstract,
             language = Language.KOTLIN
         )
 
@@ -172,9 +171,6 @@ internal class KotlinStubWriter(
 
     override fun visitMethod(method: MethodItem) {
         if (method.isKotlinProperty()) return // will be handled by visitProperty
-        val containingClass = method.containingClass()
-        val isEnum = containingClass.isEnum()
-        val isAnnotation = containingClass.isAnnotationType()
 
         writer.println()
         appendDocumentation(method, writer, config)
@@ -182,12 +178,7 @@ internal class KotlinStubWriter(
         // TODO: Should be an annotation
         generateThrowsList(method)
 
-        // Need to filter out abstract from the modifiers list and turn it
-        // into a concrete method to make the stub compile
-        val modifiers = method.modifiers
-        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
-
-        val requiresBody = appendModifiers(method, removeAbstract)
+        val requiresBody = appendModifiers(method)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         writer.print("fun ")
@@ -198,7 +189,7 @@ internal class KotlinStubWriter(
         val returnType = method.returnType()
         writeType(returnType)
 
-        if (isAnnotation) {
+        if (method.containingClass().isAnnotationType()) {
             val default = method.defaultValue()
             if (default.isNotEmpty()) {
                 writer.print(" default ")

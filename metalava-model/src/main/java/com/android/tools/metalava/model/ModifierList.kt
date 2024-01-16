@@ -192,7 +192,6 @@ interface ModifierList {
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
-            removeAbstract: Boolean = false,
             language: Language = Language.JAVA
         ): Boolean {
             writeAnnotations(
@@ -239,8 +238,21 @@ interface ModifierList {
                         !list.isDefault() &&
                         !list.isStatic())
 
+            val isAbstract = list.isAbstract()
+            val removeAbstract =
+                isAbstract &&
+                    target != AnnotationTarget.SIGNATURE_FILE &&
+                    methodItem?.let {
+                        val containingClass = methodItem.containingClass()
+
+                        // Need to filter out abstract from the modifiers list and turn it into
+                        // a concrete method to make the stub compile
+                        containingClass.isEnum() || containingClass.isAnnotationType()
+                    }
+                        ?: false
+
             if (
-                list.isAbstract() &&
+                isAbstract &&
                     !removeAbstract &&
                     classItem?.isEnum() != true &&
                     classItem?.isAnnotationType() != true &&
