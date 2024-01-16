@@ -93,7 +93,7 @@ open class TurbineBasedCodebase(
         return packageMap.size
     }
 
-    override fun supportsDocumentation(): Boolean = false
+    override fun supportsDocumentation(): Boolean = true
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource

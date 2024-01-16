@@ -26,7 +26,7 @@ abstract class TurbineItem(
     override var documentation: String,
 ) : DefaultItem(modifiers) {
 
-    override var docOnly: Boolean = false
+    override var docOnly: Boolean = documentation.contains("@doconly")
 
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
