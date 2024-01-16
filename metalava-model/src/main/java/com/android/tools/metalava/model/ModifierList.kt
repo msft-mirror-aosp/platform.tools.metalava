@@ -183,6 +183,8 @@ interface ModifierList {
          *
          * @param target can be one of [AnnotationTarget.SIGNATURE_FILE],
          *   [AnnotationTarget.SDK_STUBS_FILE] or [AnnotationTarget.DOC_STUBS_FILE].
+         * @return true if generating stubs and [Item] is a [MethodItem] and requires a body in
+         *   order for the stub to compile.
          */
         fun write(
             writer: Writer,
@@ -192,7 +194,7 @@ interface ModifierList {
             skipNullnessAnnotations: Boolean = false,
             removeAbstract: Boolean = false,
             language: Language = Language.JAVA
-        ) {
+        ): Boolean {
             writeAnnotations(
                 writer,
                 item,
@@ -209,7 +211,7 @@ interface ModifierList {
             ) {
                 // Packages and enum constants (in a stubs file) use a modifier list, but only
                 // annotations apply.
-                return
+                return false
             }
 
             // Kotlin order:
@@ -315,6 +317,20 @@ interface ModifierList {
                 if (list.isData()) {
                     writer.write("data ")
                 }
+            }
+
+            // Compute whether a method body is required.
+            return if (target == AnnotationTarget.SIGNATURE_FILE || methodItem == null) {
+                false
+            } else {
+                val containingClass = methodItem.containingClass()
+
+                val isEnum = containingClass.isEnum()
+                val isAnnotation = containingClass.isAnnotationType()
+
+                (!list.isAbstract() || removeAbstract || isEnum) &&
+                    !isAnnotation &&
+                    !list.isNative()
             }
         }
 

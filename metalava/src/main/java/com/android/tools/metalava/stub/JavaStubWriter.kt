@@ -309,7 +309,7 @@ internal class JavaStubWriter(
         val modifiers = method.modifiers
         val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
 
-        appendModifiers(method, removeAbstract)
+        val requiresBody = appendModifiers(method, removeAbstract)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -328,10 +328,6 @@ internal class JavaStubWriter(
             }
         }
 
-        val requiresBody =
-            (!modifiers.isAbstract() || removeAbstract || isEnum) &&
-                !isAnnotation &&
-                !modifiers.isNative()
         if (requiresBody) {
             writer.print(" { ")
             writeThrowStub()
