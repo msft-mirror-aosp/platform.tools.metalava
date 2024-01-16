@@ -108,7 +108,6 @@ internal class JavaStubWriter(
                         separateLines = true,
                         list = field.modifiers,
                         skipNullnessAnnotations = false,
-                        omitCommonPackages = false
                     )
 
                     writer.write(field.name())

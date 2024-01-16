@@ -178,13 +178,18 @@ interface ModifierList {
     }
 
     companion object {
+        /**
+         * Write the modifier list (possibly including annotations) to the supplied [writer].
+         *
+         * @param target can be one of [AnnotationTarget.SIGNATURE_FILE],
+         *   [AnnotationTarget.SDK_STUBS_FILE] or [AnnotationTarget.DOC_STUBS_FILE].
+         */
         fun write(
             writer: Writer,
             item: Item,
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
-            omitCommonPackages: Boolean = false,
             removeAbstract: Boolean = false,
             separateLines: Boolean = false,
             language: Language = Language.JAVA
@@ -199,7 +204,6 @@ interface ModifierList {
                 separateLines,
                 list,
                 skipNullnessAnnotations,
-                omitCommonPackages
             )
 
             if (item is PackageItem) {
@@ -320,7 +324,6 @@ interface ModifierList {
             separateLines: Boolean,
             list: ModifierList,
             skipNullnessAnnotations: Boolean,
-            omitCommonPackages: Boolean
         ) {
             if (item.deprecated) {
                 // Do not write @Deprecated for a parameter unless it was explicitly marked as
@@ -340,7 +343,6 @@ interface ModifierList {
                 list = list,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
                 skipNullnessAnnotations = skipNullnessAnnotations,
-                omitCommonPackages = omitCommonPackages,
                 separateLines = separateLines,
                 writer = writer,
                 target = target
@@ -351,7 +353,6 @@ interface ModifierList {
             list: ModifierList,
             skipNullnessAnnotations: Boolean = false,
             runtimeAnnotationsOnly: Boolean = false,
-            omitCommonPackages: Boolean = false,
             separateLines: Boolean = false,
             writer: Writer,
             target: AnnotationTarget
@@ -364,6 +365,8 @@ interface ModifierList {
             }
 
             if (annotations.isNotEmpty()) {
+                // Omit common packages in signature files.
+                val omitCommonPackages = target == AnnotationTarget.SIGNATURE_FILE
                 var index = -1
                 for (annotation in annotations) {
                     index++

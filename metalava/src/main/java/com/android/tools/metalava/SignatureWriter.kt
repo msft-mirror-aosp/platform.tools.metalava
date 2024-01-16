@@ -220,7 +220,6 @@ class SignatureWriter(
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
-            omitCommonPackages = true
         )
     }
 
