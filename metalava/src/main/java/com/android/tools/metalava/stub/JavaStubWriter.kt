@@ -106,7 +106,6 @@ internal class JavaStubWriter(
                         runtimeAnnotationsOnly = !generateAnnotations,
                         writer = writer,
                         separateLines = true,
-                        list = field.modifiers,
                         skipNullnessAnnotations = false,
                     )
 

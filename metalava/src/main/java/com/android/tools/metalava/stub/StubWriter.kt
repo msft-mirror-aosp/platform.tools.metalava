@@ -114,10 +114,10 @@ internal class StubWriter(
             if (annotations.isNotEmpty()) {
                 // Package info does not have modifiers but does have annotations.
                 ModifierList.writeAnnotations(
-                    list = pkg.modifiers,
+                    item = pkg,
                     separateLines = true,
                     target = annotationTarget,
-                    writer = packageInfoWriter
+                    writer = packageInfoWriter,
                 )
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")

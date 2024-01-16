@@ -194,15 +194,12 @@ interface ModifierList {
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
-            val list = item.modifiers
-
             writeAnnotations(
                 item,
                 target,
                 runtimeAnnotationsOnly,
                 writer,
                 separateLines,
-                list,
                 skipNullnessAnnotations,
             )
 
@@ -218,6 +215,7 @@ interface ModifierList {
             val classItem = item as? ClassItem
             val methodItem = item as? MethodItem
 
+            val list = item.modifiers
             val visibilityLevel = list.getVisibilityLevel()
             val modifier =
                 if (language == Language.JAVA) {
@@ -319,44 +317,29 @@ interface ModifierList {
         fun writeAnnotations(
             item: Item,
             target: AnnotationTarget,
-            runtimeAnnotationsOnly: Boolean,
+            runtimeAnnotationsOnly: Boolean = false,
             writer: Writer,
             separateLines: Boolean,
-            list: ModifierList,
-            skipNullnessAnnotations: Boolean,
+            skipNullnessAnnotations: Boolean = false,
         ) {
-            if (item.deprecated) {
-                // Do not write @Deprecated for a parameter unless it was explicitly marked as
-                // deprecated.
-                if (item !is ParameterItem || item.originallyDeprecated) {
-                    writer.write("@Deprecated")
+            // Do not write deprecate or suppress compatibility annotations on a package.
+            if (item !is PackageItem) {
+                if (item.deprecated) {
+                    // Do not write @Deprecated for a parameter unless it was explicitly marked as
+                    // deprecated.
+                    if (item !is ParameterItem || item.originallyDeprecated) {
+                        writer.write("@Deprecated")
+                        writer.write(if (separateLines) "\n" else " ")
+                    }
+                }
+
+                if (item.hasSuppressCompatibilityMetaAnnotation()) {
+                    writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
                     writer.write(if (separateLines) "\n" else " ")
                 }
             }
 
-            if (item.hasSuppressCompatibilityMetaAnnotation()) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
-
-            writeAnnotations(
-                list = list,
-                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = skipNullnessAnnotations,
-                separateLines = separateLines,
-                writer = writer,
-                target = target
-            )
-        }
-
-        fun writeAnnotations(
-            list: ModifierList,
-            skipNullnessAnnotations: Boolean = false,
-            runtimeAnnotationsOnly: Boolean = false,
-            separateLines: Boolean = false,
-            writer: Writer,
-            target: AnnotationTarget
-        ) {
+            val list = item.modifiers
             var annotations = list.annotations()
 
             // Ensure stable signature file order
