@@ -206,9 +206,11 @@ internal class KotlinStubWriter(
             }
         }
 
-        if (modifiers.isAbstract() && !isEnum || isAnnotation || modifiers.isNative()) {
-            // do nothing
-        } else {
+        val requiresBody =
+            (!modifiers.isAbstract() || removeAbstract || isEnum) &&
+                !isAnnotation &&
+                !modifiers.isNative()
+        if (requiresBody) {
             writer.print(" = ")
             writeThrowStub()
         }

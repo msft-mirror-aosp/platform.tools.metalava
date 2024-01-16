@@ -328,16 +328,16 @@ internal class JavaStubWriter(
             }
         }
 
-        if (
-            modifiers.isAbstract() && !removeAbstract && !isEnum ||
-                isAnnotation ||
-                modifiers.isNative()
-        ) {
-            writer.println(";")
-        } else {
+        val requiresBody =
+            (!modifiers.isAbstract() || removeAbstract || isEnum) &&
+                !isAnnotation &&
+                !modifiers.isNative()
+        if (requiresBody) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
+        } else {
+            writer.println(";")
         }
     }
 
