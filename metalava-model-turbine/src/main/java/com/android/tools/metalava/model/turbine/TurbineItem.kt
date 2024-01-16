@@ -22,12 +22,11 @@ import com.android.tools.metalava.model.source.utils.LazyDelegate
 
 abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineModifierItem
+    override val modifiers: TurbineModifierItem,
+    override var documentation: String,
 ) : DefaultItem(modifiers) {
 
-    override var docOnly: Boolean = false
-
-    override var documentation: String = ""
+    override var docOnly: Boolean = documentation.contains("@doconly")
 
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 

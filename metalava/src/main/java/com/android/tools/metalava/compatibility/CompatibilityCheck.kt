@@ -58,7 +58,6 @@ import java.util.function.Predicate
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
     private val apiType: ApiType,
-    private val base: Codebase? = null,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
 ) : ComparisonVisitor() {
@@ -809,15 +808,6 @@ class CompatibilityCheck(
             }
         }
 
-        // In some cases we run the comparison on signature files
-        // generated into the temp directory, but in these cases
-        // try to report the item against the real item in the API instead
-        val equivalent = findBaseItem(item)
-        if (equivalent != null) {
-            report(issue, equivalent, message)
-            return
-        }
-
         report(issue, item, message)
     }
 
@@ -834,22 +824,6 @@ class CompatibilityCheck(
             item,
             "Removed ${if (item.effectivelyDeprecated) "deprecated " else ""}${describe(item)}"
         )
-    }
-
-    private fun findBaseItem(item: Item): Item? {
-        base ?: return null
-
-        return when (item) {
-            is PackageItem -> base.findPackage(item.qualifiedName())
-            is ClassItem -> base.findClass(item.qualifiedName())
-            is MethodItem ->
-                base
-                    .findClass(item.containingClass().qualifiedName())
-                    ?.findMethod(item, includeSuperClasses = true, includeInterfaces = true)
-            is FieldItem ->
-                base.findClass(item.containingClass().qualifiedName())?.findField(item.name())
-            else -> null
-        }
     }
 
     override fun added(new: PackageItem) {
@@ -1031,7 +1005,6 @@ class CompatibilityCheck(
                 CompatibilityCheck(
                     filter,
                     apiType,
-                    baseApi,
                     reporter,
                     issueConfiguration,
                 )

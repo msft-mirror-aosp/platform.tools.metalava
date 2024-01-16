@@ -24,8 +24,8 @@ class TurbinePackageItem(
     codebase: TurbineBasedCodebase,
     private val qualifiedName: String,
     modifiers: TurbineModifierItem,
-    override var documentation: String,
-) : TurbineItem(codebase, modifiers), PackageItem {
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
