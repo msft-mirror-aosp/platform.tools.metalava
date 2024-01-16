@@ -189,18 +189,7 @@ interface ModifierList {
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
-            val modifiers = item.modifiers
-            val list =
-                if (removeAbstract) {
-                    class AbstractFiltering : ModifierList by modifiers {
-                        override fun isAbstract(): Boolean {
-                            return if (removeAbstract) false else modifiers.isAbstract()
-                        }
-                    }
-                    AbstractFiltering()
-                } else {
-                    modifiers
-                }
+            val list = item.modifiers
 
             writeAnnotations(
                 item,
@@ -244,6 +233,7 @@ interface ModifierList {
 
             if (
                 list.isAbstract() &&
+                    !removeAbstract &&
                     classItem?.isEnum() != true &&
                     classItem?.isAnnotationType() != true &&
                     !isInterface
