@@ -23,7 +23,6 @@ import com.android.tools.metalava.fastPathCheckResult
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
-import java.io.File
 import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
@@ -72,28 +71,23 @@ class FastPathTest : DriverTest() {
             TestFiles.source("released-api.txt", releaseSignatureContents)
                 .createFile(temporaryFolder.newFolder())
 
-        checkFastPath(
-            releasedSignatureFile = signatureFile,
-            expectedFastPathResult = expectedFastPathResult,
-            sourceFile = sourceFile,
-        )
+        checkFastPath(expectedFastPathResult = expectedFastPathResult) {
+            check(
+                format = FileFormat.V2,
+                checkCompatibilityApiReleased = signatureFile.path,
+                sourceFiles = arrayOf(sourceFile),
+            )
+        }
     }
 
     private fun checkFastPath(
-        releasedSignatureFile: File,
         expectedFastPathResult: Boolean,
-        sourceFile: TestFile? = null,
-        apiJar: File? = null,
+        test: () -> Unit,
     ) {
         // Set the global variable to `null` to detect whether the fast path check was made.
         fastPathCheckResult = null
 
-        check(
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased = releasedSignatureFile.path,
-            sourceFiles = sourceFile?.let { arrayOf(sourceFile) } ?: emptyArray(),
-            apiJar = apiJar,
-        )
+        test()
 
         when (fastPathCheckResult) {
             null -> Assert.fail("fast path check not performed")
@@ -131,10 +125,12 @@ class FastPathTest : DriverTest() {
         // pathological heap growth compared to the size of the file being read. Having the other
         // codebase in memory is enough to push the test over the 512MB heap size.
         val androidJar = getAndroidJar()
-        checkFastPath(
-            releasedSignatureFile = androidJar,
-            expectedFastPathResult = false,
-            apiJar = androidJar,
-        )
+        checkFastPath(expectedFastPathResult = false) {
+            check(
+                format = FileFormat.V2,
+                checkCompatibilityApiReleased = androidJar.path,
+                apiJar = androidJar,
+            )
+        }
     }
 }
