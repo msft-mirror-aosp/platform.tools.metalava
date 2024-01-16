@@ -128,19 +128,10 @@ internal class JavaStubWriter(
         item: Item,
         removeAbstract: Boolean = false,
     ) {
-        appendModifiers(item, item.modifiers, removeAbstract)
-    }
-
-    private fun appendModifiers(
-        item: Item,
-        modifiers: ModifierList,
-        removeAbstract: Boolean,
-    ) {
         val separateLines = item is ClassItem || item is MethodItem
 
         ModifierList.write(
             writer,
-            modifiers,
             item,
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,
@@ -315,7 +306,6 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-        val modifiers = method.modifiers
         val isEnum = containingClass.isEnum()
         val isAnnotation = containingClass.isAnnotationType()
 
@@ -331,9 +321,10 @@ internal class JavaStubWriter(
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
+        val modifiers = method.modifiers
         val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
 
-        appendModifiers(method, modifiers, removeAbstract)
+        appendModifiers(method, removeAbstract)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()

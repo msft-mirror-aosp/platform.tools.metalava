@@ -180,7 +180,6 @@ interface ModifierList {
     companion object {
         fun write(
             writer: Writer,
-            modifiers: ModifierList,
             item: Item,
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean = false,
@@ -190,6 +189,7 @@ interface ModifierList {
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
+            val modifiers = item.modifiers
             val list =
                 if (removeAbstract) {
                     class AbstractFiltering : ModifierList by modifiers {

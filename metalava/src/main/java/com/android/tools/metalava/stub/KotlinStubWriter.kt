@@ -56,7 +56,7 @@ internal class KotlinStubWriter(
 
         writer.println("@file:Suppress(\"ALL\")")
 
-        appendModifiers(cls, cls.modifiers)
+        appendModifiers(cls)
 
         when {
             cls.isAnnotationType() -> writer.print("annotation class")
@@ -87,14 +87,12 @@ internal class KotlinStubWriter(
 
     private fun appendModifiers(
         item: Item,
-        modifiers: ModifierList,
         removeAbstract: Boolean = false,
     ) {
         val separateLines = item is ClassItem || item is MethodItem
 
         ModifierList.write(
             writer,
-            modifiers,
             item,
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,
@@ -182,7 +180,6 @@ internal class KotlinStubWriter(
     override fun visitMethod(method: MethodItem) {
         if (method.isKotlinProperty()) return // will be handled by visitProperty
         val containingClass = method.containingClass()
-        val modifiers = method.modifiers
         val isEnum = containingClass.isEnum()
         val isAnnotation = containingClass.isAnnotationType()
 
@@ -194,9 +191,10 @@ internal class KotlinStubWriter(
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
+        val modifiers = method.modifiers
         val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
 
-        appendModifiers(method, modifiers, removeAbstract)
+        appendModifiers(method, removeAbstract)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         writer.print("fun ")
@@ -238,10 +236,7 @@ internal class KotlinStubWriter(
             if (i > 0) {
                 writer.print(", ")
             }
-            appendModifiers(
-                parameter,
-                parameter.modifiers,
-            )
+            appendModifiers(parameter)
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)
             writer.print(": ")

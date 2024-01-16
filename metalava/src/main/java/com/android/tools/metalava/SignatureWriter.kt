@@ -217,7 +217,6 @@ class SignatureWriter(
     private fun writeModifiers(item: Item) {
         ModifierList.write(
             writer = writer,
-            modifiers = item.modifiers,
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
