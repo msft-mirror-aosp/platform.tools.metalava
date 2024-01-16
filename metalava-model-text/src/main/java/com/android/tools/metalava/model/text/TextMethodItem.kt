@@ -70,6 +70,21 @@ open class TextMethodItem(
                 return false
             }
         }
+
+        val typeParameters1 = typeParameterList().typeParameters()
+        val typeParameters2 = other.typeParameterList().typeParameters()
+
+        if (typeParameters1.size != typeParameters2.size) {
+            return false
+        }
+
+        for (i in typeParameters1.indices) {
+            val typeParameter1 = typeParameters1[i]
+            val typeParameter2 = typeParameters2[i]
+            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
+                return false
+            }
+        }
         return true
     }
 
