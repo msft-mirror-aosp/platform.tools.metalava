@@ -542,6 +542,6 @@ class StructuredOptionName<T>(private val delegate: OptionDelegate<T>) :
         }
         checkStructuredOptionNames(names)
         thisRef.registerOption(delegate)
-        return delegate
+        return this
     }
 }

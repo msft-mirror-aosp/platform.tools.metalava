@@ -426,21 +426,14 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
-                previouslyReleasedRemovedCodebaseProvider = { previouslyReleasedRemovedCodebase },
+                previouslyReleasedCodebasesProvider = {
+                    compatibilityCheckOptions.previouslyReleasedCodebases(signatureFileCache)
+                },
             )
         )
     }
 
     internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
-
-    private val previouslyReleasedCodebase by lazy {
-        compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
-    }
-
-    private val previouslyReleasedRemovedCodebase by lazy {
-        compatibilityCheckOptions.previouslyReleasedRemovedCodebase(signatureFileCache)
-    }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     private val suppressCompatibilityMetaAnnotations by
