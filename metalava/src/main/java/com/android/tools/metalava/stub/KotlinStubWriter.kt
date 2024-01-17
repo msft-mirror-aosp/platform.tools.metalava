@@ -19,7 +19,6 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.TypeItem
@@ -30,20 +29,11 @@ import java.util.function.Predicate
 
 internal class KotlinStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
-
-    private val modifierListWriter =
-        ModifierListWriter.forStubs(
-            writer = writer,
-            docStubs = docStubs,
-            runtimeAnnotationsOnly = !generateAnnotations,
-            language = Language.KOTLIN,
-        )
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {

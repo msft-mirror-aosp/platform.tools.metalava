@@ -31,20 +31,12 @@ import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
-
-    private val modifierListWriter =
-        ModifierListWriter.forStubs(
-            writer = writer,
-            docStubs = docStubs,
-            runtimeAnnotationsOnly = !generateAnnotations,
-        )
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {

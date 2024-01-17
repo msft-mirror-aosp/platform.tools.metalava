@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
@@ -195,24 +196,33 @@ internal class StubWriter(
                     errorTextWriter
                 }
 
+            val kotlin = config.kotlinStubs && cls.isKotlin()
+            val language = if (kotlin) Language.KOTLIN else Language.JAVA
+
+            val modifierListWriter =
+                ModifierListWriter.forStubs(
+                    writer = textWriter,
+                    docStubs = docStubs,
+                    runtimeAnnotationsOnly = !generateAnnotations,
+                    language = language,
+                )
+
             stubWriter =
-                if (config.kotlinStubs && cls.isKotlin()) {
+                if (kotlin) {
                     KotlinStubWriter(
                         textWriter,
+                        modifierListWriter,
                         filterReference,
-                        generateAnnotations,
                         preFiltered,
-                        docStubs,
                         config,
                     )
                 } else {
                     JavaStubWriter(
                         textWriter,
+                        modifierListWriter,
                         filterEmit,
                         filterReference,
-                        generateAnnotations,
                         preFiltered,
-                        docStubs,
                         config,
                     )
                 }
