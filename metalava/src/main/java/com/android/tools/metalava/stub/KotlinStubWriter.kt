@@ -39,11 +39,10 @@ internal class KotlinStubWriter(
 ) : BaseItemVisitor() {
 
     private val modifierListWriter =
-        ModifierListWriter(
+        ModifierListWriter.forStubs(
             writer = writer,
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,
-            skipNullnessAnnotations = true,
             language = Language.KOTLIN,
         )
 

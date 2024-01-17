@@ -41,7 +41,7 @@ internal class JavaStubWriter(
 ) : BaseItemVisitor() {
 
     private val modifierListWriter =
-        ModifierListWriter(
+        ModifierListWriter.forStubs(
             writer = writer,
             target = annotationTarget,
             runtimeAnnotationsOnly = !generateAnnotations,

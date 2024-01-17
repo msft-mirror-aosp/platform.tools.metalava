@@ -115,7 +115,7 @@ internal class StubWriter(
                 // Write the modifier list even though the package info does not actually have
                 // modifiers as that will write the annotations which it does have and ignore the
                 // modifiers.
-                ModifierListWriter(packageInfoWriter, annotationTarget).write(pkg)
+                ModifierListWriter.forStubs(packageInfoWriter, annotationTarget).write(pkg)
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")
 

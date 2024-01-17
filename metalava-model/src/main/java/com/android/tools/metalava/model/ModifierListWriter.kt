@@ -18,7 +18,8 @@ package com.android.tools.metalava.model
 
 import java.io.Writer
 
-class ModifierListWriter(
+class ModifierListWriter
+private constructor(
     private val writer: Writer,
     /**
      * Can be one of [AnnotationTarget.SIGNATURE_FILE], [AnnotationTarget.SDK_STUBS_FILE] or
@@ -29,6 +30,32 @@ class ModifierListWriter(
     private val skipNullnessAnnotations: Boolean = false,
     private val language: Language = Language.JAVA,
 ) {
+    companion object {
+        fun forSignature(
+            writer: Writer,
+            skipNullnessAnnotations: Boolean,
+        ) =
+            ModifierListWriter(
+                writer = writer,
+                target = AnnotationTarget.SIGNATURE_FILE,
+                skipNullnessAnnotations = skipNullnessAnnotations,
+            )
+
+        fun forStubs(
+            writer: Writer,
+            target: AnnotationTarget,
+            runtimeAnnotationsOnly: Boolean = false,
+            language: Language = Language.JAVA,
+        ) =
+            ModifierListWriter(
+                writer = writer,
+                target = target,
+                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
+                skipNullnessAnnotations = language == Language.KOTLIN,
+                language = language,
+            )
+    }
+
     /**
      * Write the modifier list (possibly including annotations) to the supplied [writer].
      *

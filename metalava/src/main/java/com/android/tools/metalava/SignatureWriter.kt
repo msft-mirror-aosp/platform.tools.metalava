@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -61,9 +60,8 @@ class SignatureWriter(
     }
 
     private val modifierListWriter =
-        ModifierListWriter(
+        ModifierListWriter.forSignature(
             writer = writer,
-            target = AnnotationTarget.SIGNATURE_FILE,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
         )
 
