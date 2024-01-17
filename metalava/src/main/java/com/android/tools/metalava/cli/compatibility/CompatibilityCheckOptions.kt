@@ -119,9 +119,6 @@ class CompatibilityCheckOptions :
         }
     }
 
-    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
-        checkReleasedApi?.let { signatureFileCache.load(it) }
-
-    fun previouslyReleasedRemovedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
-        checkReleasedRemoved?.let { signatureFileCache.load(it) }
+    fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
+        listOfNotNull(checkReleasedApi, checkReleasedRemoved).map { signatureFileCache.load(it) }
 }
