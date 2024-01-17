@@ -21,15 +21,18 @@ import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
+import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
+import org.jetbrains.kotlin.analysis.api.types.KtType
+import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
+import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -42,10 +45,11 @@ import org.jetbrains.uast.sourcePsiElement
 abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
-    element: PsiElement,
+    val element: PsiElement,
     override val modifiers: PsiModifierItem,
     override var documentation: String
-) : DefaultItem(modifiers) {
+) : DefaultItem() {
+    @Suppress("LeakingThis") override var deprecated: Boolean = modifiers.isDeprecated()
 
     @Suppress(
         "LeakingThis"
@@ -86,7 +90,7 @@ internal constructor(
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
-    abstract fun psi(): PsiElement
+    open fun psi(): PsiElement = element
 
     override fun location(): Location {
         return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
@@ -105,7 +109,7 @@ internal constructor(
         // That is, we should keep the nullable annotation for that return type.
         if (this is MethodItem && modifiers.isSuspend()) return@lazy false
 
-        when (sourcePsi) {
+        when (val sourcePsi = (element as? UElement)?.sourcePsi) {
             is KtCallableDeclaration -> {
                 analyze(sourcePsi) {
                     // NB: We should not use [KtDeclaration.getReturnKtType]; see its comment:
@@ -130,11 +134,25 @@ internal constructor(
         }
     }
 
+    // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
+    private fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {
+        return ktType is KtTypeParameterType &&
+            // explicitly nullable, e.g., T?
+            !ktType.isMarkedNullable &&
+            // non-null upper bound, e.g., T : Any
+            nullability(ktType) != KtTypeNullability.NON_NULLABLE
+    }
+
+    // Mimic `nullability` in `...uast.kotlin.internal.firKotlinInternalUastUtils`
+    private fun KtAnalysisSession.nullability(ktType: KtType): KtTypeNullability {
+        return if (ktType.canBeNull) KtTypeNullability.NULLABLE else KtTypeNullability.NON_NULLABLE
+    }
+
     /** Get a mutable version of modifiers for this item */
     override fun mutableModifiers(): MutableModifierList = modifiers
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
-        if (psi() is PsiCompiledElement) {
+        if (element is PsiCompiledElement) {
             return null
         }
         if (documentation.isBlank()) {
@@ -217,7 +235,8 @@ internal constructor(
             return
         }
 
-        documentation = mergeDocumentation(documentation, psi(), comment.trim(), tagSection, append)
+        documentation =
+            mergeDocumentation(documentation, element, comment.trim(), tagSection, append)
     }
 
     private fun addUniqueTag(
@@ -298,7 +317,7 @@ internal constructor(
     }
 
     override fun isKotlin(): Boolean {
-        return isKotlin(psi())
+        return isKotlin(element)
     }
 
     companion object {

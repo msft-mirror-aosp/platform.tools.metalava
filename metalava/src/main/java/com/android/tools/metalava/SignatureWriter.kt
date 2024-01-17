@@ -48,6 +48,7 @@ class SignatureWriter(
         nestInnerClasses = false,
         inlineInheritedFields = true,
         methodComparator = fileFormat.overloadedMethodOrder.comparator,
+        fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
@@ -122,10 +123,10 @@ class SignatureWriter(
             // Kotlin style: write the name of the field, then the type.
             write(field.name())
             write(": ")
-            writeType(field.type())
+            writeType(field, field.type())
         } else {
             // Java style: write the type, then the name of the field.
-            writeType(field.type())
+            writeType(field, field.type())
             write(" ")
             write(field.name())
         }
@@ -145,10 +146,10 @@ class SignatureWriter(
             // Kotlin style: write the name of the property, then the type.
             write(property.name())
             write(": ")
-            writeType(property.type())
+            writeType(property, property.type())
         } else {
             // Java style: write the type, then the name of the property.
-            writeType(property.type())
+            writeType(property, property.type())
             write(" ")
             write(property.name())
         }
@@ -165,10 +166,10 @@ class SignatureWriter(
             write(method.name())
             writeParameterList(method)
             write(": ")
-            writeType(method.returnType())
+            writeType(method, method.returnType())
         } else {
             // Java style: write the type, then the name of the method and the parameters.
-            writeType(method.returnType())
+            writeType(method, method.returnType())
             write(" ")
             write(method.name())
             writeParameterList(method)
@@ -220,6 +221,7 @@ class SignatureWriter(
             modifiers = item.modifiers,
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
+            includeDeprecated = true,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
             omitCommonPackages = true
         )
@@ -249,6 +251,7 @@ class SignatureWriter(
             typeItem.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = false,
+                context = typeItem.asClass(),
                 filter = filterReference
             )
         write(" ")
@@ -344,10 +347,10 @@ class SignatureWriter(
                 val name = parameter.publicName() ?: "_"
                 write(name)
                 write(": ")
-                writeType(parameter.type())
+                writeType(parameter, parameter.type())
             } else {
                 // Java style: write the type, then the name if it has a public name.
-                writeType(parameter.type())
+                writeType(parameter, parameter.type())
                 val name = parameter.publicName()
                 if (name != null) {
                     write(" ")
@@ -370,13 +373,17 @@ class SignatureWriter(
         write(")")
     }
 
-    private fun writeType(type: TypeItem?) {
+    private fun writeType(
+        item: Item,
+        type: TypeItem?,
+    ) {
         type ?: return
 
         var typeString =
             type.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+                kotlinStyleNulls = fileFormat.kotlinStyleNulls && !item.hasInheritedGenericType(),
+                context = item,
                 filter = filterReference
             )
 

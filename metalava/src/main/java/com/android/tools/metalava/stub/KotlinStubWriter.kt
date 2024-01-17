@@ -103,8 +103,9 @@ internal class KotlinStubWriter(
             modifiers,
             item,
             target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
             skipNullnessAnnotations = true,
+            includeDeprecated = true,
+            runtimeAnnotationsOnly = !generateAnnotations,
             removeAbstract = removeAbstract,
             removeFinal = removeFinal,
             addPublic = addPublic,
@@ -133,8 +134,9 @@ internal class KotlinStubWriter(
                 // to remember to do this!!
                 val s = superClass.asClass()
                 if (s != null) {
-                    val replaced = superClass.convertType(cls, s)
-                    writer.print(replaced.toTypeString())
+                    val map = cls.mapTypeVariables(s)
+                    val replaced = superClass.convertTypeString(map)
+                    writer.print(replaced)
                     return true
                 }
             }
@@ -173,13 +175,14 @@ internal class KotlinStubWriter(
         }
     }
 
-    private fun writeType(type: TypeItem?) {
+    private fun writeType(item: Item, type: TypeItem?) {
         type ?: return
 
         val typeString =
             type.toTypeString(
                 annotations = false,
                 kotlinStyleNulls = true,
+                context = item,
                 filter = filterReference
                 // TODO pass in language = Language.KOTLIN
             )
@@ -213,7 +216,7 @@ internal class KotlinStubWriter(
 
         writer.print(": ")
         val returnType = method.returnType()
-        writeType(returnType)
+        writeType(method, returnType)
 
         if (isAnnotation) {
             val default = method.defaultValue()
@@ -256,7 +259,7 @@ internal class KotlinStubWriter(
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)
             writer.print(": ")
-            writeType(parameter.type())
+            writeType(method, parameter.type())
         }
         writer.print(")")
     }

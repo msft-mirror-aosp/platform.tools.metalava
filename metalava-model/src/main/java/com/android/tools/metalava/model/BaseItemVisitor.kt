@@ -166,6 +166,18 @@ open class BaseItemVisitor(
         afterVisitItem(property)
     }
 
+    override fun visit(sourceFile: SourceFileItem) {
+        if (skip(sourceFile)) return
+
+        visitItem(sourceFile)
+        visitSourceFile(sourceFile)
+
+        sourceFile.classes().forEach { it.accept(this) }
+
+        afterVisitSourceFile(sourceFile)
+        afterVisitItem(sourceFile)
+    }
+
     open fun skip(item: Item): Boolean = false
 
     /**
@@ -177,6 +189,8 @@ open class BaseItemVisitor(
     open fun visitCodebase(codebase: Codebase) {}
 
     open fun visitPackage(pkg: PackageItem) {}
+
+    open fun visitSourceFile(sourceFile: SourceFileItem) {}
 
     open fun visitClass(cls: ClassItem) {}
 
@@ -199,6 +213,8 @@ open class BaseItemVisitor(
     open fun afterVisitCodebase(codebase: Codebase) {}
 
     open fun afterVisitPackage(pkg: PackageItem) {}
+
+    open fun afterVisitSourceFile(sourceFile: SourceFileItem) {}
 
     open fun afterVisitClass(cls: ClassItem) {}
 

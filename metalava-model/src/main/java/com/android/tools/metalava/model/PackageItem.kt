@@ -37,8 +37,6 @@ interface PackageItem : Item {
 
     override fun type(): TypeItem? = null
 
-    override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findPackage(qualifiedName())
-
     val isDefault
         get() = qualifiedName().isEmpty()
 

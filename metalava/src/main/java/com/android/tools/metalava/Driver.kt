@@ -137,7 +137,7 @@ internal fun processFlags(
             jdkHome = options.jdkHome,
         )
 
-    val signatureFileCache = options.signatureFileCache
+    val signatureFileCache = SignatureFileCache(annotationManager)
 
     val actionContext =
         ActionContext(
@@ -292,7 +292,7 @@ internal fun processFlags(
                 codebase.preFiltered,
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
+                apiVisitorConfig = options.apiVisitorConfig,
             )
         }
     }
@@ -649,13 +649,8 @@ private fun ActionContext.loadFromSources(
                 else -> signatureFileCache.load(file = previousApiFile)
             }
         val apiLintReporter = reporterApiLint as DefaultReporter
-        ApiLint.check(
-            codebase,
-            previous,
-            apiLintReporter,
-            options.manifest,
-            options.apiVisitorConfig,
-        )
+        ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
+            .check()
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
         )

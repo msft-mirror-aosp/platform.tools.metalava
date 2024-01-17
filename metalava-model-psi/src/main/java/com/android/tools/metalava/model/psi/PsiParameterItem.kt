@@ -45,7 +45,7 @@ import org.jetbrains.uast.UastFacade
 
 class PsiParameterItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,
     override val parameterIndex: Int,
@@ -65,8 +65,6 @@ internal constructor(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
-
-    override fun psi() = psiParameter
 
     override fun publicName(): String? {
         if (isKotlin(psiParameter)) {
@@ -188,7 +186,7 @@ internal constructor(
             analyze(ktFunction) {
                 val function =
                     if (ktFunction.hasActualModifier()) {
-                        ktFunction.getSymbol().getExpectsForActual().singleOrNull()
+                        ktFunction.getSymbol().getExpectForActual()
                     } else {
                         ktFunction.getSymbol()
                     }
@@ -301,11 +299,6 @@ internal constructor(
         }
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-        type.finishInitialization(this)
-    }
-
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
@@ -342,7 +335,7 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = codebase.getType(workaroundPsiType, psiParameter)
+            val type = codebase.getType(workaroundPsiType)
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -357,12 +350,7 @@ internal constructor(
             return parameter
         }
 
-        fun create(
-            codebase: PsiBasedCodebase,
-            original: PsiParameterItem,
-            replacementMap: Map<TypeItem, TypeItem>
-        ): PsiParameterItem {
-            val type = original.type.convertType(replacementMap) as PsiTypeItem
+        fun create(codebase: PsiBasedCodebase, original: PsiParameterItem): PsiParameterItem {
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -371,7 +359,7 @@ internal constructor(
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    type = type
+                    type = PsiTypeItem.create(codebase, original.type)
                 )
             parameter.modifiers.setOwner(parameter)
             return parameter
@@ -379,10 +367,9 @@ internal constructor(
 
         fun create(
             codebase: PsiBasedCodebase,
-            original: List<ParameterItem>,
-            replacementMap: Map<TypeItem, TypeItem>
+            original: List<ParameterItem>
         ): List<PsiParameterItem> {
-            return original.map { create(codebase, it as PsiParameterItem, replacementMap) }
+            return original.map { create(codebase, it as PsiParameterItem) }
         }
 
         private fun createParameterModifiers(

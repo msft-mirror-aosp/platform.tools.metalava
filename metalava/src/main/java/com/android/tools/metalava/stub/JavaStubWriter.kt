@@ -108,6 +108,7 @@ internal class JavaStubWriter(
                         item = field,
                         target = annotationTarget,
                         runtimeAnnotationsOnly = !generateAnnotations,
+                        includeDeprecated = true,
                         writer = writer,
                         separateLines = true,
                         list = field.modifiers,
@@ -151,6 +152,7 @@ internal class JavaStubWriter(
             modifiers,
             item,
             target = annotationTarget,
+            includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,
             removeAbstract = removeAbstract,
             removeFinal = removeFinal,
@@ -280,7 +282,7 @@ internal class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map[type]?.toTypeString() ?: typeString
+                                val cast = map[type.toTypeString(context = it)] ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -290,7 +292,7 @@ internal class JavaStubWriter(
                         writer.write("null")
                     } else {
                         // Add cast for things like shorts and bytes
-                        val typeString = type.toTypeString()
+                        val typeString = type.toTypeString(context = it)
                         if (
                             typeString != "boolean" && typeString != "int" && typeString != "long"
                         ) {

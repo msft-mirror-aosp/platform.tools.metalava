@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.intellij.psi.PsiCallExpression
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifierListOwner
@@ -28,30 +29,27 @@ import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
 
 class PsiFieldItem(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
-    containingClass: PsiClassItem,
-    name: String,
+    private val containingClass: PsiClassItem,
+    private val name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val fieldType: PsiTypeItem,
     private val isEnumConstant: Boolean,
     private val initialValue: Any?
 ) :
-    PsiMemberItem(
+    PsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiField,
-        containingClass = containingClass,
-        name = name,
+        element = psiField
     ),
     FieldItem {
-
-    override var emit: Boolean = !modifiers.isExpect()
 
     override var property: PsiPropertyItem? = null
 
@@ -85,13 +83,28 @@ class PsiFieldItem(
 
     override fun isEnumConstant(): Boolean = isEnumConstant
 
+    override fun name(): String = name
+
+    override fun containingClass(): PsiClassItem = containingClass
+
     override fun psi(): PsiField = psiField
+
+    override fun isCloned(): Boolean {
+        val psiClass = run {
+            val p = containingClass().psi()
+            if (p is UClass) {
+                p.sourcePsi as? PsiClass ?: return false
+            } else {
+                p
+            }
+        }
+        return psiField.containingClass != psiClass
+    }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
         val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
         duplicated.inheritedFrom = containingClass
         duplicated.inheritedField = inheritedField
-        duplicated.finishInitialization()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -135,21 +148,24 @@ class PsiFieldItem(
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type, psiField)
+            val fieldType = codebase.getType(psiField.type)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 
-            return PsiFieldItem(
-                codebase = codebase,
-                psiField = psiField,
-                containingClass = containingClass,
-                name = name,
-                documentation = commentText,
-                modifiers = modifiers,
-                fieldType = fieldType,
-                isEnumConstant = isEnumConstant,
-                initialValue = initialValue
-            )
+            val field =
+                PsiFieldItem(
+                    codebase = codebase,
+                    psiField = psiField,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    fieldType = fieldType,
+                    isEnumConstant = isEnumConstant,
+                    initialValue = initialValue
+                )
+            field.modifiers.setOwner(field)
+            return field
         }
     }
 
@@ -194,11 +210,5 @@ class PsiFieldItem(
         }
 
         return null
-    }
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        fieldType.finishInitialization(this)
     }
 }

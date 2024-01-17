@@ -23,7 +23,7 @@ import com.intellij.psi.PsiPackage
 
 class PsiPackageItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: PsiModifierItem,
@@ -49,8 +49,6 @@ internal constructor(
     lateinit var containingPackageField: PsiPackageItem
 
     override fun containingClass(): ClassItem? = null
-
-    override fun psi() = psiPackage
 
     override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null

@@ -38,20 +38,19 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
-     *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
-     * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
-     *   "List<String!>?".
-     * @param filter Specifies a filter to apply to the type annotations, if any.
-     * @param spaceBetweenParameters Controls whether there should be a space between class type
-     *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
-     *   "java.util.Map<java.lang.Integer,java.lang.Number>".
+     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
+     * controls whether the annotations like @Nullable and @NonNull are included. The
+     * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
+     * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
+     * any.
+     *
+     * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
      */
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        filter: Predicate<Item>? = null,
-        spaceBetweenParameters: Boolean = false
+        context: Item? = null,
+        filter: Predicate<Item>? = null
     ): String
 
     /** Legacy alias for [toErasedTypeString]`()`. */
@@ -91,8 +90,8 @@ interface TypeItem {
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(): String {
-        var s = toTypeString()
+    fun toCanonicalType(context: Item? = null): String {
+        var s = toTypeString(context = context)
         while (s.contains(JAVA_LANG_PREFIX)) {
             s = s.replace(JAVA_LANG_PREFIX, "")
         }
@@ -104,15 +103,12 @@ interface TypeItem {
     }
 
     /**
-     * Makes substitutions to the type based on the [replacementMap]. For instance, if the
-     * [replacementMap] contains `{T -> String}`, calling this method on `T` would return `String`,
-     * and calling it on `List<T>` would return `List<String>` (in both cases the modifiers on the
-     * `String` will be independently mutable from the `String` in the [replacementMap]). Calling it
-     * on an unrelated type like `int` would return a duplicate of that type.
-     *
-     * This method is intended to be used in conjunction with [ClassItem.mapTypeVariables],
+     * Returns the element type if the type is an array or contains a vararg. If the element is not
+     * an array or does not contain a vararg, returns the original type string.
      */
-    fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
+    fun toElementType(): String {
+        return toTypeString().replace("...", "").replace("[]", "")
+    }
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
@@ -123,9 +119,20 @@ interface TypeItem {
         return this
     }
 
-    fun isJavaLangObject(): Boolean = false
+    fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
 
-    fun isString(): Boolean = false
+    fun convertTypeString(replacementMap: Map<String, String>?): String {
+        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
+        return convertTypeString(typeString, replacementMap)
+    }
+
+    fun isJavaLangObject(): Boolean {
+        return toTypeString() == JAVA_LANG_OBJECT
+    }
+
+    fun isString(): Boolean {
+        return toTypeString() == JAVA_LANG_STRING
+    }
 
     fun defaultValue(): Any? = null
 
@@ -133,8 +140,62 @@ interface TypeItem {
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
 
-    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
-    fun duplicate(): TypeItem
+    /**
+     * If the item has type arguments, return a list of type arguments. If simplified is true,
+     * returns the simplified forms of the type arguments. e.g. when type arguments are <K, V
+     * extends some.arbitrary.Class>, [K, V] will be returned. If the item does not have any type
+     * arguments, return an empty list.
+     */
+    fun typeArguments(simplified: Boolean = false): List<String> {
+        if (!hasTypeArguments()) {
+            return emptyList()
+        }
+        val typeString = toTypeString()
+        val bracketRemovedTypeString =
+            typeString.indexOf('<').let { typeString.substring(it + 1, typeString.length - 1) }
+        val typeArguments = mutableListOf<String>()
+        var builder = StringBuilder()
+        var balance = 0
+        var idx = 0
+        while (idx < bracketRemovedTypeString.length) {
+            when (val s = bracketRemovedTypeString[idx]) {
+                ',' -> {
+                    if (balance == 0) {
+                        typeArguments.add(builder.toString())
+                        builder = StringBuilder()
+                    } else {
+                        builder.append(s)
+                    }
+                }
+                '<' -> {
+                    balance += 1
+                    builder.append(s)
+                }
+                '>' -> {
+                    balance -= 1
+                    builder.append(s)
+                }
+                else -> builder.append(s)
+            }
+            idx += 1
+        }
+        typeArguments.add(builder.toString())
+
+        if (simplified) {
+            return typeArguments.map { it.substringBefore(" extends ").trim() }
+        }
+        return typeArguments.map { it.trim() }
+    }
+
+    /**
+     * Mark nullness annotations in the type as recent.
+     *
+     * TODO: This isn't very clean; we should model individual annotations.
+     */
+    fun markRecent()
+
+    /** Ensure that we don't include any annotations in the type strings for this type. */
+    fun scrubAnnotations()
 
     companion object {
         /** Shortens types, if configured */
@@ -175,6 +236,20 @@ interface TypeItem {
             }
 
             return type
+        }
+
+        fun formatType(type: String?): String {
+            return if (type == null) {
+                ""
+            } else cleanupGenerics(type)
+        }
+
+        fun cleanupGenerics(signature: String): String {
+            // <T extends java.lang.Object> is the same as <T>
+            //  but NOT for <T extends Object & java.lang.Comparable> -- you can't
+            //  shorten this to <T & java.lang.Comparable
+            // return type.replace(" extends java.lang.Object", "")
+            return signature.replace(" extends java.lang.Object>", ">")
         }
 
         /**
@@ -222,6 +297,34 @@ interface TypeItem {
                 ClassItem.fullNameComparator.compare(cls1, cls2)
             } else {
                 type1.toTypeString().compareTo(type2.toTypeString())
+            }
+        }
+
+        fun convertTypeString(typeString: String, replacementMap: Map<String, String>?): String {
+            var string = typeString
+            if (replacementMap != null && replacementMap.isNotEmpty()) {
+                // This is a moved method (typically an implementation of an interface
+                // method provided in a hidden superclass), with generics signatures.
+                // We need to rewrite the generics variables in case they differ
+                // between the classes.
+                if (replacementMap.isNotEmpty()) {
+                    replacementMap.forEach { (from, to) ->
+                        // We can't just replace one string at a time:
+                        // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert
+                        // A,B,C?
+                        // If I do the replacements one letter at a time I end up with C,C,C; if I
+                        // do the substitutions
+                        // simultaneously I get B,C,C. Therefore, we insert "___" as a magical
+                        // prefix to prevent
+                        // scenarios like this, and then we'll drop them afterwards.
+                        string =
+                            string.replace(Regex(pattern = """\b$from\b"""), replacement = "___$to")
+                    }
+                }
+                string = string.replace("___", "")
+                return string
+            } else {
+                return string
             }
         }
 
@@ -361,22 +464,14 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
 
-    override fun toString(): String = toTypeString()
-
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
+        context: Item?,
+        filter: Predicate<Item>?
     ): String {
         return toTypeString(
-            TypeStringConfiguration(
-                codebase,
-                annotations,
-                kotlinStyleNulls,
-                filter,
-                spaceBetweenParameters
-            )
+            TypeStringConfiguration(codebase, annotations, kotlinStyleNulls, filter)
         )
     }
 
@@ -416,17 +511,14 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
          *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
          * @param filter A filter to apply to the type annotations, if any.
-         * @param spaceBetweenParameters Whether to include a space between class type params.
          */
         private data class TypeStringConfiguration(
             val codebase: Codebase,
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val filter: Predicate<Item>? = null,
-            val spaceBetweenParameters: Boolean = false,
         ) {
-            val isDefault =
-                !annotations && !kotlinStyleNulls && filter == null && !spaceBetweenParameters
+            val isDefault = !annotations && !kotlinStyleNulls && filter == null
         }
 
         private fun StringBuilder.appendTypeString(
@@ -439,7 +531,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.kind.primitiveName)
-                    // Primitives must be non-null.
                 }
                 is ArrayTypeItem -> {
                     // The ordering of array annotations means this can't just use a recursive
@@ -452,22 +543,18 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                             arrayModifiers.add(deepComponentType.modifiers)
                             deepComponentType = deepComponentType.componentType
                         }
-                        val suffixes = arrayModifiers.map { it.nullability().suffix }.reversed()
 
                         // Print the innermost component type.
                         appendTypeString(deepComponentType, configuration)
 
                         // Print modifiers from the outermost array type in, and the array suffixes.
-                        arrayModifiers.zip(suffixes).forEachIndexed { index, (modifiers, suffix) ->
+                        arrayModifiers.forEachIndexed { index, modifiers ->
                             appendAnnotations(modifiers, configuration, leadingSpace = true)
                             // Only the outermost array can be varargs.
                             if (index < arrayModifiers.size - 1 || !type.isVarargs) {
                                 append("[]")
                             } else {
                                 append("...")
-                            }
-                            if (configuration.kotlinStyleNulls) {
-                                append(suffix)
                             }
                         }
                     } else {
@@ -478,10 +565,8 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         } else {
                             append("[]")
                         }
-                        if (configuration.kotlinStyleNulls) {
-                            append(type.modifiers.nullability().suffix)
-                        }
                     }
+                    // TODO: kotlin nulls
                 }
                 is ClassTypeItem -> {
                     if (type.outerClassType != null) {
@@ -507,25 +592,18 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                             appendTypeString(parameter, configuration)
                             if (index != type.parameters.size - 1) {
                                 append(",")
-                                if (configuration.spaceBetweenParameters) {
-                                    append(" ")
-                                }
                             }
                         }
                         append(">")
                     }
-                    if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
-                    }
+                    // TODO: kotlin nulls
                 }
                 is VariableTypeItem -> {
                     if (configuration.annotations) {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.name)
-                    if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
-                    }
+                    // TODO: kotlin nulls
                 }
                 is WildcardTypeItem -> {
                     if (configuration.annotations) {
@@ -543,8 +621,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         append(" super ")
                         appendTypeString(it, configuration)
                     }
-                    // It doesn't make sense to have a nullness suffix on a wildcard, this should be
-                    // handled by the bound.
                 }
             }
         }
@@ -557,11 +633,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         ) {
             val annotations =
                 modifiers.annotations().filter { annotation ->
-                    // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
-                    if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
-                        return@filter false
-                    }
-
                     val filter = configuration.filter ?: return@filter true
                     val qualifiedName = annotation.qualifiedName ?: return@filter true
                     val annotationClass =
@@ -695,10 +766,6 @@ interface PrimitiveTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
-
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return (replacementMap[this] ?: this).duplicate()
-    }
 }
 
 /** Represents an array type, including vararg types. */
@@ -713,19 +780,6 @@ interface ArrayTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
-    }
-
-    override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
-
-    /**
-     * Duplicates this type (including duplicating the modifiers so they can be independently
-     * mutated), but substituting in the provided [componentType] in place of this type's component.
-     */
-    fun duplicate(componentType: TypeItem): ArrayTypeItem
-
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return replacementMap[this]?.duplicate()
-            ?: duplicate(componentType.convertType(replacementMap))
     }
 }
 
@@ -748,28 +802,6 @@ interface ClassTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
-    }
-
-    override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
-
-    override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
-
-    override fun duplicate(): ClassTypeItem =
-        duplicate(outerClassType?.duplicate(), parameters.map { it.duplicate() })
-
-    /**
-     * Duplicates this type (including duplicating the modifiers so they can be independently
-     * mutated), but substituting in the provided [outerClass] and [parameters] in place of this
-     * type's outer class and parameters.
-     */
-    fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
-
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return replacementMap[this]?.duplicate()
-            ?: duplicate(
-                outerClassType?.convertType(replacementMap) as? ClassTypeItem,
-                parameters.map { it.convertType(replacementMap) }
-            )
     }
 
     companion object {
@@ -796,10 +828,6 @@ interface VariableTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
-
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return (replacementMap[this] ?: this).duplicate()
-    }
 }
 
 /**
@@ -815,23 +843,5 @@ interface WildcardTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
-    }
-
-    override fun duplicate(): WildcardTypeItem =
-        duplicate(extendsBound?.duplicate(), superBound?.duplicate())
-
-    /**
-     * Duplicates this type (including duplicating the modifiers so they can be independently
-     * mutated), but substituting in the provided [extendsBound] and [superBound] in place of this
-     * type's bounds.
-     */
-    fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
-
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return replacementMap[this]?.duplicate()
-            ?: duplicate(
-                extendsBound?.convertType(replacementMap),
-                superBound?.convertType(replacementMap)
-            )
     }
 }

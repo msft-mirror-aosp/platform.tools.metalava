@@ -150,10 +150,9 @@ internal class PsiSourceParser(
     }
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
-    private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
+    fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        // Use the empty dir otherwise this will end up scanning the current working directory.
-        configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
+        configureUastEnvironment(config, emptyList(), apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
         environment.analyzeFiles(emptyList()) // Initializes PSI machinery.

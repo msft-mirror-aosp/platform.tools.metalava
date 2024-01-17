@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite.methoditem
+package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test

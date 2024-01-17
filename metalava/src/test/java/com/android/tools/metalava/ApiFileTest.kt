@@ -346,7 +346,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -759,8 +759,8 @@ class ApiFileTest : DriverTest() {
                 }
                 package androidx.core.app {
                   public class ActivityOptionsCompat {
-                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...!);
-                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...!);
+                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...);
+                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...);
                   }
                 }
                 """,
@@ -2090,50 +2090,6 @@ class ApiFileTest : DriverTest() {
                   public abstract class Foo {
                     ctor public Foo();
                     method public String findViewById(int);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Remove findViewById type nullness annotation`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import libcore.util.Nullable;
-
-                    @SuppressWarnings("ALL")
-                    public abstract class Foo {
-                        public @Nullable String findViewById(int id) { return ""; }
-                        public @Nullable String notFindViewById(int id) { return ""; }
-                    }
-                    """
-                    ),
-                    libcoreNullableSource
-                ),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
-                """,
-            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
-            skipEmitPackages = listOf("libcore.util"),
-            format =
-                FileFormat.V5.copy(
-                    kotlinNameTypeOrder = true,
-                    includeTypeUseAnnotations = true,
-                    kotlinStyleNulls = false
-                ),
-            api =
-                """
-                package test.pkg {
-                  public abstract class Foo {
-                    ctor public Foo();
-                    method public findViewById(_: int): String;
-                    method @Nullable public notFindViewById(_: int): @Nullable String;
                   }
                 }
                 """
@@ -4196,7 +4152,7 @@ class ApiFileTest : DriverTest() {
             """
             package Test.pkg {
               public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4825,7 +4781,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V?> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved);
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
                   }
                 }
                 """,
@@ -5672,50 +5628,6 @@ class ApiFileTest : DriverTest() {
                         private fun shouldBePrivate() {}
                     """
                     ),
-                    kotlin(
-                        "test/pkg/Path1.kt",
-                        """
-                        package test.pkg
-
-                        expect fun Path1(): Path1
-
-                        interface Path1 {
-                          infix fun xor(path: Path1): Path1
-                        }
-                    """
-                    ),
-                    kotlin(
-                        "test/pkg/Path2.kt",
-                        """
-                        package test.pkg
-
-                        expect fun Path2(): Path2
-
-                        fun Path2.copy(): Path2 = TODO()
-
-                        interface Path2 {
-                          infix fun xor(path: Path2): Path2
-                        }
-                    """
-                    ),
-                    kotlin(
-                        "test/pkg/LazyLayoutItemProvider.kt",
-                        """
-                        package test.pkg
-
-                        interface LazyLayoutItemProvider {
-                          val itemCount: Int
-                          fun getIndex(): Int = -1
-                        }
-
-                        internal fun LazyLayoutItemProvider.findIndexByKey(
-                          key: Any?,
-                          lastKnownIndex: Int,
-                        ): Int = TODO()
-
-                        expect fun getDefaultLazyLayoutKey(index: Int): Any
-                        """
-                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5736,20 +5648,6 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
-                  }
-                  public interface LazyLayoutItemProvider {
-                    method public default int getIndex();
-                    method public int getItemCount();
-                    property public abstract int itemCount;
-                  }
-                  public interface Path1 {
-                    method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
-                  }
-                  public interface Path2 {
-                    method public infix test.pkg.Path2 xor(test.pkg.Path2 path);
-                  }
-                  public final class Path2Kt {
-                    method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
                     method @kotlin.PublishedApi internal static void internalYetPublished();
@@ -6159,56 +6057,6 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                 """
-        )
-    }
-
-    @Test
-    fun `Test signature including parameterized converted type`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            public interface VisibleInterface<V> {}
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            import androidx.annotation.RestrictTo;
-                            @RestrictTo(RestrictTo.Scope.LIBRARY)
-                            public interface HiddenInterface<H> extends VisibleInterface<H> {}
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            import java.util.List;
-                            public class Foo<F> implements HiddenInterface<List<F>> {}
-                        """
-                    ),
-                    restrictToSource
-                ),
-            // When `HiddenInterface` is hidden, the implements clause for `Foo` is converted to
-            // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
-            // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
-            // `List` for legacy reasons.
-            api =
-                """
-                    // Signature format: 5.0
-                    package test.pkg {
-                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
-                        ctor public Foo();
-                      }
-                      public interface VisibleInterface<V> {
-                      }
-                    }
-                """,
-            skipEmitPackages = listOf("androidx.annotation"),
-            hideAnnotations = arrayOf("androidx.annotation.RestrictTo"),
-            expectedIssues =
-                "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
         )
     }
 }

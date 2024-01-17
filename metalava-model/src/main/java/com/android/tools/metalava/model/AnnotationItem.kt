@@ -159,12 +159,6 @@ interface AnnotationItem {
 
     fun isSuppressCompatibilityAnnotation(): Boolean
 
-    /**
-     * Returns true iff this annotation is a showability annotation, i.e. one that will affect
-     * [showability].
-     */
-    fun isShowabilityAnnotation(): Boolean
-
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -431,8 +425,6 @@ private constructor(
     override fun isHideAnnotation(): Boolean = info.showability.hide()
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
-
-    override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

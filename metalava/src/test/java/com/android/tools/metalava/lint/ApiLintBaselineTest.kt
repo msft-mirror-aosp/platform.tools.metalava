@@ -31,15 +31,12 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with global baseline`() {
         check(
             apiLint = "", // enabled
-            baselineTestInfo =
-                BaselineTestInfo(
-                    inputContents =
-                        """
-                            // Baseline format: 1.0
-                            Enum: android.pkg.MyEnum:
-                                Enums are discouraged in Android APIs
-                        """,
-                ),
+            baseline =
+                """
+                // Baseline format: 1.0
+                Enum: android.pkg.MyEnum:
+                    Enums are discouraged in Android APIs
+            """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -59,15 +56,12 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with api-lint specific baseline`() {
         check(
             apiLint = "", // enabled
-            baselineApiLintTestInfo =
-                BaselineTestInfo(
-                    inputContents =
-                        """
-                            // Baseline format: 1.0
-                            Enum: android.pkg.MyEnum:
-                                Enums are discouraged in Android APIs
-                        """,
-                ),
+            baselineApiLint =
+                """
+                // Baseline format: 1.0
+                Enum: android.pkg.MyEnum:
+                    Enums are discouraged in Android APIs
+            """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -87,16 +81,14 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with api-lint specific baseline with update`() {
         check(
             apiLint = "", // enabled
-            baselineApiLintTestInfo =
-                BaselineTestInfo(
-                    inputContents = "",
-                    expectedOutputContents =
-                        """
-                            // Baseline format: 1.0
-                            Enum: android.pkg.MyEnum:
-                                Enums are discouraged in Android APIs
-                        """,
-                ),
+            baselineApiLint = """
+                """,
+            updateBaselineApiLint =
+                """
+                // Baseline format: 1.0
+                Enum: android.pkg.MyEnum:
+                    Enums are discouraged in Android APIs
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -116,15 +108,12 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test with non-api-lint specific baseline`() {
         check(
             apiLint = "", // enabled
-            baselineCheckCompatibilityReleasedTestInfo =
-                BaselineTestInfo(
-                    inputContents =
-                        """
-                            // Baseline format: 1.0
-                            Enum: android.pkg.MyEnum:
-                                Enums are discouraged in Android APIs
-                        """,
-                ),
+            baselineCheckCompatibilityReleased =
+                """
+                // Baseline format: 1.0
+                Enum: android.pkg.MyEnum:
+                    Enums are discouraged in Android APIs
+            """,
             expectedIssues =
                 """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
@@ -149,7 +138,7 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test api-lint error message`() {
         check(
             apiLint = "", // enabled
-            baselineApiLintTestInfo = BaselineTestInfo(inputContents = ""),
+            baselineApiLint = "",
             errorMessageApiLint = "*** api-lint failed ***",
             expectedIssues =
                 """
@@ -179,7 +168,7 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Test no api-lint error message`() {
         check(
             apiLint = "", // enabled
-            baselineApiLintTestInfo = BaselineTestInfo(inputContents = ""),
+            baselineApiLint = "",
             expectedIssues =
                 """
                 src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl]
@@ -204,16 +193,13 @@ class ApiLintBaselineTest : DriverTest() {
     fun `Check generic builders with synthesized setter`() {
         check(
             apiLint = "", // enabled
-            baselineApiLintTestInfo =
-                BaselineTestInfo(
-                    inputContents = "",
-                    expectedOutputContents =
-                        """
-                            // Baseline format: 1.0
-                            MissingGetterMatchingBuilder: test.Foo.Builder#setField(int):
-                                test.Foo does not declare a `getField()` method matching method test.Foo.Builder.setField(int)
-                        """,
-                ),
+            baselineApiLint = "",
+            updateBaselineApiLint =
+                """
+                // Baseline format: 1.0
+                MissingGetterMatchingBuilder: test.Foo.Builder#setField(int):
+                    test.Foo does not declare a `getField()` method matching method test.Foo.Builder.setField(int)
+                """,
             hideAnnotations =
                 arrayOf(
                     "androidx.annotation.RestrictTo",

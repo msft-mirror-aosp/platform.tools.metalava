@@ -54,9 +54,6 @@ class FlaggedApiLintTest : DriverTest() {
                         /** @hide */
                         @SystemApi
                         public class ExistingSystemApi extends Existing {
-                            /** exactly matches Object.equals, not emitted */
-                            @Override
-                            public boolean equals(Object other) { return false; }
                             /** exactly matches Object.hashCode, not emitted */
                             @Override
                             public int hashCode() { return 0; }

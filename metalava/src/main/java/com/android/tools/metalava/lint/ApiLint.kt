@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.ANDROID_FLAGGED_API
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -91,9 +92,11 @@ import com.android.tools.metalava.reporter.Issues.BUILDER_SET_STYLE
 import com.android.tools.metalava.reporter.Issues.CALLBACK_INTERFACE
 import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
 import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
+import com.android.tools.metalava.reporter.Issues.COMMON_ARGS_FIRST
 import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
 import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
+import com.android.tools.metalava.reporter.Issues.CONSISTENT_ARGUMENT_ORDER
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
@@ -189,52 +192,27 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
  * The [ApiLint] analyzer checks the API against a known set of preferred API practices by the
  * Android API council.
  */
-class ApiLint
-private constructor(
+class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
-    reporter: Reporter,
+    private val reporter: Reporter,
     private val manifest: Manifest,
-    config: Config,
+    config: ApiVisitor.Config,
 ) :
     ApiVisitor(
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(config.apiPredicateConfig),
+        filterEmit =
+            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
+        fieldComparator = FieldItem.comparator,
     ) {
-
     /** Predicate that checks if the item appears in the signature file. */
     private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
-
-    /** [Reporter] that filters out items that are not relevant for the current API surface. */
-    inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
-        override fun report(id: Issue, item: Item?, message: String, location: Location): Boolean {
-
-            if (item != null) {
-                // Don't flag api warnings on deprecated APIs; these are obviously already known to
-                // be problematic.
-                if (item.effectivelyDeprecated) {
-                    return false
-                }
-
-                // With show annotations we might be flagging API that is filtered out: hide these
-                // here
-                val testItem = if (item is ParameterItem) item.containingMethod() else item
-                if (!filterEmit.test(testItem)) {
-                    return false
-                }
-            }
-
-            return delegate.report(id, item, message, location)
-        }
-    }
-
-    private val reporter: Reporter = FilteringReporter(reporter)
 
     private fun report(
         id: Issue,
@@ -242,10 +220,26 @@ private constructor(
         message: String,
         location: Location = Location.unknownLocationAndBaselineKey
     ) {
+        // Don't flag api warnings on deprecated APIs; these are obviously already known to
+        // be problematic.
+        if (item.deprecated) {
+            return
+        }
+
+        if (item is ParameterItem && item.containingMethod().deprecated) {
+            return
+        }
+
+        // With show annotations we might be flagging API that is filtered out: hide these here
+        val testItem = if (item is ParameterItem) item.containingMethod() else item
+        if (!filterEmit.test(testItem)) {
+            return
+        }
+
         reporter.report(id, item, message, location)
     }
 
-    private fun check() {
+    fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator()
@@ -285,7 +279,7 @@ private constructor(
             item is FieldItem && !isInteresting(item.containingClass())
     }
 
-    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
+    private val kotlinInterop = KotlinInteropChecks(reporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -371,6 +365,9 @@ private constructor(
         checkExtends(cls)
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
+
+        // TODO: Not yet working
+        // checkOverloadArgs(cls, methods)
     }
 
     private fun checkField(field: FieldItem) {
@@ -1891,6 +1888,8 @@ private constructor(
                     }
                 }
                 is MethodItem -> {
+                    // We don't enforce this check on constructors
+                    if (item.isConstructor()) return
                     if (item.modifiers.isNullable()) {
                         if (anySuperMethodLacksNullnessInfo(item)) {
                             report(
@@ -2018,6 +2017,78 @@ private constructor(
                     fields.none { !it.modifiers.isStatic() }
             ) {
                 report(STATIC_UTILS, cls, "Fully-static utility classes must not have constructor")
+            }
+        }
+    }
+
+    private fun checkOverloadArgs(cls: ClassItem, methods: Sequence<MethodItem>) {
+        if (cls.qualifiedName().startsWith("android.opengl")) {
+            return
+        }
+
+        val overloads = mutableMapOf<String, MutableList<MethodItem>>()
+        for (method in methods) {
+            if (!method.deprecated) {
+                val name = method.name()
+                val list =
+                    overloads[name]
+                        ?: run {
+                            val new = mutableListOf<MethodItem>()
+                            overloads[name] = new
+                            new
+                        }
+                list.add(method)
+            }
+        }
+
+        // Look for arguments common across all overloads
+        fun cluster(args: List<ParameterItem>): MutableSet<String> {
+            val count = mutableMapOf<String, Int>()
+            val res = mutableSetOf<String>()
+            for (parameter in args) {
+                val a = parameter.type().toTypeString()
+                val currCount = count[a] ?: 1
+                res.add("$a#$currCount")
+                count[a] = currCount + 1
+            }
+            return res
+        }
+
+        for ((_, methodList) in overloads.entries) {
+            if (methodList.size <= 1) {
+                continue
+            }
+
+            val commonArgs = cluster(methodList[0].parameters())
+            for (m in methodList) {
+                val clustered = cluster(m.parameters())
+                commonArgs.removeAll(clustered)
+            }
+            if (commonArgs.isEmpty()) {
+                continue
+            }
+
+            // Require that all common arguments are present at the start of the signature
+            var lockedSig: List<ParameterItem>? = null
+            val commonArgCount = commonArgs.size
+            for (m in methodList) {
+                val sig = m.parameters().subList(0, commonArgCount)
+                val cluster = cluster(sig)
+                if (!cluster.containsAll(commonArgs)) {
+                    report(
+                        COMMON_ARGS_FIRST,
+                        m,
+                        "Expected common arguments ${commonArgs.joinToString()}} at beginning of overloaded method ${m.describe()}"
+                    )
+                } else if (lockedSig == null) {
+                    lockedSig = sig
+                } else if (lockedSig != sig) {
+                    report(
+                        CONSISTENT_ARGUMENT_ORDER,
+                        m,
+                        "Expected consistent argument ordering between overloads: ${lockedSig.joinToString()}}"
+                    )
+                }
             }
         }
     }
@@ -3058,24 +3129,6 @@ private constructor(
     }
 
     companion object {
-
-        /**
-         * Check the supplied [codebase] to see if it adheres to the API lint rules enforced by this
-         * class, reporting any issues that it finds.
-         *
-         * If [oldCodebase] is provided then it will ignore any issues that are present in the
-         * [oldCodebase] as there is little that can be done to rectify those.
-         */
-        fun check(
-            codebase: Codebase,
-            oldCodebase: Codebase?,
-            reporter: Reporter,
-            manifest: Manifest,
-            config: Config,
-        ) {
-            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, config)
-            apiLint.check()
-        }
 
         private data class GetterSetterPattern(val getter: String, val setter: String)
 

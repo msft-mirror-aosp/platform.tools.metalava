@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ANDROID_TEST_API
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -349,14 +347,14 @@ class CompatibilityCheck(
             )
         }
 
-        if (!old.effectivelyDeprecated == new.effectivelyDeprecated) {
+        if (!old.deprecated == new.deprecated) {
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.deprecated} --> ${new.deprecated}"
             )
         }
 
@@ -598,14 +596,14 @@ class CompatibilityCheck(
             }
         }
 
-        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
+        if (old.deprecated != new.deprecated) {
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.deprecated} --> ${new.deprecated}"
             )
         }
 
@@ -783,14 +781,14 @@ class CompatibilityCheck(
             )
         }
 
-        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
+        if (old.deprecated != new.deprecated) {
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.deprecated} --> ${new.deprecated}"
             )
         }
     }
@@ -815,9 +813,9 @@ class CompatibilityCheck(
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
         } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
+            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
                 message += " to the system API"
-            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
+            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
                 message += " to the test API"
             }
         }
@@ -845,7 +843,7 @@ class CompatibilityCheck(
         report(
             issue,
             item,
-            "Removed ${if (item.effectivelyDeprecated) "deprecated " else ""}${describe(item)}"
+            "Removed ${if (item.deprecated) "deprecated " else ""}${describe(item)}"
         )
     }
 
@@ -965,7 +963,7 @@ class CompatibilityCheck(
         val error =
             when {
                 old.isInterface() -> Issues.REMOVED_INTERFACE
-                old.effectivelyDeprecated -> Issues.REMOVED_DEPRECATED_CLASS
+                old.deprecated -> Issues.REMOVED_DEPRECATED_CLASS
                 else -> Issues.REMOVED_CLASS
             }
 
@@ -987,8 +985,7 @@ class CompatibilityCheck(
             }
         if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
             val error =
-                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
-                else Issues.REMOVED_METHOD
+                if (old.deprecated) Issues.REMOVED_DEPRECATED_METHOD else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
@@ -1002,8 +999,7 @@ class CompatibilityCheck(
             )
         if (inherited == null) {
             val error =
-                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_FIELD
-                else Issues.REMOVED_FIELD
+                if (old.deprecated) Issues.REMOVED_DEPRECATED_FIELD else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
     }

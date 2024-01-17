@@ -18,33 +18,26 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.binder.sym.MethodSymbol
 
 open class TurbineClassItem(
-    codebase: TurbineBasedCodebase,
+    override val codebase: Codebase,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    private val classSymbol: ClassSymbol,
-    modifiers: TurbineModifierItem,
+    override val modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
-    private val document: String,
-    private val source: SourceFile?
-) : TurbineItem(codebase, modifiers), ClassItem {
+) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
-
-    override var documentation: String = document
 
     override var hasPrivateConstructor: Boolean = false
 
@@ -77,8 +70,6 @@ open class TurbineClassItem(
     private var asType: TurbineTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
-
-    private var retention: AnnotationRetention? = null
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
@@ -115,26 +106,14 @@ open class TurbineClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun getRetention(): AnnotationRetention {
-        retention?.let {
-            return it
-        }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        retention = ClassItem.findRetention(this)
-        return retention!!
+        TODO("b/295800205")
     }
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    override fun createDefaultConstructor(): ConstructorItem {
-        val sym = MethodSymbol(0, classSymbol, name)
-        return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
+    override fun hasTypeVariables(): Boolean {
+        TODO("b/295800205")
     }
-
-    override fun hasTypeVariables(): Boolean = typeParameters.typeParameterCount() > 0
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
@@ -152,11 +131,9 @@ open class TurbineClassItem(
 
     override fun methods(): List<MethodItem> = methods
 
-    /**
-     * [PropertyItem]s are kotlin specific and it is unlikely that Turbine will ever support Kotlin
-     * so just return an empty list.
-     */
-    override fun properties(): List<PropertyItem> = emptyList()
+    override fun properties(): List<PropertyItem> {
+        TODO("b/295800205")
+    }
 
     override fun simpleName(): String = name
 
@@ -185,14 +162,21 @@ open class TurbineClassItem(
                 }
             val mods = TurbineTypeModifiers(modifiers.annotations())
             val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
-            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+            asType =
+                TurbineClassTypeItem(
+                    codebase as TurbineBasedCodebase,
+                    mods,
+                    qualifiedName,
+                    parameters,
+                    outerClassType
+                )
         }
         return asType!!
     }
 
     private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
         val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
-        return TurbineVariableTypeItem(codebase, mods, typeParam.symbol)
+        return TurbineVariableTypeItem(codebase as TurbineBasedCodebase, mods, typeParam.symbol)
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameters
@@ -205,6 +189,4 @@ open class TurbineClassItem(
         }
         return other is ClassItem && qualifiedName() == other.qualifiedName()
     }
-
-    override fun getSourceFile(): SourceFile? = source
 }

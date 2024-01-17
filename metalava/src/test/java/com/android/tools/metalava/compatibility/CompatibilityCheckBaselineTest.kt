@@ -52,15 +52,12 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            baselineTestInfo =
-                BaselineTestInfo(
-                    inputContents =
-                        """
-                            // Baseline format: 1.0
-                            ChangedScope: test.pkg.MyTest1:
-                                Class test.pkg.MyTest1 changed visibility from public to private
-                        """,
-                ),
+            baseline =
+                """
+                // Baseline format: 1.0
+                ChangedScope: test.pkg.MyTest1:
+                    Class test.pkg.MyTest1 changed visibility from public to private
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -84,15 +81,12 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            baselineCheckCompatibilityReleasedTestInfo =
-                BaselineTestInfo(
-                    inputContents =
-                        """
-                            // Baseline format: 1.0
-                            ChangedScope: test.pkg.MyTest1:
-                                Class test.pkg.MyTest1 changed visibility from public to private
-                        """,
-                ),
+            baselineCheckCompatibilityReleased =
+                """
+                // Baseline format: 1.0
+                ChangedScope: test.pkg.MyTest1:
+                    Class test.pkg.MyTest1 changed visibility from public to private
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -114,17 +108,16 @@ class CompatibilityCheckBaselineTest : DriverTest() {
     fun `Test released-API check, with compatibility-released baseline, and update baseline`() {
         // Use released-API check baseline, which should work in released-API check.
         check(
-            expectedIssues = "",
-            baselineCheckCompatibilityReleasedTestInfo =
-                BaselineTestInfo(
-                    inputContents = "",
-                    expectedOutputContents =
-                        """
-                            // Baseline format: 1.0
-                            ChangedScope: test.pkg.MyTest1:
-                                Class test.pkg.MyTest1 changed visibility from public to private
-                        """,
-                ),
+            expectedIssues = """
+                """,
+            baselineCheckCompatibilityReleased = """
+                """,
+            updateBaselineCheckCompatibilityReleased =
+                """
+                // Baseline format: 1.0
+                ChangedScope: test.pkg.MyTest1:
+                    Class test.pkg.MyTest1 changed visibility from public to private
+                """,
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {

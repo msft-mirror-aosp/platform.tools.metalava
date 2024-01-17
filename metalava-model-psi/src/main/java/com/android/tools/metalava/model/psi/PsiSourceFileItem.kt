@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TraversingVisitor
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceFileItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiComment
@@ -41,11 +42,11 @@ import org.jetbrains.uast.UFile
 /** Whether we should limit import statements to symbols found in class docs */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-internal class PsiSourceFile(
-    val codebase: PsiBasedCodebase,
+internal class PsiSourceFileItem(
+    codebase: PsiBasedCodebase,
     val file: PsiFile,
     val uFile: UFile? = null
-) : SourceFile {
+) : SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
@@ -170,13 +171,16 @@ internal class PsiSourceFile(
 
                 for (cls in classes().filter { predicate.test(it) }) {
                     cls.accept(
-                        object : TraversingVisitor() {
-                            override fun visitItem(item: Item): TraversalAction {
+                        object : BaseItemVisitor() {
+                            override fun skip(item: Item): Boolean {
+                                // There is nothing to do if the map of imports to add is empty.
+                                return remainingImports.isEmpty()
+                            }
+
+                            override fun visitItem(item: Item) {
                                 // Do not let documentation on hidden items affect the imports.
                                 if (!predicate.test(item)) {
-                                    // Just because an item like a class is hidden does not mean
-                                    // that its child items are so make sure to visit them.
-                                    return TraversalAction.CONTINUE
+                                    return
                                 }
                                 val doc = item.documentation
                                 if (doc.isNotBlank()) {
@@ -202,16 +206,8 @@ internal class PsiSourceFile(
                                             val all = remainingImports.remove(name) ?: continue
                                             result.addAll(all)
                                         }
-
-                                        if (remainingImports.isEmpty()) {
-                                            // There is nothing to do if the map of imports to add
-                                            // is empty.
-                                            return TraversalAction.SKIP_TRAVERSAL
-                                        }
                                     }
                                 }
-
-                                return TraversalAction.CONTINUE
                             }
                         }
                     )
@@ -233,9 +229,17 @@ internal class PsiSourceFile(
             .orEmpty()
     }
 
+    override fun containingPackage(): PackageItem? {
+        return when {
+            uFile != null -> codebase.findPackage(uFile.packageName)
+            file is PsiJavaFile -> codebase.findPackage(file.packageName)
+            else -> null
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        return other is PsiSourceFile && file == other.file
+        return other is PsiSourceFileItem && file == other.file
     }
 
     override fun hashCode(): Int = file.hashCode()

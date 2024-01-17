@@ -52,18 +52,14 @@ import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasExpectModifier
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
-import org.jetbrains.kotlin.psi.psiUtil.hasValueModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
 
 class PsiModifierItem
 internal constructor(
@@ -87,7 +83,6 @@ internal constructor(
                 documentation?.contains("@deprecated") == true ||
                     // Check for @Deprecated annotation
                     ((element as? PsiDocCommentOwner)?.isDeprecated == true) ||
-                    hasDeprecatedAnnotation(modifiers) ||
                     // Check for @Deprecated on sourcePsi
                     isDeprecatedFromSourcePsi(element)
             ) {
@@ -96,18 +91,6 @@ internal constructor(
 
             return modifiers
         }
-
-        private fun hasDeprecatedAnnotation(modifiers: PsiModifierItem) =
-            modifiers.annotations?.any {
-                it.qualifiedName?.let { qualifiedName ->
-                    qualifiedName == "Deprecated" ||
-                        qualifiedName.endsWith(".Deprecated") ||
-                        // DeprecatedForSdk that do not apply to this API surface have been filtered
-                        // out so if any are left then treat it as a standard Deprecated annotation.
-                        qualifiedName == ANDROID_DEPRECATED_FOR_SDK
-                }
-                    ?: false
-            } == true
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
             if (element is UMethod) {
@@ -190,7 +173,7 @@ internal constructor(
                     // UAST workaround: fake light method for inline/hidden function may not have a
                     // concrete modifier list, but overrides `hasModifierProperty` to mimic
                     // modifiers.
-                    element is KotlinUMethodWithFakeLightDelegateBase<*> ->
+                    element is KotlinUMethodWithFakeLightDelegate ->
                         when {
                             element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
                             element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
@@ -252,10 +235,10 @@ internal constructor(
                         visibilityFlags = PUBLIC
                     }
                 }
-                if (ktModifierList.hasValueModifier()) {
+                if (ktModifierList.hasModifier(KtTokens.VALUE_KEYWORD)) {
                     flags = flags or VALUE
                 }
-                if (ktModifierList.hasSuspendModifier()) {
+                if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
                     flags = flags or SUSPEND
                 }
                 if (ktModifierList.hasModifier(KtTokens.COMPANION_KEYWORD)) {
@@ -266,12 +249,6 @@ internal constructor(
                 }
                 if (ktModifierList.hasModifier(KtTokens.DATA_KEYWORD)) {
                     flags = flags or DATA
-                }
-                if (ktModifierList.hasExpectModifier()) {
-                    flags = flags or EXPECT
-                }
-                if (ktModifierList.hasActualModifier()) {
-                    flags = flags or ACTUAL
                 }
             }
             // Methods that are property accessors inherit visibility from the source element

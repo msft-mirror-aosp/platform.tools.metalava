@@ -19,18 +19,20 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem
 private constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    containingClass: PsiClassItem,
-    name: String,
+    private val containingClass: PsiClassItem,
+    private val name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val fieldType: PsiTypeItem,
@@ -39,21 +41,31 @@ private constructor(
     override val constructorParameter: PsiParameterItem?,
     override val backingField: PsiFieldItem?
 ) :
-    PsiMemberItem(
+    PsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiMethod,
-        containingClass = containingClass,
-        name = name,
+        element = psiMethod
     ),
     PropertyItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
-
     override fun type(): TypeItem = fieldType
 
-    override fun psi() = psiMethod
+    override fun name(): String = name
+
+    override fun containingClass(): PsiClassItem = containingClass
+
+    override fun isCloned(): Boolean {
+        val psiClass = run {
+            val p = containingClass().psi()
+            if (p is UClass) {
+                p.sourcePsi as? PsiClass ?: return false
+            } else {
+                p
+            }
+        }
+        return psiMethod.containingClass != psiClass
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -69,11 +81,6 @@ private constructor(
     }
 
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        fieldType.finishInitialization(this)
-    }
 
     companion object {
         /**
