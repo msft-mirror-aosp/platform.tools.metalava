@@ -278,13 +278,6 @@ private constructor(
         }
     }
 
-    override fun skip(item: Item): Boolean {
-        return super.skip(item) ||
-            item is ClassItem && !isInteresting(item) ||
-            item is MethodItem && !isInteresting(item.containingClass()) ||
-            item is FieldItem && !isInteresting(item.containingClass())
-    }
-
     private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
 
     override fun visitClass(cls: ClassItem) {
@@ -1819,9 +1812,9 @@ private constructor(
             val type = item.type()
             val inherited =
                 when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedMethod
-                    is FieldItem -> item.inheritedField
-                    is MethodItem -> item.inheritedMethod
+                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                    is FieldItem -> item.inheritedFromAncestor
+                    is MethodItem -> item.inheritedFromAncestor
                     else -> false
                 }
             if (inherited) {
@@ -3044,17 +3037,6 @@ private constructor(
                 )
             }
         }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun isInteresting(cls: ClassItem): Boolean {
-        val name = cls.qualifiedName()
-        for (prefix in options.checkApiIgnorePrefix) {
-            if (name.startsWith(prefix)) {
-                return false
-            }
-        }
-        return true
     }
 
     companion object {
