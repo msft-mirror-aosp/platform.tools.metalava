@@ -20,6 +20,7 @@ import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
@@ -60,7 +61,7 @@ class CompatibilityCheckOptions :
             .existingFile()
             .allowStructuredOptionName()
 
-    private val checkReleasedApi: File? by
+    private val checkReleasedApi: CheckRequest? by
         option(
                 ARG_CHECK_COMPATIBILITY_API_RELEASED,
                 help =
@@ -71,8 +72,9 @@ class CompatibilityCheckOptions :
             )
             .existingFile()
             .allowStructuredOptionName()
+            .map { CheckRequest.optionalCheckRequest(it, ApiType.PUBLIC_API) }
 
-    private val checkReleasedRemoved: File? by
+    private val checkReleasedRemoved: CheckRequest? by
         option(
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED,
                 help =
@@ -83,6 +85,7 @@ class CompatibilityCheckOptions :
             )
             .existingFile()
             .allowStructuredOptionName()
+            .map { CheckRequest.optionalCheckRequest(it, ApiType.REMOVED) }
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
@@ -107,18 +110,26 @@ class CompatibilityCheckOptions :
      * [apiType] represents which part of the API should be checked.
      */
     data class CheckRequest(val file: File, val apiType: ApiType) {
+
+        companion object {
+            /** Create a [CheckRequest] if the [file] is not-null, otherwise return `null`. */
+            internal fun optionalCheckRequest(file: File?, apiType: ApiType) =
+                file?.let { CheckRequest(it, apiType) }
+        }
+
         override fun toString(): String {
+            // This is only used when reporting progress.
             return "--check-compatibility:${apiType.flagName}:released $file"
         }
     }
 
-    val compatibilityChecks: List<CheckRequest> by lazy {
-        buildList {
-            checkReleasedApi?.let { add(CheckRequest(it, ApiType.PUBLIC_API)) }
-            checkReleasedRemoved?.let { add(CheckRequest(it, ApiType.REMOVED)) }
-        }
-    }
+    /**
+     * The list of [CheckRequest] instances that need to be performed on the API being generated.
+     */
+    val compatibilityChecks by
+        lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
+    /** The list of [Codebase]s corresponding to [compatibilityChecks]. */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        listOfNotNull(checkReleasedApi, checkReleasedRemoved).map { signatureFileCache.load(it) }
+        compatibilityChecks.map { signatureFileCache.load(it.file) }
 }
