@@ -379,4 +379,68 @@ class CommonMethodItemTest : BaseModelTest() {
             assertNull(throwsType.throwableClass)
         }
     }
+
+    @Test
+    fun `Test method default values`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface TestAnnotation {
+                        int id() default 7;
+                        int id1() default -7;
+                        byte bt() default 1;
+                        float floating() default 1.0f;
+                        float floating1() default -1.0f;
+                        long longValue() default 1L;
+                        long longValue1() default -1L;
+                        boolean isResolved() default false;
+                        String prefix() default "pref";
+                        char[] letters() default {'a', 'b', 'c'};
+                        char[] letter() default 'a';
+                        double negInf() default Double.NEGATIVE_INFINITY;
+                        int expr() default 1+2*3;
+                        int compExpr() default FIELD1+FIELD2;
+                        InnerAnnotation value() default @InnerAnnotation;
+                        Class<? extends Number> Cls() default Integer.class;
+                        InnerEnum testEnum() default InnerEnum.ENUM1;
+
+                        int FIELD1 = 5;
+                        int FIELD2 = 7;
+
+                        @interface InnerAnnotation {}
+                        enum InnerEnum {
+                          ENUM1,
+                          ENUM2,
+                        }
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.TestAnnotation")
+
+            val values =
+                listOf<String>(
+                    "7",
+                    "-7",
+                    "1",
+                    "1.0f",
+                    "-1.0f",
+                    "1L",
+                    "-1L",
+                    "false",
+                    "\"pref\"",
+                    "{'a', 'b', 'c'}",
+                    "\'a\'",
+                    "java.lang.Double.NEGATIVE_INFINITY",
+                    "7",
+                    "12",
+                    "@test.pkg.TestAnnotation.InnerAnnotation",
+                    "java.lang.Integer.class",
+                    "test.pkg.TestAnnotation.InnerEnum.ENUM1"
+                )
+            assertEquals(values, classItem.methods().map { it.defaultValue() })
+        }
+    }
 }

@@ -837,6 +837,11 @@ internal open class TurbineCodebaseInitialiser(
                             method.name(),
                         )
                     val documentation = method.decl()?.javadoc() ?: ""
+                    val defaultValueExpr = getAnnotationDefaultExpression(method)
+                    val defaultValue =
+                        if (method.defaultValue() != null)
+                            extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
+                        else ""
                     val methodItem =
                         TurbineMethodItem(
                             codebase,
@@ -846,6 +851,7 @@ internal open class TurbineCodebaseInitialiser(
                             methodModifierItem,
                             typeParams,
                             getCommentedDoc(documentation),
+                            defaultValue,
                         )
                     methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters(), methodTypeParameterScope)
@@ -930,6 +936,7 @@ internal open class TurbineCodebaseInitialiser(
                             constructorModifierItem,
                             typeParams,
                             getCommentedDoc(documentation),
+                            "",
                         )
                     constructorModifierItem.setOwner(constructorItem)
                     createParameters(
@@ -1053,4 +1060,61 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun matchType(typeItem: TypeItem, classItem: ClassItem): Boolean =
         typeItem is ClassTypeItem && typeItem.qualifiedName == classItem.qualifiedName()
+
+    /**
+     * Extracts the expression corresponding to the default value of a given annotation method. If
+     * the method does not have a default value, returns null.
+     */
+    private fun getAnnotationDefaultExpression(method: MethodInfo): Tree? {
+        val optExpr = method.decl()?.defaultValue()
+        return if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
+    }
+
+    /**
+     * Extracts the default value of an annotation method and returns it as a string.
+     *
+     * @param const The constant object representing the annotation value.
+     * @param expr An optional expression tree that might provide additional context for value
+     *   extraction.
+     * @return The default value of the annotation method as a string.
+     */
+    private fun extractAnnotationDefaultValue(const: Const, expr: Tree?): String {
+        return when (const.kind()) {
+            Kind.PRIMITIVE -> {
+                when ((const as Value).constantTypeKind()) {
+                    PrimKind.FLOAT -> {
+                        val value = (const as Const.FloatValue).value()
+                        when {
+                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
+                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
+                            else -> value.toString() + "f"
+                        }
+                    }
+                    PrimKind.DOUBLE -> {
+                        val value = (const as Const.DoubleValue).value()
+                        when {
+                            value == Double.POSITIVE_INFINITY ->
+                                "java.lang.Double.POSITIVE_INFINITY"
+                            value == Double.NEGATIVE_INFINITY ->
+                                "java.lang.Double.NEGATIVE_INFINITY"
+                            else -> const.toString()
+                        }
+                    }
+                    PrimKind.BYTE -> const.getValue().toString()
+                    else -> const.toString()
+                }
+            }
+            Kind.ARRAY -> {
+                const as ArrayInitValue
+                // This is case where defined type is array type but default value is
+                // single non-array element
+                // For e.g. char[] letter() default 'a';
+                if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
+                    extractAnnotationDefaultValue(const.elements().single(), expr)
+                } else getValue(const).toString()
+            }
+            Kind.CLASS_LITERAL -> getValue(const).toString() + ".class"
+            else -> getValue(const).toString()
+        }
+    }
 }
