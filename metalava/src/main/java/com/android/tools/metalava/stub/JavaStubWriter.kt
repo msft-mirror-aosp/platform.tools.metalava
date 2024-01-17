@@ -293,7 +293,7 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(method, writer, config)
 
-        val requiresBody = appendModifiers(method)
+        appendModifiers(method)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -312,7 +312,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (requiresBody) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")

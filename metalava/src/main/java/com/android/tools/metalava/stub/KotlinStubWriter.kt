@@ -167,7 +167,7 @@ internal class KotlinStubWriter(
         // TODO: Should be an annotation
         generateThrowsList(method)
 
-        val requiresBody = appendModifiers(method)
+        appendModifiers(method)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         writer.print("fun ")
@@ -186,7 +186,7 @@ internal class KotlinStubWriter(
             }
         }
 
-        if (requiresBody) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" = ")
             writeThrowStub()
         }
