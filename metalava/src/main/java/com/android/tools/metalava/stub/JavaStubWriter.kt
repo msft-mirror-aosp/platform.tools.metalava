@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -36,14 +35,14 @@ internal class JavaStubWriter(
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
+    private val docStubs: Boolean,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
     private val modifierListWriter =
         ModifierListWriter.forStubs(
             writer = writer,
-            target = annotationTarget,
+            docStubs = docStubs,
             runtimeAnnotationsOnly = !generateAnnotations,
         )
 

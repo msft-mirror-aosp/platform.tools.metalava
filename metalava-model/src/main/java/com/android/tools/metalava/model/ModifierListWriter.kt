@@ -43,13 +43,15 @@ private constructor(
 
         fun forStubs(
             writer: Writer,
-            target: AnnotationTarget,
+            docStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
             language: Language = Language.JAVA,
         ) =
             ModifierListWriter(
                 writer = writer,
-                target = target,
+                target =
+                    if (docStubs) AnnotationTarget.DOC_STUBS_FILE
+                    else AnnotationTarget.SDK_STUBS_FILE,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
                 skipNullnessAnnotations = language == Language.KOTLIN,
                 language = language,

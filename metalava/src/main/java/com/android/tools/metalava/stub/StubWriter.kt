@@ -18,10 +18,8 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -40,12 +38,10 @@ import java.io.PrintWriter
 import java.io.Writer
 
 internal class StubWriter(
-    private val codebase: Codebase,
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
-    private val annotationTarget: AnnotationTarget,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
 ) :
@@ -115,7 +111,11 @@ internal class StubWriter(
                 // Write the modifier list even though the package info does not actually have
                 // modifiers as that will write the annotations which it does have and ignore the
                 // modifiers.
-                ModifierListWriter.forStubs(packageInfoWriter, annotationTarget).write(pkg)
+                ModifierListWriter.forStubs(
+                        writer = packageInfoWriter,
+                        docStubs = docStubs,
+                    )
+                    .write(pkg)
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")
 
@@ -202,7 +202,7 @@ internal class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        annotationTarget,
+                        docStubs,
                         config,
                     )
                 } else {
@@ -212,7 +212,7 @@ internal class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        annotationTarget,
+                        docStubs,
                         config,
                     )
                 }
