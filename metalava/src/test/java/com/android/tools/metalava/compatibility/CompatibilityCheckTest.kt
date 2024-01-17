@@ -5159,6 +5159,60 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Test adding method with same name as method with type parameter`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class TestKt {
+                        method public static <T> T! foo(T! target);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            fun <T> foo(target: T) = target
+                            fun foo(target: String) = target
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that parent method with type parameter matches child override`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
     // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
