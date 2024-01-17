@@ -660,60 +660,28 @@ abstract class DriverTest : TemporaryFolderOwner {
             }
 
         val checkCompatibilityApiReleasedFile =
-            if (checkCompatibilityApiReleased != null) {
-                val jar = File(checkCompatibilityApiReleased)
-                if (jar.isFile) {
-                    jar
-                } else {
-                    val file = File(project, "released-api.txt")
-                    file.writeSignatureText(checkCompatibilityApiReleased)
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(
+                project,
+                checkCompatibilityApiReleased,
+                "released-api.txt"
+            )
 
         val checkCompatibilityRemovedApiReleasedFile =
-            if (checkCompatibilityRemovedApiReleased != null) {
-                val jar = File(checkCompatibilityRemovedApiReleased)
-                if (jar.isFile) {
-                    jar
-                } else {
-                    val file = File(project, "removed-released-api.txt")
-                    file.writeSignatureText(checkCompatibilityRemovedApiReleased)
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(
+                project,
+                checkCompatibilityRemovedApiReleased,
+                "removed-released-api.txt"
+            )
 
         val checkCompatibilityBaseApiFile =
-            if (checkCompatibilityBaseApi != null) {
-                val maybeFile = File(checkCompatibilityBaseApi)
-                if (maybeFile.isFile) {
-                    maybeFile
-                } else {
-                    val file = File(project, "compatibility-base-api.txt")
-                    file.writeSignatureText(checkCompatibilityBaseApi)
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(
+                project,
+                checkCompatibilityBaseApi,
+                "compatibility-base-api.txt"
+            )
 
         val migrateNullsApiFile =
-            if (migrateNullsApi != null) {
-                val jar = File(migrateNullsApi)
-                if (jar.isFile) {
-                    jar
-                } else {
-                    val file = File(project, "stable-api.txt")
-                    file.writeSignatureText(migrateNullsApi)
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(project, migrateNullsApi, "stable-api.txt")
 
         val manifestFileArgs =
             if (manifest != null) {
@@ -1288,6 +1256,31 @@ abstract class DriverTest : TemporaryFolderOwner {
             }
         }
     }
+
+    /**
+     * Get an optional signature API [File] from either a file path or its contents.
+     *
+     * @param project the directory in which to create a new file.
+     * @param fileOrFileContents either a path to an existing file or the contents of the signature
+     *   file. If the latter the contents will be trimmed, updated to add a [FileFormat.V2] header
+     *   if needed and written to a new file created within [project].
+     * @param newBasename the basename of a new file created.
+     */
+    private fun useExistingSignatureFileOrCreateNewFile(
+        project: File,
+        fileOrFileContents: String?,
+        newBasename: String
+    ) =
+        fileOrFileContents?.let {
+            val maybeFile = File(fileOrFileContents)
+            if (maybeFile.isFile) {
+                maybeFile
+            } else {
+                val file = File(project, newBasename)
+                file.writeSignatureText(fileOrFileContents)
+                file
+            }
+        }
 
     protected fun uastCheck(
         isK2: Boolean,
