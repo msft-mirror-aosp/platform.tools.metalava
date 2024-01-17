@@ -547,7 +547,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 sources.forEach { file ->
                     val signatureFile =
                         File(project, "load-api${ if (++num == 1) "" else num.toString() }.txt")
-                    signatureFile.writeSignatureText(file.trimIndent())
+                    signatureFile.writeSignatureText(file)
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
@@ -652,7 +652,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     arrayOf(ARG_API_LINT)
                 } else {
                     val file = File(project, "prev-api-lint.txt")
-                    file.writeSignatureText(apiLint.trimIndent())
+                    file.writeSignatureText(apiLint)
                     arrayOf(ARG_API_LINT, file.path)
                 }
             } else {
@@ -666,7 +666,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "released-api.txt")
-                    file.writeSignatureText(checkCompatibilityApiReleased.trimIndent())
+                    file.writeSignatureText(checkCompatibilityApiReleased)
                     file
                 }
             } else {
@@ -694,7 +694,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     maybeFile
                 } else {
                     val file = File(project, "compatibility-base-api.txt")
-                    file.writeSignatureText(checkCompatibilityBaseApi.trimIndent())
+                    file.writeSignatureText(checkCompatibilityBaseApi)
                     file
                 }
             } else {
@@ -708,7 +708,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "stable-api.txt")
-                    file.writeSignatureText(migrateNullsApi.trimIndent())
+                    file.writeSignatureText(migrateNullsApi)
                     file
                 }
             } else {
@@ -873,7 +873,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         val subtractApiArgs =
             if (subtractApi != null) {
                 subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeSignatureText(subtractApi.trimIndent())
+                subtractApiFile.writeSignatureText(subtractApi)
                 arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
             } else {
                 emptyArray()
