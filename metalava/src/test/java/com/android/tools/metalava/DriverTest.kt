@@ -393,10 +393,32 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
-        /** An optional API signature to check the last released API's compatibility with */
+        /**
+         * An optional API signature to check the last released API's compatibility with.
+         *
+         * This can either be the name of a file or the contents of the signature file. In the
+         * latter case the contents are adjusted to make sure it is a valid signature file with a
+         * valid header and written to a file.
+         */
         @Language("TEXT") checkCompatibilityApiReleased: String? = null,
-        /** An optional API signature to check the last released removed API's compatibility with */
+        /**
+         * Allow specifying multiple instances of [checkCompatibilityApiReleased].
+         *
+         * In order from narrowest to widest API.
+         */
+        checkCompatibilityApiReleasedList: List<String> = emptyList(),
+        /**
+         * An optional API signature to check the last released removed API's compatibility with.
+         *
+         * See [checkCompatibilityApiReleased].
+         */
         @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
+        /**
+         * Allow specifying multiple instances of [checkCompatibilityRemovedApiReleased].
+         *
+         * In order from narrowest to widest API.
+         */
+        checkCompatibilityRemovedApiReleasedList: List<String> = emptyList(),
         /** An optional API signature to use as the base API codebase during compat checks */
         @Language("TEXT") checkCompatibilityBaseApi: String? = null,
         @Language("TEXT") migrateNullsApi: String? = null,
@@ -506,12 +528,14 @@ abstract class DriverTest : TemporaryFolderOwner {
             CompatibilityCheckRequest.create(
                 optionName = ARG_CHECK_COMPATIBILITY_API_RELEASED,
                 fileOrSignatureContents = checkCompatibilityApiReleased,
+                fileOrSignatureContentsList = checkCompatibilityApiReleasedList,
                 newBasename = "released-api.txt",
             )
         val releasedRemovedApiCheck =
             CompatibilityCheckRequest.create(
                 optionName = ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED,
                 fileOrSignatureContents = checkCompatibilityRemovedApiReleased,
+                fileOrSignatureContentsList = checkCompatibilityRemovedApiReleasedList,
                 newBasename = "removed-released-api.txt",
             )
 
@@ -1238,36 +1262,38 @@ abstract class DriverTest : TemporaryFolderOwner {
     private class CompatibilityCheckRequest
     private constructor(
         private val optionName: String,
-        private val fileOrSignatureContents: String?,
+        private val fileOrSignatureContentsList: List<String>,
         private val newBasename: String,
     ) {
         companion object {
             fun create(
                 optionName: String,
                 fileOrSignatureContents: String?,
+                fileOrSignatureContentsList: List<String>,
                 newBasename: String,
             ): CompatibilityCheckRequest =
                 CompatibilityCheckRequest(
                     optionName = optionName,
-                    fileOrSignatureContents = fileOrSignatureContents,
+                    fileOrSignatureContentsList =
+                        listOfNotNull(fileOrSignatureContents) + fileOrSignatureContentsList,
                     newBasename = newBasename,
                 )
         }
+
         /** Indicates whether the compatibility check is required. */
-        fun required(): Boolean = fileOrSignatureContents != null
+        fun required(): Boolean = fileOrSignatureContentsList.isNotEmpty()
 
         /** The arguments to pass to Metalava. */
         fun arguments(project: File): Array<out String> {
-            fileOrSignatureContents ?: return emptyArray()
+            if (fileOrSignatureContentsList.isEmpty()) return emptyArray()
 
-            val file =
-                useExistingSignatureFileOrCreateNewFile(
-                    project,
-                    fileOrSignatureContents,
-                    newBasename,
-                )
+            val paths =
+                fileOrSignatureContentsList.mapNotNull {
+                    useExistingSignatureFileOrCreateNewFile(project, it, newBasename)?.path
+                }
 
-            return file?.let { arrayOf(optionName, it.path) } ?: emptyArray()
+            // For each path in the list generate an option with the path as the value.
+            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
         }
     }
 
