@@ -346,15 +346,15 @@ open class TurbineCodebaseInitialiser(
             classItem.emit = false
         }
 
+        // Create InnerClasses.
+        val children = cls.children()
+        createInnerClasses(classItem, children.values.asList())
+
         // Set the throwslist for methods
         classItem.methods.forEach { it.setThrowsTypes() }
 
         // Set the throwslist for constructors
         classItem.constructors.forEach { it.setThrowsTypes() }
-
-        // Create InnerClasses.
-        val children = cls.children()
-        createInnerClasses(classItem, children.values.asList())
 
         return classItem
     }
