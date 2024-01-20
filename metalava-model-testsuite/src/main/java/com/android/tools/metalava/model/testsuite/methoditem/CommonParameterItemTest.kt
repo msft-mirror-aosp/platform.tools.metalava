@@ -248,13 +248,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 val parameterItem = parameterItems[i]
                 val expectedName = expectedNames[i]
                 assertEquals("$i:name()", expectedName, parameterItem.name())
-                // This should probably return `null` as the name is not actually public it is
-                // synthesized by the underlying model.
-                assertEquals(
-                    "$i:publicName()$parameterItem",
-                    expectedName,
-                    parameterItem.publicName()
-                )
+                assertNull("$i:publicName()$parameterItem", parameterItem.publicName())
             }
         }
     }

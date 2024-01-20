@@ -4733,25 +4733,25 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 error: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from e to p in method test.pkg.MyCollection.add [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
                 error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.addAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
                 load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from o to p in method test.pkg.MyCollection.remove [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
                 error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.removeAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.retainAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from a to p in method test.pkg.MyCollection.toArray [ParameterNameChange]
-            """,
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                """,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
