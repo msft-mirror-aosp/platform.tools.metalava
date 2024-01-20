@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.computeSuperMethods
 import com.google.turbine.binder.sym.MethodSymbol
 
 open class TurbineMethodItem(
@@ -30,8 +31,8 @@ open class TurbineMethodItem(
     protected var returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     private val typeParameters: TypeParameterList,
-    private val document: String,
-) : TurbineItem(codebase, modifiers), MethodItem {
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwsClassNames: List<String>
@@ -39,8 +40,6 @@ open class TurbineMethodItem(
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
-
-    override var documentation: String = document
 
     override fun name(): String = methodSymbol.name()
 
@@ -72,36 +71,9 @@ open class TurbineMethodItem(
      */
     override fun superMethods(): List<MethodItem> {
         if (!::superMethodList.isInitialized) {
-            if (isConstructor()) {
-                superMethodList = emptyList()
-            }
-
-            val methods = mutableSetOf<MethodItem>()
-
-            // Method from SuperClass or its ancestors
-            containingClass().superClass()?.let {
-                val superMethod = it.findMethod(this, includeSuperClasses = true)
-                superMethod?.let { methods.add(superMethod) }
-            }
-
-            // Methods implemented from direct interfaces or its ancestors
-            val containingTurbineClass = containingClass() as TurbineClassItem
-            methods.addAll(superMethodsFromInterfaces(containingTurbineClass.directInterfaces()))
-
-            superMethodList = methods.toList()
+            superMethodList = computeSuperMethods()
         }
         return superMethodList
-    }
-
-    private fun superMethodsFromInterfaces(interfaces: List<TurbineClassItem>): List<MethodItem> {
-        var methods = mutableListOf<MethodItem>()
-
-        for (itf in interfaces) {
-            val itfMethod = itf.findMethod(this)
-            if (itfMethod != null) methods.add(itfMethod)
-            else methods.addAll(superMethodsFromInterfaces(itf.directInterfaces()))
-        }
-        return methods
     }
 
     override fun equals(other: Any?): Boolean {
