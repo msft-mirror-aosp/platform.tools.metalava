@@ -18,7 +18,8 @@ com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test non final field with default value as constant expression[turbine,java]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
-  Test publicName reports correct name when called on binary class[turbine,java]
+  Test publicName reports correct name when called on binary class - Object#equals[turbine,java]
+  Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
