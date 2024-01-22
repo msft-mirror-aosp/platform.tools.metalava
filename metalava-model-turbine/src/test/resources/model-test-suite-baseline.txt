@@ -24,10 +24,6 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test nullability annotation in package info[turbine,java]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
-  test[turbine,java,pkg.UnknownClass.Inner]
-  test[turbine,java,pkg.UnknownClass]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test inner types from classpath[turbine,java]
 
