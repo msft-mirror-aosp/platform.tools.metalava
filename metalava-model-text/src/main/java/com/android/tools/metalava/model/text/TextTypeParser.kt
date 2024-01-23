@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -26,21 +25,6 @@ import java.util.HashMap
 /** Parses and caches types for a [codebase]. */
 internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: Boolean = false) {
     private val typeCache = Cache<String, TextTypeItem>()
-
-    /**
-     * Creates a [TextTypeItem] representing the type of [cl]. Since this is definitely a class
-     * type, the steps in [obtainTypeFromString] aren't needed.
-     */
-    fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
-        val params = cl.typeParameterList.typeParameters().map { it.toType() }
-        return TextClassTypeItem(
-            codebase,
-            cl.qualifiedName,
-            params,
-            cl.containingClass?.toType() as? ClassTypeItem,
-            codebase.emptyTypeModifiers
-        )
-    }
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
     fun obtainObjectType(): TextTypeItem {
