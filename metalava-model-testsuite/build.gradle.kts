@@ -23,7 +23,6 @@ plugins {
 
 dependencies {
     implementation(project(":metalava-model"))
-    implementation(testFixtures(project(":metalava-model")))
     implementation(project(":metalava-model-source"))
     implementation(project(":metalava-testing"))
 

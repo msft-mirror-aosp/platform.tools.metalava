@@ -120,6 +120,11 @@ Sub-commands:
     }
 
     @Test
+    fun `Test for @ usage on command line`() {
+        check(showAnnotations = arrayOf("@foo.Show"))
+    }
+
+    @Test
     fun `Test for @file`() {
         val dir = temporaryFolder.newFolder()
         val files = (1..4).map { TestFiles.source("File$it.txt", "File$it").createFile(dir) }

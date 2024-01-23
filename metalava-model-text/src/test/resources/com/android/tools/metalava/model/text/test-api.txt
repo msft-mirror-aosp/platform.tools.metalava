@@ -1,5 +1,0 @@
-// Signature format: 2.0
-package test.pkg {
-  public class Foo {
-  }
-}

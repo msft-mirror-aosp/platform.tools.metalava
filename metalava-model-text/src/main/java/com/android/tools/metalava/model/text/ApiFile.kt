@@ -42,7 +42,6 @@ import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.cre
 import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
@@ -123,7 +122,7 @@ private constructor(
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers.")
+        @Deprecated("Exists only for external callers. ")
         @JvmStatic
         @MetalavaApi
         @Throws(ApiParseException::class)
@@ -136,20 +135,6 @@ private constructor(
                 filename,
                 apiText,
             )
-        }
-
-        /**
-         * Parse the API signature file from the [inputStream].
-         *
-         * This will consume the whole contents of the [inputStream] but it is the caller's
-         * responsibility to close it.
-         */
-        @JvmStatic
-        @MetalavaApi
-        @Throws(ApiParseException::class)
-        fun parseApi(filename: String, inputStream: InputStream): TextCodebase {
-            val apiText = inputStream.bufferedReader().readText()
-            return parseApi(filename, apiText)
         }
 
         /** Entry point for testing. Take a filename and content separately. */
@@ -355,8 +340,8 @@ private constructor(
 
         cl.setContainingPackage(pkg)
         cl.deprecated = modifiers.isDeprecated()
-        if ("extends" == token && !isInterface) {
-            token = getAnnotationCompleteToken(tokenizer, tokenizer.requireToken())
+        if ("extends" == token) {
+            token = tokenizer.requireToken()
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
             // This can't use [parseType] because the next token might be a separate type (classes
@@ -365,32 +350,38 @@ private constructor(
             // However, this type cannot be an array, so unlike [parseType] this does not need to
             // check if the next token has annotations.
             while (isIncompleteTypeToken(token)) {
-                token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
+                token = tokenizer.requireToken()
                 superClassName += " $token"
             }
             ext = superClassName
-            token = tokenizer.current
-        }
-        if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
+        }
+        if (
+            "implements" == token ||
+                "extends" == token ||
+                isInterface && ext != null && token != "{"
+        ) {
+            // If this is part of a list of interface supertypes, token is already a supertype.
+            // Otherwise, skip to the next token to get the supertype.
+            if (token == "implements" || token == "extends") {
+                token = tokenizer.requireToken()
+            }
             while (true) {
+                var interfaceName = token
                 if ("{" == token) {
                     break
                 } else if ("," != token) {
-                    var interfaceName = getAnnotationCompleteToken(tokenizer, token)
                     // Make sure full interface name is found if there are type use annotations.
                     // This can't use [parseType] because the next token might be a separate type.
                     // However, this type cannot be an array, so unlike [parseType] this does not
                     // need to check if the next token has annotations.
                     while (isIncompleteTypeToken(token)) {
-                        token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
+                        token = tokenizer.requireToken()
                         interfaceName += " $token"
                     }
                     mapClassToInterface(cl, interfaceName)
-                    token = tokenizer.current
-                } else {
-                    token = tokenizer.requireToken()
                 }
+                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
@@ -508,80 +499,39 @@ private constructor(
         return type
     }
 
-    /**
-     * If the [startingToken] contains the beginning of an annotation, pulls additional tokens from
-     * [tokenizer] to complete the annotation, returning the full token. If there isn't an
-     * annotation, returns the original [startingToken].
-     *
-     * When the method returns, the [tokenizer] will point to the token after the end of the
-     * returned string.
-     */
-    private fun getAnnotationCompleteToken(tokenizer: Tokenizer, startingToken: String): String {
-        return if (startingToken.contains('@')) {
-            val prefix = startingToken.substringBefore('@')
-            val annotationStart = startingToken.substring(startingToken.indexOf('@'))
-            val annotation = getAnnotation(tokenizer, annotationStart)
-            "$prefix$annotation"
-        } else {
-            tokenizer.requireToken()
-            startingToken
-        }
-    }
-
-    /**
-     * If the [startingToken] is the beginning of an annotation, returns the annotation parsed from
-     * the [tokenizer]. Returns null otherwise.
-     *
-     * When the method returns, the [tokenizer] will point to the token after the annotation.
-     */
-    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
         var token = startingToken
-        if (token.startsWith('@')) {
-            // Annotation
-            var annotation = token
+        val annotations: MutableList<String> = mutableListOf()
+        while (true) {
+            if (token.startsWith("@")) {
+                // Annotation
+                var annotation = token
 
-            // Restore annotations that were shortened on export
-            annotation = unshortenAnnotation(annotation)
-            token = tokenizer.requireToken()
-            if (token == "(") {
-                // Annotation arguments; potentially nested
-                var balance = 0
-                val start = tokenizer.offset() - 1
-                while (true) {
-                    if (token == "(") {
-                        balance++
-                    } else if (token == ")") {
-                        balance--
-                        if (balance == 0) {
-                            break
+                // Restore annotations that were shortened on export
+                annotation = unshortenAnnotation(annotation)
+                token = tokenizer.requireToken()
+                if (token == "(") {
+                    // Annotation arguments; potentially nested
+                    var balance = 0
+                    val start = tokenizer.offset() - 1
+                    while (true) {
+                        if (token == "(") {
+                            balance++
+                        } else if (token == ")") {
+                            balance--
+                            if (balance == 0) {
+                                break
+                            }
                         }
+                        token = tokenizer.requireToken()
                     }
+                    annotation += tokenizer.getStringFromOffset(start)
                     token = tokenizer.requireToken()
                 }
-                annotation += tokenizer.getStringFromOffset(start)
-                // Move the tokenizer so that when the method returns it points to the token after
-                // the end of the annotation.
-                tokenizer.requireToken()
+                annotations.add(annotation)
+            } else {
+                break
             }
-            return annotation
-        } else {
-            return null
-        }
-    }
-
-    /**
-     * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
-     * returning them as a (possibly empty) mutable list.
-     *
-     * When the method returns, the [tokenizer] will point to the token after the annotation list.
-     */
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
-        val annotations: MutableList<String> = mutableListOf()
-        var token = startingToken
-        while (true) {
-            val annotation = getAnnotation(tokenizer, token) ?: break
-            token = tokenizer.current
-            annotations.add(annotation)
         }
         return annotations
     }
@@ -1221,19 +1171,18 @@ private constructor(
         typeParameters: List<TypeParameterItem>,
         annotations: MutableList<String>
     ): TextTypeItem {
-        var prev = getAnnotationCompleteToken(tokenizer, startingToken)
-        var type = prev
-        var token = tokenizer.current
+        var type = startingToken
+        var prev = type
+        var token = tokenizer.requireToken()
         // Look both at the last used token and the next one:
         // If the last token has annotations, the type string was broken up by annotations, and the
         // next token is also part of the type.
         // If the next token has annotations, this is an array type like "Foo @A []", so the next
         // token is part of the type.
         while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
-            token = getAnnotationCompleteToken(tokenizer, token)
             type += " $token"
             prev = token
-            token = tokenizer.current
+            token = tokenizer.requireToken()
         }
 
         // TODO: this should be handled by [obtainTypeFromString]
@@ -1543,8 +1492,8 @@ class ReferenceResolver(
 
     private fun resolveSuperclasses() {
         for (cl in classes) {
-            // java.lang.Object has no superclass and neither do interfaces
-            if (cl.isJavaLangObject() || cl.isInterface()) {
+            // java.lang.Object has no superclass
+            if (cl.isJavaLangObject()) {
                 continue
             }
             var scName: String? = context.nameOfSuperClass(cl)
@@ -1553,9 +1502,6 @@ class ReferenceResolver(
                     when {
                         cl.isEnum() -> JAVA_LANG_ENUM
                         cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
-                        // Interfaces do not extend java.lang.Object so drop out before the else
-                        // clause.
-                        cl.isInterface() -> return
                         else -> {
                             val existing = cl.superClassType()?.toTypeString()
                             existing ?: JAVA_LANG_OBJECT
@@ -1608,22 +1554,12 @@ class ReferenceResolver(
             for (exception in names) {
                 var exceptionClass: ClassItem? = codebase.mAllClasses[exception]
                 if (exceptionClass == null) {
-                    // Exception not provided by this codebase. Either try and retrieve it from a
-                    // base codebase or create a stub.
+                    // Exception not provided by this codebase. Inject a stub.
                     exceptionClass = getOrCreateClass(exception)
-
-                    // A class retrieved from another codebase is assumed to have been fully
-                    // resolved by the codebase. However, a stub that has just been created will
-                    // need some additional work. A stub can be differentiated from a ClassItem
-                    // retrieved from another codebase because it belongs to this codebase and is
-                    // a TextClassItem.
-                    if (exceptionClass.codebase == codebase && exceptionClass is TextClassItem) {
-                        // An exception class needs to extend Throwable, unless it is Throwable in
-                        // which case it does not need modifying.
-                        if (exception != JAVA_LANG_THROWABLE) {
-                            val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
-                            exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
-                        }
+                    // Set super class to throwable?
+                    if (exception != JAVA_LANG_THROWABLE) {
+                        val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                        exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
                     }
                 }
                 result.add(exceptionClass)

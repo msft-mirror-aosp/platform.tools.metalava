@@ -24,18 +24,16 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineMethodItem(
+class TurbineMethodItem(
     override val codebase: Codebase,
     private val methodSymbol: MethodSymbol,
+    private val parameters: List<ParameterItem>,
     private val containingClass: TurbineClassItem,
-    protected var returnType: TurbineTypeItem,
     override val modifiers: TurbineModifierItem,
-    private val typeParameters: TypeParameterList
 ) : TurbineItem(codebase, modifiers), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     private lateinit var throwsTypes: List<ClassItem>
-    internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
@@ -44,7 +42,7 @@ open class TurbineMethodItem(
 
     override fun parameters(): List<ParameterItem> = parameters
 
-    override fun returnType(): TypeItem = returnType
+    override fun returnType(): TypeItem = TODO("b/295800205")
 
     override fun throwsTypes(): List<ClassItem> = throwsTypes
 
@@ -125,5 +123,7 @@ open class TurbineMethodItem(
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
-    override fun typeParameterList(): TypeParameterList = typeParameters
+    override fun typeParameterList(): TypeParameterList {
+        TODO("b/295800205")
+    }
 }

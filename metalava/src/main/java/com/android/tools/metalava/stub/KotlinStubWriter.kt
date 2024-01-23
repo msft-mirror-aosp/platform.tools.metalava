@@ -180,7 +180,9 @@ internal class KotlinStubWriter(
 
         val typeString =
             type.toTypeString(
-                annotations = false,
+                outerAnnotations = false,
+                innerAnnotations = generateAnnotations,
+                erased = false,
                 kotlinStyleNulls = true,
                 context = item,
                 filter = filterReference

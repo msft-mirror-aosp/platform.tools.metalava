@@ -23,6 +23,7 @@ import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceCodebase

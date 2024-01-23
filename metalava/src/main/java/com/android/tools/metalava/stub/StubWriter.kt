@@ -69,7 +69,9 @@ internal class StubWriter(
         writePackageInfo(pkg)
 
         if (docStubs) {
-            pkg.overviewDocumentation?.let { writeDocOverview(pkg, it) }
+            codebase.getPackageDocs()?.let { packageDocs ->
+                packageDocs.getOverviewDocumentation(pkg)?.let { writeDocOverview(pkg, it) }
+            }
         }
     }
 

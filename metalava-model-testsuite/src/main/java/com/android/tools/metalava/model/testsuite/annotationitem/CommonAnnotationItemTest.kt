@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getAttributeValues
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -29,7 +30,7 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
 @RunWith(Parameterized::class)
-class CommonAnnotationItemTest : BaseModelTest() {
+class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
 
     @Test
     fun `annotation with annotation values`() {

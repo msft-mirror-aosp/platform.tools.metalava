@@ -43,6 +43,16 @@ interface PropertyItem : MemberItem {
         visitor.visit(this)
     }
 
+    override fun acceptTypes(visitor: TypeVisitor) {
+        if (visitor.skip(this)) {
+            return
+        }
+
+        val type = type()
+        visitor.visitType(type, this)
+        visitor.afterVisitType(type, this)
+    }
+
     override fun hasNullnessInfo(): Boolean {
         if (!requiresNullnessInfo()) {
             return true

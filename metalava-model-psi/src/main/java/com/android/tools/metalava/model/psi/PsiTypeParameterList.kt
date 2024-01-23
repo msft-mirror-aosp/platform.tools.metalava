@@ -39,9 +39,7 @@ internal class PsiTypeParameterList(
     override fun typeParameters(): List<TypeParameterItem> {
         val parameters = psiTypeParameterList.typeParameters
         val list = ArrayList<TypeParameterItem>(parameters.size)
-        parameters.mapTo(list) {
-            PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
-        }
+        parameters.mapTo(list) { PsiTypeParameterItem.create(codebase, it) }
         return list
     }
 }

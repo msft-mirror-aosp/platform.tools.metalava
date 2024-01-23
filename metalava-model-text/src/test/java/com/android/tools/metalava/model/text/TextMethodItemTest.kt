@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.Assertions
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
 
-class TextMethodItemTest : Assertions {
+class TextMethodItemTest {
 
     @Test
     fun `text method item return type is non-null`() {
@@ -40,9 +39,9 @@ class TextMethodItemTest : Assertions {
                     .trimIndent(),
             )
 
-        val cls = codebase.assertClass("test.pkg.Foo")
-        val ctorItem = cls.assertMethod("Foo", "")
-        val methodItem = cls.assertMethod("bar", "")
+        val cls = codebase.findClass("test.pkg.Foo")!!
+        val ctorItem = cls.findMethod("Foo", "")!!
+        val methodItem = cls.findMethod("bar", "")!!
 
         assertNotNull(ctorItem.returnType())
         assertEquals(

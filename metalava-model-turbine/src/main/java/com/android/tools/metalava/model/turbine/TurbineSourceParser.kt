@@ -45,7 +45,8 @@ internal class TurbineSourceParser(private val annotationManager: AnnotationMana
 
         val sourcefiles = getSourceFiles(sources)
         val units = sourcefiles.map { it -> Parser.parse(it) }
-        codebase.initialize(units, classPath)
+        val initialiser = TurbineCodebaseInitialiser(units, codebase, classPath)
+        initialiser.initialize()
 
         return codebase
     }

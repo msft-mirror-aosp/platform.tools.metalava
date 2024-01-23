@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.text.TextTypeParameterItem.Companion.bounds
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class TextTypeParameterItemTest : Assertions {
+class TextTypeParameterItemTest {
     @Test
     fun testTypeParameterNames() {
         assertThat(bounds(null).toString()).isEqualTo("[]")
@@ -52,8 +51,8 @@ class TextTypeParameterItemTest : Assertions {
             """
                     .trimIndent(),
             )
-        val cls = codebase.assertClass("androidx.navigation.NavDestinationBuilder")
-        val method = cls.assertMethod("build", "") as TextMethodItem
+        val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
+        val method = cls?.findMethod("build", "") as TextMethodItem
         assertThat(method).isNotNull()
         assertThat(bounds("D", method).toString()).isEqualTo("[androidx.navigation.NavDestination]")
     }

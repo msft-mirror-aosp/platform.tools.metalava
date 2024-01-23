@@ -351,16 +351,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            ANDROID_FLAGGED_API ->
-                // If FlaggedApi annotations are hidden in general then do not output them at all.
-                // This means that if some FlaggedApi annotations with specific flags are not hidden
-                // then the annotations will not be written out to the signature files. That is
-                // expected as those APIs are intended to be released.
-                if (config.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
-                    return NO_ANNOTATION_TARGETS
-                } else {
-                    return ANNOTATION_SIGNATURE_ONLY
-                }
+            ANDROID_FLAGGED_API -> return ANNOTATION_SIGNATURE_ONLY
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are
@@ -592,11 +583,7 @@ private class LazyAnnotationInfo(
          * a closer annotation) to be shown.
          */
         val SHOW =
-            Showability(
-                show = ShowOrHide.SHOW,
-                recursive = ShowOrHide.SHOW,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
+            Showability(show = ShowOrHide.SHOW, recursive = ShowOrHide.SHOW, forStubsOnly = false)
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
@@ -606,7 +593,7 @@ private class LazyAnnotationInfo(
             Showability(
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.SHOW,
+                forStubsOnly = true
             )
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
@@ -614,7 +601,7 @@ private class LazyAnnotationInfo(
             Showability(
                 show = ShowOrHide.SHOW,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
+                forStubsOnly = false
             )
 
         /**
@@ -622,11 +609,7 @@ private class LazyAnnotationInfo(
          * a closer annotation) to not be shown.
          */
         val HIDE =
-            Showability(
-                show = ShowOrHide.HIDE,
-                recursive = ShowOrHide.HIDE,
-                forStubsOnly = ShowOrHide.NO_EFFECT,
-            )
+            Showability(show = ShowOrHide.HIDE, recursive = ShowOrHide.HIDE, forStubsOnly = false)
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
@@ -636,7 +619,7 @@ private class LazyAnnotationInfo(
             Showability(
                 show = ShowOrHide.HIDE_UNSTABLE_API,
                 recursive = ShowOrHide.HIDE_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.HIDE_UNSTABLE_API,
+                forStubsOnly = false
             )
 
         /**

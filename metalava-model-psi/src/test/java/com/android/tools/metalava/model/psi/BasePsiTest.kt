@@ -17,8 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.reporter.BasicReporter
@@ -27,10 +28,11 @@ import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.test.assertNotNull
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-open class BasePsiTest : TemporaryFolderOwner, Assertions {
+open class BasePsiTest : TemporaryFolderOwner {
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
@@ -96,5 +98,17 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
                 sourcePath = listOf(directory),
                 classPath = classPath,
             )
+    }
+
+    fun Codebase.assertClass(qualifiedName: String): ClassItem {
+        val classItem = this.findClass(qualifiedName)
+        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
+        return classItem
+    }
+
+    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
+        val methodItem = this.findMethod(methodName, parameters)
+        assertNotNull(methodItem) { "Expected $methodName to be defined" }
+        return methodItem
     }
 }

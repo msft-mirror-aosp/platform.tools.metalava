@@ -16,7 +16,6 @@
 
 plugins {
     `java-library`
-    `java-test-fixtures`
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
     id("maven-publish")
@@ -26,6 +25,4 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
-
-    testFixturesImplementation(libs.kotlinTest)
 }

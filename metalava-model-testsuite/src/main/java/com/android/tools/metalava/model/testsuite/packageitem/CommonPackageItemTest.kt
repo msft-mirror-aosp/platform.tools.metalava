@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -25,7 +26,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonPackageItemTest : BaseModelTest() {
+class CommonPackageItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
 
     @Test
     fun `Test @hide in package html`() {
