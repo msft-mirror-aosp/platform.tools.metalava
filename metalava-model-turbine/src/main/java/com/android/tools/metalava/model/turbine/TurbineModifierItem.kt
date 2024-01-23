@@ -26,22 +26,18 @@ class TurbineModifierItem
 internal constructor(
     codebase: Codebase,
     flags: Int = PACKAGE_PRIVATE,
-    annotations: List<AnnotationItem>?
-) :
-    DefaultModifierList(codebase, flags, annotations?.toMutableList()),
-    ModifierList,
-    MutableModifierList {
+    annotations: MutableList<AnnotationItem>? = null,
+) : DefaultModifierList(codebase, flags, annotations), ModifierList, MutableModifierList {
     companion object {
         fun create(
             codebase: Codebase,
             flag: Int,
-            annotations: List<AnnotationItem>?
         ): TurbineModifierItem {
             if (flag == 0) {
                 // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                return TurbineModifierItem(codebase, annotations = annotations)
+                return TurbineModifierItem(codebase)
             }
-            return TurbineModifierItem(codebase, computeFlag(flag), annotations)
+            return TurbineModifierItem(codebase, computeFlag(flag))
         }
 
         /**

@@ -22,10 +22,10 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 
 class TextTypeParameterList(
     val codebase: TextCodebase,
-    private var owner: TypeParameterListOwner?,
+    var owner: TypeParameterListOwner?,
     private val typeListString: String
 ) : TypeParameterList {
-    private var typeParameters: List<TextTypeParameterItem>? = null
+    private var typeParameters: List<TypeParameterItem>? = null
     private var typeParameterNames: List<String>? = null
 
     override fun toString(): String = typeListString
@@ -47,16 +47,11 @@ class TextTypeParameterList(
     override fun typeParameters(): List<TypeParameterItem> {
         if (typeParameters == null) {
             val strings = TextTypeParser.typeParameterStrings(typeListString)
-            val list = ArrayList<TextTypeParameterItem>(strings.size)
+            val list = ArrayList<TypeParameterItem>(strings.size)
             strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
             typeParameters = list
         }
         return typeParameters!!
-    }
-
-    internal fun setOwner(newOwner: TypeParameterListOwner) {
-        owner = newOwner
-        typeParameters?.forEach { it.setOwner(newOwner) }
     }
 
     companion object {

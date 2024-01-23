@@ -1931,8 +1931,7 @@ class ApiLint(
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            !superMethod.modifiers.hasNullnessInfo() &&
-                superMethod.returnType() !is VariableTypeItem
+            !superMethod.hasNullnessInfo() && superMethod.returnType() !is VariableTypeItem
         }
     }
 

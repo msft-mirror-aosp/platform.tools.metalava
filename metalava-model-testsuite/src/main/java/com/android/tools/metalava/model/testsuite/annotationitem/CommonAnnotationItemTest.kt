@@ -40,8 +40,8 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                     // Signature format: 2.0
                     package test.pkg {
                       @test.pkg.Test.Anno(
-                        annotationValue = @test.pkg.Other("other"),
-                        annotationArrayValue = {@test.pkg.Other("other1"), @test.pkg.Other("other2")}
+                        annotationValue = @Other("other"),
+                        annotationArrayValue = {@Other("other1"), @Other("other2")}
                       )
                       public class Test {
                         ctor public Test();
@@ -58,21 +58,21 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                 """
                     package test.pkg;
 
-                    @Test.Anno(
-                      annotationValue = @test.pkg.Other("other"),
-                      annotationArrayValue = {@test.pkg.Other("other1"), @test.pkg.Other("other2")}
+                    @Anno(
+                      annotationValue = @Other("other"),
+                      annotationArrayValue = {@Other("other1"), @Other("other2")}
                     )
                     public class Test {
                         public Test() {}
 
                         public @interface Anno {
-                          Other annotationValue();
-                          Other[] annotationArrayValue();
+                          annotation annotationValue();
+                          annotation[] annotationArrayValue();
                         }
-                    }
 
-                    @interface Other {
-                        String value();
+                        public @interface Other {
+                          String value();
+                        }
                     }
                 """
             ),
@@ -81,7 +81,7 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
             val anno = testClass.modifiers.annotations().single()
 
             val other = anno.getAttributeValue<AnnotationItem>("annotationValue")!!
-            assertEquals("test.pkg.Other", other.qualifiedName)
+            assertEquals("Other", other.qualifiedName)
             other.assertAttributeValue("value", "other")
 
             val otherAsList = anno.getAttributeValues<AnnotationItem>("annotationValue")
@@ -121,7 +121,7 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                 """
                     package test.pkg;
 
-                    @Test.Anno(
+                    @Anno(
                       booleanValue = true,
                       booleanArrayValue = {true, false}
                     )
@@ -171,7 +171,7 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                 """
                     package test.pkg;
 
-                    @Test.Anno(
+                    @Anno(
                       charValue = 'a',
                       charArrayValue = {'a', 'b'}
                     )
@@ -227,7 +227,7 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                 """
                     package test.pkg;
 
-                    @Test.Anno(
+                    @Anno(
                       stringValue = "string",
                       stringArrayValue = {"string1", "string2"},
 
@@ -318,7 +318,7 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                 """
                     package test.pkg;
 
-                    @Test.Anno(
+                    @Anno(
                       byteValue = 1,
                       byteArrayValue = {1, 2},
 
@@ -418,7 +418,7 @@ class CommonAnnotationItemTest(parameters: TestParameters) : BaseModelTest(param
                 """
                     package test.pkg;
 
-                    @Test.Anno(
+                    @Anno(
                       stringValue = "string",
                       stringArrayValue = {"string1", "string2"}
                     )

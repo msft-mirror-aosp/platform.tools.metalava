@@ -20,12 +20,10 @@ import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
 import java.io.File
 import java.io.IOException
 import java.io.PrintStream
 import java.nio.charset.StandardCharsets
-import java.util.function.Predicate
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -104,27 +102,15 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
      *   should include the names of all the [pastApiVersions], then the name of the
      *   [currentApiVersion].
-     * @param filterEmit The filter to use to determine if an [Item] should be included in the API.
-     * @param filterReference The filter to use to determine if a reference to an [Item] should be
-     *   included in the API.
      */
     fun generateJson(
         pastApiVersions: List<File>,
         currentApiVersion: Codebase,
         outputFile: File,
-        apiVersionNames: List<String>,
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>
+        apiVersionNames: List<String>
     ) {
         val api = createApiFromSignatureFiles(pastApiVersions)
-        addApisFromCodebase(
-            api,
-            apiVersionNames.size,
-            currentApiVersion,
-            false,
-            filterEmit,
-            filterReference
-        )
+        addApisFromCodebase(api, apiVersionNames.size, currentApiVersion, false)
         val printer = ApiJsonPrinter(apiVersionNames)
         printer.print(api, outputFile)
     }

@@ -100,6 +100,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         ElidingPredicate(
             wrappedPredicate,
             addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
+            additionalNonessentialOverridesClasses =
+                apiPredicateConfig.additionalNonessentialOverridesClasses,
         )
 
     override fun toString(): String = displayName

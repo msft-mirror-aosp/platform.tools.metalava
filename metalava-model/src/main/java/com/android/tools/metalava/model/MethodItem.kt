@@ -547,6 +547,20 @@ interface MethodItem : MemberItem {
         return false
     }
 
+    override fun hasShowAnnotationInherited(): Boolean {
+        if (super.hasShowAnnotationInherited()) {
+            return true
+        }
+        return superMethods().any { it.hasShowAnnotationInherited() }
+    }
+
+    override fun onlyShowForStubPurposesInherited(): Boolean {
+        if (super.onlyShowForStubPurposesInherited()) {
+            return true
+        }
+        return superMethods().any { it.onlyShowForStubPurposesInherited() }
+    }
+
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
@@ -583,10 +597,7 @@ interface MethodItem : MemberItem {
 
     private fun computeRequiresOverride(): Boolean {
         val isVisible = !hidden || hasShowAnnotation()
-
-        // When the method is a concrete, non-default method, its overriding method is not required
-        // to be shown in the signature file.
-        return if (!modifiers.isAbstract() && !modifiers.isDefault()) {
+        return if (!modifiers.isAbstract()) {
             false
         } else if (superMethods().isEmpty()) {
             // If the method is abstract and is not overriding any parent methods,
