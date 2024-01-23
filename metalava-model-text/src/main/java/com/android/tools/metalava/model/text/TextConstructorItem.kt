@@ -25,10 +25,9 @@ class TextConstructorItem(
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
     returnType: TextTypeItem,
-    parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :
-    TextMethodItem(codebase, name, containingClass, modifiers, returnType, parameters, position),
+    TextMethodItem(codebase, name, containingClass, modifiers, returnType, position),
     ConstructorItem {
 
     override var superConstructor: ConstructorItem? = null
@@ -54,7 +53,6 @@ class TextConstructorItem(
                     containingClass = containingClass,
                     modifiers = modifiers,
                     returnType = containingClass.toType(),
-                    parameters = emptyList(),
                     position = position,
                 )
             modifiers.setOwner(item)

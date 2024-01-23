@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.ANDROID_FLAGGED_API
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
@@ -1772,7 +1771,7 @@ class ApiLint(
         }
         if (
             !itemOrAnyContainingClasses {
-                it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
+                it.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }
             }
         ) {
             val elidedField =
@@ -3165,6 +3164,8 @@ class ApiLint(
             listOf("java.util.concurrent.CompletableFuture", "java.util.concurrent.Future")
 
         private val listenableFuture = "com.google.common.util.concurrent.ListenableFuture"
+
+        private val flaggedApi = "android.annotation.FlaggedApi"
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor

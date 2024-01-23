@@ -1033,6 +1033,17 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 ),
+            docStubsSourceList =
+                """
+                TESTROOT/stubs/android/pkg1/package-info.java
+                TESTROOT/stubs/android/pkg1/Test1.java
+                TESTROOT/stubs/android/pkg1/Test2.java
+                TESTROOT/stubs/android/pkg2/package-info.java
+                TESTROOT/stubs/android/pkg2/Test1.java
+                TESTROOT/stubs/android/pkg2/Test2.java
+                TESTROOT/stubs/android/pkg3/package-info.java
+                TESTROOT/stubs/android/pkg3/Test1.java
+            """
         )
     }
 
@@ -1083,6 +1094,12 @@ class DocAnalyzerTest : DriverTest() {
                     </class>
                 </api>
                 """
+
+        const val docStubsSourceList =
+            """
+                TESTROOT/stubs/android/pkg/package-info.java
+                TESTROOT/stubs/android/pkg/Test.java
+            """
     }
 
     @Test
@@ -1097,6 +1114,7 @@ class DocAnalyzerTest : DriverTest() {
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
+            docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
             stubFiles =
                 arrayOf(
                     java(
@@ -1161,6 +1179,7 @@ class DocAnalyzerTest : DriverTest() {
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
             checkCompilation = true,
             docStubs = true,
+            docStubsSourceList = SdkExtSinceConstants.docStubsSourceList,
             stubFiles =
                 arrayOf(
                     java(

@@ -622,13 +622,8 @@ class ApiAnalyzer(
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                        else -> {
-                            val showability = pkg.showability
-                            when {
-                                showability.show() -> pkg.hidden = false
-                                showability.hide() -> pkg.hidden = true
-                            }
-                        }
+                        pkg.hasShowAnnotation() -> pkg.hidden = false
+                        pkg.hasHideAnnotation() -> pkg.hidden = true
                     }
                     val containingPackage = pkg.containingPackage()
                     if (containingPackage != null) {
@@ -643,16 +638,15 @@ class ApiAnalyzer(
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
-                    val showability = cls.showability
-                    if (showability.show()) {
+                    if (cls.hasShowAnnotation()) {
                         cls.hidden = false
                         // Make containing package non-hidden if it contains a show-annotation
                         // class. Doclava does this in PackageInfo.isHidden().
                         cls.containingPackage().hidden = false
-                        if (containingClass != null) {
+                        if (cls.containingClass() != null) {
                             ensureParentVisible(cls)
                         }
-                    } else if (showability.hide()) {
+                    } else if (cls.hasHideAnnotation()) {
                         cls.hidden = true
                     } else if (containingClass != null) {
                         if (containingClass.hidden) {
@@ -683,18 +677,17 @@ class ApiAnalyzer(
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
-                        if (containingPackage.removed && !showability.show()) {
+                        if (containingPackage.removed && !cls.hasShowAnnotation()) {
                             cls.removed = true
                         }
                     }
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    val showability = method.showability
-                    if (showability.show()) {
+                    if (method.hasShowAnnotation()) {
                         method.hidden = false
                         ensureParentVisible(method)
-                    } else if (showability.hide()) {
+                    } else if (method.hasHideAnnotation()) {
                         method.hidden = true
                     } else {
                         val containingClass = method.containingClass()
@@ -719,11 +712,10 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val showability = field.showability
-                    if (showability.show()) {
+                    if (field.hasShowAnnotation()) {
                         field.hidden = false
                         ensureParentVisible(field)
-                    } else if (showability.hide()) {
+                    } else if (field.hasHideAnnotation()) {
                         field.hidden = true
                     } else {
                         val containingClass = field.containingClass()

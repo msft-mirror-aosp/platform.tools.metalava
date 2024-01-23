@@ -29,14 +29,16 @@ import com.android.tools.metalava.model.psi.PsiClassItem
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-internal class KotlinStubWriter(
+class KotlinStubWriter(
     private val writer: PrintWriter,
+    private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
-    private val config: StubWriterConfig,
+    private val docStubs: Boolean
 ) : BaseItemVisitor() {
+    private val annotationTarget =
+        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -52,7 +54,7 @@ internal class KotlinStubWriter(
                 writer.println()
             }
         }
-        appendDocumentation(cls, writer, config)
+        appendDocumentation(cls, writer, docStubs)
 
         writer.println("@file:Suppress(\"ALL\")")
 
@@ -200,7 +202,7 @@ internal class KotlinStubWriter(
         val isAnnotation = containingClass.isAnnotationType()
 
         writer.println()
-        appendDocumentation(method, writer, config)
+        appendDocumentation(method, writer, docStubs)
 
         // TODO: Should be an annotation
         generateThrowsList(method)

@@ -351,6 +351,13 @@ class StubsConstructorTest : AbstractStubsTest() {
                     """
                     )
                 ),
+            stubsSourceList =
+                """
+                TESTROOT/stubs/test/pkg/MyClass1.java
+                TESTROOT/stubs/test/pkg/MyClass2.java
+                TESTROOT/stubs/test/pkg/MySubClass1.java
+                TESTROOT/stubs/test/pkg/MySubClass2.java
+            """
         )
     }
 

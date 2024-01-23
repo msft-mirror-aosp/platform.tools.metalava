@@ -950,8 +950,6 @@ class StubsTest : AbstractStubsTest() {
 
                     package test.pkg;
 
-                    import java.util.List;
-
                     /** This is the documentation for the class */
                     public class Foo {
 
@@ -960,9 +958,8 @@ class StubsTest : AbstractStubsTest() {
 
                         /**
                          * Method documentation.
-                         * @see List
                          */
-                        protected static void onCreate(List<String> parameter1) {
+                        protected static void onCreate(String parameter1) {
                             // This is not in the stub
                             System.out.println(parameter1);
                         }
@@ -980,7 +977,7 @@ class StubsTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
-                protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
                 """
@@ -1001,8 +998,6 @@ class StubsTest : AbstractStubsTest() {
 
                     package test.pkg;
 
-                    import java.util.List;
-
                     /** This is the documentation for the class */
                     public class Foo {
 
@@ -1011,9 +1006,8 @@ class StubsTest : AbstractStubsTest() {
 
                         /**
                          * Method documentation.
-                         * @see List
                          */
-                        protected static void onCreate(List<String> parameter1) {
+                        protected static void onCreate(String parameter1) {
                             // This is not in the stub
                             System.out.println(parameter1);
                         }
@@ -1029,16 +1023,14 @@ class StubsTest : AbstractStubsTest() {
                  * This is the copyright header.
                  */
                 package test.pkg;
-                import java.util.List;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
                  * Method documentation.
-                 * @see java.util.List
                  */
-                protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
                 /** My field doc */
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }

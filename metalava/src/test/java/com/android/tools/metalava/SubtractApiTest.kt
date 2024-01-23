@@ -90,6 +90,10 @@ class SubtractApiTest : DriverTest() {
                     """
                     )
                 ),
+            stubsSourceList =
+                """
+                TESTROOT/stubs/test/pkg/OnlyInNew.java
+            """
         )
     }
 }

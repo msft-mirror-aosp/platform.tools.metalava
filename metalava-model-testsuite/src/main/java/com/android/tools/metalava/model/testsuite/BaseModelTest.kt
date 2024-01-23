@@ -109,12 +109,8 @@ abstract class BaseModelTest(parameters: TestParameters) {
             throw IllegalStateException("Must provide at least one source file")
         }
 
-        val (htmlFiles, nonHtmlFiles) =
-            testFiles.partition { it.targetRelativePath.endsWith(".html") }
-
-        // Make sure that all the test files are the same InputFormat. Ignore HTML files.
-        val byInputFormat = nonHtmlFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
-
+        // Make sure that all the test files are the same InputFormat.
+        val byInputFormat = testFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
         val inputFormatCount = byInputFormat.size
         if (inputFormatCount != 1) {
             throw IllegalStateException(
@@ -124,14 +120,14 @@ abstract class BaseModelTest(parameters: TestParameters) {
                     )
                     byInputFormat.forEach { (format, files) ->
                         append("    $format\n")
-                        files.forEach { append("        $it\n") }
+                        files.forEach { append("        $it") }
                     }
                 }
             )
         }
 
         val (inputFormat, files) = byInputFormat.entries.single()
-        return InputSet(inputFormat, files + htmlFiles)
+        return InputSet(inputFormat, files)
     }
 
     /**

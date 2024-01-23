@@ -27,18 +27,20 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-internal class JavaStubWriter(
+class JavaStubWriter(
     private val writer: PrintWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
-    private val config: StubWriterConfig,
+    private val docStubs: Boolean
 ) : BaseItemVisitor() {
+    private val annotationTarget =
+        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -47,10 +49,11 @@ internal class JavaStubWriter(
                 writer.println("package $qualifiedName;")
                 writer.println()
             }
-            if (config.includeDocumentationInStubs) {
+            @Suppress("DEPRECATION")
+            if (options.includeDocumentationInStubs) {
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails, and thus we need to include imports for the stubs to compile.
+                // fails and thus we need to include imports for the stubs to compile.
                 cls.getSourceFile()?.getImports(filterReference)?.let {
                     for (item in it) {
                         if (item.isMember) {
@@ -64,7 +67,7 @@ internal class JavaStubWriter(
             }
         }
 
-        appendDocumentation(cls, writer, config)
+        appendDocumentation(cls, writer, docStubs)
 
         // "ALL" doesn't do it; compiler still warns unless you actually explicitly list "unchecked"
         writer.println("@SuppressWarnings({\"unchecked\", \"deprecation\", \"all\"})")
@@ -92,7 +95,7 @@ internal class JavaStubWriter(
 
         if (cls.isEnum()) {
             var first = true
-            // Enums should preserve the original source order, not alphabetical etc. sort
+            // Enums should preserve the original source order, not alphabetical etc sort
             for (field in cls.filteredFields(filterReference, true).sortedBy { it.sortingRank }) {
                 if (field.isEnumConstant()) {
                     if (first) {
@@ -100,7 +103,7 @@ internal class JavaStubWriter(
                     } else {
                         writer.write(",\n")
                     }
-                    appendDocumentation(field, writer, config)
+                    appendDocumentation(field, writer, docStubs)
 
                     // Can't just appendModifiers(field, true, true): enum constants
                     // don't take modifier lists, only annotations
@@ -233,7 +236,7 @@ internal class JavaStubWriter(
 
     private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
-        appendDocumentation(constructor, writer, config)
+        appendDocumentation(constructor, writer, docStubs)
         appendModifiers(constructor, false)
         generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
         writer.print(constructor.containingClass().simpleName())
@@ -273,7 +276,7 @@ internal class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map[type.toTypeString(context = it)] ?: typeString
+                                val cast = map.get(type.toTypeString(context = it)) ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -314,10 +317,14 @@ internal class JavaStubWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
-        writeMethod(method.containingClass(), method)
+        writeMethod(method.containingClass(), method, false)
     }
 
-    private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
+    private fun writeMethod(
+        containingClass: ClassItem,
+        method: MethodItem,
+        movedFromInterface: Boolean
+    ) {
         val modifiers = method.modifiers
         val isEnum = containingClass.isEnum()
         val isAnnotation = containingClass.isAnnotationType()
@@ -330,13 +337,14 @@ internal class JavaStubWriter(
         }
 
         writer.println()
-        appendDocumentation(method, writer, config)
+        appendDocumentation(method, writer, docStubs)
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
-        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation)
+        val removeAbstract =
+            modifiers.isAbstract() && (isEnum || isAnnotation) || movedFromInterface
 
-        appendModifiers(method, modifiers, removeAbstract, false)
+        appendModifiers(method, modifiers, removeAbstract, movedFromInterface)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -382,7 +390,7 @@ internal class JavaStubWriter(
 
         writer.println()
 
-        appendDocumentation(field, writer, config)
+        appendDocumentation(field, writer, docStubs)
         appendModifiers(field, removeAbstract = false, removeFinal = false)
         writer.print(
             field
@@ -451,7 +459,7 @@ internal class JavaStubWriter(
             }
         if (throws.any()) {
             writer.print(" throws ")
-            throws.sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     writer.print(", ")
                 }
