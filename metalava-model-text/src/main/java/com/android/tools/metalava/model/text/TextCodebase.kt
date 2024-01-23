@@ -45,6 +45,11 @@ internal class TextCodebase(
 
     internal val typeResolver = TextTypeParser(this)
 
+    /**
+     * A set of empty [TextTypeModifiers] owned by, and reused by items within, this [TextCodebase].
+     */
+    internal val emptyTypeModifiers = TextTypeModifiers.create(this, emptyList(), null)
+
     override fun trustedApi(): Boolean = true
 
     override fun getPackages(): PackageList {

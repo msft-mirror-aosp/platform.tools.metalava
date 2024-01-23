@@ -32,13 +32,25 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      */
     fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
         val params = cl.typeParameterList.typeParameters().map { it.toType() }
-        return TextClassTypeItem(codebase, cl.qualifiedName, params, null, emptyModifiers)
+        return TextClassTypeItem(
+            codebase,
+            cl.qualifiedName,
+            params,
+            null,
+            codebase.emptyTypeModifiers
+        )
     }
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
     fun obtainObjectType(): TextTypeItem {
         return typeCache.obtain(JAVA_LANG_OBJECT) {
-            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, emptyList(), null, emptyModifiers)
+            TextClassTypeItem(
+                codebase,
+                JAVA_LANG_OBJECT,
+                emptyList(),
+                null,
+                codebase.emptyTypeModifiers
+            )
         }
     }
 
@@ -358,9 +370,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
 
         return classType
     }
-
-    private val emptyModifiers: TextTypeModifiers =
-        TextTypeModifiers.create(codebase, emptyList(), null)
 
     private fun modifiers(
         annotations: List<String>,
