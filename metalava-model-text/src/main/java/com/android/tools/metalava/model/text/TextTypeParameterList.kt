@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterList(
+internal class TextTypeParameterList(
     val codebase: TextCodebase,
     private var owner: TypeParameterListOwner?,
     private val typeListString: String

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -102,7 +103,7 @@ private constructor(
             description: String? = null,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
-        ): TextCodebase {
+        ): Codebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], annotationManager)
             val actualDescription =
@@ -141,7 +142,7 @@ private constructor(
             filename: String,
             apiText: String,
             @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
-        ): TextCodebase {
+        ): Codebase {
             return parseApi(
                 filename,
                 apiText,
@@ -157,7 +158,7 @@ private constructor(
         @JvmStatic
         @MetalavaApi
         @Throws(ApiParseException::class)
-        fun parseApi(filename: String, inputStream: InputStream): TextCodebase {
+        fun parseApi(filename: String, inputStream: InputStream): Codebase {
             val apiText = inputStream.bufferedReader().readText()
             return parseApi(filename, apiText)
         }
@@ -168,7 +169,7 @@ private constructor(
             apiText: String,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
-        ): TextCodebase {
+        ): Codebase {
             val api = TextCodebase(File(filename), noOpAnnotationManager)
             api.description = "Codebase loaded from $filename"
             val parser = ApiFile(classResolver, formatForLegacyFiles)
@@ -293,10 +294,10 @@ private constructor(
     }
 
     /** Implements [ResolverContext] interface */
-    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = mClassToInterface[cl]
+    override fun namesOfInterfaces(cl: ClassItem): List<String>? = mClassToInterface[cl]
 
     /** Implements [ResolverContext] interface */
-    override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
+    override fun nameOfSuperClass(cl: ClassItem): String? = mClassToSuper[cl]
 
     private fun parseClass(
         api: TextCodebase,
@@ -1294,18 +1295,18 @@ private constructor(
  * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
  * class implements/extends respectively before they are resolved.
  */
-interface ResolverContext {
+internal interface ResolverContext {
     /**
      * Get the names of the interfaces implemented by the supplied class, returns null if there are
      * no interfaces.
      */
-    fun namesOfInterfaces(cl: TextClassItem): List<String>?
+    fun namesOfInterfaces(cl: ClassItem): List<String>?
 
     /**
      * Get the name of the super class extended by the supplied class, returns null if there is no
      * super class.
      */
-    fun nameOfSuperClass(cl: TextClassItem): String?
+    fun nameOfSuperClass(cl: ClassItem): String?
 
     /**
      * The optional [ClassResolver] that is used to resolve unknown classes within the
@@ -1315,7 +1316,7 @@ interface ResolverContext {
 }
 
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
-class ReferenceResolver(
+internal class ReferenceResolver(
     private val context: ResolverContext,
     private val codebase: TextCodebase,
 ) {

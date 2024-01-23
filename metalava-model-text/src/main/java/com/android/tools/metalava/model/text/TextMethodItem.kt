@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 
-open class TextMethodItem(
+internal open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
