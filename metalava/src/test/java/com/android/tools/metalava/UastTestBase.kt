@@ -465,8 +465,9 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        val e = if (isK2) "test.pkg.Event" else "E!"
-        val s = if (isK2) "test.pkg.State" else "E!"
+        // TODO(b/287343397): restore Enum.entries output
+        // val e = if (isK2) "test.pkg.Event" else "E!"
+        // val s = if (isK2) "test.pkg.State" else "E!"
         uastCheck(
             isK2,
             sourceFiles =
@@ -503,7 +504,6 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum Event {
-                    method public static kotlin.enums.EnumEntries<$e> getEntries();
                     method public static final test.pkg.Event? upTo(test.pkg.State state);
                     method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Event[] values();
@@ -517,7 +517,6 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Event? upTo(test.pkg.State state);
                   }
                   public enum State {
-                    method public static kotlin.enums.EnumEntries<$s> getEntries();
                     method public final boolean isAtLeast(test.pkg.State state);
                     method public final boolean isFinished();
                     method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
@@ -571,8 +570,9 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        val c = if (isK2) "test.pkg.PowerCategory" else "E!"
-        val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
+        // TODO(b/287343397): restore Enum.entries output
+        // val c = if (isK2) "test.pkg.PowerCategory" else "E!"
+        // val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
         uastCheck(
             isK2,
             sourceFiles =
@@ -628,14 +628,12 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum PowerCategory {
-                    method public static kotlin.enums.EnumEntries<$c> getEntries();
                     method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.PowerCategory[] values();
                     enum_constant public static final test.pkg.PowerCategory CPU;
                     enum_constant public static final test.pkg.PowerCategory MEMORY;
                   }
                   public enum PowerCategoryDisplayLevel {
-                    method public static kotlin.enums.EnumEntries<$d> getEntries();
                     method public static test.pkg.PowerCategoryDisplayLevel valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.PowerCategoryDisplayLevel[] values();
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel BREAKDOWN;
@@ -751,7 +749,8 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `boxed type argument as method return type`(isK2: Boolean) {
-        // https://youtrack.jetbrains.com/issue/KT-57579
+        // TODO: https://youtrack.jetbrains.com/issue/KT-57579 nullity missed...
+        val n = if (isK2) "!" else ""
         uastCheck(
             isK2,
             sourceFiles =
@@ -784,7 +783,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class StartActivityForResult extends test.pkg.ActivityResultContract<test.pkg.Intent,java.lang.Boolean> {
                     ctor public StartActivityForResult();
-                    method public Boolean parseResult(int resultCode, test.pkg.Intent? intent);
+                    method public Boolean$n parseResult(int resultCode, test.pkg.Intent? intent);
                   }
                 }
             """
@@ -978,125 +977,6 @@ abstract class UastTestBase : DriverTest() {
                   }
                 }
                 """
-        )
-    }
-
-    protected fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
-        isK2: Boolean,
-        api: String,
-    ) {
-        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-27244
-        uastCheck(
-            isK2,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        class Test_noAccessor {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
-                            var pOld_noAccessor_deprecatedOnProperty: String = "42"
-
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
-                            var pOld_noAccessor_deprecatedOnGetter: String = "42"
-
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
-                            var pOld_noAccessor_deprecatedOnSetter: String = "42"
-
-                            var pNew_noAccessor: String = "42"
-                        }
-
-                        class Test_getter {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
-                            var pOld_getter_deprecatedOnProperty: String? = null
-                                get() = field ?: "null?"
-
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
-                            var pOld_getter_deprecatedOnGetter: String? = null
-                                get() = field ?: "null?"
-
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
-                            var pOld_getter_deprecatedOnSetter: String? = null
-                                get() = field ?: "null?"
-
-                            var pNew_getter: String? = null
-                                get() = field ?: "null?"
-                        }
-
-                        class Test_setter {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
-                            var pOld_setter_deprecatedOnProperty: String? = null
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
-                            var pOld_setter_deprecatedOnGetter: String? = null
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
-                            var pOld_setter_deprecatedOnSetter: String? = null
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-
-                            var pNew_setter: String? = null
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-                        }
-
-                        class Test_accessors {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
-                            var pOld_accessors_deprecatedOnProperty: String? = null
-                                get() = field ?: "null?"
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
-                            var pOld_accessors_deprecatedOnGetter: String? = null
-                                get() = field ?: "null?"
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
-                            var pOld_accessors_deprecatedOnSetter: String? = null
-                                get() = field ?: "null?"
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-
-                            var pNew_accessors: String? = null
-                                get() = field ?: "null?"
-                                set(value) {
-                                    if (field == null) {
-                                        field = value
-                                    }
-                                }
-                        }
-                        """
-                    )
-                ),
-            api = api,
         )
     }
 }

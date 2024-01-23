@@ -25,7 +25,6 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifierListOwner
-import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
@@ -60,15 +59,6 @@ class PsiFieldItem(
             return initialValue
         }
         val constant = psiField.computeConstantValue()
-        // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
-        // Those fields hold [Class] object, but the constant value should not be of [PsiType].
-        if (
-            constant is PsiPrimitiveType &&
-                "TYPE" == name &&
-                (fieldType as? PsiClassTypeItem)?.qualifiedName == "java.lang.Class"
-        ) {
-            return null
-        }
         if (constant != null) {
             return constant
         }

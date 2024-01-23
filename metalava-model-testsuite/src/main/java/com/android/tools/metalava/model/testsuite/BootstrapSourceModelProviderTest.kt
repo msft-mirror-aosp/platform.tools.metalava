@@ -94,7 +94,6 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val testClass = codebase.assertClass("test.pkg.Test")
             val fieldItem = testClass.assertField("field")
             assertEquals("field", fieldItem.name())
-            assertEquals(testClass, fieldItem.containingClass())
         }
     }
 
@@ -168,11 +167,10 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
 
                     interface SuperInterface{}
                     abstract class SuperClass implements SuperInterface{}
+                    interface ChildInterface {}
 
-                    interface SuperChildInterface{}
-                    interface ChildInterface extends SuperChildInterface,SuperInterface{}
-
-                    class Test extends SuperClass implements ChildInterface{}
+                    class Test extends SuperClass implements ChildInterface {
+                    }
                 """
             ),
         ) { codebase ->
@@ -180,153 +178,10 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val superClassItem = codebase.assertClass("test.pkg.SuperClass")
             val superInterfaceItem = codebase.assertClass("test.pkg.SuperInterface")
             val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
-            val superChildInterfaceItem = codebase.assertClass("test.pkg.SuperChildInterface")
             assertEquals(superClassItem, classItem.superClass())
-            assertEquals(3, classItem.allInterfaces().count(), message = "")
+            assertEquals(2, classItem.allInterfaces().count(), message = "")
             assertEquals(true, classItem.allInterfaces().contains(childInterfaceItem))
             assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
-            assertEquals(true, classItem.allInterfaces().contains(superChildInterfaceItem))
-            assertEquals(3, childInterfaceItem.allInterfaces().count(), message = "")
-            assertEquals(true, childInterfaceItem.allInterfaces().contains(superChildInterfaceItem))
-            assertEquals(true, childInterfaceItem.allInterfaces().contains(childInterfaceItem))
-            assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
-        }
-    }
-
-    @Test
-    fun `100 - check class types`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                  package test.pkg;
-
-                  interface TestInterface{}
-                  enum TestEnum {}
-                  @interface TestAnnotation {}
-                """
-            ),
-        ) { codebase ->
-            val interfaceItem = codebase.assertClass("test.pkg.TestInterface")
-            val enumItem = codebase.assertClass("test.pkg.TestEnum")
-            val annotationItem = codebase.assertClass("test.pkg.TestAnnotation")
-            assertEquals(true, interfaceItem.isInterface())
-            assertEquals(true, enumItem.isEnum())
-            assertEquals(true, annotationItem.isAnnotationType())
-        }
-    }
-
-    @Test
-    fun `110 - advanced package test`() {
-        runSourceCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-
-                        class Test {
-                            class Inner {}
-                        }
-                    """
-                ),
-                java("""
-                        package test;
-                     """),
-            ),
-        ) { codebase ->
-            val packageItem = codebase.assertPackage("test.pkg")
-            val parentPackageItem = codebase.assertPackage("test")
-            val rootPackageItem = codebase.assertPackage("")
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            assertEquals(1, packageItem.topLevelClasses().count())
-            assertEquals(0, parentPackageItem.topLevelClasses().count())
-            assertEquals(parentPackageItem, packageItem.containingPackage())
-            assertEquals(rootPackageItem, parentPackageItem.containingPackage())
-            assertEquals(null, rootPackageItem.containingPackage())
-            assertEquals(packageItem, classItem.containingPackage())
-            assertEquals(packageItem, innerClassItem.containingPackage())
-        }
-    }
-
-    @Test
-    fun `120 - check modifiers`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public final class Test1 {
-                        private int var1;
-                        protected static final int var2;
-                        int var3;
-                    }
-                """
-            ),
-        ) { codebase ->
-            val packageItem = codebase.assertPackage("test.pkg")
-            val classItem1 = codebase.assertClass("test.pkg.Test1")
-            val fieldItem1 = classItem1.assertField("var1")
-            val fieldItem2 = classItem1.assertField("var2")
-            val fieldItem3 = classItem1.assertField("var3")
-            val packageMod = packageItem.mutableModifiers()
-            val classMod1 = classItem1.mutableModifiers()
-            val fieldMod1 = fieldItem1.mutableModifiers()
-            val fieldMod2 = fieldItem2.mutableModifiers()
-            val fieldMod3 = fieldItem3.mutableModifiers()
-            assertEquals(true, packageMod.isPublic())
-            assertEquals(true, classMod1.isPublic())
-            assertEquals(true, fieldMod1.isPrivate())
-            assertEquals(false, fieldMod1.isPackagePrivate())
-            assertEquals(false, fieldMod2.isPrivate())
-            assertEquals(true, fieldMod2.asAccessibleAs(fieldMod1))
-            assertEquals(true, fieldMod3.isPackagePrivate())
-        }
-    }
-
-    /**
-     * Check for the following:
-     * 1) If a class from classpath is needed by some source class, the corresponding classItem is
-     *    created
-     * 2) While classpath may contain a lot of classes , only create classItems for the classes
-     *    required by source classes directly or indirectly (e.g. superclass of superclass)
-     */
-    @Test
-    fun `130 - check classes from classpath`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    import java.util.Date;
-
-                    class Test extends Date{}
-                """
-            ),
-        ) { codebase ->
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val utilClassItem = codebase.assertClass("java.util.Date")
-            val objectClassItem = codebase.assertClass("java.lang.Object")
-            assertEquals(utilClassItem, classItem.superClass())
-            assertEquals(objectClassItem, utilClassItem.superClass())
-            assertEquals(3, utilClassItem.allInterfaces().count())
-        }
-    }
-
-    @Test
-    fun `130 - test missing symbols`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    interface Interface{}
-                    class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
-                """
-            ),
-        ) { codebase ->
-            val classItem = codebase.assertClass("test.pkg.Test")
-            assertEquals(null, classItem.superClass())
-            assertEquals(1, classItem.allInterfaces().count())
         }
     }
 }

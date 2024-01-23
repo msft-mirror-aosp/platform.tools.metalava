@@ -250,14 +250,24 @@ class JavaStubWriter(
         writer.println(" }")
     }
 
-    private fun writeConstructorBody(constructor: MethodItem, superConstructor: MethodItem?) {
+    private fun writeConstructorBody(constructor: MethodItem?, superConstructor: MethodItem?) {
         // Find any constructor in parent that we can compile against
         superConstructor?.let { it ->
             val parameters = it.parameters()
-            if (parameters.isNotEmpty()) {
+            val invokeOnThis =
+                constructor != null && constructor.containingClass() == it.containingClass()
+            if (invokeOnThis || parameters.isNotEmpty()) {
                 val includeCasts =
-                    it.containingClass().constructors().filter { filterReference.test(it) }.size > 1
-                writer.print("super(")
+                    parameters.isNotEmpty() &&
+                        it.containingClass()
+                            .constructors()
+                            .filter { filterReference.test(it) }
+                            .size > 1
+                if (invokeOnThis) {
+                    writer.print("this(")
+                } else {
+                    writer.print("super(")
+                }
                 parameters.forEachIndexed { index, parameter ->
                     if (index > 0) {
                         writer.write(", ")
@@ -274,9 +284,9 @@ class JavaStubWriter(
                                 // type in this class
                                 val map =
                                     constructor
-                                        .containingClass()
-                                        .mapTypeVariables(it.containingClass())
-                                val cast = map.get(type.toTypeString(context = it)) ?: typeString
+                                        ?.containingClass()
+                                        ?.mapTypeVariables(it.containingClass())
+                                val cast = map?.get(type.toTypeString(context = it)) ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)

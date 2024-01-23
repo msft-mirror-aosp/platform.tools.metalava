@@ -65,10 +65,8 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
         override fun apply(base: Statement, description: Description): Statement {
             return object : Statement() {
                 override fun evaluate() {
-                    // TODO(b/302708854): can be back to implicit lambda parameter `it`
-                    //  after AGP 8.3.0-alpha08 or later
-                    PsiEnvironmentManager().use { m ->
-                        manager = m
+                    PsiEnvironmentManager().use {
+                        manager = it
                         base.evaluate()
                     }
                 }

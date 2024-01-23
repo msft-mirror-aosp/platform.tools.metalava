@@ -14,20 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.cli.signature
+package com.android.tools.metalava
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.DefaultAnnotationManager
-import com.android.tools.metalava.JDiffXmlWriter
-import com.android.tools.metalava.OptionsDelegate
-import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
-import com.android.tools.metalava.cli.common.existingFile
-import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -37,7 +25,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.ReferenceResolver
 import com.android.tools.metalava.model.text.ResolverContext
 import com.android.tools.metalava.model.text.SourcePositionInfo
@@ -49,136 +36,52 @@ import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.TextPackageItem
 import com.android.tools.metalava.model.text.TextPropertyItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
-class SignatureToJDiffCommand :
-    MetalavaSubCommand(
-        help =
-            """
-                Convert an API signature file into a file in the JDiff XML format.
-            """
-                .trimIndent()
-    ) {
+/** File conversion tasks */
+internal data class ConvertFile(
+    val fromApiFile: File,
+    val outputFile: File,
+    val baseApiFile: File? = null,
+    val strip: Boolean = false
+)
 
-    private val strip by
-        option(
-                help =
-                    """
-                        Determines whether duplicate inherited methods should be stripped from the
-                        output or not.
-                    """
-                        .trimIndent()
-            )
-            .flag("--no-strip", default = false, defaultForHelp = "false")
+/** Perform the file conversion described by the [ConvertFile] on which this is called. */
+internal fun ConvertFile.process(progressTracker: ProgressTracker) {
+    val annotationManager = DefaultAnnotationManager()
+    val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
 
-    private val formatForLegacyFiles by
-        option(
-                "--format-for-legacy-files",
-                metavar = "<format-specifier>",
-                help =
-                    """
-                        Optional format to use when reading legacy, i.e. no longer supported, format
-                        versions. Forces the signature file to be parsed as if it was in this
-                        format.
+    val apiVisitorConfig = ApiVisitor.Config()
+    val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
+    val apiType = ApiType.ALL
+    val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
+    val strip = strip
+    val apiReference =
+        if (strip) apiType.getEmitFilter(apiPredicateConfig)
+        else apiType.getReferenceFilter(apiPredicateConfig)
+    val baseFile = baseApiFile
 
-                        This is provided primarily to allow version 1.0 files, which had no header,
-                        to be parsed as if they were 2.0 files (by specifying
-                        `--format-for-legacy-files=2.0`) so that version 1.0 files can still be read
-                        even though metalava no longer supports version 1.0 files specifically. That
-                        is effectively what metalava did anyway before it removed support for
-                        version 1.0 files so should work reasonably well.
-
-                        Applies to both `--base-api` and `<api-file>`.
-                    """
-                        .trimIndent()
-            )
-            .convert { specifier -> FileFormat.parseSpecifier(specifier) }
-
-    private val baseApiFile by
-        option(
-                "--base-api",
-                metavar = "<base-api-file>",
-                help =
-                    """
-                        Optional base API file. If provided then the output will only include API
-                        items that are not in this file.
-                    """
-                        .trimIndent()
-            )
-            .existingFile()
-
-    private val apiFile by
-        argument(
-                name = "<api-file>",
-                help =
-                    """
-                        API signature file to convert to the JDiff XML format.
-                    """
-                        .trimIndent()
-            )
-            .existingFile()
-
-    private val xmlFile by
-        argument(
-                name = "<xml-file>",
-                help =
-                    """
-                        Output JDiff XML format file.
-                    """
-                        .trimIndent()
-            )
-            .newFile()
-
-    override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
-        val annotationManager = DefaultAnnotationManager()
-        val signatureFileLoader =
-            SignatureFileLoader(
-                annotationManager = annotationManager,
-                formatForLegacyFiles = formatForLegacyFiles,
-            )
-
-        val signatureApi = signatureFileLoader.load(apiFile)
-
-        val apiVisitorConfig = ApiVisitor.Config()
-        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-        val strip = strip
-        val apiReference =
-            if (strip) apiType.getEmitFilter(apiPredicateConfig)
-            else apiType.getReferenceFilter(apiPredicateConfig)
-        val baseFile = baseApiFile
-
-        val outputApi =
-            if (baseFile != null) {
-                // Convert base on a diff
-                val baseApi = signatureFileLoader.load(baseFile)
-                computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
-            } else {
-                signatureApi
-            }
-
-        // See JDiff's XMLToAPI#nameAPI
-        val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName,
-                showUnannotated = false,
-                ApiVisitor.Config(),
-            )
+    val outputApi =
+        if (baseFile != null) {
+            // Convert base on a diff
+            val baseApi = SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
+            computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
+        } else {
+            signatureApi
         }
+
+    // See JDiff's XMLToAPI#nameAPI
+    val apiName = outputFile.nameWithoutExtension.replace(' ', '_')
+    createReportFile(progressTracker, outputApi, outputFile, "JDiff File") { printWriter ->
+        JDiffXmlWriter(
+            printWriter,
+            apiEmit,
+            apiReference,
+            signatureApi.preFiltered && !strip,
+            apiName,
+            showUnannotated = false,
+            ApiVisitor.Config(),
+        )
     }
 }
 

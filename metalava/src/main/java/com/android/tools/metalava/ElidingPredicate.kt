@@ -48,11 +48,7 @@ class ElidingPredicate(
                         // We're looking for included and perfect signature
                         wrapped.test(maybeEqualSuperMethod) &&
                             maybeEqualSuperMethod is MethodItem &&
-                            MethodItem.sameSignature(
-                                method,
-                                maybeEqualSuperMethod,
-                                addAdditionalOverrides = addAdditionalOverrides,
-                            )
+                            MethodItem.sameSignature(method, maybeEqualSuperMethod, false)
                     }
                 )
 

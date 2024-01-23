@@ -45,7 +45,7 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         tempDir: File,
-        input: List<TestFile>,
+        input: TestFile,
         test: (Codebase) -> Unit,
     ) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
@@ -53,7 +53,7 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                 createTestCodebase(
                     environmentManager,
                     tempDir,
-                    input,
+                    listOf(input),
                     listOf(getAndroidJar()),
                 )
             test(codebase)

@@ -150,6 +150,7 @@ import com.android.tools.metalava.reporter.Issues.PERCENTAGE_INT
 import com.android.tools.metalava.reporter.Issues.PROTECTED_MEMBER
 import com.android.tools.metalava.reporter.Issues.PUBLIC_TYPEDEF
 import com.android.tools.metalava.reporter.Issues.RAW_AIDL
+import com.android.tools.metalava.reporter.Issues.REGISTRATION_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_STYLE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_VALUE_FIELD_NAME
@@ -928,19 +929,35 @@ class ApiLint(
             val name = method.name()
             // the python version looks for any substring, but that includes a lot of other stuff,
             // like plurals
-            if (name.endsWith("Callback") || name.endsWith("Listener")) {
+            if (name.endsWith("Callback")) {
                 if (name.startsWith("register")) {
                     val unregister = "unregister" + name.substring(8) // "register".length
                     ensureMatched(cls, methods, method, unregister)
                 } else if (name.startsWith("unregister")) {
-                    val register = "register" + name.substring(10) // "unregister".length
-                    ensureMatched(cls, methods, method, register)
-                } else if (name.startsWith("add")) {
-                    val remove = "remove" + name.substring(3) // "add".length
-                    ensureMatched(cls, methods, method, remove)
+                    val unregister = "register" + name.substring(10) // "unregister".length
+                    ensureMatched(cls, methods, method, unregister)
+                }
+                if (name.startsWith("add") || name.startsWith("remove")) {
+                    report(
+                        REGISTRATION_NAME,
+                        method,
+                        "Callback methods should be named register/unregister; was $name"
+                    )
+                }
+            } else if (name.endsWith("Listener")) {
+                if (name.startsWith("add")) {
+                    val unregister = "remove" + name.substring(3) // "add".length
+                    ensureMatched(cls, methods, method, unregister)
                 } else if (name.startsWith("remove") && !name.startsWith("removeAll")) {
-                    val add = "add" + name.substring(6) // "remove".length
-                    ensureMatched(cls, methods, method, add)
+                    val unregister = "add" + name.substring(6) // "remove".length
+                    ensureMatched(cls, methods, method, unregister)
+                }
+                if (name.startsWith("register") || name.startsWith("unregister")) {
+                    report(
+                        REGISTRATION_NAME,
+                        method,
+                        "Listener methods should be named add/remove; was $name"
+                    )
                 }
             }
         }
@@ -1577,6 +1594,15 @@ class ApiLint(
         }
     }
 
+    fun Item.containingClass(): ClassItem? {
+        return when (this) {
+            is MemberItem -> this.containingClass()
+            is ParameterItem -> this.containingMethod().containingClass()
+            is ClassItem -> this
+            else -> null
+        }
+    }
+
     private fun checkNullableCollections(type: TypeItem, item: Item) {
         if (type is PrimitiveTypeItem) return
         if (!item.modifiers.isNullable()) return
@@ -1759,21 +1785,7 @@ class ApiLint(
     }
 
     private fun checkHasFlaggedApi(item: Item) {
-        fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
-            var it: Item? = item
-            while (it != null) {
-                if (predicate.test(it)) {
-                    return true
-                }
-                it = it.containingClass()
-            }
-            return false
-        }
-        if (
-            !itemOrAnyContainingClasses {
-                it.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }
-            }
-        ) {
+        if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
             val elidedField =
                 if (item is FieldItem) {
                     val inheritedFrom = item.inheritedFrom
@@ -1819,7 +1831,7 @@ class ApiLint(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type is VariableTypeItem || item.hasInheritedGenericType()) {
+            if (type != null && type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.

@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.model
 
-@MetalavaApi
 interface ParameterItem : Item {
     /** The name of this field */
     fun name(): String
 
     /** The type of this field */
-    @MetalavaApi override fun type(): TypeItem
+    override fun type(): TypeItem
 
     /** The containing method */
     fun containingMethod(): MethodItem
@@ -70,7 +69,7 @@ interface ParameterItem : Item {
     fun defaultValue(): String?
 
     /** Whether this is a varargs parameter */
-    @MetalavaApi fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?
@@ -126,9 +125,11 @@ interface ParameterItem : Item {
         return null
     }
 
-    override fun containingClass(): ClassItem? = containingMethod().containingClass()
+    override fun containingClass(strict: Boolean): ClassItem? =
+        containingMethod().containingClass(false)
 
-    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
+    override fun containingPackage(strict: Boolean): PackageItem? =
+        containingMethod().containingPackage(false)
 
     // TODO: modifier list
 }

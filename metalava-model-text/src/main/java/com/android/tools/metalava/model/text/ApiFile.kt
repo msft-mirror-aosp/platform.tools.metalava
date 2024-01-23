@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
-import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -45,12 +44,10 @@ import java.io.IOException
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
-@MetalavaApi
 class ApiFile
 private constructor(
     /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?,
-    private val formatForLegacyFiles: FileFormat?
+    override val classResolver: ClassResolver?
 ) : ResolverContext {
 
     /**
@@ -73,10 +70,11 @@ private constructor(
          *
          * @param file input signature file
          */
+        @Throws(ApiParseException::class)
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), annotationManager)
+        ) = parseApi(listOf(file), null, annotationManager)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -87,16 +85,16 @@ private constructor(
          *
          * @param files input signature files
          */
+        @Throws(ApiParseException::class)
         fun parseApi(
             files: List<File>,
-            annotationManager: AnnotationManager = noOpAnnotationManager,
             classResolver: ClassResolver? = null,
-            formatForLegacyFiles: FileFormat? = null,
+            annotationManager: AnnotationManager,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], annotationManager)
             val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(classResolver, formatForLegacyFiles)
+            val parser = ApiFile(classResolver)
             var first = true
             for (file in files) {
                 if (!first) {
@@ -124,7 +122,6 @@ private constructor(
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
         @Deprecated("Exists only for external callers. ")
         @JvmStatic
-        @MetalavaApi
         @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
@@ -138,15 +135,15 @@ private constructor(
         }
 
         /** Entry point for testing. Take a filename and content separately. */
+        @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
             apiText: String,
             classResolver: ClassResolver? = null,
-            formatForLegacyFiles: FileFormat? = null,
         ): TextCodebase {
             val api = TextCodebase(File(filename), noOpAnnotationManager)
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver, formatForLegacyFiles)
+            val parser = ApiFile(classResolver)
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -161,17 +158,15 @@ private constructor(
         ReferenceResolver.resolveReferences(this, api)
     }
 
+    @Throws(ApiParseException::class)
     private fun parseApiSingleFile(
         api: TextCodebase,
         appending: Boolean,
         filename: String,
         apiText: String,
     ) {
-        // Parse the header of the signature file to determine the format. If the signature file is
-        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
-        format =
-            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
-                ?: FileFormat.V2
+        // Parse the header of the signature file to determine the format.
+        format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
         if (appending) {
@@ -193,6 +188,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parsePackage(api: TextCodebase, tokenizer: Tokenizer) {
         var pkg: TextPackageItem
         var token: String = tokenizer.requireToken()
@@ -272,6 +268,7 @@ private constructor(
     /** Implements [ResolverContext] interface */
     override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
 
+    @Throws(ApiParseException::class)
     private fun parseClass(
         api: TextCodebase,
         pkg: TextPackageItem,
@@ -465,6 +462,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun processKotlinTypeSuffix(
         startingType: String,
         annotations: MutableList<String>
@@ -499,6 +497,7 @@ private constructor(
         return type
     }
 
+    @Throws(ApiParseException::class)
     private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
         var token = startingToken
         val annotations: MutableList<String> = mutableListOf()
@@ -536,6 +535,7 @@ private constructor(
         return annotations
     }
 
+    @Throws(ApiParseException::class)
     private fun parseConstructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -585,6 +585,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parseMethod(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -652,6 +653,7 @@ private constructor(
         return annotations
     }
 
+    @Throws(ApiParseException::class)
     private fun parseField(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -690,6 +692,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parseModifiers(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -856,6 +859,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parseProperty(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -885,6 +889,7 @@ private constructor(
         cl.addProperty(property)
     }
 
+    @Throws(ApiParseException::class)
     private fun parseTypeParameterList(
         codebase: TextCodebase,
         tokenizer: Tokenizer
@@ -908,6 +913,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -1030,6 +1036,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
         val sb = StringBuilder()
         while (true) {
@@ -1043,6 +1050,7 @@ private constructor(
         }
     }
 
+    @Throws(ApiParseException::class)
     private fun parseThrows(tokenizer: Tokenizer, method: TextMethodItem): String {
         var token = tokenizer.requireToken()
         var comma = true
@@ -1138,6 +1146,7 @@ private constructor(
         return isIdent(token[0])
     }
 
+    @Throws(ApiParseException::class)
     private fun assertIdent(tokenizer: Tokenizer, token: String) {
         if (!isIdent(token[0])) {
             throw ApiParseException("Expected identifier: $token", tokenizer)
@@ -1204,6 +1213,7 @@ private constructor(
             }
         }
 
+        @Throws(ApiParseException::class)
         fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
             val token = getToken(parenIsSep, eatWhitespace)
             return token ?: throw ApiParseException("Unexpected end of file", this)
@@ -1219,6 +1229,7 @@ private constructor(
 
         lateinit var current: String
 
+        @Throws(ApiParseException::class)
         fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
             if (eatWhitespace) {
                 eatWhitespaceAndComments()

@@ -88,45 +88,13 @@ abstract class BaseModelTest(parameters: TestParameters) {
      *
      * Currently, this is limited to one file but in future it may be more.
      */
-    data class InputSet(
-        /** The [InputFormat] of the [testFiles]. */
+    private data class InputSet(
+        /** The [InputFormat] of the [testFile]. */
         val inputFormat: InputFormat,
 
-        /** The [TestFile]s to process. */
-        val testFiles: List<TestFile>,
+        /** The [TestFile] to process. */
+        val testFile: TestFile,
     )
-
-    /**
-     * Create an [InputSet].
-     *
-     * It is an error if [testFiles] is empty or if [testFiles] have different [InputFormat]. That
-     * means that it is not currently possible to mix Kotlin and Java files.
-     */
-    fun inputSet(vararg testFiles: TestFile): InputSet {
-        if (testFiles.isEmpty()) {
-            throw IllegalStateException("Must provide at least one source file")
-        }
-
-        // Make sure that all the test files are the same InputFormat.
-        val byInputFormat = testFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
-        val inputFormatCount = byInputFormat.size
-        if (inputFormatCount != 1) {
-            throw IllegalStateException(
-                buildString {
-                    append(
-                        "All files in the list must be the same input format, but found $inputFormatCount different input formats:\n"
-                    )
-                    byInputFormat.forEach { (format, files) ->
-                        append("    $format\n")
-                        files.forEach { append("        $it") }
-                    }
-                }
-            )
-        }
-
-        val (inputFormat, files) = byInputFormat.entries.single()
-        return InputSet(inputFormat, files)
-    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -141,15 +109,18 @@ abstract class BaseModelTest(parameters: TestParameters) {
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
-            .singleOrNull { it.inputFormat == inputFormat }
+            .filter { it.inputFormat == inputFormat }
+            .singleOrNull()
             ?.let {
                 val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFiles, test)
+                runner.createCodebaseAndRun(tempDir, it.testFile, test)
             }
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
-        return testFiles.map { inputSet(it) }.toTypedArray()
+        return testFiles
+            .map { InputSet(InputFormat.fromFilename(it.targetRelativePath), it) }
+            .toTypedArray()
     }
 
     /**
@@ -163,24 +134,8 @@ abstract class BaseModelTest(parameters: TestParameters) {
         vararg sources: TestFile,
         test: (Codebase) -> Unit,
     ) {
-        runCodebaseTest(
-            sources = testFilesToInputSets(sources),
-            test = test,
-        )
-    }
-
-    /**
-     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
-     * that [Codebase].
-     *
-     * The [sources] array should have at most one [InputSet] of each [InputFormat].
-     */
-    fun runCodebaseTest(
-        vararg sources: InputSet,
-        test: (Codebase) -> Unit,
-    ) {
         createCodebaseFromInputSetAndRun(
-            *sources,
+            *testFilesToInputSets(sources),
             test = test,
         )
     }
@@ -196,24 +151,8 @@ abstract class BaseModelTest(parameters: TestParameters) {
         vararg sources: TestFile,
         test: (SourceCodebase) -> Unit,
     ) {
-        runSourceCodebaseTest(
-            sources = testFilesToInputSets(sources),
-            test = test,
-        )
-    }
-
-    /**
-     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
-     * [test] on that [SourceCodebase].
-     *
-     * The [sources] array should have at most one [InputSet] of each [InputFormat].
-     */
-    fun runSourceCodebaseTest(
-        vararg sources: InputSet,
-        test: (SourceCodebase) -> Unit,
-    ) {
         createCodebaseFromInputSetAndRun(
-            *sources,
+            *testFilesToInputSets(sources),
         ) {
             test(it as SourceCodebase)
         }

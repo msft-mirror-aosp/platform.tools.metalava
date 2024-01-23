@@ -128,7 +128,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     val verifiers = mutableListOf<() -> Unit>()
 
     /** Create a temporary folder. */
-    fun folder(path: String): File = test.temporaryFolder.newFolder(path)
+    fun folder(): File = test.temporaryFolder.newFolder()
 
     /**
      * Create a file that can be passed as an input to a command.

@@ -22,7 +22,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java
@@ -657,20 +656,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     java(
                         """
-                    package androidx.collection;
-
-                    import java.util.Collection;
-                    import java.util.HashSet;
-                    import java.util.Set;
-
-                    public class ArraySet<E> extends HashSet<E> implements Set<E> {
-                        public ArraySet() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
                     package androidx.core.app;
 
                     import java.util.ArrayList;
@@ -713,26 +698,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    kotlin(
-                        "src/main/java/androidx/collection/ArraySet.kt",
-                        """
-                    package androidx.collection
-
-                    inline fun <T> arraySetOf(): ArraySet<T> = ArraySet()
-
-                    fun <T> arraySetOf(vararg values: T): ArraySet<T> {
-                        val set = ArraySet<T>(values.size)
-                        for (value in values) {
-                            set.add(value)
-                        }
-                        return set
-                    }
-
-                    fun <T> arraySetOfNullable(vararg values: T?): ArraySet<T>? {
-                        return null
-                    }
-                    """
-                    ),
                     androidxNonNullSource,
                     androidxNullableSource
                 ),
@@ -747,14 +712,6 @@ class ApiFileTest : DriverTest() {
                     method public static inline <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf();
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
-                  }
-                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
-                    ctor public ArraySet();
-                  }
-                  public final class ArraySetKt {
-                    method public static inline <T> androidx.collection.ArraySet<T> arraySetOf();
-                    method public static <T> androidx.collection.ArraySet<T> arraySetOf(T... values);
-                    method public static <T> androidx.collection.ArraySet<T>? arraySetOfNullable(T?... values);
                   }
                 }
                 package androidx.core.app {
@@ -894,10 +851,6 @@ class ApiFileTest : DriverTest() {
                         class CircularArray<E> {
                             val first: E
                                 get() = TODO()
-
-                            var last: E
-                                get() = TODO()
-                                set(value) = TODO()
                         }
                     """
                     )
@@ -908,10 +861,7 @@ class ApiFileTest : DriverTest() {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
                     method public E getFirst();
-                    method public E getLast();
-                    method public void setLast(E);
                     property public final E first;
-                    property public final E last;
                   }
                 }
             """
@@ -1742,7 +1692,6 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2031,7 +1980,6 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             api =
                 """
                     package test.pkg {
@@ -3626,7 +3574,6 @@ class ApiFileTest : DriverTest() {
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3909,6 +3856,59 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test merging API signature files`() {
+        val source1 =
+            """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+            package Test.pkg1 {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 =
+            """
+            package Test.pkg {
+              public final class Class2 {
+                method public void method1(String);
+              }
+            }
+            package Test.pkg2 {
+              public final class Class1 {
+                method public void method1(String, String);
+              }
+            }
+                    """
+        val expected =
+            """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+              public final class Class2 {
+                method public void method1(String);
+              }
+            }
+            package Test.pkg1 {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+            package Test.pkg2 {
+              public final class Class1 {
+                method public void method1(String, String);
+              }
+            }
+                    """
+        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
+    }
+
     val MERGE_TEST_SOURCE_1 =
         """
             package test.pkg {
@@ -3934,6 +3934,144 @@ class ApiFileTest : DriverTest() {
               }
             }
             """
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test merging API signature files, one refer to another`() {
+        check(
+            signatureSources = arrayOf(MERGE_TEST_SOURCE_1, MERGE_TEST_SOURCE_2),
+            api = MERGE_TEST_EXPECTED
+        )
+    }
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test merging API signature files, one refer to another, in reverse order`() {
+        // Exactly the same as the previous test, but read them in the reverse order
+        check(
+            signatureSources = arrayOf(MERGE_TEST_SOURCE_2, MERGE_TEST_SOURCE_1),
+            api = MERGE_TEST_EXPECTED
+        )
+    }
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test merging API signature files with reverse dependency`() {
+        val source1 =
+            """
+            package test.pkg {
+              public final class Class1 {
+                method public void method1(test.pkg.Class2 arg);
+              }
+            }
+                    """
+        val source2 =
+            """
+            package test.pkg {
+              public final class Class2 {
+              }
+            }
+                    """
+        val expected =
+            """
+            package test.pkg {
+              public final class Class1 {
+                method public void method1(test.pkg.Class2 arg);
+              }
+              public final class Class2 {
+              }
+            }
+                    """
+        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
+    }
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test merging 3 API signature files`() {
+        val source1 =
+            """
+            package test.pkg1 {
+              public final class BaseClass1 {
+                method public void method1();
+              }
+
+              public final class AnotherSubClass extends test.pkg2.AnotherBase {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 =
+            """
+            package test.pkg2 {
+              public final class SubClass1 extends test.pkg1.BaseClass1 {
+              }
+            }
+                    """
+        val source3 =
+            """
+            package test.pkg2 {
+              public final class SubClass2 extends test.pkg2.SubClass1 {
+                method public void bar();
+              }
+
+              public final class AnotherBase {
+                method public void baz();
+              }
+            }
+                    """
+        val expected =
+            """
+            package test.pkg1 {
+              public final class AnotherSubClass extends test.pkg2.AnotherBase {
+                method public void method1();
+              }
+              public final class BaseClass1 {
+                method public void method1();
+              }
+            }
+            package test.pkg2 {
+              public final class AnotherBase {
+                method public void baz();
+              }
+              public final class SubClass1 extends test.pkg1.BaseClass1 {
+              }
+              public final class SubClass2 extends test.pkg2.SubClass1 {
+                method public void bar();
+              }
+            }
+                    """
+        check(signatureSources = arrayOf(source1, source2, source3), api = expected)
+    }
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test can merge API signature files with duplicate class`() {
+        val source1 =
+            """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 =
+            """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val expected =
+            """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(signatureSources = arrayOf(source1, source2), api = expected)
+    }
 
     @Test
     fun `Test can merge API signature files with duplicate classes with constructors`() {
@@ -4030,6 +4168,52 @@ class ApiFileTest : DriverTest() {
                 FileFormat.V2.copy(
                     specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
                 ),
+        )
+    }
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test cannot merge API signature files with incompatible class definitions`() {
+        val source1 =
+            """
+            package Test.pkg {
+              public class Class1 {
+                method public void method2();
+              }
+            }
+                    """
+        val source2 =
+            """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail =
+                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:3: Incompatible class Test.pkg.Class1 definitions"
+        )
+    }
+
+    @Deprecated("Copied to [MergeFullSignatureTest]")
+    @Test
+    fun `Test can merge API signature files with different file formats`() {
+        val source1 =
+            """
+            // Signature format: 2.0
+            package Test.pkg {
+            }
+                    """
+        val source2 =
+            """
+            // Signature format: 3.0
+            package Test.pkg {
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
         )
     }
 
@@ -4802,11 +4986,8 @@ class ApiFileTest : DriverTest() {
                         )
 
                         class SomeOptionalJvmOverloads @JvmOverloads constructor(
-                            private val p1: Int,
-                            private val p2: Int = 0,
-                            private val p3: Int,
-                            private val p4: Int = 0,
-                            private val p5: Int
+                            private val foo: Int,
+                            private val bar: Int = 0
                         )
 
                         class SomeOptionalNoJvmOverloads(
@@ -4829,94 +5010,14 @@ class ApiFileTest : DriverTest() {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
-                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
-                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
+                    ctor public SomeOptionalJvmOverloads(int foo);
+                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
                   }
                 }
             """
-        )
-    }
-
-    @Test
-    fun `Kotlin expect-actual with JvmOverloads`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "src/commonMain/test/pkg/Expect.kt",
-                        """
-                        package test.pkg
-
-                        expect class AllOptionalJvmOverloads @JvmOverloads constructor(
-                            private val foo: Int = 0,
-                            private val bar: Int = 0
-                        )
-
-                        expect class SomeOptionalJvmOverloads @JvmOverloads constructor(
-                            private val p1: Int,
-                            private val p2: Int = 0,
-                            private val p3: Int,
-                            private val p4: Int = 0,
-                            private val p5: Int
-                        )
-
-                        expect class AllOptionalJvmOverloadsBothSides @JvmOverloads constructor(
-                            private val foo: Int = 0,
-                            private val bar: Int = 0
-                        )
-                    """
-                    ),
-                    kotlin(
-                        "src/jvmMain/test/pkg/Actual.kt",
-                        """
-                        package test.pkg
-
-                        actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
-                            private val foo: Int,
-                            private val bar: Int
-                        )
-
-                        actual class SomeOptionalJvmOverloads @JvmOverloads actual constructor(
-                            private val p1: Int,
-                            private val p2: Int,
-                            private val p3: Int,
-                            private val p4: Int,
-                            private val p5: Int
-                        )
-
-                        actual class AllOptionalJvmOverloadsBothSides @JvmOverloads actual constructor(
-                            private val foo: Int = 0,
-                            private val bar: Int = 0
-                        )
-                    """
-                    )
-                ),
-            api =
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public final class AllOptionalJvmOverloads {
-                        ctor public AllOptionalJvmOverloads();
-                        ctor public AllOptionalJvmOverloads(optional int foo);
-                        ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
-                      }
-                      public final class AllOptionalJvmOverloadsBothSides {
-                        ctor public AllOptionalJvmOverloadsBothSides();
-                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo);
-                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo, optional int bar);
-                      }
-                      public final class SomeOptionalJvmOverloads {
-                        ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
-                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
-                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
-                      }
-                    }
-                """
         )
     }
 
@@ -5814,6 +5915,97 @@ class ApiFileTest : DriverTest() {
                     "android.annotation.SystemApi",
                     ARG_HIDE_PACKAGE,
                     "android.annotation",
+                )
+        )
+    }
+
+    @Test
+    fun `FlaggedApi annotated items can be hidden if requested via command line`() {
+        fun checkFlaggedApi(api: String, extraArguments: Array<String>) {
+            check(
+                format = FileFormat.V2,
+                sourceFiles =
+                    arrayOf(
+                        java(
+                            """
+                        package test.pkg;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        public class Foo {
+                            @FlaggedApi("foo/bar")
+                            public void flaggedPublicApi() {}
+
+                            /** @hide */
+                            @SystemApi
+                            @FlaggedApi("foo/bar")
+                            public void flaggedSystemApi() {}
+                        }
+                    """
+                        ),
+                        systemApiSource,
+                        flaggedApiSource
+                    ),
+                api = api,
+                extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + extraArguments
+            )
+        }
+
+        // public api scope, including flagged APIs
+        checkFlaggedApi(
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
+                  }
+                }
+            """,
+            extraArguments = arrayOf()
+        )
+
+        // public api scope, excluding flagged APIs
+        checkFlaggedApi(
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                  }
+                }
+            """,
+            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "android.annotation.FlaggedApi")
+        )
+
+        // system api scope, including flagged APIs
+        checkFlaggedApi(
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
+                  }
+                }
+            """,
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "android.annotation.SystemApi")
+        )
+
+        // system api scope, excluding flagged APIs
+        checkFlaggedApi(
+            api = """
+                // Signature format: 2.0
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_HIDE_ANNOTATION,
+                    "android.annotation.FlaggedApi"
                 )
         )
     }
