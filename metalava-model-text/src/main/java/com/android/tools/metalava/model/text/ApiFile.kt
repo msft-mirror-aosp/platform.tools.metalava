@@ -72,14 +72,20 @@ private constructor(
 
     companion object {
         /**
-         * Same as [.parseApi]}, but take a single file for convenience.
+         * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
          *
          * @param file input signature file
          */
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), annotationManager)
+            description: String? = null,
+        ) =
+            parseApi(
+                files = listOf(file),
+                annotationManager = annotationManager,
+                description = description,
+            )
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -93,19 +99,21 @@ private constructor(
         fun parseApi(
             files: List<File>,
             annotationManager: AnnotationManager = noOpAnnotationManager,
+            description: String? = null,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], annotationManager)
-            val description = StringBuilder("Codebase loaded from ")
+            val actualDescription =
+                description
+                    ?: buildString {
+                        append("Codebase loaded from ")
+                        files.joinTo(this)
+                    }
             val parser = ApiFile(classResolver, formatForLegacyFiles)
             var first = true
             for (file in files) {
-                if (!first) {
-                    description.append(", ")
-                }
-                description.append(file.path)
                 val apiText: String =
                     try {
                         file.readText(UTF_8)
@@ -119,7 +127,7 @@ private constructor(
                 parser.parseApiSingleFile(api, !first, file.path, apiText)
                 first = false
             }
-            api.description = description.toString()
+            api.description = actualDescription
             parser.postProcess(api)
             return api
         }
