@@ -184,10 +184,6 @@ open class TextMethodItem(
         throwsTypes += throwsType
     }
 
-    private val varargs: Boolean = parameters.any { it.isVarArgs() }
-
-    fun isVarArg(): Boolean = varargs
-
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 
     override var inheritedFrom: ClassItem? = null
