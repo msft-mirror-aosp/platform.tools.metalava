@@ -755,16 +755,6 @@ private fun createStubFiles(
     codebase: Codebase,
     docStubs: Boolean,
 ) {
-    if (codebase.location.endsWith(".txt")) {
-        if (options.verbose) {
-            options.stdout.println(
-                "Generating stubs from text based codebase is an experimental feature. " +
-                    "It is not guaranteed that stubs generated from text based codebase are " +
-                    "class level equivalent to the stubs generated from source files. "
-            )
-        }
-    }
-
     if (docStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
