@@ -444,7 +444,9 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator()
+    CodebaseComparator(
+            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        )
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {

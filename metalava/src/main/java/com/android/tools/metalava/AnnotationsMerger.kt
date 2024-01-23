@@ -327,7 +327,10 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        CodebaseComparator(
+                apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+            )
+            .compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
