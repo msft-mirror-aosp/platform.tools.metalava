@@ -183,7 +183,7 @@ class SignatureToJDiffCommand :
 }
 
 /**
- * Create a [TextCodebase] that is a delta between [baseApi] and [signatureApi], i.e. it includes
+ * Create a text [Codebase] that is a delta between [baseApi] and [signatureApi], i.e. it includes
  * all the [Item] that are in [signatureApi] but not in [baseApi].
  *
  * This is expected to be used where [signatureApi] is a super set of [baseApi] but that is not
@@ -205,7 +205,7 @@ private fun computeDelta(
     baseApi: Codebase,
     signatureApi: Codebase,
     apiVisitorConfig: ApiVisitor.Config,
-): TextCodebase {
+): Codebase {
     // Compute just the delta
     val delta = TextCodebase(baseFile, signatureApi.annotationManager)
     delta.description = "Delta between $baseApi and $signatureApi"
