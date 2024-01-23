@@ -262,7 +262,8 @@ class SourceFieldItemTest : BaseModelTest() {
             assertEquals(true, fieldItem.modifiers.equivalentTo(duplicateField.modifiers))
             assertEquals(true, duplicateField.hidden)
             assertEquals(false, duplicateField.docOnly)
-            assertEquals(7, duplicateField.initialValue())
+            assertEquals(fieldItem.type(), duplicateField.type())
+            assertEquals(fieldItem.initialValue(), duplicateField.initialValue())
             assertEquals(classItem, duplicateField.inheritedFrom)
         }
     }
