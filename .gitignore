@@ -1,7 +1,5 @@
 *.iml
 .gradle
-/.idea/compiler.xml
-/.idea/gradle.xml
 /.idea/libraries
 /.idea/libraries-with-intellij-classes.xml
 /.idea/modules.xml
