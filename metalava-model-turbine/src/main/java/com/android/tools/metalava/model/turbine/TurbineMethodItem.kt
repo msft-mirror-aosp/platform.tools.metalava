@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineMethodItem(
+internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: TurbineClassItem,

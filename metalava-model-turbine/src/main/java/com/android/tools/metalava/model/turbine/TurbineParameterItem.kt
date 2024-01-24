@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 
-class TurbineParameterItem(
+internal class TurbineParameterItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val containingMethod: TurbineMethodItem,

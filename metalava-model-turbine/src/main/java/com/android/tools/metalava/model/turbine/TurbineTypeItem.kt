@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
 
-sealed class TurbineTypeItem(
+internal sealed class TurbineTypeItem(
     open val codebase: TurbineBasedCodebase,
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem(codebase) {

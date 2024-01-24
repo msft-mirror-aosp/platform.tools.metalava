@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineClassItem(
+internal open class TurbineClassItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val fullName: String,
