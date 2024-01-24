@@ -10,6 +10,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative values[turbine,java]
   annotation with type cast values[turbine,java]
 
+com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
+  test findClass()[turbine,java,java.lang.Object]
+  test findClass()[turbine,java,java.lang.Throwable]
+
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
