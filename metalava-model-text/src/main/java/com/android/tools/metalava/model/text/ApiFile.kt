@@ -52,9 +52,7 @@ import kotlin.text.Charsets.UTF_8
 @MetalavaApi
 class ApiFile
 private constructor(
-    /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?,
-    private val formatForLegacyFiles: FileFormat?
+    private val formatForLegacyFiles: FileFormat?,
 ) : ResolverContext {
 
     /**
@@ -105,14 +103,19 @@ private constructor(
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
             require(files.isNotEmpty()) { "files must not be empty" }
-            val api = TextCodebase(files[0], annotationManager)
+            val api =
+                TextCodebase(
+                    location = files[0],
+                    annotationManager = annotationManager,
+                    classResolver = classResolver,
+                )
             val actualDescription =
                 description
                     ?: buildString {
                         append("Codebase loaded from ")
                         files.joinTo(this)
                     }
-            val parser = ApiFile(classResolver, formatForLegacyFiles)
+            val parser = ApiFile(formatForLegacyFiles)
             var first = true
             for (file in files) {
                 val apiText: String =
@@ -170,9 +173,14 @@ private constructor(
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
-            val api = TextCodebase(File(filename), noOpAnnotationManager)
+            val api =
+                TextCodebase(
+                    location = File(filename),
+                    annotationManager = noOpAnnotationManager,
+                    classResolver = classResolver,
+                )
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver, formatForLegacyFiles)
+            val parser = ApiFile(formatForLegacyFiles)
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -1307,12 +1315,6 @@ internal interface ResolverContext {
      * super class.
      */
     fun nameOfSuperClass(cl: ClassItem): String?
-
-    /**
-     * The optional [ClassResolver] that is used to resolve unknown classes within the
-     * [TextCodebase].
-     */
-    val classResolver: ClassResolver?
 }
 
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
@@ -1356,23 +1358,20 @@ internal class ReferenceResolver(
      * @param name the name of the class, may include generics.
      * @param isInterface true if the class must be an interface, i.e. is referenced from an
      *   `implements` list (or Kotlin equivalent).
-     * @param mustBeFromThisCodebase true if the class must be from the same codebase as this class
-     *   is currently resolving.
+     * @param innerClass if `true` then this is searching for an inner class of a class in the
+     *   codebase being constructed, in which case this must only search classes in that codebase,
+     *   otherwise it can search for external classes too.
      */
     private fun getOrCreateClass(
         name: String,
         isInterface: Boolean = false,
-        mustBeFromThisCodebase: Boolean = false
+        innerClass: Boolean = false
     ): ClassItem {
-        return if (mustBeFromThisCodebase) {
-            codebase.getOrCreateClass(name, isInterface = isInterface, classResolver = null)
-        } else {
-            codebase.getOrCreateClass(
-                name,
-                isInterface = isInterface,
-                classResolver = context.classResolver
-            )
-        }
+        return codebase.getOrCreateClass(
+            name = name,
+            isInterface = isInterface,
+            innerClass = innerClass,
+        )
     }
 
     private fun resolveSuperclasses() {
@@ -1485,7 +1484,7 @@ internal class ReferenceResolver(
                     // If the outer class doesn't exist in the text codebase, it should not be
                     // resolved through the classpath--if it did exist there, this inner class
                     // would be overridden by the version from the classpath.
-                    val outerClass = getOrCreateClass(outerClassName, mustBeFromThisCodebase = true)
+                    val outerClass = getOrCreateClass(outerClassName, innerClass = true)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }

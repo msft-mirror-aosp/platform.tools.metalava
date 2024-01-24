@@ -67,6 +67,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
         TextCodebase(
             location = jar,
             annotationManager = noOpAnnotationManager,
+            classResolver = null,
         )
     }
 
