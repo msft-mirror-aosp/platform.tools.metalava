@@ -43,7 +43,7 @@ import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
+sealed class PsiTypeItem(val codebase: PsiBasedCodebase, val psiType: PsiType) :
     DefaultTypeItem(codebase) {
     private var asClass: PsiClassItem? = null
 
@@ -166,8 +166,8 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
 
 /** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
 internal class PsiPrimitiveTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiPrimitiveType,
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
     override val kind: PrimitiveTypeItem.Primitive,
     override val modifiers: PsiTypeModifiers,
 ) : PrimitiveTypeItem, PsiTypeItem(codebase, psiType) {
@@ -211,8 +211,8 @@ internal class PsiPrimitiveTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiArrayType]. */
 internal class PsiArrayTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiArrayType,
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
     override val componentType: PsiTypeItem,
     override val isVarargs: Boolean,
     override val modifiers: PsiTypeModifiers,
@@ -245,8 +245,8 @@ internal class PsiArrayTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that does not represent a type variable. */
 internal class PsiClassTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiClassType,
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
     override val qualifiedName: String,
     override val parameters: List<PsiTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
@@ -348,8 +348,8 @@ internal class PsiClassTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
 internal class PsiVariableTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiClassType,
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
     override val name: String,
     override val modifiers: PsiTypeModifiers,
 ) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
@@ -378,8 +378,8 @@ internal class PsiVariableTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiWildcardType]. */
 internal class PsiWildcardTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiWildcardType,
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
     override val extendsBound: PsiTypeItem?,
     override val superBound: PsiTypeItem?,
     override val modifiers: PsiTypeModifiers,
