@@ -66,8 +66,9 @@ internal class TurbineParameterItem(
         internal fun duplicate(
             codebase: TurbineBasedCodebase,
             parameter: ParameterItem,
+            replacementMap: Map<TypeItem, TypeItem>,
         ): TurbineParameterItem {
-            val type = parameter.type().duplicate()
+            val type = parameter.type().convertType(replacementMap)
             val mods = (parameter.modifiers as DefaultModifierList).duplicate()
             return TurbineParameterItem(
                 codebase,

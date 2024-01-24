@@ -205,4 +205,30 @@ internal open class TurbineClassItem(
     }
 
     override fun getSourceFile(): SourceFile? = source
+
+    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
+        val method = template as TurbineMethodItem
+        val replacementMap = mapTypeVariables(method.containingClass())
+        val retType = method.returnType().convertType(replacementMap)
+        val mods = method.modifiers.duplicate()
+        val params =
+            method.parameters().map { TurbineParameterItem.duplicate(codebase, it, replacementMap) }
+
+        val duplicateMethod =
+            TurbineMethodItem(
+                codebase,
+                method.getSymbol(),
+                this,
+                retType as TurbineTypeItem,
+                mods,
+                method.typeParameterList(),
+                method.documentation
+            )
+        mods.setOwner(duplicateMethod)
+        duplicateMethod.parameters = params
+        duplicateMethod.inheritedFrom = method.containingClass()
+        duplicateMethod.setThrowsTypes(method.throwsTypes())
+
+        return duplicateMethod
+    }
 }
