@@ -56,6 +56,7 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -1967,7 +1968,9 @@ private constructor(
             }
         }
 
-        val qualifiedName = type.asClass()?.qualifiedName() ?: return
+        // Only report issues with an actual type and not a generic type that extends Number as
+        // there is nothing that can be done to avoid auto-boxing when using generic types.
+        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }

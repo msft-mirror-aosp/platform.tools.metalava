@@ -7,14 +7,6 @@ com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
   test findClass()[psi,kotlin,java.lang.Object]
   test findClass()[psi,kotlin,java.lang.Throwable]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemTest
-  Test asClass[psi,java,T extends Comparable]
-  Test asClass[psi,java,T[]]
-  Test asClass[psi,java,T]
-  Test asClass[psi,kotlin,T extends Comparable]
-  Test asClass[psi,kotlin,T[]]
-  Test asClass[psi,kotlin,T]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
   Test nullability of outer classes[psi,java]

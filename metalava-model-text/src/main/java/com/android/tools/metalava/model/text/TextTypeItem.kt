@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -31,23 +32,6 @@ internal sealed class TextTypeItem(
     val codebase: TextCodebase,
     override val modifiers: TextTypeModifiers,
 ) : DefaultTypeItem(codebase) {
-
-    override fun asClass(): ClassItem? {
-        if (this is PrimitiveTypeItem) {
-            return null
-        }
-        val cls = run {
-            val erased = toErasedTypeString()
-            // Also chop off array dimensions
-            val index = erased.indexOf('[')
-            if (index != -1) {
-                erased.substring(0, index)
-            } else {
-                erased
-            }
-        }
-        return codebase.getOrCreateClass(cls)
-    }
 
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
 }
@@ -97,6 +81,10 @@ internal class TextClassTypeItem(
 ) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
+    override fun asClass(): ClassItem {
+        return codebase.getOrCreateClass(qualifiedName)
+    }
+
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextClassTypeItem(
             codebase,
@@ -119,6 +107,12 @@ internal class TextVariableTypeItem(
     override val asTypeParameter: TypeParameterItem,
     modifiers: TextTypeModifiers
 ) : VariableTypeItem, TextTypeItem(codebase, modifiers) {
+
+    override fun asClass(): ClassItem {
+        return asTypeParameter.typeBounds().firstOrNull()?.asClass()
+            ?: codebase.getOrCreateClass(JAVA_LANG_OBJECT)
+    }
+
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextVariableTypeItem(
             codebase,

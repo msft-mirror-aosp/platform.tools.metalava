@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.DefaultTypeItem.Companion.appendErasedTypeString
 import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
 import java.util.function.Predicate
@@ -697,6 +698,8 @@ interface PrimitiveTypeItem : TypeItem {
     }
 
     override fun hashCodeForType(): Int = kind.hashCode()
+
+    override fun asClass(): ClassItem? = null
 }
 
 /** Represents an array type, including vararg types. */
@@ -732,6 +735,8 @@ interface ArrayTypeItem : TypeItem {
     }
 
     override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
+
+    override fun asClass(): ClassItem? = componentType.asClass()
 }
 
 /** Represents a class type. */
@@ -866,4 +871,8 @@ interface WildcardTypeItem : TypeItem {
     }
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
+
+    override fun asClass(): ClassItem? {
+        TODO("Not yet implemented")
+    }
 }
