@@ -151,6 +151,12 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
+    /**
+     * Check to see whether this type has any type arguments.
+     *
+     * It only checks this [TypeItem], and does not recurse down into any others, so it will return
+     * `true` for say `List<T>`, but `false` for `List<T>[]` and `T`.
+     */
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
 
     /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
