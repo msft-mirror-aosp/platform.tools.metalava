@@ -22,12 +22,12 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterItem(
+internal class TextTypeParameterItem(
     codebase: TextCodebase,
     private var owner: TypeParameterListOwner?,
     private val typeParameterString: String,
     name: String,
-    private var bounds: List<TypeItem>? = null
+    private val isReified: Boolean,
 ) :
     TextClassItem(
         codebase = codebase,
@@ -37,6 +37,17 @@ class TextTypeParameterItem(
         typeParameterList = TypeParameterList.NONE
     ),
     TypeParameterItem {
+
+    private var bounds: List<TypeItem>? = null
+
+    override fun toType(): TextTypeItem {
+        return TextVariableTypeItem(
+            codebase,
+            name,
+            this,
+            TextTypeModifiers.create(codebase, emptyList(), null)
+        )
+    }
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
@@ -53,9 +64,7 @@ class TextTypeParameterItem(
         return bounds!!
     }
 
-    override fun isReified(): Boolean {
-        return typeParameterString.startsWith("reified")
-    }
+    override fun isReified(): Boolean = isReified
 
     internal fun setOwner(newOwner: TypeParameterListOwner) {
         owner = newOwner
@@ -66,24 +75,32 @@ class TextTypeParameterItem(
             codebase: TextCodebase,
             owner: TypeParameterListOwner?,
             typeParameterString: String,
-            bounds: List<TypeItem>? = null
         ): TextTypeParameterItem {
             val length = typeParameterString.length
             var nameEnd = length
-            for (i in 0 until length) {
+
+            val isReified = typeParameterString.startsWith("reified ")
+            val nameStart =
+                if (isReified) {
+                    8 // "reified ".length
+                } else {
+                    0
+                }
+
+            for (i in nameStart until length) {
                 val c = typeParameterString[i]
                 if (!Character.isJavaIdentifierPart(c)) {
                     nameEnd = i
                     break
                 }
             }
-            val name = typeParameterString.substring(0, nameEnd)
+            val name = typeParameterString.substring(nameStart, nameEnd)
             return TextTypeParameterItem(
                 codebase = codebase,
                 owner = owner,
                 typeParameterString = typeParameterString,
                 name = name,
-                bounds = bounds
+                isReified = isReified,
             )
         }
 

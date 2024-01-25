@@ -37,6 +37,10 @@ import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
@@ -543,7 +547,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 sources.forEach { file ->
                     val signatureFile =
                         File(project, "load-api${ if (++num == 1) "" else num.toString() }.txt")
-                    signatureFile.writeSignatureText(file.trimIndent())
+                    signatureFile.writeSignatureText(file)
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
@@ -648,7 +652,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     arrayOf(ARG_API_LINT)
                 } else {
                     val file = File(project, "prev-api-lint.txt")
-                    file.writeSignatureText(apiLint.trimIndent())
+                    file.writeSignatureText(apiLint)
                     arrayOf(ARG_API_LINT, file.path)
                 }
             } else {
@@ -656,60 +660,28 @@ abstract class DriverTest : TemporaryFolderOwner {
             }
 
         val checkCompatibilityApiReleasedFile =
-            if (checkCompatibilityApiReleased != null) {
-                val jar = File(checkCompatibilityApiReleased)
-                if (jar.isFile) {
-                    jar
-                } else {
-                    val file = File(project, "released-api.txt")
-                    file.writeSignatureText(checkCompatibilityApiReleased.trimIndent())
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(
+                project,
+                checkCompatibilityApiReleased,
+                "released-api.txt"
+            )
 
         val checkCompatibilityRemovedApiReleasedFile =
-            if (checkCompatibilityRemovedApiReleased != null) {
-                val jar = File(checkCompatibilityRemovedApiReleased)
-                if (jar.isFile) {
-                    jar
-                } else {
-                    val file = File(project, "removed-released-api.txt")
-                    file.writeSignatureText(checkCompatibilityRemovedApiReleased)
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(
+                project,
+                checkCompatibilityRemovedApiReleased,
+                "removed-released-api.txt"
+            )
 
         val checkCompatibilityBaseApiFile =
-            if (checkCompatibilityBaseApi != null) {
-                val maybeFile = File(checkCompatibilityBaseApi)
-                if (maybeFile.isFile) {
-                    maybeFile
-                } else {
-                    val file = File(project, "compatibility-base-api.txt")
-                    file.writeSignatureText(checkCompatibilityBaseApi.trimIndent())
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(
+                project,
+                checkCompatibilityBaseApi,
+                "compatibility-base-api.txt"
+            )
 
         val migrateNullsApiFile =
-            if (migrateNullsApi != null) {
-                val jar = File(migrateNullsApi)
-                if (jar.isFile) {
-                    jar
-                } else {
-                    val file = File(project, "stable-api.txt")
-                    file.writeSignatureText(migrateNullsApi.trimIndent())
-                    file
-                }
-            } else {
-                null
-            }
+            useExistingSignatureFileOrCreateNewFile(project, migrateNullsApi, "stable-api.txt")
 
         val manifestFileArgs =
             if (manifest != null) {
@@ -869,7 +841,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         val subtractApiArgs =
             if (subtractApi != null) {
                 subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeSignatureText(subtractApi.trimIndent())
+                subtractApiFile.writeSignatureText(subtractApi)
                 arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
             } else {
                 emptyArray()
@@ -1285,6 +1257,31 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
+    /**
+     * Get an optional signature API [File] from either a file path or its contents.
+     *
+     * @param project the directory in which to create a new file.
+     * @param fileOrFileContents either a path to an existing file or the contents of the signature
+     *   file. If the latter the contents will be trimmed, updated to add a [FileFormat.V2] header
+     *   if needed and written to a new file created within [project].
+     * @param newBasename the basename of a new file created.
+     */
+    private fun useExistingSignatureFileOrCreateNewFile(
+        project: File,
+        fileOrFileContents: String?,
+        newBasename: String
+    ) =
+        fileOrFileContents?.let {
+            val maybeFile = File(fileOrFileContents)
+            if (maybeFile.isFile) {
+                maybeFile
+            } else {
+                val file = File(project, newBasename)
+                file.writeSignatureText(fileOrFileContents)
+                file
+            }
+        }
+
     protected fun uastCheck(
         isK2: Boolean,
         @Language("TEXT") api: String? = null,
@@ -1631,22 +1628,7 @@ val androidxIntRangeSource: TestFile =
         )
         .indented()
 
-val supportParameterName: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD})
-    public @interface ParameterName {
-        String value();
-    }
-    """
-        )
-        .indented()
+val supportParameterName = KnownSourceFiles.supportParameterName
 
 val supportDefaultValue: TestFile =
     java(
