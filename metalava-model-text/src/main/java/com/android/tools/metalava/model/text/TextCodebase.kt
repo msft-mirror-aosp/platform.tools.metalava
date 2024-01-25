@@ -99,12 +99,22 @@ internal class TextCodebase(
         innerClass: Boolean = false,
     ): ClassItem {
         val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased] ?: externalClasses[erased]
-        if (cls != null) {
-            return cls
+
+        // Check this codebase first, if found then return it.
+        mAllClasses[erased]?.let { found ->
+            return found
         }
 
+        // Only check for external classes if this is not searching for an inner class and there is
+        // a class resolver that will populate the external classes.
         if (!innerClass && classResolver != null) {
+            // Check to see whether the class has already been retrieved from the resolver. If it
+            // has then return it.
+            externalClasses[erased]?.let { found ->
+                return found
+            }
+
+            // Else try and resolve the class.
             val classItem = classResolver.resolveClass(erased)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
