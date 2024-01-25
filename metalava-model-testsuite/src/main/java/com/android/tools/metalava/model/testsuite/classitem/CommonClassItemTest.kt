@@ -899,6 +899,17 @@ class CommonClassItemTest : BaseModelTest() {
                         public class Inner {}
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Outer<T> {
+                      }
+                      public class Outer.Inner {
+                      }
+                    }
+                """
             )
         ) {
             val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
