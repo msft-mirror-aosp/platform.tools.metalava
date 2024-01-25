@@ -1460,7 +1460,7 @@ internal class ReferenceResolver(
                     // If the outer class doesn't exist in the text codebase, it should not be
                     // resolved through the classpath--if it did exist there, this inner class
                     // would be overridden by the version from the classpath.
-                    val outerClass = codebase.getOrCreateClass(outerClassName, innerClass = true)
+                    val outerClass = codebase.getOrCreateClass(outerClassName, isOuterClass = true)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }

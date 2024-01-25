@@ -94,23 +94,23 @@ internal class TextCodebase(
      * @param name the name of the class.
      * @param isInterface true if the class must be an interface, i.e. is referenced from an
      *   `implements` list (or Kotlin equivalent).
-     * @param innerClass if `true` then this is searching for an inner class of a class in this
+     * @param isOuterClass if `true` then this is searching for an outer class of a class in this
      *   codebase, in which case this must only search classes in this codebase, otherwise it can
      *   search for external classes too.
      */
     fun getOrCreateClass(
         name: String,
         isInterface: Boolean = false,
-        innerClass: Boolean = false,
+        isOuterClass: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
         mAllClasses[name]?.let { found ->
             return found
         }
 
-        // Only check for external classes if this is not searching for an inner class and there is
+        // Only check for external classes if this is not searching for an outer class and there is
         // a class resolver that will populate the external classes.
-        if (!innerClass && classResolver != null) {
+        if (!isOuterClass && classResolver != null) {
             // Check to see whether the class has already been retrieved from the resolver. If it
             // has then return it.
             externalClasses[name]?.let { found ->
@@ -137,7 +137,7 @@ internal class TextCodebase(
             // themselves possibly stubs
             val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, innerClass = true)
+            val outerClass = getOrCreateClass(outerName, isOuterClass = true)
 
             // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
             // another.
