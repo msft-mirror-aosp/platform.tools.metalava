@@ -71,6 +71,7 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
             .createSourceParser(reporter, noOpAnnotationManager)
             .parseSources(
                 SourceSet(sources.map { it.createFile(directory) }, listOf(directory)),
+                SourceSet.empty(),
                 description = "Test Codebase",
                 classPath = classPath,
             )

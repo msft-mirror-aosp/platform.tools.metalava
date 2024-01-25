@@ -38,4 +38,8 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
         get() {
             return sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }
         }
+
+    companion object {
+        fun empty(): SourceSet = SourceSet(emptyList(), emptyList())
+    }
 }

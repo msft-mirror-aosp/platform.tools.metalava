@@ -34,12 +34,21 @@ interface SourceParser {
      * Parse a set of sources into a [SourceCodebase].
      *
      * @param sourceSet the list of source files and root directories.
+     * @param commonSourceSet the list of source files and root directories in the common module.
      * @param description the description to use for [Codebase.description].
      * @param classPath the possibly empty list of jar files which may provide additional classes
      *   referenced by the sources.
+     *
+     * "Common module" is the term used in Kotlin multi-platform projects where platform-agnostic
+     * business logic and `expect` declarations are declared. (Counterparts, like platform-specific
+     * logic and `actual` declarations are declared at platform-specific modules, of course.) To
+     * that end, [commonSourceSet] will be used for Kotlin multi-platform projects only. All others,
+     * such as Java only or non-KMP Kotlin projects, won't need to set it, i.e., should pass source
+     * files and root directories via [sourceSet], not [commonSourceSet].
      */
     fun parseSources(
         sourceSet: SourceSet,
+        commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
     ): SourceCodebase
