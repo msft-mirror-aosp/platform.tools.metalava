@@ -1352,28 +1352,6 @@ internal class ReferenceResolver(
         resolveInnerClasses()
     }
 
-    /**
-     * Gets an existing, or creates a new [ClassItem].
-     *
-     * @param name the name of the class, may include generics.
-     * @param isInterface true if the class must be an interface, i.e. is referenced from an
-     *   `implements` list (or Kotlin equivalent).
-     * @param innerClass if `true` then this is searching for an inner class of a class in the
-     *   codebase being constructed, in which case this must only search classes in that codebase,
-     *   otherwise it can search for external classes too.
-     */
-    private fun getOrCreateClass(
-        name: String,
-        isInterface: Boolean = false,
-        innerClass: Boolean = false
-    ): ClassItem {
-        return codebase.getOrCreateClass(
-            name = name,
-            isInterface = isInterface,
-            innerClass = innerClass,
-        )
-    }
-
     private fun resolveSuperclasses() {
         for (cl in classes) {
             // java.lang.Object has no superclass and neither do interfaces
@@ -1396,7 +1374,7 @@ internal class ReferenceResolver(
                     }
             }
 
-            val superclass = getOrCreateClass(scName)
+            val superclass = codebase.getOrCreateClass(scName)
             cl.setSuperClass(
                 superclass,
                 codebase.typeResolver.obtainTypeFromString(
@@ -1411,7 +1389,7 @@ internal class ReferenceResolver(
         for (cl in classes) {
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
-                getOrCreateClass(interfaceName, isInterface = true)
+                codebase.getOrCreateClass(interfaceName, isInterface = true)
                 cl.addInterface(
                     codebase.typeResolver.obtainTypeFromString(
                         interfaceName,
@@ -1443,7 +1421,7 @@ internal class ReferenceResolver(
                 if (exceptionClass == null) {
                     // Exception not provided by this codebase. Either try and retrieve it from a
                     // base codebase or create a stub.
-                    exceptionClass = getOrCreateClass(exception)
+                    exceptionClass = codebase.getOrCreateClass(exception)
 
                     // A class retrieved from another codebase is assumed to have been fully
                     // resolved by the codebase. However, a stub that has just been created will
@@ -1454,7 +1432,7 @@ internal class ReferenceResolver(
                         // An exception class needs to extend Throwable, unless it is Throwable in
                         // which case it does not need modifying.
                         if (exception != JAVA_LANG_THROWABLE) {
-                            val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                            val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
                             exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
                         }
                     }
@@ -1484,7 +1462,7 @@ internal class ReferenceResolver(
                     // If the outer class doesn't exist in the text codebase, it should not be
                     // resolved through the classpath--if it did exist there, this inner class
                     // would be overridden by the version from the classpath.
-                    val outerClass = getOrCreateClass(outerClassName, innerClass = true)
+                    val outerClass = codebase.getOrCreateClass(outerClassName, innerClass = true)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }
