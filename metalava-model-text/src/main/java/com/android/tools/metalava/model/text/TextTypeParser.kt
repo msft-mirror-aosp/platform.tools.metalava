@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -36,7 +37,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             codebase,
             cl.qualifiedName,
             params,
-            null,
+            cl.containingClass?.toType() as? ClassTypeItem,
             codebase.emptyTypeModifiers
         )
     }
