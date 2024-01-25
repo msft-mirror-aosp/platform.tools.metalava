@@ -50,34 +50,6 @@ internal sealed class TextTypeItem(
     }
 
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
-
-    companion object {
-
-        fun eraseTypeArguments(s: String): String {
-            val index = s.indexOf('<')
-            if (index != -1) {
-                var balance = 0
-                for (i in index..s.length) {
-                    val c = s[i]
-                    if (c == '<') {
-                        balance++
-                    } else if (c == '>') {
-                        balance--
-                        if (balance == 0) {
-                            return if (i == s.length - 1) {
-                                s.substring(0, index)
-                            } else {
-                                s.substring(0, index) + s.substring(i + 1)
-                            }
-                        }
-                    }
-                }
-
-                return s.substring(0, index)
-            }
-            return s
-        }
-    }
 }
 
 /** A [PrimitiveTypeItem] parsed from a signature file. */

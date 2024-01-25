@@ -302,10 +302,10 @@ private constructor(
     }
 
     /** Implements [ResolverContext] interface */
-    override fun namesOfInterfaces(cl: ClassItem): List<String>? = mClassToInterface[cl]
+    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = mClassToInterface[cl]
 
     /** Implements [ResolverContext] interface */
-    override fun nameOfSuperClass(cl: ClassItem): String? = mClassToSuper[cl]
+    override fun superClassTypeString(cl: ClassItem): String? = mClassToSuper[cl]
 
     private fun parseClass(
         api: TextCodebase,
@@ -1305,16 +1305,16 @@ private constructor(
  */
 internal interface ResolverContext {
     /**
-     * Get the names of the interfaces implemented by the supplied class, returns null if there are
-     * no interfaces.
+     * Get the string representations of the super interface types of the supplied class, returns
+     * null if there were no super interface types specified.
      */
-    fun namesOfInterfaces(cl: ClassItem): List<String>?
+    fun superInterfaceTypeStrings(cl: ClassItem): List<String>?
 
     /**
-     * Get the name of the super class extended by the supplied class, returns null if there is no
-     * super class.
+     * Get the string representation of the super class type extended by the supplied class, returns
+     * null if there was no specified super class type.
      */
-    fun nameOfSuperClass(cl: ClassItem): String?
+    fun superClassTypeString(cl: ClassItem): String?
 }
 
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
@@ -1358,8 +1358,8 @@ internal class ReferenceResolver(
             if (cl.isJavaLangObject() || cl.isInterface()) {
                 continue
             }
-            val scName =
-                context.nameOfSuperClass(cl)
+            val superClassTypeString: String =
+                context.superClassTypeString(cl)
                     ?: when {
                         cl.isEnum() -> JAVA_LANG_ENUM
                         cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
@@ -1369,28 +1369,31 @@ internal class ReferenceResolver(
                         else -> JAVA_LANG_OBJECT
                     }
 
-            val superclass = codebase.getOrCreateClass(scName)
-            cl.setSuperClass(
-                superclass,
+            val superClassType =
                 codebase.typeResolver.obtainTypeFromString(
-                    scName,
+                    superClassTypeString,
                     cl.typeParameterList.typeParameters()
-                )
-            )
+                ) as TextClassTypeItem
+
+            // Force the creation of the super class if it does not exist in the codebase.
+            val superclass = codebase.getOrCreateClass(superClassType.qualifiedName)
+            cl.setSuperClass(superclass, superClassType)
         }
     }
 
     private fun resolveInterfaces() {
         for (cl in classes) {
-            val interfaces = context.namesOfInterfaces(cl) ?: continue
+            val interfaces = context.superInterfaceTypeStrings(cl) ?: continue
             for (interfaceName in interfaces) {
-                codebase.getOrCreateClass(interfaceName, isInterface = true)
-                cl.addInterface(
+                val typeItem =
                     codebase.typeResolver.obtainTypeFromString(
                         interfaceName,
                         cl.typeParameterList.typeParameters()
-                    )
-                )
+                    ) as TextClassTypeItem
+                cl.addInterface(typeItem)
+
+                // Force the creation of the interface class if it does not exist in the codebase.
+                codebase.getOrCreateClass(typeItem.qualifiedName, isInterface = true)
             }
         }
     }

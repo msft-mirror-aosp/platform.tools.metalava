@@ -86,7 +86,7 @@ internal class TextCodebase(
      *
      * Initializes outer classes and packages for the created class as needed.
      *
-     * @param name the name of the class, may include generics.
+     * @param name the name of the class.
      * @param isInterface true if the class must be an interface, i.e. is referenced from an
      *   `implements` list (or Kotlin equivalent).
      * @param innerClass if `true` then this is searching for an inner class of a class in this
@@ -98,10 +98,8 @@ internal class TextCodebase(
         isInterface: Boolean = false,
         innerClass: Boolean = false,
     ): ClassItem {
-        val erased = TextTypeItem.eraseTypeArguments(name)
-
         // Check this codebase first, if found then return it.
-        mAllClasses[erased]?.let { found ->
+        mAllClasses[name]?.let { found ->
             return found
         }
 
@@ -110,29 +108,29 @@ internal class TextCodebase(
         if (!innerClass && classResolver != null) {
             // Check to see whether the class has already been retrieved from the resolver. If it
             // has then return it.
-            externalClasses[erased]?.let { found ->
+            externalClasses[name]?.let { found ->
                 return found
             }
 
             // Else try and resolve the class.
-            val classItem = classResolver.resolveClass(erased)
+            val classItem = classResolver.resolveClass(name)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[erased] = classItem
+                externalClasses[name] = classItem
                 return classItem
             }
         }
 
         val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[erased] = stubClass
+        mAllClasses[name] = stubClass
         stubClass.emit = false
 
         val fullName = stubClass.fullName()
         if (fullName.contains('.')) {
             // We created a new inner class stub. We need to fully initialize it with outer classes,
             // themselves possibly stubs
-            val outerName = erased.substring(0, erased.lastIndexOf('.'))
+            val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
             val outerClass = getOrCreateClass(outerName, innerClass = true)
 
@@ -149,8 +147,8 @@ internal class TextCodebase(
             outerClass.addInnerClass(stubClass)
         } else {
             // Add to package
-            val endIndex = erased.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) erased.substring(0, endIndex) else ""
+            val endIndex = name.lastIndexOf('.')
+            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
             val pkg =
                 findPackage(pkgPath)
                     ?: run {
