@@ -263,17 +263,9 @@ internal open class TextClassItem(
     companion object {
         internal fun createStubClass(
             codebase: TextCodebase,
-            name: String,
+            qualifiedName: String,
             isInterface: Boolean
         ): TextClassItem {
-            val index = if (name.endsWith(">")) name.indexOf('<') else -1
-            val qualifiedName = if (index == -1) name else name.substring(0, index)
-            val typeParameterList =
-                if (index == -1) {
-                    TypeParameterList.NONE
-                } else {
-                    TextTypeParameterList.create(codebase, name.substring(index))
-                }
             val fullName = getFullName(qualifiedName)
             val cls =
                 TextClassItem(
@@ -282,7 +274,6 @@ internal open class TextClassItem(
                     qualifiedName = qualifiedName,
                     isInterface = isInterface,
                     modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                    typeParameterList = typeParameterList
                 )
             cls.emit = false // it's a stub
 
