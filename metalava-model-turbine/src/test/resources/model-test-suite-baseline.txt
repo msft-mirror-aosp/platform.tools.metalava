@@ -2,6 +2,9 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values[turbine,java]
   annotation toSource() with constant literal values[turbine,java]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Check isTypeParameter[turbine,java]
+
 com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
   test findClass()[turbine,java,java.lang.Object]
   test findClass()[turbine,java,java.lang.Throwable]
