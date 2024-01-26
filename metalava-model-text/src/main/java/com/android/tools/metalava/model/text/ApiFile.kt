@@ -393,8 +393,8 @@ private constructor(
         }
 
         // Extract the full name and type parameters from declaredClassType.
-        val (fullName, typeParameters) = parseDeclaredClassType(api, declaredClassType)
-        val qualifiedClassName = qualifiedName(pkg.name(), fullName)
+        val (fullName, qualifiedClassName, typeParameters) =
+            parseDeclaredClassType(api, declaredClassType, pkg)
 
         // Above we marked all enums as static but for a top level class it's implicit
         if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
@@ -534,8 +534,18 @@ private constructor(
         }
     }
 
+    /** Encapsulates multiple return values from [parseDeclaredClassType]. */
+    private data class DeclaredClassTypeComponents(
+        /** The full name of the class, including outer class prefix. */
+        val fullName: String,
+        /** The fully qualified name, including package and full name. */
+        val qualifiedName: String,
+        /** The set of type parameters. */
+        val typeParameters: TypeParameterList,
+    )
+
     /**
-     * Splits the declared class type into its full name and type parameter list.
+     * Splits the declared class type into its full name, qualified name and type parameter list.
      *
      * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
      * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
@@ -543,15 +553,25 @@ private constructor(
      */
     private fun parseDeclaredClassType(
         api: TextCodebase,
-        declaredClassType: String
-    ): Pair<String, TypeParameterList> {
+        declaredClassType: String,
+        pkg: TextPackageItem,
+    ): DeclaredClassTypeComponents {
         val paramIndex = declaredClassType.indexOf('<')
+        val pkgName = pkg.name()
         return if (paramIndex == -1) {
-            Pair(declaredClassType, TypeParameterList.NONE)
+            DeclaredClassTypeComponents(
+                fullName = declaredClassType,
+                qualifiedName = qualifiedName(pkgName, declaredClassType),
+                typeParameters = TypeParameterList.NONE,
+            )
         } else {
-            Pair(
-                declaredClassType.substring(0, paramIndex),
-                TextTypeParameterList.create(api, declaredClassType.substring(paramIndex))
+            val name = declaredClassType.substring(0, paramIndex)
+            val qualifiedName = qualifiedName(pkgName, name)
+            DeclaredClassTypeComponents(
+                fullName = name,
+                qualifiedName = qualifiedName,
+                typeParameters =
+                    TextTypeParameterList.create(api, declaredClassType.substring(paramIndex)),
             )
         }
     }
