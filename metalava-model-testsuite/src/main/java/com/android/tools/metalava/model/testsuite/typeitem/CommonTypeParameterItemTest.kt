@@ -431,4 +431,60 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             assertThat(toType).isInstanceOf(VariableTypeItem::class.java)
         }
     }
+
+    @Test
+    fun `Test type parameter with annotations`() {
+        val typeParameterAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.*;
+                    import static java.lang.annotation.ElementType.TYPE_PARAMETER;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+                    @Retention(SOURCE)
+                    @Target({TYPE_PARAMETER})
+                    public @interface TypeParameterAnnotation {
+                    }
+                """
+            )
+        runCodebaseTest(
+            inputSet(
+                typeParameterAnnotation,
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo<@TypeParameterAnnotation T> {
+                            private Foo() {}
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeParameterAnnotation,
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo<@TypeParameterAnnotation T>
+                        private constructor()
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo<@test.pkg.TypeParameterAnnotation T> {
+                          }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParameter = fooClass.typeParameterList().typeParameters().single()
+            val annotation = typeParameter.modifiers.annotations().single()
+            assertThat(annotation.qualifiedName).isEqualTo("test.pkg.TypeParameterAnnotation")
+        }
+    }
 }
