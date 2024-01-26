@@ -42,8 +42,6 @@ import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.ofClass
-import com.android.tools.metalava.model.ofTypeParameter
 import java.io.File
 import java.io.IOException
 import java.io.InputStream

@@ -22,8 +22,6 @@ import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
-import com.android.tools.metalava.model.ofClass
-import com.android.tools.metalava.model.ofTypeParameter
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiTypeParameter

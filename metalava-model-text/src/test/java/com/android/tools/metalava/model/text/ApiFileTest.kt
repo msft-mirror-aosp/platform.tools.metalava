@@ -21,7 +21,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.classItem
 import com.android.tools.metalava.testing.createFiles
 import java.io.File
 import kotlin.test.assertNull

@@ -23,38 +23,132 @@ package com.android.tools.metalava.model
  * This is currently an alias for [ClassItem] but it will eventually be migrated to a completely
  * separate type.
  */
-typealias ThrowableType = ClassItem
+interface ThrowableType {
+    /** True if [classItem] is a [TypeParameterItem]. */
+    val isTypeParameter: Boolean
 
-/** The [ClassItem]; must only be called if [ClassItem.isTypeParameter] is `false`. */
-val ThrowableType.classItem: ClassItem
-    get() = if (this is TypeParameterItem) error("Cannot access classItem of $this") else this
+    /**
+     * The underlying [ClassItem], if available; must only be called if [isTypeParameter] is
+     * `false`.
+     */
+    val classItem: ClassItem
 
-/** The [TypeParameterItem]; must only be called if [ClassItem.isTypeParameter] is `true`. */
-val ThrowableType.typeParameterItem: TypeParameterItem
-    get() =
-        if (this is TypeParameterItem) this else error("Cannot access `typeParameterItem` on $this")
+    /**
+     * The underlying [TypeParameterItem], if available; must only be called if [isTypeParameter] is
+     * `true`.
+     */
+    val typeParameterItem: TypeParameterItem
 
-/**
- * The optional [ClassItem] that is a subclass of [java.lang.Throwable].
- *
- * When `this` is a [TypeParameterItem] this will just return the erased type class, if available,
- * or `null` otherwise. When `this` is not a [TypeParameterItem] then this will just return `this`.
- */
-val ThrowableType.throwableClass: ClassItem?
-    get() =
-        if (this is TypeParameterItem) typeBounds().firstNotNullOfOrNull { it.asClass() } else this
+    /**
+     * The optional [ClassItem] that is a subclass of [java.lang.Throwable].
+     *
+     * When the underlying [classItem] is a [TypeParameterItem] this will return the erased type
+     * class, if available, or `null` otherwise. When the underlying [classItem] is not a
+     * [TypeParameterItem] then this will just return [classItem].
+     */
+    val throwableClass: ClassItem?
 
-/** A description of the `ThrowableType`, suitable for use in reports. */
-fun ThrowableType.description() =
-    if (this is TypeParameterItem)
-        "${simpleName()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
-    else qualifiedName()
+    /** A description of the `ThrowableType`, suitable for use in reports. */
+    fun description(): String
 
-/** Get a [ThrowableType] from a [ClassItem] */
-fun ClassItem.Companion.ofClass(classItem: ClassItem): ThrowableType =
-    if (classItem is TypeParameterItem) error("Must not call this with a TypeParameterItem")
-    else classItem
+    /** The full name of the underlying [classItem]. */
+    fun fullName(): String
 
-/** Get a [ThrowableType] from a [TypeParameterItem] */
-fun ClassItem.Companion.ofTypeParameter(typeParameterItem: TypeParameterItem): ThrowableType =
-    typeParameterItem
+    /** The fully qualified name, will be the simple name of a [TypeParameterItem]. */
+    fun qualifiedName(): String
+
+    /** A wrapper of [ClassItem] that implements [ThrowableType]. */
+    private class ThrowableClassItem(override val classItem: ClassItem) : ThrowableType {
+
+        /* This is never a type parameter. */
+        override val isTypeParameter
+            get() = false
+
+        override val typeParameterItem: TypeParameterItem
+            get() = error("Cannot access `typeParameterItem` on $this")
+
+        /** The [classItem] is a subclass of [java.lang.Throwable] */
+        override val throwableClass: ClassItem
+            get() = classItem
+
+        override fun description() = qualifiedName()
+
+        override fun fullName() = classItem.fullName()
+
+        override fun qualifiedName() = classItem.qualifiedName()
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ThrowableClassItem
+
+            if (classItem != other.classItem) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return classItem.hashCode()
+        }
+
+        override fun toString() = classItem.toString()
+    }
+
+    /** A wrapper of [TypeParameterItem] that implements [ThrowableType]. */
+    private class ThrowableTypeParameterItem(override val typeParameterItem: TypeParameterItem) :
+        ThrowableType {
+
+        /** This is always a type parameter. */
+        override val isTypeParameter
+            get() = true
+
+        /** The [typeParameterItem] has no underlying [ClassItem]. */
+        override val classItem: ClassItem
+            get() = error("Cannot access classItem of $this")
+
+        /** The [throwableClass] is the lower bounds of [typeParameterItem]. */
+        override val throwableClass: ClassItem?
+            get() = typeParameterItem.typeBounds().firstNotNullOfOrNull { it.asClass() }
+
+        override fun description() =
+            "${typeParameterItem.simpleName()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
+
+        /** A TypeParameterItem name is not prefixed by a containing class. */
+        override fun fullName() = typeParameterItem.simpleName()
+
+        /** A TypeParameterItem name is not qualified by the package. */
+        override fun qualifiedName() = typeParameterItem.simpleName()
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ThrowableTypeParameterItem
+
+            if (typeParameterItem != other.typeParameterItem) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return typeParameterItem.hashCode()
+        }
+
+        override fun toString() = typeParameterItem.toString()
+    }
+
+    companion object {
+        /** Get a [ThrowableType] wrapper around [ClassItem] */
+        fun ofClass(classItem: ClassItem): ThrowableType =
+            if (classItem is TypeParameterItem) error("Must not call this with a TypeParameterItem")
+            else ThrowableClassItem(classItem)
+
+        /** Get a [ThrowableType] wrapper around [TypeParameterItem] */
+        fun ofTypeParameter(classItem: TypeParameterItem): ThrowableType =
+            ThrowableTypeParameterItem(classItem)
+
+        /** A partial ordering over [ThrowableType] comparing [ThrowableType.fullName]. */
+        val fullNameComparator: Comparator<ThrowableType> = Comparator.comparing { it.fullName() }
+    }
+}
