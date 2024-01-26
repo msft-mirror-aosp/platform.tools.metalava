@@ -36,13 +36,11 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -487,9 +485,12 @@ private constructor(
     private fun parseClassName(api: TextCodebase, type: String): Pair<String, TypeParameterList> {
         val paramIndex = type.indexOf('<')
         return if (paramIndex == -1) {
-            Pair(type, NONE)
+            Pair(type, TypeParameterList.NONE)
         } else {
-            Pair(type.substring(0, paramIndex), create(api, type.substring(paramIndex)))
+            Pair(
+                type.substring(0, paramIndex),
+                TextTypeParameterList.create(api, type.substring(paramIndex))
+            )
         }
     }
 
@@ -579,7 +580,7 @@ private constructor(
     ) {
         var token = startingToken
         val method: TextConstructorItem
-        var typeParameterList = NONE
+        var typeParameterList = TypeParameterList.NONE
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -626,7 +627,7 @@ private constructor(
     ) {
         var token = startingToken
         val method: TextMethodItem
-        var typeParameterList = NONE
+        var typeParameterList = TypeParameterList.NONE
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -996,9 +997,9 @@ private constructor(
         }
         val typeParameterList = tokenizer.getStringFromOffset(start)
         return if (typeParameterList.isEmpty()) {
-            NONE
+            TypeParameterList.NONE
         } else {
-            create(codebase, typeParameterList)
+            TextTypeParameterList.create(codebase, typeParameterList)
         }
     }
 
