@@ -16,10 +16,14 @@
 
 package com.android.tools.metalava.model
 
-// Contains support for handling a `ThrowableType`, which is a representation of a type that can be
-// used in a `throws` list. Initially this will be a set of extension functions/properties for
-// accessing `ThrowableType` related information but it will eventually be migrated to separate
-// classes.
+/**
+ * Represents a type which can be used in a `throws` declaration, e.g. a non-generic class, or a
+ * reference to a type parameter that extends [java.lang.Throwable] or one of its subclasses.
+ *
+ * This is currently an alias for [ClassItem] but it will eventually be migrated to a completely
+ * separate type.
+ */
+typealias ThrowableType = ClassItem
 
 /**
  * The optional [ClassItem] that is a subclass of [java.lang.Throwable].
@@ -27,12 +31,12 @@ package com.android.tools.metalava.model
  * When `this` is a [TypeParameterItem] this will just return the erased type class, if available,
  * or `null` otherwise. When `this` is not a [TypeParameterItem] then this will just return `this`.
  */
-val ClassItem.throwableClass: ClassItem?
+val ThrowableType.throwableClass: ClassItem?
     get() =
         if (this is TypeParameterItem) typeBounds().firstNotNullOfOrNull { it.asClass() } else this
 
 /** A description of the `ThrowableType`, suitable for use in reports. */
-fun ClassItem.description() =
+fun ThrowableType.description() =
     if (this is TypeParameterItem)
         "${simpleName()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
     else qualifiedName()

@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -1438,7 +1439,7 @@ internal class ReferenceResolver(
         }
     }
 
-    private fun getOrCreateThrowableClass(exception: String): ClassItem {
+    private fun getOrCreateThrowableClass(exception: String): ThrowableType {
         // Exception not provided by this codebase. Either try and retrieve it from a base codebase
         // or create a stub.
         val exceptionClass = codebase.getOrCreateClass(exception)
