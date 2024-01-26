@@ -202,9 +202,6 @@ internal constructor(
         }
     }
 
-    override val isTypeParameter: Boolean
-        get() = psiClass is PsiTypeParameter
-
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
