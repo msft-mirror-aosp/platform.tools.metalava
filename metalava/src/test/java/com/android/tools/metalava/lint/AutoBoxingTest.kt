@@ -75,4 +75,31 @@ class AutoBoxingTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Check boxing of generic`() {
+        check(
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class MyClass<T extends Number> {
+                        public final T field;
+                    }
+                    """
+                    ),
+                    kotlin(
+                        """
+                    package test.pkg
+                    interface KotlinClass<T: Number> {
+                        val property: T
+                    }
+                """
+                    ),
+                )
+        )
+    }
 }
