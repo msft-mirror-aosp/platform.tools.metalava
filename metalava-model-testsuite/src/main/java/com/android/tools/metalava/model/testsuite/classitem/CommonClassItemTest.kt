@@ -18,13 +18,13 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -944,7 +944,7 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Check isTypeParameter`() {
+    fun `Check TypeParameterItem is not a ClassItem`() {
         runCodebaseTest(
             signature(
                 """
@@ -972,8 +972,11 @@ class CommonClassItemTest : BaseModelTest() {
             val genericClass = codebase.assertClass("test.pkg.Generic")
             val typeParameter = genericClass.typeParameterList().typeParameters().single()
 
-            assertFalse(genericClass.isTypeParameter, message = "generic class")
-            assertTrue(typeParameter.isTypeParameter, message = "type parameter")
+            assertThat(genericClass).isInstanceOf(ClassItem::class.java)
+            assertThat(genericClass).isNotInstanceOf(TypeParameterItem::class.java)
+
+            assertThat(typeParameter).isInstanceOf(TypeParameterItem::class.java)
+            assertThat(typeParameter).isNotInstanceOf(ClassItem::class.java)
         }
     }
 }

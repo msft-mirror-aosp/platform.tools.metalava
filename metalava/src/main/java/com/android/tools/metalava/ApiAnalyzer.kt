@@ -1257,10 +1257,7 @@ class ApiAnalyzer(
             return
         }
 
-        if (
-            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
-                !cl.isTypeParameter
-        ) {
+        if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,

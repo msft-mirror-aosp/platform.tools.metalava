@@ -1,6 +1,10 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[psi,java]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Check TypeParameterItem is not a ClassItem[psi,java]
+  Check TypeParameterItem is not a ClassItem[psi,kotlin]
+
 com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
   test findClass()[psi,java,java.lang.Object]
   test findClass()[psi,java,java.lang.Throwable]

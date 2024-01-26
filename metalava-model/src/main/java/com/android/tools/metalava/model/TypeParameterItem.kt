@@ -17,7 +17,18 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem : ClassItem {
+interface TypeParameterItem : Item {
+
+    /** The name of the type parameter. */
+    fun simpleName(): String
+
+    /**
+     * The [VariableTypeItem] representing the type of this type parameter.
+     *
+     * TODO(b/322458348): Make it VariableTypeItem.
+     */
+    fun toType(): TypeItem
+
     @Deprecated(
         message = "Please use typeBounds() instead.",
         level = DeprecationLevel.ERROR,
