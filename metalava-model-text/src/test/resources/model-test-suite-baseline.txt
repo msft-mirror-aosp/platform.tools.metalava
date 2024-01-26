@@ -13,7 +13,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with type cast values[text,signature]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Check TypeParameterItem is not a ClassItem[text,signature]
   Test class no super class but implements lists[text,signature]
   Test class no super class or implements lists[text,signature]
 
