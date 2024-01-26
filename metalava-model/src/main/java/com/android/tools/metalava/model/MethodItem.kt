@@ -67,16 +67,10 @@ interface MethodItem : MemberItem {
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ClassItem>
 
-    /** Returns true if this class throws the given exception */
+    /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
             if (type.extends(qualifiedName)) {
-                return true
-            }
-        }
-
-        for (type in throwsTypes()) {
-            if (type.qualifiedName() == qualifiedName) {
                 return true
             }
         }
