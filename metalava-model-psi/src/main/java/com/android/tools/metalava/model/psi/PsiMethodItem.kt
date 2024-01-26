@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -433,7 +434,14 @@ open class PsiMethodItem(
                 .mapNotNull { psiType -> psiType.resolve() }
                 // Find or create a PsiClassItem or PsiTypeParameterItem for the underlying
                 // PsiClass.
-                .map { throwsClass -> codebase.findOrCreateClass(throwsClass) }
+                .map { throwsClass ->
+                    // PsiTypeParameterItem have to be created separately to PsiClassItem.
+                    if (throwsClass is PsiTypeParameter) {
+                        codebase.findOrCreateTypeParameter(throwsClass)
+                    } else {
+                        codebase.findOrCreateClass(throwsClass)
+                    }
+                }
                 // We're sorting the names here even though outputs typically do their own sorting,
                 // since for example the MethodItem.sameSignature check wants to do an
                 // element-by-element comparison to see if the signature matches, and that should
