@@ -57,11 +57,6 @@ sealed class PsiTypeItem(val codebase: PsiBasedCodebase, val psiType: PsiType) :
         return asClass
     }
 
-    override fun hasTypeArguments(): Boolean {
-        val type = psiType
-        return type is PsiClassType && type.hasParameters()
-    }
-
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
         if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {

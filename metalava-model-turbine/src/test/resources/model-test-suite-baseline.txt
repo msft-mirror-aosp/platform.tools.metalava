@@ -10,6 +10,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative values[turbine,java]
   annotation with type cast values[turbine,java]
 
+com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
+  test findClass()[turbine,java,java.lang.Object]
+  test findClass()[turbine,java,java.lang.Throwable]
+
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
@@ -18,15 +22,9 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine,java]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine,java]
 
-com.android.tools.metalava.model.testsuite.methoditem.SourceMethodItemTest
-  test inherited methods[turbine,java]
-
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test nullability annotation in package info[turbine,java]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemTest
-  Test hasTypeArguments[turbine,java,Comparable<Integer>[]]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test inner types from classpath[turbine,java]
