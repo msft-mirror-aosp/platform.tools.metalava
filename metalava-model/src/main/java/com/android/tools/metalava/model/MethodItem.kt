@@ -91,12 +91,12 @@ interface MethodItem : MemberItem {
         throwableTypes: LinkedHashSet<ThrowableType>
     ): LinkedHashSet<ThrowableType> {
         for (throwableType in throwsTypes()) {
-            if (predicate.test(throwableType) || throwableType.isTypeParameter) {
+            if (throwableType.isTypeParameter || predicate.test(throwableType.classItem)) {
                 throwableTypes.add(throwableType)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
                 // include those.
-                throwableType
+                throwableType.classItem
                     .allSuperClasses()
                     .firstOrNull { superClass -> predicate.test(superClass) }
                     ?.let { superClass -> throwableTypes.add(ThrowableType.ofClass(superClass)) }

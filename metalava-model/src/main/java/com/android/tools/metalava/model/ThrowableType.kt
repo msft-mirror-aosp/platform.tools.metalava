@@ -25,6 +25,15 @@ package com.android.tools.metalava.model
  */
 typealias ThrowableType = ClassItem
 
+/** The [ClassItem]; must only be called if [ClassItem.isTypeParameter] is `false`. */
+val ThrowableType.classItem: ClassItem
+    get() = if (this is TypeParameterItem) error("Cannot access classItem of $this") else this
+
+/** The [TypeParameterItem]; must only be called if [ClassItem.isTypeParameter] is `true`. */
+val ThrowableType.typeParameterItem: TypeParameterItem
+    get() =
+        if (this is TypeParameterItem) this else error("Cannot access `typeParameterItem` on $this")
+
 /**
  * The optional [ClassItem] that is a subclass of [java.lang.Throwable].
  *
