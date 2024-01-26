@@ -353,7 +353,6 @@ private constructor(
         // qualifiedClassName are just the name without type parameters.
         val classType: String = token
         val (className, typeParameters) = parseClassName(api, classType)
-        val qualifiedClassType = qualifiedName(pkg.name(), classType)
         val qualifiedClassName = qualifiedName(pkg.name(), className)
         token = tokenizer.requireToken()
         var cl =
@@ -365,7 +364,6 @@ private constructor(
                 isEnum,
                 isAnnotation,
                 qualifiedClassName,
-                qualifiedClassType,
                 className,
                 annotations,
                 typeParameters

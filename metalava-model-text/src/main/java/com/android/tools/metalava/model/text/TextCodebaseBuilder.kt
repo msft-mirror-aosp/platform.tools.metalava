@@ -130,7 +130,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 textClass.isEnum(),
                 textClass.isAnnotationType(),
                 textClass.qualifiedName,
-                textClass.qualifiedName,
                 textClass.name,
                 textClass.annotations,
                 textClass.typeParameterList

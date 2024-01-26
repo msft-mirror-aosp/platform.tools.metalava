@@ -40,7 +40,6 @@ internal open class TextClassItem(
     private var isEnum: Boolean = false,
     internal var isAnnotation: Boolean = false,
     val qualifiedName: String = "",
-    val qualifiedTypeName: String = qualifiedName,
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
