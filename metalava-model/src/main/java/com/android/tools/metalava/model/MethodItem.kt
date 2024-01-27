@@ -95,15 +95,10 @@ interface MethodItem : MemberItem {
                 classes.add(cls)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
-                // include those
-                var curr = cls.superClass()
-                while (curr != null) {
-                    if (predicate.test(curr)) {
-                        classes.add(curr)
-                        break
-                    }
-                    curr = curr.superClass()
-                }
+                // include those.
+                cls.allSuperClasses()
+                    .firstOrNull { superClass -> predicate.test(superClass) }
+                    ?.let { superClass -> classes.add(superClass) }
             }
         }
         return classes

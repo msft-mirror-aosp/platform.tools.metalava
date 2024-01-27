@@ -99,10 +99,7 @@ interface ClassItem : Item {
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
-        return superClass()?.let { cls ->
-            return generateSequence(cls) { it.superClass() }
-        }
-            ?: return emptySequence()
+        return generateSequence(superClass()) { it.superClass() }
     }
 
     /**
