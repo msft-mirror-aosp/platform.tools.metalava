@@ -1412,13 +1412,29 @@ internal class ReferenceResolver(
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
+            val typeParametersInScope = TextTypeParameterItem.gatherTypeParams(methodItem)
             val throwsList =
                 names.map { exception ->
-                    // Search in this codebase, then fall back to searching in a base codebase and
-                    // finally creating a stub.
-                    codebase.findClass(exception) ?: getOrCreateThrowableClass(exception)
+                    // Search in this codebase, then possibly check for a type parameter, if not
+                    // found then fall back to searching in a base codebase and finally creating a
+                    // stub.
+                    codebase.findClass(exception)
+                        ?: findTypeParameterItem(typeParametersInScope, exception)
+                            ?: getOrCreateThrowableClass(exception)
                 }
             methodInfo.setThrowsList(throwsList)
+        }
+    }
+
+    private fun findTypeParameterItem(
+        typeParametersInScope: List<TypeParameterItem>,
+        exception: String
+    ): TypeParameterItem? {
+        return if ('.' in exception) {
+            null
+        } else {
+            // The exception name does not have a '.' so it might be a type parameter name.
+            typeParametersInScope.firstOrNull { it.simpleName() == exception }
         }
     }
 
