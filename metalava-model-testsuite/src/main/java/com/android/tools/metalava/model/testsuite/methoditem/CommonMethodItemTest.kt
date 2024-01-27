@@ -216,4 +216,73 @@ class CommonMethodItemTest : BaseModelTest() {
             assertNotEquals(numBounds, strBounds)
         }
     }
+
+    @Test
+    fun `Test throws method type parameter extends Throwable`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public <X extends Throwable> void throwsTypeParameter() throws X {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public <X extends Throwable> void throwsTypeParameter() throws X;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val throwsType = methodItem.throwsTypes().single()
+            assertEquals(typeParameterItem, throwsType)
+        }
+    }
+
+    @Test
+    fun `Test throws method type parameter does not extend Throwable`() {
+        // This is an error but Metalava should try not to fail on an error.
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public <X> void throwsTypeParameter() throws X {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public <X> void throwsTypeParameter() throws X;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val throwsType = methodItem.throwsTypes().single()
+            assertEquals(typeParameterItem, throwsType)
+        }
+    }
 }
