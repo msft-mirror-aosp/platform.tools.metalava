@@ -139,7 +139,7 @@ internal open class TurbineMethodItem(
 
     internal fun setThrowsTypes() {
         val result = throwsClassNames.map { codebase.findOrCreateClass(it) as ThrowableType }
-        throwsTypes = result.sortedWith(ClassItem.fullNameComparator)
+        throwsTypes = result.sortedWith(ThrowableType.fullNameComparator)
     }
 
     internal fun setThrowsTypes(throwsList: List<ThrowableType>) {
