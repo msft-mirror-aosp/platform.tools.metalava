@@ -118,6 +118,51 @@ class ThrowsCompatibilityTest : DriverTest() {
     }
 
     @Test
+    fun `Incompatible method change -- throws list -- type parameter`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception T [ChangedThrows]
+                    src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception T [ChangedThrows]
+                    src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method5 no longer throws exception X [ChangedThrows]
+                    src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method5 added thrown exception Y [ChangedThrows]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public abstract class MyClass<T extends Throwable> {
+                          method public void finalize() throws T;
+                          method public void method1();
+                          method public void method2() throws T;
+                          method public <X extends java.io.IOException> void method3() throws X;
+                          method public <X extends java.io.FileNotFoundException> void method4() throws X;
+                          method public <X extends java.io.IOException> void method5() throws X;
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            @SuppressWarnings("RedundantThrows")
+                            public abstract class MyClass<T extends Throwable> {
+                                private MyClass() {}
+                                public void finalize() {}
+                                public void method1() throws T {}
+                                public void method2() {}
+                                public <X extends java.io.FileNotFoundException> void method3() throws X;
+                                public <X extends java.io.IOException> void method4() throws X;
+                                public <Y extends java.io.IOException> void method5() throws Y;
+                            }
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
     fun `Partial text file where type previously did not exist`() {
         check(
             sourceFiles =
