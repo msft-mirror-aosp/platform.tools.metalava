@@ -168,4 +168,35 @@ class ThrowsLintTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test throws type parameter`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/test/pkg/Test.java:9: error: Methods must not throw unchecked exceptions [BannedThrow]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            @SuppressWarnings("ALL")
+                            public final class Test {
+                                private Test() {}
+                                public <X extends Throwable> void throwsTypeParameter() throws X {
+                                    return null;
+                                }
+                                public <X extends IllegalStateException> void throwsUncheckedTypeParameter() throws X {
+                                    return null;
+                                }
+                            }
+                        """
+                    ),
+                )
+        )
+    }
 }
