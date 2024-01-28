@@ -70,7 +70,8 @@ interface MethodItem : MemberItem {
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            if (type.extends(qualifiedName)) {
+            val throwableClass = type.throwableClass ?: continue
+            if (throwableClass.extends(qualifiedName)) {
                 return true
             }
         }

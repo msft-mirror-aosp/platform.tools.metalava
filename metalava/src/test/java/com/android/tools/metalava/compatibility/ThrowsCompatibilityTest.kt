@@ -122,10 +122,11 @@ class ThrowsCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception T [ChangedThrows]
-                    src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception T [ChangedThrows]
-                    src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method5 no longer throws exception X [ChangedThrows]
-                    src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method5 added thrown exception Y [ChangedThrows]
+                    src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception T (extends java.lang.Throwable)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception T (extends java.lang.Throwable)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:10: error: Method test.pkg.MyClass.method4 no longer throws exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:10: error: Method test.pkg.MyClass.method4 added thrown exception X (extends java.io.IOException)} [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """

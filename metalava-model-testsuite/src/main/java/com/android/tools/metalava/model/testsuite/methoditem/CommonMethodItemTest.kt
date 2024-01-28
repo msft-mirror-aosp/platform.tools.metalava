@@ -16,10 +16,14 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.throwableClass
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -248,6 +252,7 @@ class CommonMethodItemTest : BaseModelTest() {
             val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
             val throwsType = methodItem.throwsTypes().single()
             assertEquals(typeParameterItem, throwsType)
+            assertEquals(throwsType.throwableClass?.qualifiedName(), JAVA_LANG_THROWABLE)
         }
     }
 
@@ -283,6 +288,8 @@ class CommonMethodItemTest : BaseModelTest() {
             val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
             val throwsType = methodItem.throwsTypes().single()
             assertEquals(typeParameterItem, throwsType)
+            // The type parameter does not extend a throwable type.
+            assertNull(throwsType.throwableClass)
         }
     }
 }
