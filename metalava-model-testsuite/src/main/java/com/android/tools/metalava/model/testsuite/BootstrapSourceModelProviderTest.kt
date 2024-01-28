@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.ofClass
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -816,7 +818,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val ioExceptionClass = codebase.assertClass("java.io.IOException")
             val methodItem = testClass.assertMethod("foo", "")
 
-            assertEquals(listOf(ioExceptionClass, testExceptionClass), methodItem.throwsTypes())
+            assertEquals(
+                listOf(ioExceptionClass, testExceptionClass).map(ThrowableType::ofClass),
+                methodItem.throwsTypes()
+            )
         }
     }
 

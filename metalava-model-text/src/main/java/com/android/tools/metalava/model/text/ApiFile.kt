@@ -42,6 +42,8 @@ import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.ofClass
+import com.android.tools.metalava.model.ofTypeParameter
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -1419,8 +1421,10 @@ internal class ReferenceResolver(
                     // Search in this codebase, then possibly check for a type parameter, if not
                     // found then fall back to searching in a base codebase and finally creating a
                     // stub.
-                    codebase.findClass(exception)
-                        ?: findTypeParameterItem(typeParametersInScope, exception)
+                    codebase.findClass(exception)?.let { ThrowableType.ofClass(it) }
+                        ?: findTypeParameterItem(typeParametersInScope, exception)?.let {
+                            ThrowableType.ofTypeParameter(it)
+                        }
                             ?: getOrCreateThrowableClass(exception)
                 }
             methodInfo.setThrowsList(throwsList)
@@ -1457,7 +1461,7 @@ internal class ReferenceResolver(
             }
         }
 
-        return exceptionClass
+        return ThrowableType.ofClass(exceptionClass)
     }
 
     private fun resolveInnerClasses() {

@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.ofClass
+import com.android.tools.metalava.model.ofTypeParameter
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiTypeParameter
@@ -441,9 +443,11 @@ open class PsiMethodItem(
                 .map { throwsClass ->
                     // PsiTypeParameterItem have to be created separately to PsiClassItem.
                     if (throwsClass is PsiTypeParameter) {
-                        codebase.findOrCreateTypeParameter(throwsClass)
+                        ThrowableType.ofTypeParameter(
+                            codebase.findOrCreateTypeParameter(throwsClass)
+                        )
                     } else {
-                        codebase.findOrCreateClass(throwsClass)
+                        ThrowableType.ofClass(codebase.findOrCreateClass(throwsClass))
                     }
                 }
                 // We're sorting the names here even though outputs typically do their own sorting,

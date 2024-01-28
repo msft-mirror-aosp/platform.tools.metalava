@@ -99,7 +99,7 @@ interface MethodItem : MemberItem {
                 throwableType
                     .allSuperClasses()
                     .firstOrNull { superClass -> predicate.test(superClass) }
-                    ?.let { superClass -> throwableTypes.add(superClass) }
+                    ?.let { superClass -> throwableTypes.add(ThrowableType.ofClass(superClass)) }
             }
         }
         return throwableTypes

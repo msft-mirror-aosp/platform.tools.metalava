@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.ofClass
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineMethodItem(
@@ -138,7 +139,8 @@ internal open class TurbineMethodItem(
     override fun typeParameterList(): TypeParameterList = typeParameters
 
     internal fun setThrowsTypes() {
-        val result = throwsClassNames.map { codebase.findOrCreateClass(it) as ThrowableType }
+        val result =
+            throwsClassNames.map { ThrowableType.ofClass(codebase.findOrCreateClass(it)!!) }
         throwsTypes = result.sortedWith(ThrowableType.fullNameComparator)
     }
 

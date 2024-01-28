@@ -40,3 +40,12 @@ fun ThrowableType.description() =
     if (this is TypeParameterItem)
         "${simpleName()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
     else qualifiedName()
+
+/** Get a [ThrowableType] from a [ClassItem] */
+fun ClassItem.Companion.ofClass(classItem: ClassItem): ThrowableType =
+    if (classItem is TypeParameterItem) error("Must not call this with a TypeParameterItem")
+    else classItem
+
+/** Get a [ThrowableType] from a [TypeParameterItem] */
+fun ClassItem.Companion.ofTypeParameter(typeParameterItem: TypeParameterItem): ThrowableType =
+    typeParameterItem
