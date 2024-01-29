@@ -705,7 +705,7 @@ interface ClassItem : Item {
      * `interface Root<T>`, this method will return `{T->X}` as the mapping from `C` to `Root`, not
      * `{T->Y}`.
      */
-    fun mapTypeVariables(target: ClassItem): Map<TypeItem, TypeItem> {
+    fun mapTypeVariables(target: ClassItem): TypeParameterBindings {
         // Gather the supertypes to check for [target]. It is only possible for [target] to be found
         // in the class hierarchy through this class's interfaces if [target] is an interface.
         val candidates =
@@ -742,7 +742,7 @@ interface ClassItem : Item {
     }
 
     /** Creates a map between the parameters of [c1] and the parameters of [c2]. */
-    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem): Map<TypeItem, TypeItem> {
+    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem): TypeParameterBindings {
         // Don't include parameters of class types, for consistency with the old psi implementation.
         // TODO (b/319300404): remove this section
         val c2Params =

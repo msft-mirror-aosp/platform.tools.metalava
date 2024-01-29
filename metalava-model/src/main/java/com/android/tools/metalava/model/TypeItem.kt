@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.DefaultTypeItem.Companion.appendErasedTypeString
 import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
 import java.util.function.Predicate
@@ -125,15 +124,16 @@ interface TypeItem {
     }
 
     /**
-     * Makes substitutions to the type based on the [replacementMap]. For instance, if the
-     * [replacementMap] contains `{T -> String}`, calling this method on `T` would return `String`,
-     * and calling it on `List<T>` would return `List<String>` (in both cases the modifiers on the
-     * `String` will be independently mutable from the `String` in the [replacementMap]). Calling it
-     * on an unrelated type like `int` would return a duplicate of that type.
+     * Makes substitutions to the type based on the [typeParameterBindings]. For instance, if the
+     * [typeParameterBindings] contains `{T -> String}`, calling this method on `T` would return
+     * `String`, and calling it on `List<T>` would return `List<String>` (in both cases the
+     * modifiers on the `String` will be independently mutable from the `String` in the
+     * [typeParameterBindings]). Calling it on an unrelated type like `int` would return a duplicate
+     * of that type.
      *
      * This method is intended to be used in conjunction with [ClassItem.mapTypeVariables],
      */
-    fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
+    fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
@@ -341,6 +341,16 @@ interface TypeItem {
         private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
     }
 }
+
+/**
+ * A mapping from one class's type parameters (currently represented in the keys of this map as a
+ * [VariableTypeItem] subclass of [TypeItem]) to the types provided for those type parameters in a
+ * possibly indirect subclass.
+ *
+ * e.g. Given `Map<K, V>` and a subinterface `StringToIntMap extends Map<String, Integer>` then this
+ * would contain a mapping from `K -> String` and `V -> Integer`.
+ */
+typealias TypeParameterBindings = Map<TypeItem, TypeItem>
 
 abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 
@@ -689,8 +699,8 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this)
     }
 
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return (replacementMap[this] ?: this).duplicate()
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+        return (typeParameterBindings[this] ?: this).duplicate()
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -724,9 +734,9 @@ interface ArrayTypeItem : TypeItem {
      */
     fun duplicate(componentType: TypeItem): ArrayTypeItem
 
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return replacementMap[this]?.duplicate()
-            ?: duplicate(componentType.convertType(replacementMap))
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+        return typeParameterBindings[this]?.duplicate()
+            ?: duplicate(componentType.convertType(typeParameterBindings))
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -776,11 +786,11 @@ interface ClassTypeItem : TypeItem {
      */
     fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
 
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return replacementMap[this]?.duplicate()
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+        return typeParameterBindings[this]?.duplicate()
             ?: duplicate(
-                outerClassType?.convertType(replacementMap) as? ClassTypeItem,
-                parameters.map { it.convertType(replacementMap) }
+                outerClassType?.convertType(typeParameterBindings) as? ClassTypeItem,
+                parameters.map { it.convertType(typeParameterBindings) }
             )
     }
 
@@ -820,8 +830,8 @@ interface VariableTypeItem : TypeItem {
         visitor.visit(this)
     }
 
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return (replacementMap[this] ?: this).duplicate()
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+        return (typeParameterBindings[this] ?: this).duplicate()
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -856,11 +866,11 @@ interface WildcardTypeItem : TypeItem {
      */
     fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
 
-    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
-        return replacementMap[this]?.duplicate()
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+        return typeParameterBindings[this]?.duplicate()
             ?: duplicate(
-                extendsBound?.convertType(replacementMap),
-                superBound?.convertType(replacementMap)
+                extendsBound?.convertType(typeParameterBindings),
+                superBound?.convertType(typeParameterBindings)
             )
     }
 
