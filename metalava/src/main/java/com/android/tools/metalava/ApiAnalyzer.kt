@@ -319,7 +319,7 @@ class ApiAnalyzer(
         hiddenSuperClasses: Sequence<ClassItem>,
         filterReference: Predicate<Item>
     ) {
-        var interfaceTypes: MutableList<TypeItem>? = null
+        var interfaceTypes: MutableList<ClassTypeItem>? = null
         var interfaceTypeClasses: MutableList<ClassItem>? = null
         for (hiddenSuperClass in hiddenSuperClasses) {
             for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
@@ -343,7 +343,7 @@ class ApiAnalyzer(
                     if (hiddenInterfaceClass.hasTypeVariables()) {
                         val mapping = cls.mapTypeVariables(hiddenSuperClass)
                         if (mapping.isNotEmpty()) {
-                            val mappedType: TypeItem = hiddenInterface.convertType(mapping)
+                            val mappedType = hiddenInterface.convertType(mapping)
                             interfaceTypes.add(mappedType)
                             continue
                         }

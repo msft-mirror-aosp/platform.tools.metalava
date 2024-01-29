@@ -1046,8 +1046,7 @@ class CommonTypeItemTest : BaseModelTest() {
 
             val myListInterfaceType = myListInterfaces.single()
             assertThat(myListInterfaceType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((myListInterfaceType as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.List")
+            assertThat(myListInterfaceType.qualifiedName).isEqualTo("java.util.List")
             assertThat(myListInterfaceType.arguments).hasSize(1)
 
             val eVar = myListInterfaceType.arguments.single()

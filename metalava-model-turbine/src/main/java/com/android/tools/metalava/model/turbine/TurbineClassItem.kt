@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
@@ -69,7 +68,7 @@ internal open class TurbineClassItem(
 
     internal var containingClass: TurbineClassItem? = null
 
-    private lateinit var interfaceTypesList: List<TypeItem>
+    private lateinit var interfaceTypesList: List<ClassTypeItem>
 
     private var asType: TurbineClassTypeItem? = null
 
@@ -135,7 +134,7 @@ internal open class TurbineClassItem(
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypesList
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
     override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
 
@@ -161,7 +160,7 @@ internal open class TurbineClassItem(
 
     override fun fullName(): String = fullName
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         interfaceTypesList = interfaceTypes
     }
 

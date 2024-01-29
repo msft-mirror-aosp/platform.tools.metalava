@@ -151,7 +151,7 @@ interface ClassItem : Item {
         extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
-    @MetalavaApi fun interfaceTypes(): List<TypeItem>
+    @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
@@ -223,7 +223,7 @@ interface ClassItem : Item {
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
     // This replaces the interface types implemented by this class
-    fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
+    fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
     var hasPrivateConstructor: Boolean
 

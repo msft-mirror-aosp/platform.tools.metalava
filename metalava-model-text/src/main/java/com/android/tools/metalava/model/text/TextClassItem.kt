@@ -70,7 +70,7 @@ internal open class TextClassItem(
         return qualifiedName.hashCode()
     }
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypes
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     override fun allInterfaces(): Sequence<ClassItem> {
         return sequenceOf(
@@ -152,7 +152,7 @@ internal open class TextClassItem(
         this.superClassType = superClassType
     }
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         this.interfaceTypes = interfaceTypes.toMutableList()
     }
 
@@ -174,7 +174,7 @@ internal open class TextClassItem(
         return typeInfo!!
     }
 
-    private var interfaceTypes = mutableListOf<TypeItem>()
+    private var interfaceTypes = mutableListOf<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -188,7 +188,7 @@ internal open class TextClassItem(
 
     override fun properties(): List<PropertyItem> = properties
 
-    fun addInterface(itf: TypeItem) {
+    fun addInterface(itf: ClassTypeItem) {
         interfaceTypes.add(itf)
     }
 

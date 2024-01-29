@@ -322,7 +322,9 @@ internal open class TurbineCodebaseInitialiser(
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
-        classItem.setInterfaceTypes(cls.interfaceTypes().map { createType(it, false) })
+        classItem.setInterfaceTypes(
+            cls.interfaceTypes().map { createType(it, false) as ClassTypeItem }
+        )
 
         // Create fields
         createFields(classItem, cls.fields())
