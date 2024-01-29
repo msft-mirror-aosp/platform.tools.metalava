@@ -502,13 +502,24 @@ abstract class DriverTest : TemporaryFolderOwner {
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
+        val releasedApiCheck =
+            CompatibilityCheckRequest.create(
+                optionName = ARG_CHECK_COMPATIBILITY_API_RELEASED,
+                fileOrSignatureContents = checkCompatibilityApiReleased,
+                newBasename = "released-api.txt",
+            )
+        val releasedRemovedApiCheck =
+            CompatibilityCheckRequest.create(
+                optionName = ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED,
+                fileOrSignatureContents = checkCompatibilityRemovedApiReleased,
+                newBasename = "removed-released-api.txt",
+            )
+
         val actualExpectedFail =
             when {
                 expectedFail != null -> expectedFail
-                (checkCompatibilityApiReleased != null ||
-                    checkCompatibilityRemovedApiReleased != null) &&
-                    expectedIssues != null &&
-                    expectedIssues.trim().isNotEmpty() -> {
+                (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
+                    !expectedIssues.isNullOrBlank() -> {
                     "Aborting: Found compatibility problems"
                 }
                 else -> ""
@@ -659,20 +670,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        val checkCompatibilityApiReleasedFile =
-            useExistingSignatureFileOrCreateNewFile(
-                project,
-                checkCompatibilityApiReleased,
-                "released-api.txt"
-            )
-
-        val checkCompatibilityRemovedApiReleasedFile =
-            useExistingSignatureFileOrCreateNewFile(
-                project,
-                checkCompatibilityRemovedApiReleased,
-                "removed-released-api.txt"
-            )
-
         val checkCompatibilityBaseApiFile =
             useExistingSignatureFileOrCreateNewFile(
                 project,
@@ -699,29 +696,9 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        val checkCompatibilityApiReleasedArguments =
-            if (checkCompatibilityApiReleasedFile != null) {
-                arrayOf(
-                    ARG_CHECK_COMPATIBILITY_API_RELEASED,
-                    checkCompatibilityApiReleasedFile.path
-                )
-            } else {
-                emptyArray()
-            }
-
         val checkCompatibilityBaseApiArguments =
             if (checkCompatibilityBaseApiFile != null) {
                 arrayOf(ARG_CHECK_COMPATIBILITY_BASE_API, checkCompatibilityBaseApiFile.path)
-            } else {
-                emptyArray()
-            }
-
-        val checkCompatibilityRemovedReleasedArguments =
-            if (checkCompatibilityRemovedApiReleasedFile != null) {
-                arrayOf(
-                    ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED,
-                    checkCompatibilityRemovedApiReleasedFile.path
-                )
             } else {
                 emptyArray()
             }
@@ -1016,9 +993,9 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *javaStubAnnotationsArgs,
                 *inclusionAnnotationsArgs,
                 *migrateNullsArguments,
-                *checkCompatibilityApiReleasedArguments,
+                *releasedApiCheck.arguments(project),
                 *checkCompatibilityBaseApiArguments,
-                *checkCompatibilityRemovedReleasedArguments,
+                *releasedRemovedApiCheck.arguments(project),
                 *proguardKeepArguments,
                 *manifestFileArgs,
                 *applyApiLevelsXmlArgs,
@@ -1257,30 +1234,42 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
-    /**
-     * Get an optional signature API [File] from either a file path or its contents.
-     *
-     * @param project the directory in which to create a new file.
-     * @param fileOrFileContents either a path to an existing file or the contents of the signature
-     *   file. If the latter the contents will be trimmed, updated to add a [FileFormat.V2] header
-     *   if needed and written to a new file created within [project].
-     * @param newBasename the basename of a new file created.
-     */
-    private fun useExistingSignatureFileOrCreateNewFile(
-        project: File,
-        fileOrFileContents: String?,
-        newBasename: String
-    ) =
-        fileOrFileContents?.let {
-            val maybeFile = File(fileOrFileContents)
-            if (maybeFile.isFile) {
-                maybeFile
-            } else {
-                val file = File(project, newBasename)
-                file.writeSignatureText(fileOrFileContents)
-                file
-            }
+    /** Encapsulates information needed to request a compatibility check. */
+    private class CompatibilityCheckRequest
+    private constructor(
+        private val optionName: String,
+        private val fileOrSignatureContents: String?,
+        private val newBasename: String,
+    ) {
+        companion object {
+            fun create(
+                optionName: String,
+                fileOrSignatureContents: String?,
+                newBasename: String,
+            ): CompatibilityCheckRequest =
+                CompatibilityCheckRequest(
+                    optionName = optionName,
+                    fileOrSignatureContents = fileOrSignatureContents,
+                    newBasename = newBasename,
+                )
         }
+        /** Indicates whether the compatibility check is required. */
+        fun required(): Boolean = fileOrSignatureContents != null
+
+        /** The arguments to pass to Metalava. */
+        fun arguments(project: File): Array<out String> {
+            fileOrSignatureContents ?: return emptyArray()
+
+            val file =
+                useExistingSignatureFileOrCreateNewFile(
+                    project,
+                    fileOrSignatureContents,
+                    newBasename,
+                )
+
+            return file?.let { arrayOf(optionName, it.path) } ?: emptyArray()
+        }
+    }
 
     protected fun uastCheck(
         isK2: Boolean,
@@ -1353,6 +1342,31 @@ abstract class DriverTest : TemporaryFolderOwner {
             apiLines = apiLines.filter { it.isNotBlank() }
             return apiLines.joinToString(separator = "\n") { it }.trim()
         }
+
+        /**
+         * Get an optional signature API [File] from either a file path or its contents.
+         *
+         * @param project the directory in which to create a new file.
+         * @param fileOrFileContents either a path to an existing file or the contents of the
+         *   signature file. If the latter the contents will be trimmed, updated to add a
+         *   [FileFormat.V2] header if needed and written to a new file created within [project].
+         * @param newBasename the basename of a new file created.
+         */
+        private fun useExistingSignatureFileOrCreateNewFile(
+            project: File,
+            fileOrFileContents: String?,
+            newBasename: String
+        ) =
+            fileOrFileContents?.let {
+                val maybeFile = File(fileOrFileContents)
+                if (maybeFile.isFile) {
+                    maybeFile
+                } else {
+                    val file = File(project, newBasename)
+                    file.writeSignatureText(fileOrFileContents)
+                    file
+                }
+            }
     }
 }
 
