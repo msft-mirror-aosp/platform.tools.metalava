@@ -16,33 +16,27 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
 
 internal class TurbineTypeParameterItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineModifierItem,
     internal val symbol: TyVarSymbol,
-    name: String = symbol.name(),
+    private val name: String = symbol.name(),
     private val bounds: List<TypeItem>,
-    private val document: String = "",
 ) :
-    TurbineClassItem(
+    TurbineItem(
         codebase,
-        name,
-        name,
-        name,
-        ClassSymbol(name),
         modifiers,
-        TurbineClassType.TYPE_PARAMETER,
-        TypeParameterList.NONE,
-        document,
-        null,
+        "",
     ),
     TypeParameterItem {
+
+    override fun simpleName() = name
 
     // Java does not supports reified generics
     override fun isReified(): Boolean = false
@@ -52,4 +46,29 @@ internal class TurbineTypeParameterItem(
     override fun toType(): TurbineTypeItem {
         return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.simpleName()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
+    }
+
+    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
+    override fun type() = error("Not needed for TypeParameterItem")
+
+    override fun parent() = error("Not needed for TypeParameterItem")
+
+    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
+
+    override fun containingPackage() = error("Not needed for TypeParameterItem")
+
+    override fun containingClass() = error("Not needed for TypeParameterItem")
+
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        error("Not needed for TypeParameterItem")
 }
