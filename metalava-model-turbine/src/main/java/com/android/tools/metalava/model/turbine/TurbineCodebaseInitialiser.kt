@@ -313,7 +313,8 @@ internal open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null) null else createType(superClassType, false)
+                if (superClassType == null) null
+                else createType(superClassType, false) as ClassTypeItem
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 

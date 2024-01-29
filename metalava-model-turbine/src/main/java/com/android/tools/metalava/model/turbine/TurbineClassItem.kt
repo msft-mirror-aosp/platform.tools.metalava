@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -52,7 +53,7 @@ internal open class TurbineClassItem(
 
     private var superClass: TurbineClassItem? = null
 
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     internal lateinit var directInterfaces: List<TurbineClassItem>
 
@@ -164,14 +165,14 @@ internal open class TurbineClassItem(
         interfaceTypesList = interfaceTypes
     }
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
         this.superClass = superClass as? TurbineClassItem
         this.superClassType = superClassType
     }
 
     override fun superClass(): TurbineClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
     override fun toType(): TurbineClassTypeItem {
         if (asType == null) {

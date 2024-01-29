@@ -108,7 +108,7 @@ interface ClassItem : Item {
      * List<String>" the super class is java.util.List and the super class type is
      * java.util.List<java.lang.String>.
      */
-    fun superClassType(): TypeItem?
+    fun superClassType(): ClassTypeItem?
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {

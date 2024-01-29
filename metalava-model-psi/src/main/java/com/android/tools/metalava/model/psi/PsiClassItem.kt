@@ -96,11 +96,11 @@ internal constructor(
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     private var superClass: ClassItem? = null
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     override fun superClass(): ClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
     override var artifact: String? = null
@@ -278,7 +278,7 @@ internal constructor(
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
-                this.superClassType = codebase.getType(superType)
+                this.superClassType = codebase.getType(superType) as ClassTypeItem
                 this.superClass = this.superClassType?.asClass()
             }
         }

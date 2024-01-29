@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -140,13 +141,13 @@ internal open class TextClassItem(
     }
 
     private var superClass: ClassItem? = null
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     override fun superClass(): ClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
         this.superClass = superClass
         this.superClassType = superClassType
     }
