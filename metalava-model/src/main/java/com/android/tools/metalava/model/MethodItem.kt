@@ -465,7 +465,7 @@ interface MethodItem : MemberItem {
             is ClassTypeItem ->
                 asClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
-                    parameters.any { it.hasHiddenType(filterReference) }
+                    arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem -> !filterReference.test(asTypeParameter)
             is WildcardTypeItem ->
                 extendsBound?.hasHiddenType(filterReference) == true ||

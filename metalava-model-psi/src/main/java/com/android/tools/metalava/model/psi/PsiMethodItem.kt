@@ -366,8 +366,8 @@ open class PsiMethodItem(
             containingClass: PsiClassItem,
             original: PsiMethodItem
         ): PsiMethodItem {
-            val replacementMap = containingClass.mapTypeVariables(original.containingClass())
-            val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
+            val typeParameterBindings = containingClass.mapTypeVariables(original.containingClass())
+            val returnType = original.returnType.convertType(typeParameterBindings) as PsiTypeItem
 
             // This results in a PsiMethodItem that is inconsistent, compared with other
             // PsiMethodItem. PsiMethodItems created directly from the source are such that:
@@ -396,7 +396,11 @@ open class PsiMethodItem(
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
                     returnType = returnType,
                     parameters =
-                        PsiParameterItem.create(codebase, original.parameters(), replacementMap)
+                        PsiParameterItem.create(
+                            codebase,
+                            original.parameters(),
+                            typeParameterBindings
+                        )
                 )
             method.modifiers.setOwner(method)
 
