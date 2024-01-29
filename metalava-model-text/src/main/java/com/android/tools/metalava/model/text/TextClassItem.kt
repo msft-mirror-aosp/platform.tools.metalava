@@ -158,16 +158,16 @@ internal open class TextClassItem(
 
     private var typeInfo: TextClassTypeItem? = null
 
-    override fun toType(): TextClassTypeItem {
+    override fun type(): TextClassTypeItem {
         if (typeInfo == null) {
-            val params = typeParameterList.typeParameters().map { it.toType() }
+            val params = typeParameterList.typeParameters().map { it.type() }
             // Create a [TextTypeItem] representing the type of this class.
             typeInfo =
                 TextClassTypeItem(
                     codebase,
                     qualifiedName,
                     params,
-                    containingClass()?.toType(),
+                    containingClass()?.type(),
                     codebase.emptyTypeModifiers,
                 )
         }

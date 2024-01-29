@@ -1188,7 +1188,7 @@ private constructor(
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.toType()
+        val clsType = cls.type()
 
         for (method in methods) {
             val name = method.name()

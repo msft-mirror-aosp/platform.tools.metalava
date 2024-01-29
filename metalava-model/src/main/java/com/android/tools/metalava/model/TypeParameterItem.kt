@@ -23,7 +23,7 @@ interface TypeParameterItem : Item {
     fun simpleName(): String
 
     /** The [VariableTypeItem] representing the type of this type parameter. */
-    fun toType(): VariableTypeItem
+    override fun type(): VariableTypeItem
 
     @Deprecated(
         message = "Please use typeBounds() instead.",
@@ -63,8 +63,6 @@ interface TypeParameterItem : Item {
     }
 
     // Methods from [Item] that are not needed. They will be removed in a follow-up change.
-    override fun type() = error("Not needed for TypeParameterItem")
-
     override fun parent() = error("Not needed for TypeParameterItem")
 
     override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")

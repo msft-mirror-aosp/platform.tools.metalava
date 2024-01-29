@@ -181,7 +181,7 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    override fun toType(): ClassTypeItem =
+    override fun type(): ClassTypeItem =
         codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()

@@ -40,7 +40,7 @@ internal class PsiTypeParameterItem(
 
     override fun simpleName() = name
 
-    override fun toType(): VariableTypeItem {
+    override fun type(): VariableTypeItem {
         return codebase.getType(codebase.getClassType(psiClass)) as VariableTypeItem
     }
 

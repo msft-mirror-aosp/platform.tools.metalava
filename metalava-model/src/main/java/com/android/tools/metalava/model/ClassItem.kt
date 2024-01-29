@@ -201,9 +201,7 @@ interface ClassItem : Item {
     override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
-    fun toType(): ClassTypeItem
-
-    override fun type(): TypeItem? = null
+    override fun type(): ClassTypeItem
 
     override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
 

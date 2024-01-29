@@ -641,9 +641,9 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testClass1 = codebase.assertClass("test.pkg.Test1")
             val testClass2 = codebase.assertClass("test.pkg.Test1.Test2")
-            val testClassType = testClass.toType()
-            val testClassType1 = testClass1.toType()
-            val testClassType2 = testClass2.toType()
+            val testClassType = testClass.type()
+            val testClassType1 = testClass1.type()
+            val testClassType2 = testClass2.type()
 
             assertThat(testClassType).isInstanceOf(ClassTypeItem::class.java)
             assertEquals("test.pkg.Test", testClassType.qualifiedName)
@@ -707,14 +707,14 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
-            assertEquals(testClass.toType(), constructorItem.returnType())
+            assertEquals(testClass.type(), constructorItem.returnType())
             assertEquals(false, testClass.hasImplicitDefaultConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
-            assertEquals(testClass1.toType(), constructorItem1.returnType())
+            assertEquals(testClass1.type(), constructorItem1.returnType())
             assertEquals(true, testClass1.hasImplicitDefaultConstructor())
         }
     }
@@ -863,7 +863,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
-            assertEquals(classItem.toType(), ctorItem.returnType())
+            assertEquals(classItem.type(), ctorItem.returnType())
             assertEquals(
                 ctorItem.modifiers.getVisibilityLevel(),
                 classItem.modifiers.getVisibilityLevel()

@@ -841,7 +841,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun fixCtorReturnType(classItem: TurbineClassItem) {
         val result =
             classItem.constructors.map {
-                it.setReturnType(classItem.toType())
+                it.setReturnType(classItem.type())
                 it
             }
         classItem.constructors = result

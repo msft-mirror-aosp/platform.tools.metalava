@@ -599,7 +599,7 @@ private constructor(
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
         val parameters = parseParameterList(api, tokenizer, typeParams)
         // Constructors cannot return null.
-        val ctorReturn = cl.toType().duplicate(TypeNullability.NONNULL)
+        val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
         method =
             TextConstructorItem(api, name, cl, modifiers, ctorReturn, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
@@ -1455,7 +1455,7 @@ internal class ReferenceResolver(
             // which case it does not need modifying.
             if (exception != JAVA_LANG_THROWABLE) {
                 val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
-                exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
+                exceptionClass.setSuperClass(throwableClass, throwableClass.type())
             }
         }
 
