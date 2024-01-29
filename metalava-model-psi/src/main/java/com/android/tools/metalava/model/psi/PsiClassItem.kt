@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -185,9 +186,8 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    override fun toType(): TypeItem {
-        return codebase.getType(codebase.getClassType(psiClass))
-    }
+    override fun toType(): ClassTypeItem =
+        codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 

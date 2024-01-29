@@ -667,7 +667,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             val child = codebase.assertClass("test.pkg.Child")
 
-            val erasedParentType = (parent.toType() as ClassTypeItem).duplicate(null, emptyList())
+            val erasedParentType = parent.toType().duplicate(null, emptyList())
             assertEquals(
                 mapOf(a to tType, b to erasedParentType),
                 parent.mapTypeVariables(grandparent)
@@ -930,7 +930,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             val innerType = innerClass.toType()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
+            assertThat(innerType.qualifiedName).isEqualTo("test.pkg.Outer.Inner")
 
             val outerType = innerType.outerClassType
             assertThat(outerType).isNotNull()

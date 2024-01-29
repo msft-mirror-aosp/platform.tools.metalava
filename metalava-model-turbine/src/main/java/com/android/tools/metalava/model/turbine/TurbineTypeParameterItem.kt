@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
 
 internal class TurbineTypeParameterItem(
@@ -41,7 +42,7 @@ internal class TurbineTypeParameterItem(
 
     override fun typeBounds(): List<TypeItem> = bounds
 
-    override fun toType(): TurbineTypeItem {
+    override fun toType(): VariableTypeItem {
         return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)
     }
 

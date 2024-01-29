@@ -70,7 +70,7 @@ internal open class TurbineClassItem(
 
     private lateinit var interfaceTypesList: List<TypeItem>
 
-    private var asType: TurbineTypeItem? = null
+    private var asType: TurbineClassTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
 
@@ -173,14 +173,14 @@ internal open class TurbineClassItem(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun toType(): TurbineTypeItem {
+    override fun toType(): TurbineClassTypeItem {
         if (asType == null) {
             val parameters =
                 typeParameterList().typeParameters().map {
                     createVariableType(it as TurbineTypeParameterItem)
                 }
             val mods = TurbineTypeModifiers(modifiers.annotations())
-            val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
+            val outerClassType = containingClass?.toType()
             asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
         }
         return asType!!

@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
@@ -40,8 +40,8 @@ internal class PsiTypeParameterItem(
 
     override fun simpleName() = name
 
-    override fun toType(): TypeItem {
-        return codebase.getType(codebase.getClassType(psiClass))
+    override fun toType(): VariableTypeItem {
+        return codebase.getType(codebase.getClassType(psiClass)) as VariableTypeItem
     }
 
     override fun psi() = psiClass

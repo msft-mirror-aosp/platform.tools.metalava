@@ -44,7 +44,7 @@ internal class TextTypeParameterItem(
 
     override fun toString() = typeParameterString
 
-    override fun toType(): TextTypeItem {
+    override fun toType(): TextVariableTypeItem {
         return TextVariableTypeItem(
             codebase,
             name,

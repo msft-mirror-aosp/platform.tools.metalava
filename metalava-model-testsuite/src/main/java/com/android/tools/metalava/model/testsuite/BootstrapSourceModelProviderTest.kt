@@ -647,12 +647,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val testClassType2 = testClass2.toType()
 
             assertThat(testClassType).isInstanceOf(ClassTypeItem::class.java)
-            testClassType as ClassTypeItem
             assertEquals("test.pkg.Test", testClassType.qualifiedName)
             assertEquals(0, testClassType.arguments.count())
 
             assertThat(testClassType1).isInstanceOf(ClassTypeItem::class.java)
-            testClassType1 as ClassTypeItem
             assertEquals("test.pkg.Test1", testClassType1.qualifiedName)
             assertEquals(1, testClassType1.arguments.count())
             val typeArgument1 = testClassType1.arguments.single()
@@ -668,7 +666,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(null, testClassType1.outerClassType)
 
             assertThat(testClassType2).isInstanceOf(ClassTypeItem::class.java)
-            testClassType2 as ClassTypeItem
             assertEquals("test.pkg.Test1.Test2", testClassType2.qualifiedName)
             assertEquals(1, testClassType2.arguments.count())
             val typeArgument2 = testClassType2.arguments.single()

@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -156,9 +155,9 @@ internal open class TextClassItem(
         this.interfaceTypes = interfaceTypes.toMutableList()
     }
 
-    private var typeInfo: TextTypeItem? = null
+    private var typeInfo: TextClassTypeItem? = null
 
-    override fun toType(): TextTypeItem {
+    override fun toType(): TextClassTypeItem {
         if (typeInfo == null) {
             val params = typeParameterList.typeParameters().map { it.toType() }
             // Create a [TextTypeItem] representing the type of this class.
@@ -167,7 +166,7 @@ internal open class TextClassItem(
                     codebase,
                     qualifiedName,
                     params,
-                    containingClass()?.toType() as? ClassTypeItem,
+                    containingClass()?.toType(),
                     codebase.emptyTypeModifiers,
                 )
         }

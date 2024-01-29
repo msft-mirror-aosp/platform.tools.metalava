@@ -22,12 +22,8 @@ interface TypeParameterItem : Item {
     /** The name of the type parameter. */
     fun simpleName(): String
 
-    /**
-     * The [VariableTypeItem] representing the type of this type parameter.
-     *
-     * TODO(b/322458348): Make it VariableTypeItem.
-     */
-    fun toType(): TypeItem
+    /** The [VariableTypeItem] representing the type of this type parameter. */
+    fun toType(): VariableTypeItem
 
     @Deprecated(
         message = "Please use typeBounds() instead.",
