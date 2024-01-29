@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.testing.java
@@ -439,6 +440,8 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val custAnno1Attr3 = customAnno1.findAttribute("cls")
             val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
             val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
+            val tarAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Target")
+            val tarAnnoAtrr1 = tarAnno.findAttribute("value")
 
             val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
             val annoClassItem2 = codebase.assertClass("anno.FieldValue")
@@ -448,6 +451,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(true, nullAnno.isNullable())
 
+            assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
             assertNotNull(custAnno1Attr1)
             assertNotNull(custAnno1Attr2)
@@ -466,6 +470,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(annoClassItem2, customAnno2.resolve())
             assertNotNull(custAnno2Attr1)
             assertEquals(12, custAnno2Attr1.value.value())
+
+            assertEquals("@test.Nullable", nullAnno.toSource())
+
+            assertEquals(
+                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
+                retAnno.toSource()
+            )
+            assertEquals(
+                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
+                tarAnno.toSource()
+            )
+            assertEquals(true, tarAnnoAtrr1!!.value is DefaultAnnotationSingleAttributeValue)
         }
     }
 
@@ -865,18 +881,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Target;
 
                     public class Test {
                         public void foo(@ParameterName("TestParam") @DefaultValue(5) int parameter) {
                         }
                     }
 
-                    @Target(value={ElementType.PARAMETER})
+                    @Target(ElementType.PARAMETER)
                     @interface DefaultValue {
                         int value();
                     }
 
-                    @Target(value={ElementType.PARAMETER})
+                    @Target(ElementType.PARAMETER)
                     @interface ParameterName {
                         String value();
                     }
