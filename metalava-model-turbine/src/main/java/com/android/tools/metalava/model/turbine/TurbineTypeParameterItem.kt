@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.google.turbine.binder.sym.TyVarSymbol
@@ -57,18 +55,4 @@ internal class TurbineTypeParameterItem(
     override fun hashCode(): Int {
         return name.hashCode()
     }
-
-    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
-    override fun type() = error("Not needed for TypeParameterItem")
-
-    override fun parent() = error("Not needed for TypeParameterItem")
-
-    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
-
-    override fun containingPackage() = error("Not needed for TypeParameterItem")
-
-    override fun containingClass() = error("Not needed for TypeParameterItem")
-
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        error("Not needed for TypeParameterItem")
 }
