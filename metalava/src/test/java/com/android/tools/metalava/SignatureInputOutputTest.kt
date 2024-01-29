@@ -423,9 +423,9 @@ class SignatureInputOutputTest : Assertions {
             assertThat(p1.publicName()).isEqualTo("map")
             val mapType = p1.type() as ClassTypeItem
             assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
-            assertThat(mapType.parameters).hasSize(2)
-            assertThat(mapType.parameters[0].isString()).isTrue()
-            assertThat(mapType.parameters[1].isJavaLangObject()).isTrue()
+            assertThat(mapType.arguments).hasSize(2)
+            assertThat(mapType.arguments[0].isString()).isTrue()
+            assertThat(mapType.arguments[1].isJavaLangObject()).isTrue()
 
             // arr: String[]
             val p2 = method.parameters()[2]
@@ -465,9 +465,9 @@ class SignatureInputOutputTest : Assertions {
             assertThat(p1.publicName()).isNull()
             val mapType = p1.type() as ClassTypeItem
             assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
-            assertThat(mapType.parameters).hasSize(2)
-            assertThat(mapType.parameters[0].isString()).isTrue()
-            assertThat(mapType.parameters[1].isJavaLangObject()).isTrue()
+            assertThat(mapType.arguments).hasSize(2)
+            assertThat(mapType.arguments[0].isString()).isTrue()
+            assertThat(mapType.arguments[1].isJavaLangObject()).isTrue()
 
             // _: String[]
             val p2 = method.parameters()[2]

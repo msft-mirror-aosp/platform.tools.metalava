@@ -75,7 +75,7 @@ internal class TextArrayTypeItem(
 internal class TextClassTypeItem(
     codebase: TextCodebase,
     override val qualifiedName: String,
-    override val parameters: List<TypeItem>,
+    override val arguments: List<TypeItem>,
     override val outerClassType: ClassTypeItem?,
     modifiers: TextTypeModifiers
 ) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
@@ -89,14 +89,14 @@ internal class TextClassTypeItem(
         return TextClassTypeItem(
             codebase,
             qualifiedName,
-            parameters,
+            arguments,
             outerClassType,
             modifiers.duplicate(withNullability)
         )
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
-        return TextClassTypeItem(codebase, qualifiedName, parameters, outerClass, modifiers)
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
+        return TextClassTypeItem(codebase, qualifiedName, arguments, outerClass, modifiers)
     }
 }
 

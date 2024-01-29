@@ -234,7 +234,7 @@ internal class PsiClassTypeItem(
     codebase: PsiBasedCodebase,
     psiType: PsiType,
     override val qualifiedName: String,
-    override val parameters: List<PsiTypeItem>,
+    override val arguments: List<PsiTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
     override val className: String,
     override val modifiers: PsiTypeModifiers,
@@ -249,12 +249,12 @@ internal class PsiClassTypeItem(
         return asClass
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem =
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem =
         PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
-            parameters = parameters.map { it as PsiTypeItem },
+            arguments = arguments.map { it as PsiTypeItem },
             outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate()
@@ -271,7 +271,7 @@ internal class PsiClassTypeItem(
                 codebase = codebase,
                 psiType = psiType,
                 qualifiedName = qualifiedName,
-                parameters = computeParameters(codebase, psiType, kotlinType),
+                arguments = computeTypeArguments(codebase, psiType, kotlinType),
                 outerClassType = computeOuterClass(psiType, codebase, kotlinType),
                 // This should be able to use `psiType.name`, but that sometimes returns null.
                 className = ClassTypeItem.computeClassName(qualifiedName),
@@ -279,7 +279,7 @@ internal class PsiClassTypeItem(
             )
         }
 
-        private fun computeParameters(
+        private fun computeTypeArguments(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?

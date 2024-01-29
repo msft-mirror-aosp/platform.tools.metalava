@@ -63,7 +63,7 @@ internal class TurbineClassTypeItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val qualifiedName: String,
-    override val parameters: List<TurbineTypeItem>,
+    override val arguments: List<TurbineTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
@@ -72,12 +72,12 @@ internal class TurbineClassTypeItem(
         return codebase.findOrCreateClass(this.qualifiedName)
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
         return TurbineClassTypeItem(
             codebase,
             modifiers.duplicate(),
             qualifiedName,
-            parameters.map { it as TurbineTypeItem },
+            arguments.map { it as TurbineTypeItem },
             outerClass as? TurbineClassTypeItem
         )
     }

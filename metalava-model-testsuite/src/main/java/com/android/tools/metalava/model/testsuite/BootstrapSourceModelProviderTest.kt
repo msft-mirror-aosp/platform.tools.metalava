@@ -632,39 +632,39 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertThat(testClassType).isInstanceOf(ClassTypeItem::class.java)
             testClassType as ClassTypeItem
             assertEquals("test.pkg.Test", testClassType.qualifiedName)
-            assertEquals(0, testClassType.parameters.count())
+            assertEquals(0, testClassType.arguments.count())
 
             assertThat(testClassType1).isInstanceOf(ClassTypeItem::class.java)
             testClassType1 as ClassTypeItem
             assertEquals("test.pkg.Test1", testClassType1.qualifiedName)
-            assertEquals(1, testClassType1.parameters.count())
-            val paramItem1 = testClassType1.parameters.single()
-            assertThat(paramItem1).isInstanceOf(VariableTypeItem::class.java)
-            paramItem1 as VariableTypeItem
-            assertEquals("S", paramItem1.toString())
+            assertEquals(1, testClassType1.arguments.count())
+            val typeArgument1 = testClassType1.arguments.single()
+            assertThat(typeArgument1).isInstanceOf(VariableTypeItem::class.java)
+            typeArgument1 as VariableTypeItem
+            assertEquals("S", typeArgument1.toString())
             assertEquals(
                 testClass1.typeParameterList().typeParameters().single(),
-                paramItem1.asTypeParameter
+                typeArgument1.asTypeParameter
             )
-            assertEquals(0, paramItem1.asTypeParameter.typeBounds().count())
+            assertEquals(0, typeArgument1.asTypeParameter.typeBounds().count())
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
             assertThat(testClassType2).isInstanceOf(ClassTypeItem::class.java)
             testClassType2 as ClassTypeItem
             assertEquals("test.pkg.Test1.Test2", testClassType2.qualifiedName)
-            assertEquals(1, testClassType2.parameters.count())
-            val paramItem2 = testClassType2.parameters.single()
-            assertThat(paramItem2).isInstanceOf(VariableTypeItem::class.java)
-            paramItem2 as VariableTypeItem
-            assertEquals("T", paramItem2.toString())
+            assertEquals(1, testClassType2.arguments.count())
+            val typeArgument2 = testClassType2.arguments.single()
+            assertThat(typeArgument2).isInstanceOf(VariableTypeItem::class.java)
+            typeArgument2 as VariableTypeItem
+            assertEquals("T", typeArgument2.toString())
             assertEquals(
                 testClass2.typeParameterList().typeParameters().single(),
-                paramItem2.asTypeParameter
+                typeArgument2.asTypeParameter
             )
             assertEquals(
                 "test.pkg.Test",
-                paramItem2.asTypeParameter.typeBounds().single().toString()
+                typeArgument2.asTypeParameter.typeBounds().single().toString()
             )
             assertEquals("test.pkg.Test1<S>.Test2<T>", testClassType2.toString())
             assertEquals(testClassType1, testClassType2.outerClassType)

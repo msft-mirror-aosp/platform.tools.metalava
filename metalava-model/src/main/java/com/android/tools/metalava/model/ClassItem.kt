@@ -751,9 +751,9 @@ interface ClassItem : Item {
         // i.e. if the mapping is from `T -> List<String>` then just use `T -> List`.
         // TODO (b/319300404): remove this section
         val classTypeArguments =
-            classTypeItem.parameters.map {
-                if (it is ClassTypeItem && it.parameters.isNotEmpty()) {
-                    it.duplicate(it.outerClassType, parameters = emptyList())
+            classTypeItem.arguments.map {
+                if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
+                    it.duplicate(it.outerClassType, arguments = emptyList())
                 } else {
                     it
                 }

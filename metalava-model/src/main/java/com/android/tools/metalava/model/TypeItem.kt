@@ -503,11 +503,11 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         }
                     }
 
-                    if (type.parameters.isNotEmpty()) {
+                    if (type.arguments.isNotEmpty()) {
                         append("<")
-                        type.parameters.forEachIndexed { index, parameter ->
+                        type.arguments.forEachIndexed { index, parameter ->
                             appendTypeString(parameter, configuration)
-                            if (index != type.parameters.size - 1) {
+                            if (index != type.arguments.size - 1) {
                                 append(",")
                                 if (configuration.spaceBetweenParameters) {
                                     append(" ")
@@ -752,8 +752,13 @@ interface ClassTypeItem : TypeItem {
     /** The qualified name of this class, e.g. "java.lang.String". */
     val qualifiedName: String
 
-    /** The class's parameter types, empty if it has none. */
-    val parameters: List<TypeItem>
+    /**
+     * The class type's arguments, empty if it has none.
+     *
+     * i.e. The specific types that this class type assigns to each of the referenced [ClassItem]'s
+     * type parameters.
+     */
+    val arguments: List<TypeItem>
 
     /** The outer class type of this class, if it is an inner type. */
     val outerClassType: ClassTypeItem?
@@ -768,39 +773,39 @@ interface ClassTypeItem : TypeItem {
         visitor.visit(this)
     }
 
-    override fun hasTypeArguments() = parameters.isNotEmpty()
+    override fun hasTypeArguments() = arguments.isNotEmpty()
 
     override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
     override fun duplicate(): ClassTypeItem =
-        duplicate(outerClassType?.duplicate(), parameters.map { it.duplicate() })
+        duplicate(outerClassType?.duplicate(), arguments.map { it.duplicate() })
 
     /**
-     * Duplicates this type (including duplicating the modifiers so they can be independently
-     * mutated), but substituting in the provided [outerClass] and [parameters] in place of this
-     * type's outer class and parameters.
+     * Duplicates this type (including duplicating the modifiers, so they can be independently
+     * mutated), but substituting in the provided [outerClass] and [arguments] in place of this
+     * instance's [outerClass] and [arguments].
      */
-    fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
+    fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
         return duplicate(
             outerClassType?.convertType(typeParameterBindings) as? ClassTypeItem,
-            parameters.map { it.convertType(typeParameterBindings) }
+            arguments.map { it.convertType(typeParameterBindings) }
         )
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
-            parameters.size == other.parameters.size &&
-            parameters.zip(other.parameters).all { (p1, p2) -> p1.equalToType(p2) } &&
+            arguments.size == other.arguments.size &&
+            arguments.zip(other.arguments).all { (p1, p2) -> p1.equalToType(p2) } &&
             ((outerClassType == null && other.outerClassType == null) ||
                 outerClassType?.equalToType(other.outerClassType) == true)
     }
 
-    override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, parameters)
+    override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
 
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
