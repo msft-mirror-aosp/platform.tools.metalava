@@ -99,10 +99,7 @@ interface ClassItem : Item {
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
-        return superClass()?.let { cls ->
-            return generateSequence(cls) { it.superClass() }
-        }
-            ?: return emptySequence()
+        return generateSequence(superClass()) { it.superClass() }
     }
 
     /**
@@ -228,9 +225,12 @@ interface ClassItem : Item {
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
 
-    // Whether this class is a generic type parameter, such as T, rather than a non-generic type,
-    // like String
-    val isTypeParameter: Boolean
+    /**
+     * Whether this class is a generic type parameter, such as T, rather than a non-generic type,
+     * like String
+     */
+    val isTypeParameter
+        get() = this is TypeParameterItem
 
     var hasPrivateConstructor: Boolean
 
