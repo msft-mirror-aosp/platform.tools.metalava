@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.testing.signature
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
 
 val COMPATIBILITY_CHECK_OPTIONS_HELP =
     """
@@ -45,4 +49,38 @@ class CompatibilityCheckOptionsTest :
     ) {
 
     override fun createOptions(): CompatibilityCheckOptions = CompatibilityCheckOptions()
+
+    @Test
+    fun `check compatibility api released`() {
+        val file =
+            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, file.path) {
+            assertThat(options.compatibilityChecks)
+                .isEqualTo(
+                    listOf(
+                        CompatibilityCheckOptions.CheckRequest(
+                            file = file,
+                            apiType = ApiType.PUBLIC_API,
+                        ),
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun `check compatibility removed api released`() {
+        val file =
+            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, file.path) {
+            assertThat(options.compatibilityChecks)
+                .isEqualTo(
+                    listOf(
+                        CompatibilityCheckOptions.CheckRequest(
+                            file = file,
+                            apiType = ApiType.REMOVED,
+                        ),
+                    )
+                )
+        }
+    }
 }
