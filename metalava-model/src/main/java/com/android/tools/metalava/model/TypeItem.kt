@@ -343,14 +343,13 @@ interface TypeItem {
 }
 
 /**
- * A mapping from one class's type parameters (currently represented in the keys of this map as a
- * [VariableTypeItem] subclass of [TypeItem]) to the types provided for those type parameters in a
+ * A mapping from one class's type parameters to the types provided for those type parameters in a
  * possibly indirect subclass.
  *
  * e.g. Given `Map<K, V>` and a subinterface `StringToIntMap extends Map<String, Integer>` then this
  * would contain a mapping from `K -> String` and `V -> Integer`.
  */
-typealias TypeParameterBindings = Map<TypeItem, TypeItem>
+typealias TypeParameterBindings = Map<TypeParameterItem, TypeItem>
 
 abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 
@@ -700,7 +699,7 @@ interface PrimitiveTypeItem : TypeItem {
     }
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
-        return (typeParameterBindings[this] ?: this).duplicate()
+        return duplicate()
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -735,8 +734,7 @@ interface ArrayTypeItem : TypeItem {
     fun duplicate(componentType: TypeItem): ArrayTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
-        return typeParameterBindings[this]?.duplicate()
-            ?: duplicate(componentType.convertType(typeParameterBindings))
+        return duplicate(componentType.convertType(typeParameterBindings))
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -787,11 +785,10 @@ interface ClassTypeItem : TypeItem {
     fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
-        return typeParameterBindings[this]?.duplicate()
-            ?: duplicate(
-                outerClassType?.convertType(typeParameterBindings) as? ClassTypeItem,
-                parameters.map { it.convertType(typeParameterBindings) }
-            )
+        return duplicate(
+            outerClassType?.convertType(typeParameterBindings) as? ClassTypeItem,
+            parameters.map { it.convertType(typeParameterBindings) }
+        )
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -831,7 +828,7 @@ interface VariableTypeItem : TypeItem {
     }
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
-        return (typeParameterBindings[this] ?: this).duplicate()
+        return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -867,11 +864,10 @@ interface WildcardTypeItem : TypeItem {
     fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
-        return typeParameterBindings[this]?.duplicate()
-            ?: duplicate(
-                extendsBound?.convertType(typeParameterBindings),
-                superBound?.convertType(typeParameterBindings)
-            )
+        return duplicate(
+            extendsBound?.convertType(typeParameterBindings),
+            superBound?.convertType(typeParameterBindings)
+        )
     }
 
     override fun equalToType(other: TypeItem?): Boolean {

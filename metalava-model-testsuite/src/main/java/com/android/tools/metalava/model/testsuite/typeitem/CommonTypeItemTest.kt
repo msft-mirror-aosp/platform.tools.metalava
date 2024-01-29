@@ -1362,8 +1362,8 @@ class CommonTypeItemTest : BaseModelTest() {
             val x = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "X" }
             val numberType = fooClass.assertField("numberType").type()
 
-            val matchingBindings = mapOf(t.toType() to numberType)
-            val nonMatchingBindings = mapOf(x.toType() to numberType)
+            val matchingBindings = mapOf(t to numberType)
+            val nonMatchingBindings = mapOf(x to numberType)
 
             val afterMatchingConversionSuffix = "AfterMatchingConversion"
             val fieldsToCheck =
