@@ -39,7 +39,7 @@ internal class TurbinePrimitiveTypeItem(
     modifiers: TurbineTypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun duplicate(): TypeItem =
+    override fun duplicate(): PrimitiveTypeItem =
         TurbinePrimitiveTypeItem(codebase, modifiers.duplicate(), kind)
 }
 
@@ -96,7 +96,7 @@ internal class TurbineVariableTypeItem(
             ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
     }
 
-    override fun duplicate(): TypeItem =
+    override fun duplicate(): VariableTypeItem =
         TurbineVariableTypeItem(codebase, modifiers.duplicate(), symbol)
 }
 
