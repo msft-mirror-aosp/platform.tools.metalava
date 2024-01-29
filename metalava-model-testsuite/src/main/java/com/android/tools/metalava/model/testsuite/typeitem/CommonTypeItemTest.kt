@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -865,7 +866,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     package test.pkg
 
-                    import java.util.Map;
+                    import java.util.Map
 
                     class Test {
                         fun foo(): Map.Entry<String,String> {
@@ -1275,16 +1276,26 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     package test.pkg;
                     import java.util.List;
-                    public class Foo<T> {
-                        public int intField;
-                        public char charField;
-                        public String stringField;
-                        public T tField;
-                        public String[] stringArrayField;
-                        public List<String> listStringField;
-                        public List<List<String>> listListStringField;
-                        public Foo<? extends String> fooExtendsStringField;
-                        public Foo<? super String> fooSuperStringField;
+                    public class Foo<T, X> {
+                      public Number numberType;
+
+                      public int primitiveType;
+                      public int primitiveTypeAfterMatchingConversion;
+
+                      public T variableType;
+                      public Number variableTypeAfterMatchingConversion;
+
+                      public T[] arrayType;
+                      public Number[] arrayTypeAfterMatchingConversion;
+
+                      public Foo<T, String> classType;
+                      public Foo<Number, String> classTypeAfterMatchingConversion;
+
+                      public Foo<? extends T, String> wildcardExtendsType;
+                      public Foo<? extends Number, String> wildcardExtendsTypeAfterMatchingConversion;
+
+                      public Foo<? super T, String> wildcardSuperType;
+                      public Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
                     }
                 """
                     .trimIndent()
@@ -1292,16 +1303,26 @@ class CommonTypeItemTest : BaseModelTest() {
             kotlin(
                 """
                     package test.pkg
-                    class Foo<T> {
-                        @JvmField val intField: Int
-                        @JvmField val charField: Char
-                        @JvmField val stringField: String
-                        @JvmField val tField: T
-                        @JvmField val stringArrayField: Array<String>
-                        @JvmField val listStringField: List<String>
-                        @JvmField val listListStringField: List<List<String>>
-                        @JvmField val fooExtendsStringField: Foo<out String>
-                        @JvmField  val fooSuperStringField: Foo<in String>
+                    class Foo<T, X> {
+                        @JvmField val numberType: Number
+
+                        @JvmField val primitiveType: Int
+                        @JvmField val primitiveTypeAfterMatchingConversion: Int
+
+                        @JvmField val variableType: T
+                        @JvmField val variableTypeAfterMatchingConversion: Number
+
+                        @JvmField val arrayType: Array<T>
+                        @JvmField val arrayTypeAfterMatchingConversion: Array<Number>
+
+                        @JvmField val classType: Foo<T, String>
+                        @JvmField val classTypeAfterMatchingConversion: Foo<Number, String>
+
+                        @JvmField val wildcardExtendsType: Foo<out T, String>
+                        @JvmField val wildcardExtendsTypeAfterMatchingConversion: Foo<out Number, String>
+
+                        @JvmField val wildcardSuperType: Foo<in T, String>
+                        @JvmField val wildcardSuperTypeAfterMatchingConversion: Foo<in Number, String>
                     }
                 """
                     .trimIndent()
@@ -1310,16 +1331,26 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      public class Foo {
-                        field public int intField;
-                        field public char charField;
-                        field public String stringField;
-                        field public T tField;
-                        field public String[] stringArrayField;
-                        field public java.util.List<java.lang.String> listStringField;
-                        field public java.util.List<java.util.List<java.lang.String>> listListStringField;
-                        field public test.pkg.Foo<? extends java.lang.String> fooExtendsStringField;
-                        field public test.pkg.Foo<? super java.lang.String> fooSuperStringField;
+                      public class Foo<T, X> {
+                        field public Number numberType;
+
+                        field public int primitiveType;
+                        field public int primitiveTypeAfterMatchingConversion;
+
+                        field public T variableType;
+                        field public Number variableTypeAfterMatchingConversion;
+
+                        field public T[] arrayType;
+                        field public Number[] arrayTypeAfterMatchingConversion;
+
+                        field public test.pkg.Foo<T, String> classType;
+                        field public test.pkg.Foo<Number, String> classTypeAfterMatchingConversion;
+
+                        field public test.pkg.Foo<? extends T, String> wildcardExtendsType;
+                        field public test.pkg.Foo<? extends Number, String> wildcardExtendsTypeAfterMatchingConversion;
+
+                        field public test.pkg.Foo<? super T, String> wildcardSuperType;
+                        field public test.pkg.Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
                       }
                     }
                 """
@@ -1327,72 +1358,35 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
+            val t = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "T" }
+            val x = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "X" }
+            val numberType = fooClass.assertField("numberType").type()
 
-            val int = fooClass.fields().single { it.name() == "intField" }.type()
-            val char = fooClass.fields().single { it.name() == "charField" }.type()
-            val string = fooClass.fields().single { it.name() == "stringField" }.type()
-            val t = fooClass.fields().single { it.name() == "tField" }.type()
-            val stringArray = fooClass.fields().single { it.name() == "stringArrayField" }.type()
-            val listString = fooClass.fields().single { it.name() == "listStringField" }.type()
-            val listListString =
-                fooClass.fields().single { it.name() == "listListStringField" }.type()
-            val fooExtendsString =
-                fooClass.fields().single { it.name() == "fooExtendsStringField" }.type()
-            val fooSuperString =
-                fooClass.fields().single { it.name() == "fooSuperStringField" }.type()
+            val matchingBindings = mapOf(t.toType() to numberType)
+            val nonMatchingBindings = mapOf(x.toType() to numberType)
 
-            // Converting primitive when it is in map and when it isn't
-            assertThat(int.convertType(mapOf(int to string))).isEqualTo(string)
-            assertThat(int.convertType(mapOf(char to string))).isEqualTo(int)
+            val afterMatchingConversionSuffix = "AfterMatchingConversion"
+            val fieldsToCheck =
+                fooClass.fields().filter {
+                    it.name() != "numberType" && !it.name().endsWith(afterMatchingConversionSuffix)
+                }
 
-            // Converting class when it is in map and when it isn't
-            assertThat(string.convertType(mapOf(string to int))).isEqualTo(int)
-            assertThat(string.convertType(mapOf(string to stringArray))).isEqualTo(stringArray)
-            assertThat(string.convertType(mapOf(char to string))).isEqualTo(string)
+            for (fieldItem in fieldsToCheck) {
+                val fieldType = fieldItem.type()
 
-            // Converting variable when it is in map and when it isn't
-            assertThat(t.convertType(mapOf(t to int))).isEqualTo(int)
-            assertThat(t.convertType(mapOf(t to fooExtendsString))).isEqualTo(fooExtendsString)
-            assertThat(t.convertType(mapOf(char to string))).isEqualTo(t)
+                val fieldName = fieldItem.name()
+                val expectedMatchedFieldType =
+                    fooClass.assertField(fieldName + afterMatchingConversionSuffix).type()
 
-            // Converting array when it is in map, when it isn't, and when component is in map
-            assertThat(stringArray.convertType(mapOf(stringArray to int))).isEqualTo(int)
-            assertThat(stringArray.convertType(mapOf(char to string))).isEqualTo(stringArray)
-            val convertedArray = stringArray.convertType(mapOf(string to int))
-            assertThat(convertedArray).isInstanceOf(ArrayTypeItem::class.java)
-            assertThat((convertedArray as ArrayTypeItem).componentType).isEqualTo(int)
+                assertWithMessage("conversion that matches $fieldName")
+                    .that(fieldType.convertType(matchingBindings))
+                    .isEqualTo(expectedMatchedFieldType)
 
-            // Converting class parameters
-            val convertedList = listString.convertType(mapOf(string to stringArray))
-            assertThat(convertedList).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((convertedList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
-            assertThat(convertedList.parameters.single()).isEqualTo(stringArray)
-
-            val convertedListList = listListString.convertType(mapOf(string to stringArray))
-            assertThat(convertedListList).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((convertedListList as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.List")
-            assertThat(convertedListList.parameters.single()).isEqualTo(convertedList)
-
-            // Converting extends type
-            val convertedExtendsType = fooExtendsString.convertType(mapOf(string to int))
-            assertThat(convertedExtendsType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((convertedExtendsType as ClassTypeItem).qualifiedName)
-                .isEqualTo("test.pkg.Foo")
-            val extendsType = convertedExtendsType.parameters.single()
-            assertThat(extendsType).isInstanceOf(WildcardTypeItem::class.java)
-            assertThat((extendsType as WildcardTypeItem).extendsBound).isEqualTo(int)
-            assertThat(fooExtendsString.convertType(mapOf(char to int))).isEqualTo(fooExtendsString)
-
-            // Converting super type
-            val convertedSuperType = fooSuperString.convertType(mapOf(string to int))
-            assertThat(convertedSuperType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((convertedSuperType as ClassTypeItem).qualifiedName)
-                .isEqualTo("test.pkg.Foo")
-            val superType = convertedSuperType.parameters.single()
-            assertThat(superType).isInstanceOf(WildcardTypeItem::class.java)
-            assertThat((superType as WildcardTypeItem).superBound).isEqualTo(int)
-            assertThat(fooSuperString.convertType(mapOf(char to int))).isEqualTo(fooSuperString)
+                // Expect no change if it does not match.
+                assertWithMessage("conversion that does not match $fieldName")
+                    .that(fieldType.convertType(nonMatchingBindings))
+                    .isEqualTo(fieldType)
+            }
         }
     }
 }
