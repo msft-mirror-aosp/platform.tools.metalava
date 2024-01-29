@@ -18,6 +18,7 @@ package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import java.io.File
 import org.intellij.lang.annotations.Language
 
 fun source(to: String, source: String): TestFile {
@@ -43,3 +44,5 @@ fun kotlin(@Language("kotlin") source: String): TestFile {
 fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
     return TestFiles.kotlin(to, source.trimIndent())
 }
+
+fun List<TestFile>.createFiles(dir: File): List<File> = map { it.createFile(dir) }
