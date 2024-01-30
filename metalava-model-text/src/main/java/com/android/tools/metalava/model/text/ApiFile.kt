@@ -67,7 +67,7 @@ private constructor(
     lateinit var format: FileFormat
 
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
-    private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
+    private val mClassToInterface = HashMap<TextClassItem, MutableSet<String>>(10000)
 
     companion object {
         /**
@@ -290,19 +290,12 @@ private constructor(
         superclass?.let { mClassToSuper.put(classInfo, superclass) }
     }
 
-    private fun mapClassToInterface(classInfo: TextClassItem, iface: String) {
-        if (!mClassToInterface.containsKey(classInfo)) {
-            mClassToInterface[classInfo] = ArrayList()
-        }
-        mClassToInterface[classInfo]?.let { if (!it.contains(iface)) it.add(iface) }
-    }
-
-    private fun implementsInterface(classInfo: TextClassItem, iface: String): Boolean {
-        return mClassToInterface[classInfo]?.contains(iface) ?: false
+    private fun mapClassToInterface(classInfo: TextClassItem, interfaceTypeString: String) {
+        mClassToInterface.computeIfAbsent(classInfo) { mutableSetOf() }.add(interfaceTypeString)
     }
 
     /** Implements [ResolverContext] interface */
-    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = mClassToInterface[cl]
+    override fun superInterfaceTypeStrings(cl: ClassItem): Set<String>? = mClassToInterface[cl]
 
     /** Implements [ResolverContext] interface */
     override fun superClassTypeString(cl: ClassItem): String? = mClassToSuper[cl]
@@ -371,14 +364,16 @@ private constructor(
             ext = parseSuperTypeString(tokenizer, tokenizer.requireToken())
             token = tokenizer.current
         }
+
+        val interfaceTypeStrings = mutableSetOf<String>()
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
                 if ("{" == token) {
                     break
                 } else if ("," != token) {
-                    val interfaceName = parseSuperTypeString(tokenizer, token)
-                    mapClassToInterface(cl, interfaceName)
+                    val interfaceTypeString = parseSuperTypeString(tokenizer, token)
+                    interfaceTypeStrings.add(interfaceTypeString)
                     token = tokenizer.current
                 } else {
                     token = tokenizer.requireToken()
@@ -397,17 +392,26 @@ private constructor(
         } else if (classKind == ClassKind.ANNOTATION_TYPE) {
             // If the annotation was defined using @interface that add the implicit
             // "implements java.lang.annotation.Annotation".
-            mapClassToInterface(cl, JAVA_LANG_ANNOTATION)
-        } else if (implementsInterface(cl, JAVA_LANG_ANNOTATION)) {
+            interfaceTypeStrings.add(JAVA_LANG_ANNOTATION)
+        } else if (JAVA_LANG_ANNOTATION in interfaceTypeStrings) {
             // This can be taken either for a normal class that implements
             // java.lang.annotation.Annotation which was the old way of representing an annotation
             // in the API signature files.
             cl.classKind = ClassKind.ANNOTATION_TYPE
         }
+
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
         token = tokenizer.requireToken()
+
+        // Add the interface type strings to the set that need to be resolved for this class. This
+        // is added before possibly replacing the newly created class with an existing one in which
+        // case these interface type strings will be ignored.
+        for (interfaceTypeString in interfaceTypeStrings) {
+            mapClassToInterface(cl, interfaceTypeString)
+        }
+
         cl =
             when (val foundClass = api.findClass(cl.qualifiedName())) {
                 null -> {
@@ -1322,7 +1326,7 @@ internal interface ResolverContext {
      * Get the string representations of the super interface types of the supplied class, returns
      * null if there were no super interface types specified.
      */
-    fun superInterfaceTypeStrings(cl: ClassItem): List<String>?
+    fun superInterfaceTypeStrings(cl: ClassItem): Set<String>?
 
     /**
      * Get the string representation of the super class type extended by the supplied class, returns

@@ -55,7 +55,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             // context to use so just use an empty context.
             val context =
                 object : ResolverContext {
-                    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = null
+                    override fun superInterfaceTypeStrings(cl: ClassItem): Set<String>? = null
 
                     override fun superClassTypeString(cl: ClassItem): String? = null
                 }
