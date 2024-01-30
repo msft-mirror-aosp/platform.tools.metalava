@@ -698,7 +698,9 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this)
     }
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+    override fun duplicate(): PrimitiveTypeItem
+
+    override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
         return duplicate()
     }
 
@@ -733,7 +735,7 @@ interface ArrayTypeItem : TypeItem {
      */
     fun duplicate(componentType: TypeItem): ArrayTypeItem
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+    override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
         return duplicate(componentType.convertType(typeParameterBindings))
     }
 
@@ -789,9 +791,9 @@ interface ClassTypeItem : TypeItem {
      */
     fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+    override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return duplicate(
-            outerClassType?.convertType(typeParameterBindings) as? ClassTypeItem,
+            outerClassType?.convertType(typeParameterBindings),
             arguments.map { it.convertType(typeParameterBindings) }
         )
     }
@@ -836,6 +838,8 @@ interface VariableTypeItem : TypeItem {
         return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
     }
 
+    override fun duplicate(): VariableTypeItem
+
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? VariableTypeItem)?.name == name
     }
@@ -868,7 +872,7 @@ interface WildcardTypeItem : TypeItem {
      */
     fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+    override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return duplicate(
             extendsBound?.convertType(typeParameterBindings),
             superBound?.convertType(typeParameterBindings)

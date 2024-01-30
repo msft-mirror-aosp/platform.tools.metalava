@@ -350,7 +350,8 @@ internal class PsiVariableTypeItem(
     override val modifiers: PsiTypeModifiers,
 ) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
     override val asTypeParameter: TypeParameterItem by lazy {
-        codebase.findClass(psiType) as TypeParameterItem
+        val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
+        codebase.findOrCreateTypeParameter(cls as PsiTypeParameter)
     }
 
     private var asClass: ClassItem? = null

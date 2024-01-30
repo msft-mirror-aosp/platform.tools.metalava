@@ -47,7 +47,7 @@ internal class TextPrimitiveTypeItem(
     }
 
     // Text types are immutable, so the modifiers don't actually need to be duplicated.
-    override fun duplicate(): TypeItem = this
+    override fun duplicate(): PrimitiveTypeItem = this
 }
 
 /** An [ArrayTypeItem] parsed from a signature file. */
@@ -123,7 +123,7 @@ internal class TextVariableTypeItem(
     }
 
     // Text types are immutable, so the modifiers don't actually need to be duplicated.
-    override fun duplicate(): TypeItem = this
+    override fun duplicate(): VariableTypeItem = this
 }
 
 /** A [WildcardTypeItem] parsed from a signature file. */
