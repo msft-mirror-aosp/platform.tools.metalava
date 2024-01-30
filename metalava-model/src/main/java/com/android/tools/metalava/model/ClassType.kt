@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model
 
 enum class ClassType {
     INTERFACE,
