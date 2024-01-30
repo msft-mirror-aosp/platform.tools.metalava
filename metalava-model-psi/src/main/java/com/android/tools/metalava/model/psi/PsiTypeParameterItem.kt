@@ -46,7 +46,7 @@ internal class PsiTypeParameterItem(
     override fun typeBounds(): List<PsiTypeItem> = bounds
 
     override fun isReified(): Boolean {
-        return isReified(element as? PsiTypeParameter)
+        return isReified(psiClass as? PsiTypeParameter)
     }
 
     private lateinit var bounds: List<PsiTypeItem>
@@ -77,6 +77,7 @@ internal class PsiTypeParameterItem(
                 )
             item.modifiers.setOwner(item)
             item.initialize(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            item.finishInitialization()
             return item
         }
 

@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
-class TextFieldItem(
+internal class TextFieldItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
@@ -66,7 +66,6 @@ class TextFieldItem(
                 position
             )
         duplicated.inheritedFrom = containingClass()
-        duplicated.inheritedField = inheritedField
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -83,7 +82,6 @@ class TextFieldItem(
     }
 
     override var inheritedFrom: ClassItem? = null
-    override var inheritedField: Boolean = false
 
     private var isEnumConstant = false
 

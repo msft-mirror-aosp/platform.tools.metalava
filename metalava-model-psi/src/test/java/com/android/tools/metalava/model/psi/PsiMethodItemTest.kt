@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -65,11 +66,11 @@ class PsiMethodItemTest : BasePsiTest() {
             """
             )
         testCodebase(codebase) { c ->
-            val ctorItem = c.assertClass("Foo").findMethod("Foo", "")
-            val ctorReturnType = ctorItem!!.returnType()
+            val ctorItem = c.assertClass("Foo").assertMethod("Foo", "")
+            val ctorReturnType = ctorItem.returnType()
 
-            val methodItem = c.assertClass("Foo").findMethod("bar", "")
-            val methodReturnType = methodItem!!.returnType()
+            val methodItem = c.assertClass("Foo").assertMethod("bar", "")
+            val methodReturnType = methodItem.returnType()
 
             assertNotNull(ctorReturnType)
             assertEquals(
@@ -288,6 +289,36 @@ class PsiMethodItemTest : BasePsiTest() {
         testCodebase(codebase) { c ->
             val childMethodItem = c.assertClass("ChildClass").assertMethod("bar", "")
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `Duplicated method has correct nullability`() {
+        testCodebase(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        @Override
+                        public String toString() {}
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Bar extends Foo {}
+                """
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val toString = fooClass.assertMethod("toString", "")
+            assertEquals(TypeNullability.NONNULL, toString.returnType().modifiers.nullability())
+
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            val duplicated = barClass.inheritMethodFromNonApiAncestor(toString)
+            assertEquals(TypeNullability.NONNULL, duplicated.returnType().modifiers.nullability())
         }
     }
 }

@@ -23,24 +23,28 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineClassItem(
+internal open class TurbineClassItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
+    private val classSymbol: ClassSymbol,
     modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
-) : TurbineItem(codebase, modifiers), ClassItem {
+    documentation: String,
+    private val source: SourceFile?
+) : TurbineItem(codebase, modifiers, documentation), ClassItem {
 
     override var artifact: String? = null
 
     override var hasPrivateConstructor: Boolean = false
-
-    override val isTypeParameter: Boolean = false
 
     override var stubConstructor: ConstructorItem? = null
 
@@ -69,6 +73,8 @@ open class TurbineClassItem(
     private var asType: TurbineTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
+
+    private var retention: AnnotationRetention? = null
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
@@ -105,14 +111,26 @@ open class TurbineClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun getRetention(): AnnotationRetention {
-        TODO("b/295800205")
+        retention?.let {
+            return it
+        }
+
+        if (!isAnnotationType()) {
+            error("getRetention() should only be called on annotation classes")
+        }
+
+        retention = ClassItem.findRetention(this)
+        return retention!!
     }
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    override fun hasTypeVariables(): Boolean {
-        TODO("b/295800205")
+    override fun createDefaultConstructor(): ConstructorItem {
+        val sym = MethodSymbol(0, classSymbol, name)
+        return TurbineConstructorItem.createDefaultConstructor(codebase, this, sym)
     }
+
+    override fun hasTypeVariables(): Boolean = typeParameters.typeParameterCount() > 0
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
@@ -182,5 +200,33 @@ open class TurbineClassItem(
             return true
         }
         return other is ClassItem && qualifiedName() == other.qualifiedName()
+    }
+
+    override fun getSourceFile(): SourceFile? = source
+
+    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
+        val method = template as TurbineMethodItem
+        val replacementMap = mapTypeVariables(method.containingClass())
+        val retType = method.returnType().convertType(replacementMap)
+        val mods = method.modifiers.duplicate()
+        val params =
+            method.parameters().map { TurbineParameterItem.duplicate(codebase, it, replacementMap) }
+
+        val duplicateMethod =
+            TurbineMethodItem(
+                codebase,
+                method.getSymbol(),
+                this,
+                retType as TurbineTypeItem,
+                mods,
+                method.typeParameterList(),
+                method.documentation
+            )
+        mods.setOwner(duplicateMethod)
+        duplicateMethod.parameters = params
+        duplicateMethod.inheritedFrom = method.containingClass()
+        duplicateMethod.setThrowsTypes(method.throwsTypes())
+
+        return duplicateMethod
     }
 }
