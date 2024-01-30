@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnota
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -313,9 +314,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        var isInterface = false
-        var isAnnotation = false
-        var isEnum = false
+        var classKind = ClassKind.CLASS
         var ext: String? = null
 
         // Metalava: including annotations in file now
@@ -328,18 +327,17 @@ private constructor(
                 token = tokenizer.requireToken()
             }
             "interface" -> {
-                isInterface = true
+                classKind = ClassKind.INTERFACE
                 modifiers.setAbstract(true)
                 token = tokenizer.requireToken()
             }
             "@interface" -> {
-                // Annotation
+                classKind = ClassKind.ANNOTATION_TYPE
                 modifiers.setAbstract(true)
-                isAnnotation = true
                 token = tokenizer.requireToken()
             }
             "enum" -> {
-                isEnum = true
+                classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
                 ext = JAVA_LANG_ENUM
@@ -361,9 +359,7 @@ private constructor(
                 api,
                 tokenizer.pos(),
                 modifiers,
-                isInterface,
-                isEnum,
-                isAnnotation,
+                classKind,
                 qualifiedClassName,
                 className,
                 annotations,
@@ -371,7 +367,7 @@ private constructor(
             )
 
         cl.setContainingPackage(pkg)
-        if ("extends" == token && !isInterface) {
+        if ("extends" == token && classKind != ClassKind.INTERFACE) {
             token = getAnnotationCompleteToken(tokenizer, tokenizer.requireToken())
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
@@ -410,15 +406,23 @@ private constructor(
             }
         }
         if (JAVA_LANG_ENUM == ext) {
-            cl.setIsEnum(true)
+            // This can be taken either for an enum class, or a normal class that extends
+            // java.lang.Enum (which was the old way of representing an enum in the API signature
+            // files.
+            cl.classKind = ClassKind.ENUM
             // Above we marked all enums as static but for a top level class it's implicit
             if (!cl.fullName().contains(".")) {
                 cl.modifiers.setStatic(false)
             }
-        } else if (isAnnotation) {
+        } else if (classKind == ClassKind.ANNOTATION_TYPE) {
+            // If the annotation was defined using @interface that add the implicit
+            // "implements java.lang.annotation.Annotation".
             mapClassToInterface(cl, JAVA_LANG_ANNOTATION)
         } else if (implementsInterface(cl, JAVA_LANG_ANNOTATION)) {
-            cl.setIsAnnotationType(true)
+            // This can be taken either for a normal class that implements
+            // java.lang.annotation.Annotation which was the old way of representing an annotation
+            // in the API signature files.
+            cl.classKind = ClassKind.ANNOTATION_TYPE
         }
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
@@ -1529,8 +1533,6 @@ private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
     }
 
     return modifiers == cls.modifiers &&
-        isInterface() == cls.isInterface() &&
-        isEnum() == cls.isEnum() &&
-        isAnnotation == cls.isAnnotation &&
+        classKind == cls.classKind &&
         allInterfaces().toSet() == cls.allInterfaces().toSet()
 }
