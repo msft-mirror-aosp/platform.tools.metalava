@@ -24,6 +24,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -939,6 +940,40 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(outerClassVariable).isInstanceOf(VariableTypeItem::class.java)
             assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
             assertThat(outerClassVariable.asTypeParameter).isEqualTo(outerClassParameter)
+        }
+    }
+
+    @Test
+    fun `Check isTypeParameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Generic<T> {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Generic<T> {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Generic<T>
+                """
+            )
+        ) {
+            val genericClass = codebase.assertClass("test.pkg.Generic")
+            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+
+            assertFalse(genericClass.isTypeParameter, message = "generic class")
+            assertTrue(typeParameter.isTypeParameter, message = "type parameter")
         }
     }
 }

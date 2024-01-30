@@ -39,7 +39,9 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.description
 import com.android.tools.metalava.model.psi.PsiItem
+import com.android.tools.metalava.model.throwableClass
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -609,21 +611,29 @@ class CompatibilityCheck(
         }
         */
 
-        for (exception in old.throwsTypes()) {
-            if (!new.throws(exception.qualifiedName())) {
+        for (throwType in old.throwsTypes()) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.throwableClass ?: continue
+            if (!new.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${exception.qualifiedName()}"
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
                     )
                 }
             }
         }
 
-        for (exec in new.filteredThrowsTypes(filterReference)) {
-            if (!old.throws(exec.qualifiedName())) {
+        for (throwType in new.filteredThrowsTypes(filterReference)) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.throwableClass ?: continue
+            if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (
                     !(old.name() == "finalize" && old.parameters().isEmpty()) &&
@@ -632,7 +642,7 @@ class CompatibilityCheck(
                         !old.isEnumSyntheticMethod()
                 ) {
                     val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
+                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
             }
