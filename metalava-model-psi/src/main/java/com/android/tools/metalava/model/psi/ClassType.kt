@@ -23,7 +23,6 @@ internal enum class ClassType {
     INTERFACE,
     ENUM,
     ANNOTATION_TYPE,
-    TYPE_PARAMETER,
     CLASS;
 
     companion object {
@@ -32,7 +31,8 @@ internal enum class ClassType {
                 psiClass.isAnnotationType -> ANNOTATION_TYPE
                 psiClass.isInterface -> INTERFACE
                 psiClass.isEnum -> ENUM
-                psiClass is PsiTypeParameter -> TYPE_PARAMETER
+                psiClass is PsiTypeParameter ->
+                    error("Must not call this with a PsiTypeParameter - $psiClass")
                 else -> CLASS
             }
         }

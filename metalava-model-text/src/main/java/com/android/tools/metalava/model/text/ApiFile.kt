@@ -22,32 +22,36 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.ThrowableType
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.isNullableAnnotation
+import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
-import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
+@MetalavaApi
 class ApiFile
 private constructor(
-    /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?
+    private val formatForLegacyFiles: FileFormat?,
 ) : ResolverContext {
 
     /**
@@ -66,15 +70,20 @@ private constructor(
 
     companion object {
         /**
-         * Same as [.parseApi]}, but take a single file for convenience.
+         * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
          *
          * @param file input signature file
          */
-        @Throws(ApiParseException::class)
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), null, annotationManager)
+            description: String? = null,
+        ) =
+            parseApi(
+                files = listOf(file),
+                annotationManager = annotationManager,
+                description = description,
+            )
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -85,22 +94,29 @@ private constructor(
          *
          * @param files input signature files
          */
-        @Throws(ApiParseException::class)
         fun parseApi(
             files: List<File>,
+            annotationManager: AnnotationManager = noOpAnnotationManager,
+            description: String? = null,
             classResolver: ClassResolver? = null,
-            annotationManager: AnnotationManager,
-        ): TextCodebase {
+            formatForLegacyFiles: FileFormat? = null,
+        ): Codebase {
             require(files.isNotEmpty()) { "files must not be empty" }
-            val api = TextCodebase(files[0], annotationManager)
-            val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(classResolver)
+            val api =
+                TextCodebase(
+                    location = files[0],
+                    annotationManager = annotationManager,
+                    classResolver = classResolver,
+                )
+            val actualDescription =
+                description
+                    ?: buildString {
+                        append("Codebase loaded from ")
+                        files.joinTo(this)
+                    }
+            val parser = ApiFile(formatForLegacyFiles)
             var first = true
             for (file in files) {
-                if (!first) {
-                    description.append(", ")
-                }
-                description.append(file.path)
                 val apiText: String =
                     try {
                         file.readText(UTF_8)
@@ -114,36 +130,56 @@ private constructor(
                 parser.parseApiSingleFile(api, !first, file.path, apiText)
                 first = false
             }
-            api.description = description.toString()
+            api.description = actualDescription
             parser.postProcess(api)
             return api
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers. ")
+        @Deprecated("Exists only for external callers.")
         @JvmStatic
+        @MetalavaApi
         @Throws(ApiParseException::class)
         fun parseApi(
             filename: String,
             apiText: String,
             @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
-        ): TextCodebase {
+        ): Codebase {
             return parseApi(
                 filename,
                 apiText,
             )
         }
 
-        /** Entry point for testing. Take a filename and content separately. */
+        /**
+         * Parse the API signature file from the [inputStream].
+         *
+         * This will consume the whole contents of the [inputStream] but it is the caller's
+         * responsibility to close it.
+         */
+        @JvmStatic
+        @MetalavaApi
         @Throws(ApiParseException::class)
+        fun parseApi(filename: String, inputStream: InputStream): Codebase {
+            val apiText = inputStream.bufferedReader().readText()
+            return parseApi(filename, apiText)
+        }
+
+        /** Entry point for testing. Take a filename and content separately. */
         fun parseApi(
             filename: String,
             apiText: String,
             classResolver: ClassResolver? = null,
-        ): TextCodebase {
-            val api = TextCodebase(File(filename), noOpAnnotationManager)
+            formatForLegacyFiles: FileFormat? = null,
+        ): Codebase {
+            val api =
+                TextCodebase(
+                    location = File(filename),
+                    annotationManager = noOpAnnotationManager,
+                    classResolver = classResolver,
+                )
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile(formatForLegacyFiles)
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -158,16 +194,19 @@ private constructor(
         ReferenceResolver.resolveReferences(this, api)
     }
 
-    @Throws(ApiParseException::class)
     private fun parseApiSingleFile(
         api: TextCodebase,
         appending: Boolean,
         filename: String,
         apiText: String,
     ) {
-        // Parse the header of the signature file to determine the format.
-        format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
+        // Parse the header of the signature file to determine the format. If the signature file is
+        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+        format =
+            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
+                ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
+        api.typeResolver.kotlinStyleNulls = kotlinStyleNulls
 
         if (appending) {
             // When we're appending, and the content is empty, nothing to do.
@@ -188,7 +227,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parsePackage(api: TextCodebase, tokenizer: Tokenizer) {
         var pkg: TextPackageItem
         var token: String = tokenizer.requireToken()
@@ -198,7 +236,7 @@ private constructor(
         val modifiers = DefaultModifierList(api, DefaultModifierList.PUBLIC, null)
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         val name: String = token
 
         // If the same package showed up multiple times, make sure they have the same modifiers.
@@ -263,12 +301,11 @@ private constructor(
     }
 
     /** Implements [ResolverContext] interface */
-    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = mClassToInterface[cl]
+    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = mClassToInterface[cl]
 
     /** Implements [ResolverContext] interface */
-    override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
+    override fun superClassTypeString(cl: ClassItem): String? = mClassToSuper[cl]
 
-    @Throws(ApiParseException::class)
     private fun parseClass(
         api: TextCodebase,
         pkg: TextPackageItem,
@@ -312,12 +349,11 @@ private constructor(
                 throw ApiParseException("missing class or interface. got: $token", tokenizer)
             }
         }
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         // The classType and qualifiedClassType include the type parameter string, the className and
         // qualifiedClassName are just the name without type parameters.
         val classType: String = token
         val (className, typeParameters) = parseClassName(api, classType)
-        val qualifiedClassType = qualifiedName(pkg.name(), classType)
         val qualifiedClassName = qualifiedName(pkg.name(), className)
         token = tokenizer.requireToken()
         var cl =
@@ -329,52 +365,48 @@ private constructor(
                 isEnum,
                 isAnnotation,
                 qualifiedClassName,
-                qualifiedClassType,
                 className,
                 annotations,
                 typeParameters
             )
 
         cl.setContainingPackage(pkg)
-        cl.deprecated = modifiers.isDeprecated()
-        if ("extends" == token) {
-            token = tokenizer.requireToken()
+        if ("extends" == token && !isInterface) {
+            token = getAnnotationCompleteToken(tokenizer, tokenizer.requireToken())
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
-            if (token.contains('@')) {
-                while (token.contains('@')) {
-                    token = tokenizer.requireToken()
-                    superClassName += " $token"
-                }
+            // This can't use [parseType] because the next token might be a separate type (classes
+            // only have a single `extends` type, but all interface supertypes are listed as
+            // `extends` instead of `implements`).
+            // However, this type cannot be an array, so unlike [parseType] this does not need to
+            // check if the next token has annotations.
+            while (isIncompleteTypeToken(token)) {
+                token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
+                superClassName += " $token"
             }
             ext = superClassName
-            token = tokenizer.requireToken()
+            token = tokenizer.current
         }
-        if (
-            "implements" == token ||
-                "extends" == token ||
-                isInterface && ext != null && token != "{"
-        ) {
-            // If this is part of a list of interface supertypes, token is already a supertype.
-            // Otherwise, skip to the next token to get the supertype.
-            if (token == "implements" || token == "extends") {
-                token = tokenizer.requireToken()
-            }
+        if ("implements" == token || "extends" == token) {
+            token = tokenizer.requireToken()
             while (true) {
-                var interfaceName = token
                 if ("{" == token) {
                     break
                 } else if ("," != token) {
+                    var interfaceName = getAnnotationCompleteToken(tokenizer, token)
                     // Make sure full interface name is found if there are type use annotations.
-                    if (token.contains('@')) {
-                        while (token.contains('@')) {
-                            token = tokenizer.requireToken()
-                            interfaceName += " $token"
-                        }
+                    // This can't use [parseType] because the next token might be a separate type.
+                    // However, this type cannot be an array, so unlike [parseType] this does not
+                    // need to check if the next token has annotations.
+                    while (isIncompleteTypeToken(token)) {
+                        token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
+                        interfaceName += " $token"
                     }
                     mapClassToInterface(cl, interfaceName)
+                    token = tokenizer.current
+                } else {
+                    token = tokenizer.requireToken()
                 }
-                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
@@ -452,86 +484,93 @@ private constructor(
     private fun parseClassName(api: TextCodebase, type: String): Pair<String, TypeParameterList> {
         val paramIndex = type.indexOf('<')
         return if (paramIndex == -1) {
-            Pair(type, NONE)
+            Pair(type, TypeParameterList.NONE)
         } else {
-            Pair(type.substring(0, paramIndex), create(api, type.substring(paramIndex)))
-        }
-    }
-
-    @Throws(ApiParseException::class)
-    private fun processKotlinTypeSuffix(
-        startingType: String,
-        annotations: MutableList<String>
-    ): String {
-        var type = startingType
-        var varArgs = false
-        if (type.endsWith("...")) {
-            type = type.substring(0, type.length - 3)
-            varArgs = true
-        }
-        if (kotlinStyleNulls) {
-            if (varArgs) {
-                mergeAnnotations(annotations, ANDROIDX_NONNULL)
-            } else if (type.endsWith("?")) {
-                type = type.substring(0, type.length - 1)
-                mergeAnnotations(annotations, ANDROIDX_NULLABLE)
-            } else if (type.endsWith("!")) {
-                type = type.substring(0, type.length - 1)
-            } else if (!type.endsWith("!")) {
-                if (!isPrimitive(type)) { // Don't add nullness on primitive types like void
-                    mergeAnnotations(annotations, ANDROIDX_NONNULL)
-                }
-            }
-        } else if (type.endsWith("?") || type.endsWith("!")) {
-            throw ApiParseException(
-                "Format $format does not support Kotlin-style null type syntax: $type"
+            Pair(
+                type.substring(0, paramIndex),
+                TextTypeParameterList.create(api, type.substring(paramIndex))
             )
         }
-        if (varArgs) {
-            type = "$type..."
-        }
-        return type
     }
 
-    @Throws(ApiParseException::class)
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
-        var token = startingToken
-        val annotations: MutableList<String> = mutableListOf()
-        while (true) {
-            if (token.startsWith("@")) {
-                // Annotation
-                var annotation = token
+    /**
+     * If the [startingToken] contains the beginning of an annotation, pulls additional tokens from
+     * [tokenizer] to complete the annotation, returning the full token. If there isn't an
+     * annotation, returns the original [startingToken].
+     *
+     * When the method returns, the [tokenizer] will point to the token after the end of the
+     * returned string.
+     */
+    private fun getAnnotationCompleteToken(tokenizer: Tokenizer, startingToken: String): String {
+        return if (startingToken.contains('@')) {
+            val prefix = startingToken.substringBefore('@')
+            val annotationStart = startingToken.substring(startingToken.indexOf('@'))
+            val annotation = getAnnotation(tokenizer, annotationStart)
+            "$prefix$annotation"
+        } else {
+            tokenizer.requireToken()
+            startingToken
+        }
+    }
 
-                // Restore annotations that were shortened on export
-                annotation = unshortenAnnotation(annotation)
-                token = tokenizer.requireToken()
-                if (token == "(") {
-                    // Annotation arguments; potentially nested
-                    var balance = 0
-                    val start = tokenizer.offset() - 1
-                    while (true) {
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
+    /**
+     * If the [startingToken] is the beginning of an annotation, returns the annotation parsed from
+     * the [tokenizer]. Returns null otherwise.
+     *
+     * When the method returns, the [tokenizer] will point to the token after the annotation.
+     */
+    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
+        var token = startingToken
+        if (token.startsWith('@')) {
+            // Annotation
+            var annotation = token
+
+            // Restore annotations that were shortened on export
+            annotation = unshortenAnnotation(annotation)
+            token = tokenizer.requireToken()
+            if (token == "(") {
+                // Annotation arguments; potentially nested
+                var balance = 0
+                val start = tokenizer.offset() - 1
+                while (true) {
+                    if (token == "(") {
+                        balance++
+                    } else if (token == ")") {
+                        balance--
+                        if (balance == 0) {
+                            break
                         }
-                        token = tokenizer.requireToken()
                     }
-                    annotation += tokenizer.getStringFromOffset(start)
                     token = tokenizer.requireToken()
                 }
-                annotations.add(annotation)
-            } else {
-                break
+                annotation += tokenizer.getStringFromOffset(start)
+                // Move the tokenizer so that when the method returns it points to the token after
+                // the end of the annotation.
+                tokenizer.requireToken()
             }
+            return annotation
+        } else {
+            return null
+        }
+    }
+
+    /**
+     * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
+     * returning them as a (possibly empty) mutable list.
+     *
+     * When the method returns, the [tokenizer] will point to the token after the annotation list.
+     */
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
+        val annotations: MutableList<String> = mutableListOf()
+        var token = startingToken
+        while (true) {
+            val annotation = getAnnotation(tokenizer, token) ?: break
+            token = tokenizer.current
+            annotations.add(annotation)
         }
         return annotations
     }
 
-    @Throws(ApiParseException::class)
     private fun parseConstructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -540,7 +579,7 @@ private constructor(
     ) {
         var token = startingToken
         val method: TextConstructorItem
-        var typeParameterList = NONE
+        var typeParameterList = TypeParameterList.NONE
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -551,23 +590,21 @@ private constructor(
             typeParameterList = parseTypeParameterList(api, tokenizer)
             token = tokenizer.requireToken()
         }
-        assertIdent(tokenizer, token)
+        tokenizer.assertIdent(token)
         val name: String =
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
-        token = tokenizer.requireToken()
-        if ("(" != token) {
-            throw ApiParseException("expected (", tokenizer)
-        }
-        method = TextConstructorItem(api, name, cl, modifiers, cl.toType(), tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        parseParameterList(api, tokenizer, method, typeParams)
+        val parameters = parseParameterList(api, tokenizer, typeParams)
+        // Constructors cannot return null.
+        val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
+        method =
+            TextConstructorItem(api, name, cl, modifiers, ctorReturn, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.owner = method
+            typeParameterList.setOwner(method)
         }
         token = tokenizer.requireToken()
         if ("throws" == token) {
@@ -581,7 +618,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseMethod(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -589,9 +625,8 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val returnType: TextTypeItem
         val method: TextMethodItem
-        var typeParameterList = NONE
+        var typeParameterList = TypeParameterList.NONE
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -602,57 +637,49 @@ private constructor(
             typeParameterList = parseTypeParameterList(api, tokenizer)
             token = tokenizer.requireToken()
         }
-        assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
-        modifiers.addAnnotations(annotations)
-        var returnTypeString = token
-        token = tokenizer.requireToken()
-        if (
-            returnTypeString.contains("@") &&
-                (returnTypeString.indexOf('<') == -1 ||
-                    returnTypeString.indexOf('@') < returnTypeString.indexOf('<'))
-        ) {
-            returnTypeString += " $token"
-            token = tokenizer.requireToken()
-        }
-        while (true) {
-            if (
-                token.contains("@") &&
-                    (token.indexOf('<') == -1 || token.indexOf('@') < token.indexOf('<'))
-            ) {
-                // Type-use annotations in type; keep accumulating
-                returnTypeString += " $token"
-                token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
-                    returnTypeString += " $token"
-                    token = tokenizer.requireToken()
-                }
-            } else {
-                break
-            }
-        }
+        tokenizer.assertIdent(token)
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        returnType = api.typeResolver.obtainTypeFromString(returnTypeString, typeParams)
-        assertIdent(tokenizer, token)
-        val name: String = token
-        method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
+
+        val returnType: TextTypeItem
+        val parameters: List<TextParameterItem>
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, the parameter list, then the return type.
+            name = token
+            parameters = parseParameterList(api, tokenizer, typeParams)
+            token = tokenizer.requireToken()
+            if (token != ":") {
+                throw ApiParseException(
+                    "Expecting \":\" after parameter list, found $token.",
+                    tokenizer
+                )
+            }
+            token = tokenizer.requireToken()
+            tokenizer.assertIdent(token)
+            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the return type, the name, and then the parameter list.
+            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            tokenizer.assertIdent(token)
+            name = token
+            parameters = parseParameterList(api, tokenizer, typeParams)
+            token = tokenizer.requireToken()
+        }
+
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
+        method = TextMethodItem(api, name, cl, modifiers, returnType, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.owner = method
+            typeParameterList.setOwner(method)
         }
-        token = tokenizer.requireToken()
-        if ("(" != token) {
-            throw ApiParseException("expected (, was $token", tokenizer)
-        }
-        parseParameterList(api, tokenizer, method, typeParams)
-        token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
         }
@@ -678,7 +705,6 @@ private constructor(
         return annotations
     }
 
-    @Throws(ApiParseException::class)
     private fun parseField(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -691,27 +717,50 @@ private constructor(
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
-        assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
-        modifiers.addAnnotations(annotations)
-        val type = token
-        val typeInfo =
-            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
-        token = tokenizer.requireToken()
-        assertIdent(tokenizer, token)
-        val name = token
-        token = tokenizer.requireToken()
+        tokenizer.assertIdent(token)
+
+        var type: TextTypeItem
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, then the type.
+            name = parseNameWithColon(token, tokenizer)
+            token = tokenizer.requireToken()
+            tokenizer.assertIdent(token)
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the name, then the type.
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            tokenizer.assertIdent(token)
+            name = token
+            token = tokenizer.requireToken()
+        }
+
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)
-            value = parseValue(typeInfo, token, tokenizer)
+            value = parseValue(type, token, tokenizer)
             token = tokenizer.requireToken()
+            // If this is an implicitly null constant, add the nullability.
+            if (
+                !kotlinStyleNulls &&
+                    modifiers.isFinal() &&
+                    value != null &&
+                    type.modifiers.nullability() != TypeNullability.NONNULL
+            ) {
+                type = type.duplicate(TypeNullability.NONNULL)
+            }
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val field = TextFieldItem(api, name, cl, modifiers, typeInfo, value, tokenizer.pos())
-        field.deprecated = modifiers.isDeprecated()
+        val field = TextFieldItem(api, name, cl, modifiers, type, value, tokenizer.pos())
         if (isEnum) {
             cl.addEnumConstant(field)
         } else {
@@ -719,7 +768,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseModifiers(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -835,40 +883,7 @@ private constructor(
     private fun parseValue(type: TextTypeItem, value: String?, tokenizer: Tokenizer): Any? {
         return if (value != null) {
             if (type is PrimitiveTypeItem) {
-                when (type.kind) {
-                    Primitive.BOOLEAN ->
-                        if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-                    Primitive.BYTE,
-                    Primitive.SHORT,
-                    Primitive.INT -> Integer.valueOf(value)
-                    Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-                    Primitive.FLOAT ->
-                        when (value) {
-                            "(1.0f/0.0f)",
-                            "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                            "(-1.0f/0.0f)",
-                            "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                            "(0.0f/0.0f)",
-                            "(0.0f / 0.0f)" -> Float.NaN
-                            else -> java.lang.Float.valueOf(value)
-                        }
-                    Primitive.DOUBLE ->
-                        when (value) {
-                            "(1.0/0.0)",
-                            "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                            "(-1.0/0.0)",
-                            "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                            "(0.0/0.0)",
-                            "(0.0 / 0.0)" -> Double.NaN
-                            else -> java.lang.Double.valueOf(value)
-                        }
-                    Primitive.CHAR -> value.toInt().toChar()
-                    Primitive.VOID ->
-                        throw ApiParseException(
-                            "Found value $value assigned to void type",
-                            tokenizer
-                        )
-                }
+                parsePrimitiveValue(type, value, tokenizer)
             } else if (type.isString()) {
                 if ("null" == value) {
                     null
@@ -881,7 +896,44 @@ private constructor(
         } else null
     }
 
-    @Throws(ApiParseException::class)
+    private fun parsePrimitiveValue(
+        type: PrimitiveTypeItem,
+        value: String,
+        tokenizer: Tokenizer
+    ): Any {
+        return when (type.kind) {
+            Primitive.BOOLEAN ->
+                if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+            Primitive.BYTE,
+            Primitive.SHORT,
+            Primitive.INT -> Integer.valueOf(value)
+            Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
+            Primitive.FLOAT ->
+                when (value) {
+                    "(1.0f/0.0f)",
+                    "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
+                    "(-1.0f/0.0f)",
+                    "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
+                    "(0.0f/0.0f)",
+                    "(0.0f / 0.0f)" -> Float.NaN
+                    else -> java.lang.Float.valueOf(value)
+                }
+            Primitive.DOUBLE ->
+                when (value) {
+                    "(1.0/0.0)",
+                    "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
+                    "(-1.0/0.0)",
+                    "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
+                    "(0.0/0.0)",
+                    "(0.0 / 0.0)" -> Double.NaN
+                    else -> java.lang.Double.valueOf(value)
+                }
+            Primitive.CHAR -> value.toInt().toChar()
+            Primitive.VOID ->
+                throw ApiParseException("Found value $value assigned to void type", tokenizer)
+        }
+    }
+
     private fun parseProperty(
         api: TextCodebase,
         tokenizer: Tokenizer,
@@ -895,25 +947,38 @@ private constructor(
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
-        assertIdent(tokenizer, token)
-        token = processKotlinTypeSuffix(token, annotations)
-        modifiers.addAnnotations(annotations)
-        val type: String = token
-        val typeInfo =
-            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
-        token = tokenizer.requireToken()
-        assertIdent(tokenizer, token)
-        val name: String = token
-        token = tokenizer.requireToken()
+        tokenizer.assertIdent(token)
+
+        val type: TextTypeItem
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, then the type.
+            name = parseNameWithColon(token, tokenizer)
+            token = tokenizer.requireToken()
+            tokenizer.assertIdent(token)
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the type, then the name.
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            tokenizer.assertIdent(token)
+            name = token
+            token = tokenizer.requireToken()
+        }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        val property = TextPropertyItem(api, name, cl, modifiers, typeInfo, tokenizer.pos())
-        property.deprecated = modifiers.isDeprecated()
+        val property = TextPropertyItem(api, name, cl, modifiers, type, tokenizer.pos())
         cl.addProperty(property)
     }
 
-    @Throws(ApiParseException::class)
     private fun parseTypeParameterList(
         codebase: TextCodebase,
         tokenizer: Tokenizer
@@ -931,24 +996,34 @@ private constructor(
         }
         val typeParameterList = tokenizer.getStringFromOffset(start)
         return if (typeParameterList.isEmpty()) {
-            NONE
+            TypeParameterList.NONE
         } else {
-            create(codebase, typeParameterList)
+            TextTypeParameterList.create(codebase, typeParameterList)
         }
     }
 
-    @Throws(ApiParseException::class)
+    /**
+     * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
+     * the opening `(` of the parameter list (the method starts by calling
+     * [Tokenizer.requireToken]).
+     *
+     * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
+     */
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
-        method: TextMethodItem,
         typeParameters: List<TypeParameterItem>
-    ) {
+    ): List<TextParameterItem> {
+        val parameters = mutableListOf<TextParameterItem>()
         var token: String = tokenizer.requireToken()
+        if ("(" != token) {
+            throw ApiParseException("expected (, was $token", tokenizer)
+        }
+        token = tokenizer.requireToken()
         var index = 0
         while (true) {
             if (")" == token) {
-                return
+                return parameters
             }
 
             // Each item can be
@@ -968,37 +1043,43 @@ private constructor(
             val modifiers = parseModifiers(api, tokenizer, token, null)
             token = tokenizer.current
 
-            // Token should now represent the type
-            var type = token
-            token = tokenizer.requireToken()
-            if (token.startsWith("@")) {
-                // Type use annotations within the type, which broke up the tokenizer;
-                // put it back together
-                type += " $token"
+            val type: TextTypeItem
+            val name: String
+            val publicName: String?
+            if (format.kotlinNameTypeOrder) {
+                // Kotlin style: parse the name (only considered a public name if it is not `_`,
+                // which is used as a placeholder for params without public names), then the type.
+                name = parseNameWithColon(token, tokenizer)
+                publicName =
+                    if (name == "_") {
+                        null
+                    } else {
+                        name
+                    }
                 token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
-                    type += " $token"
+                // Token should now represent the type
+                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                // TODO(b/300081840): update nullability handling
+                modifiers.addAnnotations(annotations)
+                token = tokenizer.current
+            } else {
+                // Java style: parse the type, then the public name if it has one.
+                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                modifiers.addAnnotations(annotations)
+                token = tokenizer.current
+                if (Tokenizer.isIdent(token) && token != "=") {
+                    name = token
+                    publicName = name
                     token = tokenizer.requireToken()
+                } else {
+                    name = "arg" + (index + 1)
+                    publicName = null
                 }
             }
-            val typeString = processKotlinTypeSuffix(type, annotations)
-            modifiers.addAnnotations(annotations)
-            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
-            if (typeInfo is ArrayTypeItem && typeInfo.isVarargs) {
+            if (type is ArrayTypeItem && type.isVarargs) {
                 modifiers.setVarArg(true)
             }
-            var name: String
-            var publicName: String?
-            if (isIdent(token) && token != "=") {
-                name = token
-                publicName = name
-                token = tokenizer.requireToken()
-            } else {
-                name = "arg" + (index + 1)
-                publicName = null
-            }
+
             var defaultValue = UNKNOWN_DEFAULT_VALUE
             if ("=" == token) {
                 defaultValue = tokenizer.requireToken(true)
@@ -1053,28 +1134,23 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
-            method.addParameter(
+            parameters.add(
                 TextParameterItem(
                     api,
-                    method,
                     name,
                     publicName,
                     hasDefaultValue,
                     defaultValue,
                     index,
-                    typeInfo,
+                    type,
                     modifiers,
                     tokenizer.pos()
                 )
             )
-            if (modifiers.isVarArg()) {
-                method.setVarargs(true)
-            }
             index++
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
         val sb = StringBuilder()
         while (true) {
@@ -1088,7 +1164,6 @@ private constructor(
         }
     }
 
-    @Throws(ApiParseException::class)
     private fun parseThrows(tokenizer: Tokenizer, method: TextMethodItem): String {
         var token = tokenizer.requireToken()
         var comma = true
@@ -1115,189 +1190,110 @@ private constructor(
         }
     }
 
+    /**
+     * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
+     * that the full type string is gathered, even when there are type-use annotations. Once the
+     * full type string is found, this parses the type in the context of the [typeParameters].
+     *
+     * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
+     * that nullability to [annotations].
+     *
+     * After this method is called, `tokenizer.current` will point to the token after the type.
+     *
+     * Note: this **should not** be used when the token after the type could contain annotations,
+     * such as when multiple types appear as consecutive tokens. (This happens in the `implements`
+     * list of a class definition, e.g. `class Foo implements test.pkg.Bar test.pkg.@A Baz`.)
+     *
+     * To handle arrays with type-use annotations, this looks forward at the next token and includes
+     * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
+     */
+    private fun parseType(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        startingToken: String,
+        typeParameters: List<TypeParameterItem>,
+        annotations: MutableList<String>
+    ): TextTypeItem {
+        var prev = getAnnotationCompleteToken(tokenizer, startingToken)
+        var type = prev
+        var token = tokenizer.current
+        // Look both at the last used token and the next one:
+        // If the last token has annotations, the type string was broken up by annotations, and the
+        // next token is also part of the type.
+        // If the next token has annotations, this is an array type like "Foo @A []", so the next
+        // token is part of the type.
+        while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
+            token = getAnnotationCompleteToken(tokenizer, token)
+            type += " $token"
+            prev = token
+            token = tokenizer.current
+        }
+
+        val parsedType = api.typeResolver.obtainTypeFromString(type, typeParameters)
+        if (kotlinStyleNulls) {
+            // Treat varargs as non-null for consistency with the psi model.
+            if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
+                mergeAnnotations(annotations, ANDROIDX_NONNULL)
+            } else {
+                // Add an annotation to the context item for the type's nullability if applicable.
+                val nullability = parsedType.modifiers.nullability()
+                if (parsedType !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
+                    mergeAnnotations(annotations, ANDROIDX_NONNULL)
+                } else if (nullability == TypeNullability.NULLABLE) {
+                    mergeAnnotations(annotations, ANDROIDX_NULLABLE)
+                }
+            }
+        } else if (parsedType.modifiers.nullability() == TypeNullability.PLATFORM) {
+            // See if the type has nullability from the context item annotations.
+            val nullabilityFromContext =
+                annotations
+                    .singleOrNull { isNullnessAnnotation(it) }
+                    ?.let {
+                        if (isNullableAnnotation(it)) {
+                            TypeNullability.NULLABLE
+                        } else {
+                            TypeNullability.NONNULL
+                        }
+                    }
+            if (nullabilityFromContext != null) {
+                return parsedType.duplicate(nullabilityFromContext)
+            }
+        }
+        return parsedType
+    }
+
+    /**
+     * Determines whether the [type] is an incomplete type string broken up by annotations. This is
+     * the case when there's an annotation that isn't contained within a parameter list (because
+     * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
+     */
+    private fun isIncompleteTypeToken(type: String): Boolean {
+        val firstAnnotationIndex = type.indexOf('@')
+        val paramStartIndex = type.indexOf('<')
+        val lastAnnotationIndex = type.lastIndexOf('@')
+        val paramEndIndex = type.lastIndexOf('>')
+        return firstAnnotationIndex != -1 &&
+            (paramStartIndex == -1 ||
+                firstAnnotationIndex < paramStartIndex ||
+                paramEndIndex == -1 ||
+                paramEndIndex < lastAnnotationIndex)
+    }
+
+    /**
+     * For Kotlin-style name/type ordering in signature files, the name is generally followed by a
+     * colon (besides methods, where the colon comes after the parameter list). This method takes
+     * the name [token] and removes the trailing colon, throwing an [ApiParseException] if one isn't
+     * present (the [tokenizer] is only used for context for the error, if needed).
+     */
+    private fun parseNameWithColon(token: String, tokenizer: Tokenizer): String {
+        if (!token.endsWith(':')) {
+            throw ApiParseException("Expecting name ending with \":\" but found $token.", tokenizer)
+        }
+        return token.removeSuffix(":")
+    }
+
     private fun qualifiedName(pkg: String, className: String): String {
         return "$pkg.$className"
-    }
-
-    private fun isIdent(token: String): Boolean {
-        return isIdent(token[0])
-    }
-
-    @Throws(ApiParseException::class)
-    private fun assertIdent(tokenizer: Tokenizer, token: String) {
-        if (!isIdent(token[0])) {
-            throw ApiParseException("Expected identifier: $token", tokenizer)
-        }
-    }
-
-    private fun isSpace(c: Char): Boolean {
-        return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-    }
-
-    private fun isNewline(c: Char): Boolean {
-        return c == '\n' || c == '\r'
-    }
-
-    private fun isSeparator(c: Char, parenIsSep: Boolean): Boolean {
-        if (parenIsSep) {
-            if (c == '(' || c == ')') {
-                return true
-            }
-        }
-        return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>'
-    }
-
-    private fun isIdent(c: Char): Boolean {
-        return c != '"' && !isSeparator(c, true)
-    }
-
-    internal inner class Tokenizer(val fileName: String, private val buffer: CharArray) {
-        var position = 0
-        var line = 1
-
-        fun pos(): SourcePositionInfo {
-            return SourcePositionInfo(fileName, line)
-        }
-
-        private fun eatWhitespace(): Boolean {
-            var ate = false
-            while (position < buffer.size && isSpace(buffer[position])) {
-                if (buffer[position] == '\n') {
-                    line++
-                }
-                position++
-                ate = true
-            }
-            return ate
-        }
-
-        private fun eatComment(): Boolean {
-            if (position + 1 < buffer.size) {
-                if (buffer[position] == '/' && buffer[position + 1] == '/') {
-                    position += 2
-                    while (position < buffer.size && !isNewline(buffer[position])) {
-                        position++
-                    }
-                    return true
-                }
-            }
-            return false
-        }
-
-        private fun eatWhitespaceAndComments() {
-            while (eatWhitespace() || eatComment()) {
-                // intentionally consume whitespace and comments
-            }
-        }
-
-        @Throws(ApiParseException::class)
-        fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
-            val token = getToken(parenIsSep, eatWhitespace)
-            return token ?: throw ApiParseException("Unexpected end of file", this)
-        }
-
-        fun offset(): Int {
-            return position
-        }
-
-        fun getStringFromOffset(offset: Int): String {
-            return String(buffer, offset, position - offset)
-        }
-
-        lateinit var current: String
-
-        @Throws(ApiParseException::class)
-        fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
-            if (eatWhitespace) {
-                eatWhitespaceAndComments()
-            }
-            if (position >= buffer.size) {
-                return null
-            }
-            val line = line
-            val c = buffer[position]
-            val start = position
-            position++
-            if (c == '"') {
-                val STATE_BEGIN = 0
-                val STATE_ESCAPE = 1
-                var state = STATE_BEGIN
-                while (true) {
-                    if (position >= buffer.size) {
-                        throw ApiParseException(
-                            "Unexpected end of file for \" starting at $line",
-                            this
-                        )
-                    }
-                    val k = buffer[position]
-                    if (k == '\n' || k == '\r') {
-                        throw ApiParseException(
-                            "Unexpected newline for \" starting at $line in $fileName",
-                            this
-                        )
-                    }
-                    position++
-                    when (state) {
-                        STATE_BEGIN ->
-                            when (k) {
-                                '\\' -> state = STATE_ESCAPE
-                                '"' -> {
-                                    current = String(buffer, start, position - start)
-                                    return current
-                                }
-                            }
-                        STATE_ESCAPE -> state = STATE_BEGIN
-                    }
-                }
-            } else if (isSeparator(c, parenIsSep)) {
-                current = c.toString()
-                return current
-            } else {
-                var genericDepth = 0
-                do {
-                    while (position < buffer.size) {
-                        val d = buffer[position]
-                        if (isSpace(d) || isSeparator(d, parenIsSep)) {
-                            break
-                        } else if (d == '"') {
-                            // String literal in token: skip the full thing
-                            position++
-                            while (position < buffer.size) {
-                                if (buffer[position] == '"') {
-                                    position++
-                                    break
-                                } else if (buffer[position] == '\\') {
-                                    position++
-                                }
-                                position++
-                            }
-                            continue
-                        }
-                        position++
-                    }
-                    if (position < buffer.size) {
-                        if (buffer[position] == '<') {
-                            genericDepth++
-                            position++
-                        } else if (genericDepth != 0) {
-                            if (buffer[position] == '>') {
-                                genericDepth--
-                            }
-                            position++
-                        }
-                    }
-                } while (
-                    position < buffer.size &&
-                        (!isSpace(buffer[position]) && !isSeparator(buffer[position], parenIsSep) ||
-                            genericDepth != 0)
-                )
-                if (position >= buffer.size) {
-                    throw ApiParseException("Unexpected end of file for \" starting at $line", this)
-                }
-                current = String(buffer, start, position - start)
-                return current
-            }
-        }
     }
 }
 
@@ -1307,28 +1303,22 @@ private constructor(
  * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
  * class implements/extends respectively before they are resolved.
  */
-interface ResolverContext {
+internal interface ResolverContext {
     /**
-     * Get the names of the interfaces implemented by the supplied class, returns null if there are
-     * no interfaces.
+     * Get the string representations of the super interface types of the supplied class, returns
+     * null if there were no super interface types specified.
      */
-    fun namesOfInterfaces(cl: TextClassItem): List<String>?
+    fun superInterfaceTypeStrings(cl: ClassItem): List<String>?
 
     /**
-     * Get the name of the super class extended by the supplied class, returns null if there is no
-     * super class.
+     * Get the string representation of the super class type extended by the supplied class, returns
+     * null if there was no specified super class type.
      */
-    fun nameOfSuperClass(cl: TextClassItem): String?
-
-    /**
-     * The optional [ClassResolver] that is used to resolve unknown classes within the
-     * [TextCodebase].
-     */
-    val classResolver: ClassResolver?
+    fun superClassTypeString(cl: ClassItem): String?
 }
 
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
-class ReferenceResolver(
+internal class ReferenceResolver(
     private val context: ResolverContext,
     private val codebase: TextCodebase,
 ) {
@@ -1362,61 +1352,48 @@ class ReferenceResolver(
         resolveInnerClasses()
     }
 
-    /**
-     * Gets an existing, or creates a new [ClassItem].
-     *
-     * @param name the name of the class, may include generics.
-     * @param isInterface true if the class must be an interface, i.e. is referenced from an
-     *   `implements` list (or Kotlin equivalent).
-     * @param mustBeFromThisCodebase true if the class must be from the same codebase as this class
-     *   is currently resolving.
-     */
-    private fun getOrCreateClass(
-        name: String,
-        isInterface: Boolean = false,
-        mustBeFromThisCodebase: Boolean = false
-    ): ClassItem {
-        return if (mustBeFromThisCodebase) {
-            codebase.getOrCreateClass(name, isInterface = isInterface, classResolver = null)
-        } else {
-            codebase.getOrCreateClass(
-                name,
-                isInterface = isInterface,
-                classResolver = context.classResolver
-            )
-        }
-    }
-
     private fun resolveSuperclasses() {
         for (cl in classes) {
-            // java.lang.Object has no superclass
-            if (cl.isJavaLangObject()) {
+            // java.lang.Object has no superclass and neither do interfaces
+            if (cl.isJavaLangObject() || cl.isInterface()) {
                 continue
             }
-            var scName: String? = context.nameOfSuperClass(cl)
-            if (scName == null) {
-                scName =
-                    when {
+            val superClassTypeString: String =
+                context.superClassTypeString(cl)
+                    ?: when {
                         cl.isEnum() -> JAVA_LANG_ENUM
                         cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
-                        else -> {
-                            val existing = cl.superClassType()?.toTypeString()
-                            existing ?: JAVA_LANG_OBJECT
-                        }
+                        // Interfaces do not extend java.lang.Object so drop out before the else
+                        // clause.
+                        cl.isInterface() -> return
+                        else -> JAVA_LANG_OBJECT
                     }
-            }
 
-            val superclass = getOrCreateClass(scName)
-            cl.setSuperClass(superclass, codebase.typeResolver.obtainTypeFromString(scName))
+            val superClassType =
+                codebase.typeResolver.obtainTypeFromString(
+                    superClassTypeString,
+                    cl.typeParameterList.typeParameters()
+                ) as TextClassTypeItem
+
+            // Force the creation of the super class if it does not exist in the codebase.
+            val superclass = codebase.getOrCreateClass(superClassType.qualifiedName)
+            cl.setSuperClass(superclass, superClassType)
         }
     }
 
     private fun resolveInterfaces() {
         for (cl in classes) {
-            val interfaces = context.namesOfInterfaces(cl) ?: continue
+            val interfaces = context.superInterfaceTypeStrings(cl) ?: continue
             for (interfaceName in interfaces) {
-                getOrCreateClass(interfaceName, isInterface = true)
-                cl.addInterface(codebase.typeResolver.obtainTypeFromString(interfaceName))
+                val typeItem =
+                    codebase.typeResolver.obtainTypeFromString(
+                        interfaceName,
+                        cl.typeParameterList.typeParameters()
+                    ) as TextClassTypeItem
+                cl.addInterface(typeItem)
+
+                // Force the creation of the interface class if it does not exist in the codebase.
+                codebase.getOrCreateClass(typeItem.qualifiedName, isInterface = true)
             }
         }
     }
@@ -1436,22 +1413,53 @@ class ReferenceResolver(
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
-            val result = ArrayList<ClassItem>()
-            for (exception in names) {
-                var exceptionClass: ClassItem? = codebase.mAllClasses[exception]
-                if (exceptionClass == null) {
-                    // Exception not provided by this codebase. Inject a stub.
-                    exceptionClass = getOrCreateClass(exception)
-                    // Set super class to throwable?
-                    if (exception != JAVA_LANG_THROWABLE) {
-                        val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
-                        exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
-                    }
+            val typeParametersInScope = TextTypeParameterItem.gatherTypeParams(methodItem)
+            val throwsList =
+                names.map { exception ->
+                    // Search in this codebase, then possibly check for a type parameter, if not
+                    // found then fall back to searching in a base codebase and finally creating a
+                    // stub.
+                    codebase.findClass(exception)?.let { ThrowableType.ofClass(it) }
+                        ?: findTypeParameterItem(typeParametersInScope, exception)?.let {
+                            ThrowableType.ofTypeParameter(it)
+                        }
+                            ?: getOrCreateThrowableClass(exception)
                 }
-                result.add(exceptionClass)
-            }
-            methodInfo.setThrowsList(result)
+            methodInfo.setThrowsList(throwsList)
         }
+    }
+
+    private fun findTypeParameterItem(
+        typeParametersInScope: List<TypeParameterItem>,
+        exception: String
+    ): TypeParameterItem? {
+        return if ('.' in exception) {
+            null
+        } else {
+            // The exception name does not have a '.' so it might be a type parameter name.
+            typeParametersInScope.firstOrNull { it.name() == exception }
+        }
+    }
+
+    private fun getOrCreateThrowableClass(exception: String): ThrowableType {
+        // Exception not provided by this codebase. Either try and retrieve it from a base codebase
+        // or create a stub.
+        val exceptionClass = codebase.getOrCreateClass(exception)
+
+        // A class retrieved from another codebase is assumed to have been fully resolved by the
+        // codebase. However, a stub that has just been created will need some additional work. A
+        // stub can be differentiated from a ClassItem retrieved from another codebase because it
+        // belongs to this codebase and is a TextClassItem.
+        if (exceptionClass.codebase == codebase && exceptionClass is TextClassItem) {
+            // An exception class needs to extend Throwable, unless it is Throwable in
+            // which case it does not need modifying.
+            if (exception != JAVA_LANG_THROWABLE) {
+                val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
+                exceptionClass.setSuperClass(throwableClass, throwableClass.type())
+            }
+        }
+
+        return ThrowableType.ofClass(exceptionClass)
     }
 
     private fun resolveInnerClasses() {
@@ -1473,7 +1481,7 @@ class ReferenceResolver(
                     // If the outer class doesn't exist in the text codebase, it should not be
                     // resolved through the classpath--if it did exist there, this inner class
                     // would be overridden by the version from the classpath.
-                    val outerClass = getOrCreateClass(outerClassName, mustBeFromThisCodebase = true)
+                    val outerClass = codebase.getOrCreateClass(outerClassName, isOuterClass = true)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }

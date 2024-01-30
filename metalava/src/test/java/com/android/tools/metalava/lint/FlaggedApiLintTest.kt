@@ -54,6 +54,9 @@ class FlaggedApiLintTest : DriverTest() {
                         /** @hide */
                         @SystemApi
                         public class ExistingSystemApi extends Existing {
+                            /** exactly matches Object.equals, not emitted */
+                            @Override
+                            public boolean equals(Object other) { return false; }
                             /** exactly matches Object.hashCode, not emitted */
                             @Override
                             public int hashCode() { return 0; }
@@ -212,15 +215,9 @@ class FlaggedApiLintTest : DriverTest() {
 
                         @FlaggedApi("foo/bar")
                         public class Ok extends ExistingSuperClass implements ExistingInterface {
-                            @FlaggedApi("foo/bar")
-                            Ok() {}
-                            @FlaggedApi("foo/bar")
                             public static final String OK = "bar";
-                            @FlaggedApi("foo/bar")
                             public void ok() {}
-                            @FlaggedApi("foo/bar")
                             public interface OkInterface {}
-                            @FlaggedApi("foo/bar")
                             public @interface OkAnnotation {}
                         }
                     """
@@ -274,8 +271,8 @@ class FlaggedApiLintTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
-                src/android/foobar/BadHiddenSuperClass.java:7: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
-                src/android/foobar/BadHiddenSuperClass.java:6: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
             """,
             apiLint =
                 """
@@ -329,8 +326,6 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        import android.annotation.FlaggedApi;
-
                         public interface ExistingPublicInterface {
                             public static final String EXISTING_PUBLIC_INTERFACE_FIELD = "foo";
                             public default void existingPublicInterfaceMethod() {}
@@ -340,8 +335,6 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                         package android.foobar;
-
-                        import android.annotation.FlaggedApi;
 
                         class BadHiddenSuperClass {
                             public static final String BAD_INHERITED = "foo";
@@ -353,8 +346,6 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        import android.annotation.FlaggedApi;
-
                         public class ExistingPublicSuperClass {
                             public static final String EXISTING_PUBLIC_SUPER_FIELD = "foo";
                             public void existingPublicSuperMethod() {}
@@ -365,13 +356,11 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        import android.annotation.FlaggedApi;
-
                         import android.annotation.SystemApi;
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("namespace/flag")
+                        @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
                         public class Ok extends ExistingSystemSuperClass implements ExistingSystemInterface {
                             private Ok() {}
                         }
@@ -381,13 +370,11 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        import android.annotation.FlaggedApi;
-
                         import android.annotation.SystemApi;
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("namespace/flag")
+                        @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
                         public class Bad extends BadHiddenSuperClass {
                             private Bad() {}
                         }
@@ -397,12 +384,11 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        import android.annotation.FlaggedApi;
                         import android.annotation.SystemApi;
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("namespace/flag")
+                        @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
                         public class Ok2 extends ExistingPublicSuperClass implements ExistingPublicInterface {
                             private Ok2() {}
                         }
@@ -412,7 +398,6 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        import android.annotation.FlaggedApi;
                         import android.annotation.SystemApi;
 
                         /** @hide */
@@ -427,6 +412,85 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass"),
             checkCompilation = true
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi to reference generated fields`() {
+        check(
+            expectedIssues =
+                """
+                src/android/foobar/Bad.java:6: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_MY_FEATURE). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:10: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_MY_FEATURE). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:17: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (furthermore, the current flag literal seems to be malformed). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:19: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_NONEXISTENT_FLAG, however this flag doesn't seem to exist). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:21: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.baz.Flags.FLAG_NON_EXISTENT_PACKAGE, however this flag doesn't seem to exist). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:8: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_MY_FEATURE). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:14: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_MY_FEATURE). [FlaggedApiLiteral]
+                src/android/foobar/Bad.java:12: warning: @FlaggedApi contains a string literal, but should reference the field generated by aconfig (android.foobar.Flags.FLAG_MY_FEATURE). [FlaggedApiLiteral]
+                """
+                    .trimIndent(),
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        @FlaggedApi("android.foobar.my_feature")
+                        public class Bad {
+                            @FlaggedApi("android.foobar.my_feature")
+                            public static final String BAD = "bar";
+                            @FlaggedApi("android.foobar.my_feature")
+                            public void bad() {}
+                            @FlaggedApi("android.foobar.my_feature")
+                            public interface BadInterface {}
+                            @FlaggedApi("android.foobar.my_feature")
+                            public @interface BadAnnotation {}
+
+                            @FlaggedApi("malformed/flag")
+                            public void malformed() {}
+                            @FlaggedApi("android.foobar.nonexistent_flag")
+                            public void nonexistentFlag() {}
+                            @FlaggedApi("android.baz.non_existent_package")
+                            public void nonexistentPackage() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
+                        public class Ok {
+                            @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
+                            public static final String OK = "bar";
+                            @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
+                            public void ok() {}
+                            @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
+                            public interface OkInterface {}
+                            @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
+                            public @interface OkAnnotation {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        /** @hide */
+                        public class Flags {
+                            public static final String FLAG_MY_FEATURE = "android.foobar.my_feature";
+                        }
+                    """
+                    ),
+                    flaggedApiSource
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "FlaggedApiLiteral")
         )
     }
 }

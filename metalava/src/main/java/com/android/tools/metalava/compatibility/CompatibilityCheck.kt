@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.compatibility
 
+import com.android.tools.metalava.ANDROID_SYSTEM_API
+import com.android.tools.metalava.ANDROID_TEST_API
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -45,7 +47,6 @@ import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField
-import java.io.File
 import java.util.function.Predicate
 
 /**
@@ -56,23 +57,10 @@ import java.util.function.Predicate
  */
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
-    private val oldCodebase: Codebase,
     private val apiType: ApiType,
-    private val base: Codebase? = null,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
 ) : ComparisonVisitor() {
-
-    /**
-     * Request for compatibility checks. [file] represents the signature file to be checked.
-     * [apiType] represents which part of the API should be checked, [releaseType] represents what
-     * kind of codebase we are comparing it against.
-     */
-    data class CheckRequest(val file: File, val apiType: ApiType) {
-        override fun toString(): String {
-            return "--check-compatibility:${apiType.flagName}:released $file"
-        }
-    }
 
     var foundProblems = false
 
@@ -347,14 +335,14 @@ class CompatibilityCheck(
             )
         }
 
-        if (!old.deprecated == new.deprecated) {
+        if (!old.effectivelyDeprecated == new.effectivelyDeprecated) {
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.deprecated} --> ${new.deprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
             )
         }
 
@@ -596,14 +584,14 @@ class CompatibilityCheck(
             }
         }
 
-        if (old.deprecated != new.deprecated) {
+        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.deprecated} --> ${new.deprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
             )
         }
 
@@ -621,21 +609,29 @@ class CompatibilityCheck(
         }
         */
 
-        for (exception in old.throwsTypes()) {
-            if (!new.throws(exception.qualifiedName())) {
+        for (throwType in old.throwsTypes()) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.throwableClass ?: continue
+            if (!new.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${exception.qualifiedName()}"
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
                     )
                 }
             }
         }
 
-        for (exec in new.filteredThrowsTypes(filterReference)) {
-            if (!old.throws(exec.qualifiedName())) {
+        for (throwType in new.filteredThrowsTypes(filterReference)) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.throwableClass ?: continue
+            if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (
                     !(old.name() == "finalize" && old.parameters().isEmpty()) &&
@@ -644,7 +640,7 @@ class CompatibilityCheck(
                         !old.isEnumSyntheticMethod()
                 ) {
                     val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
+                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
             }
@@ -662,7 +658,7 @@ class CompatibilityCheck(
                         "${describe(
                         new,
                         capitalize = true
-                    )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
+                    )} made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message)
                 }
             }
@@ -781,14 +777,14 @@ class CompatibilityCheck(
             )
         }
 
-        if (old.deprecated != new.deprecated) {
+        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.deprecated} --> ${new.deprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
             )
         }
     }
@@ -813,20 +809,11 @@ class CompatibilityCheck(
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
         } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
+            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
                 message += " to the system API"
-            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
+            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
                 message += " to the test API"
             }
-        }
-
-        // In some cases we run the comparison on signature files
-        // generated into the temp directory, but in these cases
-        // try to report the item against the real item in the API instead
-        val equivalent = findBaseItem(item)
-        if (equivalent != null) {
-            report(issue, equivalent, message)
-            return
         }
 
         report(issue, item, message)
@@ -843,24 +830,8 @@ class CompatibilityCheck(
         report(
             issue,
             item,
-            "Removed ${if (item.deprecated) "deprecated " else ""}${describe(item)}"
+            "Removed ${if (item.effectivelyDeprecated) "deprecated " else ""}${describe(item)}"
         )
-    }
-
-    private fun findBaseItem(item: Item): Item? {
-        base ?: return null
-
-        return when (item) {
-            is PackageItem -> base.findPackage(item.qualifiedName())
-            is ClassItem -> base.findClass(item.qualifiedName())
-            is MethodItem ->
-                base
-                    .findClass(item.containingClass().qualifiedName())
-                    ?.findMethod(item, includeSuperClasses = true, includeInterfaces = true)
-            is FieldItem ->
-                base.findClass(item.containingClass().qualifiedName())?.findField(item.name())
-            else -> null
-        }
     }
 
     override fun added(new: PackageItem) {
@@ -963,7 +934,7 @@ class CompatibilityCheck(
         val error =
             when {
                 old.isInterface() -> Issues.REMOVED_INTERFACE
-                old.deprecated -> Issues.REMOVED_DEPRECATED_CLASS
+                old.effectivelyDeprecated -> Issues.REMOVED_DEPRECATED_CLASS
                 else -> Issues.REMOVED_CLASS
             }
 
@@ -985,7 +956,8 @@ class CompatibilityCheck(
             }
         if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
             val error =
-                if (old.deprecated) Issues.REMOVED_DEPRECATED_METHOD else Issues.REMOVED_METHOD
+                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
+                else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
@@ -999,7 +971,8 @@ class CompatibilityCheck(
             )
         if (inherited == null) {
             val error =
-                if (old.deprecated) Issues.REMOVED_DEPRECATED_FIELD else Issues.REMOVED_FIELD
+                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_FIELD
+                else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
     }
@@ -1023,7 +996,7 @@ class CompatibilityCheck(
         @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
-            oldCodebase: Codebase,
+            oldCodebases: MergedCodebase,
             apiType: ApiType,
             baseApi: Codebase?,
             reporter: Reporter,
@@ -1039,28 +1012,29 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    oldCodebase,
                     apiType,
-                    baseApi,
                     reporter,
                     issueConfiguration,
                 )
 
             val oldFullCodebase =
                 if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                    MergedCodebase(listOfNotNull(oldCodebase, baseApi))
+                    baseApi?.let { MergedCodebase(oldCodebases.children + baseApi) } ?: oldCodebases
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
                     // first parameter is master, so we don't change values of oldCodeBase
-                    MergedCodebase(listOfNotNull(oldCodebase, newCodebase))
+                    MergedCodebase(oldCodebases.children + newCodebase)
                 }
             val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
 
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
+                .compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebases.children.last().location}"
 
             if (checker.foundProblems) {
                 throw MetalavaCliException(exitCode = -1, stderr = message)

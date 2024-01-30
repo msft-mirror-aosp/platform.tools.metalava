@@ -15,6 +15,9 @@
  */
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.MetalavaApi
+
+@MetalavaApi
 class ApiParseException(
     message: String,
     private val file: String? = null,
@@ -24,7 +27,7 @@ class ApiParseException(
 
     internal constructor(
         message: String,
-        tokenizer: ApiFile.Tokenizer,
+        tokenizer: Tokenizer,
         cause: Exception? = null,
     ) : this(message, file = tokenizer.fileName, line = tokenizer.line, cause = cause)
 

@@ -16,23 +16,24 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.source.utils.LazyDelegate
 
-abstract class TurbineItem(override val codebase: Codebase, override val modifiers: ModifierList) :
-    DefaultItem() {
+internal abstract class TurbineItem(
+    override val codebase: TurbineBasedCodebase,
+    override val modifiers: DefaultModifierList,
+    override var documentation: String,
+) : DefaultItem(modifiers) {
 
-    override var deprecated: Boolean = false
+    override var docOnly: Boolean = documentation.contains("@doconly")
 
-    override var docOnly: Boolean = false
+    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
-    override var documentation: String = ""
-
-    override var hidden: Boolean = false
-
-    override var originallyHidden: Boolean = false
+    override var originallyHidden: Boolean by LazyDelegate {
+        documentation.contains("@hide") || documentation.contains("@pending") || hasHideAnnotation()
+    }
 
     override var synthetic: Boolean = false
 
@@ -46,9 +47,5 @@ abstract class TurbineItem(override val codebase: Codebase, override val modifie
         TODO("b/295800205")
     }
 
-    override fun isCloned(): Boolean = false
-
-    override fun mutableModifiers(): MutableModifierList {
-        TODO("b/295800205")
-    }
+    override fun mutableModifiers(): MutableModifierList = modifiers
 }

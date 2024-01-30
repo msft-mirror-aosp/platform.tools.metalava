@@ -16,15 +16,61 @@
 
 package com.android.tools.metalava.model
 
-interface TypeParameterItem : ClassItem {
+@MetalavaApi
+interface TypeParameterItem : Item {
+
+    /** The name of the type parameter. */
+    fun name(): String
+
+    /** The [VariableTypeItem] representing the type of this type parameter. */
+    override fun type(): VariableTypeItem
+
     @Deprecated(
         message = "Please use typeBounds() instead.",
         level = DeprecationLevel.ERROR,
         replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
     )
+    @MetalavaApi
     fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
 
     fun typeBounds(): List<TypeItem>
 
     fun isReified(): Boolean
+
+    fun toSource(): String {
+        return buildString {
+            if (isReified()) {
+                append("reified ")
+            }
+            append(name())
+            // If the only bound is Object, omit it because it is implied.
+            if (
+                typeBounds().isNotEmpty() && typeBounds().singleOrNull()?.isJavaLangObject() != true
+            ) {
+                append(" extends ")
+                var first = true
+                for (bound in typeBounds()) {
+                    if (!first) {
+                        append(" ")
+                        append("&")
+                        append(" ")
+                    }
+                    first = false
+                    append(bound.toTypeString(spaceBetweenParameters = true))
+                }
+            }
+        }
+    }
+
+    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
+    override fun parent() = error("Not needed for TypeParameterItem")
+
+    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
+
+    override fun containingPackage() = error("Not needed for TypeParameterItem")
+
+    override fun containingClass() = error("Not needed for TypeParameterItem")
+
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        error("Not needed for TypeParameterItem")
 }

@@ -24,13 +24,16 @@ import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.source.SourceCodebase
+import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 
-open class TurbineBasedCodebase(
+internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
@@ -45,11 +48,16 @@ open class TurbineBasedCodebase(
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
 
+    /** Map from type parameter symbol to the corresponding type parameter item */
+    private lateinit var typeParameterMap: MutableMap<TyVarSymbol, TypeParameterItem>
+
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
     private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
+
+    private lateinit var initializer: TurbineCodebaseInitialiser
 
     override fun createAnnotation(
         source: String,
@@ -60,6 +68,14 @@ open class TurbineBasedCodebase(
 
     override fun findClass(className: String): TurbineClassItem? {
         return classMap[className]
+    }
+
+    fun findOrCreateClass(className: String): TurbineClassItem? {
+        return initializer.findOrCreateClass(className)
+    }
+
+    fun findTypeParameter(sym: TyVarSymbol): TypeParameterItem {
+        return typeParameterMap[sym]!!
     }
 
     override fun findPackage(pkgName: String): PackageItem? {
@@ -77,7 +93,7 @@ open class TurbineBasedCodebase(
         return packageMap.size
     }
 
-    override fun supportsDocumentation(): Boolean = false
+    override fun supportsDocumentation(): Boolean = true
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
@@ -90,9 +106,26 @@ open class TurbineBasedCodebase(
         classMap.put(classItem.qualifiedName(), classItem)
     }
 
-    fun initialize() {
+    fun addPackage(packageItem: TurbinePackageItem) {
+        packageMap.put(packageItem.qualifiedName(), packageItem)
+    }
+
+    fun addTypeParameter(sym: TyVarSymbol, item: TypeParameterItem) {
+        typeParameterMap.put(sym, item)
+    }
+
+    fun initialize(units: List<CompUnit>, classpath: List<File>) {
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         classMap = HashMap(CLASS_ESTIMATE)
         packageMap = HashMap(PACKAGE_ESTIMATE)
+        typeParameterMap = HashMap(CLASS_ESTIMATE)
+        initializer = TurbineCodebaseInitialiser(units, this, classpath)
+        initializer.initialize()
+    }
+
+    internal fun getHeaderComments(source: String): String {
+        val packageIndex = source.indexOf("package")
+        // Return everything before "package" keyword
+        return if (packageIndex == -1) "" else source.substring(0, packageIndex)
     }
 }

@@ -22,6 +22,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java
@@ -345,7 +346,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -656,6 +657,20 @@ class ApiFileTest : DriverTest() {
                     ),
                     java(
                         """
+                    package androidx.collection;
+
+                    import java.util.Collection;
+                    import java.util.HashSet;
+                    import java.util.Set;
+
+                    public class ArraySet<E> extends HashSet<E> implements Set<E> {
+                        public ArraySet() {
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
                     package androidx.core.app;
 
                     import java.util.ArrayList;
@@ -698,6 +713,26 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
+                    kotlin(
+                        "src/main/java/androidx/collection/ArraySet.kt",
+                        """
+                    package androidx.collection
+
+                    inline fun <T> arraySetOf(): ArraySet<T> = ArraySet()
+
+                    fun <T> arraySetOf(vararg values: T): ArraySet<T> {
+                        val set = ArraySet<T>(values.size)
+                        for (value in values) {
+                            set.add(value)
+                        }
+                        return set
+                    }
+
+                    fun <T> arraySetOfNullable(vararg values: T?): ArraySet<T>? {
+                        return null
+                    }
+                    """
+                    ),
                     androidxNonNullSource,
                     androidxNullableSource
                 ),
@@ -713,11 +748,19 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
+                    ctor public ArraySet();
+                  }
+                  public final class ArraySetKt {
+                    method public static inline <T> androidx.collection.ArraySet<T> arraySetOf();
+                    method public static <T> androidx.collection.ArraySet<T> arraySetOf(T... values);
+                    method public static <T> androidx.collection.ArraySet<T>? arraySetOfNullable(T?... values);
+                  }
                 }
                 package androidx.core.app {
                   public class ActivityOptionsCompat {
-                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...);
-                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...);
+                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...!);
+                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...!);
                   }
                 }
                 """,
@@ -851,6 +894,10 @@ class ApiFileTest : DriverTest() {
                         class CircularArray<E> {
                             val first: E
                                 get() = TODO()
+
+                            var last: E
+                                get() = TODO()
+                                set(value) = TODO()
                         }
                     """
                     )
@@ -861,7 +908,10 @@ class ApiFileTest : DriverTest() {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
                     method public E getFirst();
+                    method public E getLast();
+                    method public void setLast(E);
                     property public final E first;
+                    property public final E last;
                   }
                 }
             """
@@ -1692,6 +1742,7 @@ class ApiFileTest : DriverTest() {
                 """
                 src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1980,6 +2031,7 @@ class ApiFileTest : DriverTest() {
                 src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             api =
                 """
                     package test.pkg {
@@ -2038,6 +2090,50 @@ class ApiFileTest : DriverTest() {
                   public abstract class Foo {
                     ctor public Foo();
                     method public String findViewById(int);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Remove findViewById type nullness annotation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    import libcore.util.Nullable;
+
+                    @SuppressWarnings("ALL")
+                    public abstract class Foo {
+                        public @Nullable String findViewById(int id) { return ""; }
+                        public @Nullable String notFindViewById(int id) { return ""; }
+                    }
+                    """
+                    ),
+                    libcoreNullableSource
+                ),
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
+                """,
+            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
+            skipEmitPackages = listOf("libcore.util"),
+            format =
+                FileFormat.V5.copy(
+                    kotlinNameTypeOrder = true,
+                    includeTypeUseAnnotations = true,
+                    kotlinStyleNulls = false
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract class Foo {
+                    ctor public Foo();
+                    method public findViewById(_: int): String;
+                    method @Nullable public notFindViewById(_: int): @Nullable String;
                   }
                 }
                 """
@@ -3151,6 +3247,122 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test whether partial or total ordering`() {
+        check(
+            format = FileFormat.V2,
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends other.Bar mine.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends mine.Bar other.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
@@ -3199,6 +3411,74 @@ class ApiFileTest : DriverTest() {
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
+                    method public void close();
+                  }
+                }
+                package android.util {
+                  public interface AttributeSet {
+                  }
+                }
+                package my {
+                  public interface AutoCloseable {
+                  }
+                }
+                package org.xmlpull.v1 {
+                  public interface XmlPullParser {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
+        // Real-world example: XmlResourceParser
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.content.res;
+                    import android.util.AttributeSet;
+                    import org.xmlpull.v1.XmlPullParser;
+                    import my.AutoCloseable;
+
+                    @SuppressWarnings("UnnecessaryInterfaceModifier")
+                    public interface XmlResourceParser extends XmlPullParser, AttributeSet, AutoCloseable {
+                        public void close();
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.util;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface AttributeSet {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package my;
+                    public interface AutoCloseable {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package org.xmlpull.v1;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface XmlPullParser {
+                    }
+                    """
+                    )
+                ),
+            api =
+                """
+                package android.content.res {
+                  public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
                     method public void close();
                   }
                 }
@@ -3574,6 +3854,7 @@ class ApiFileTest : DriverTest() {
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3856,59 +4137,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files`() {
-        val source1 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-            package Test.pkg1 {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
-              public final class Class2 {
-                method public void method1(String);
-              }
-            }
-            package Test.pkg2 {
-              public final class Class1 {
-                method public void method1(String, String);
-              }
-            }
-                    """
-        val expected =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-              public final class Class2 {
-                method public void method1(String);
-              }
-            }
-            package Test.pkg1 {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-            package Test.pkg2 {
-              public final class Class1 {
-                method public void method1(String, String);
-              }
-            }
-                    """
-        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
-    }
-
     val MERGE_TEST_SOURCE_1 =
         """
             package test.pkg {
@@ -3934,144 +4162,6 @@ class ApiFileTest : DriverTest() {
               }
             }
             """
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files, one refer to another`() {
-        check(
-            signatureSources = arrayOf(MERGE_TEST_SOURCE_1, MERGE_TEST_SOURCE_2),
-            api = MERGE_TEST_EXPECTED
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files, one refer to another, in reverse order`() {
-        // Exactly the same as the previous test, but read them in the reverse order
-        check(
-            signatureSources = arrayOf(MERGE_TEST_SOURCE_2, MERGE_TEST_SOURCE_1),
-            api = MERGE_TEST_EXPECTED
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files with reverse dependency`() {
-        val source1 =
-            """
-            package test.pkg {
-              public final class Class1 {
-                method public void method1(test.pkg.Class2 arg);
-              }
-            }
-                    """
-        val source2 =
-            """
-            package test.pkg {
-              public final class Class2 {
-              }
-            }
-                    """
-        val expected =
-            """
-            package test.pkg {
-              public final class Class1 {
-                method public void method1(test.pkg.Class2 arg);
-              }
-              public final class Class2 {
-              }
-            }
-                    """
-        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging 3 API signature files`() {
-        val source1 =
-            """
-            package test.pkg1 {
-              public final class BaseClass1 {
-                method public void method1();
-              }
-
-              public final class AnotherSubClass extends test.pkg2.AnotherBase {
-                method public void method1();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package test.pkg2 {
-              public final class SubClass1 extends test.pkg1.BaseClass1 {
-              }
-            }
-                    """
-        val source3 =
-            """
-            package test.pkg2 {
-              public final class SubClass2 extends test.pkg2.SubClass1 {
-                method public void bar();
-              }
-
-              public final class AnotherBase {
-                method public void baz();
-              }
-            }
-                    """
-        val expected =
-            """
-            package test.pkg1 {
-              public final class AnotherSubClass extends test.pkg2.AnotherBase {
-                method public void method1();
-              }
-              public final class BaseClass1 {
-                method public void method1();
-              }
-            }
-            package test.pkg2 {
-              public final class AnotherBase {
-                method public void baz();
-              }
-              public final class SubClass1 extends test.pkg1.BaseClass1 {
-              }
-              public final class SubClass2 extends test.pkg2.SubClass1 {
-                method public void bar();
-              }
-            }
-                    """
-        check(signatureSources = arrayOf(source1, source2, source3), api = expected)
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test can merge API signature files with duplicate class`() {
-        val source1 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        val expected =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        check(signatureSources = arrayOf(source1, source2), api = expected)
-    }
 
     @Test
     fun `Test can merge API signature files with duplicate classes with constructors`() {
@@ -4106,7 +4196,7 @@ class ApiFileTest : DriverTest() {
             """
             package Test.pkg {
               public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4168,52 +4258,6 @@ class ApiFileTest : DriverTest() {
                 FileFormat.V2.copy(
                     specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
                 ),
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test cannot merge API signature files with incompatible class definitions`() {
-        val source1 =
-            """
-            package Test.pkg {
-              public class Class1 {
-                method public void method2();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        check(
-            signatureSources = arrayOf(source1, source2),
-            expectedFail =
-                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:3: Incompatible class Test.pkg.Class1 definitions"
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test can merge API signature files with different file formats`() {
-        val source1 =
-            """
-            // Signature format: 2.0
-            package Test.pkg {
-            }
-                    """
-        val source2 =
-            """
-            // Signature format: 3.0
-            package Test.pkg {
-            }
-                    """
-        check(
-            signatureSources = arrayOf(source1, source2),
         )
     }
 
@@ -4781,7 +4825,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V?> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved);
                   }
                 }
                 """,
@@ -4986,8 +5030,11 @@ class ApiFileTest : DriverTest() {
                         )
 
                         class SomeOptionalJvmOverloads @JvmOverloads constructor(
-                            private val foo: Int,
-                            private val bar: Int = 0
+                            private val p1: Int,
+                            private val p2: Int = 0,
+                            private val p3: Int,
+                            private val p4: Int = 0,
+                            private val p5: Int
                         )
 
                         class SomeOptionalNoJvmOverloads(
@@ -5010,14 +5057,94 @@ class ApiFileTest : DriverTest() {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo);
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
+                    ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
+                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Kotlin expect-actual with JvmOverloads`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "src/commonMain/test/pkg/Expect.kt",
+                        """
+                        package test.pkg
+
+                        expect class AllOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        expect class SomeOptionalJvmOverloads @JvmOverloads constructor(
+                            private val p1: Int,
+                            private val p2: Int = 0,
+                            private val p3: Int,
+                            private val p4: Int = 0,
+                            private val p5: Int
+                        )
+
+                        expect class AllOptionalJvmOverloadsBothSides @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+                    """
+                    ),
+                    kotlin(
+                        "src/jvmMain/test/pkg/Actual.kt",
+                        """
+                        package test.pkg
+
+                        actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
+                            private val foo: Int,
+                            private val bar: Int
+                        )
+
+                        actual class SomeOptionalJvmOverloads @JvmOverloads actual constructor(
+                            private val p1: Int,
+                            private val p2: Int,
+                            private val p3: Int,
+                            private val p4: Int,
+                            private val p5: Int
+                        )
+
+                        actual class AllOptionalJvmOverloadsBothSides @JvmOverloads actual constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+                    """
+                    )
+                ),
+            api =
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class AllOptionalJvmOverloads {
+                        ctor public AllOptionalJvmOverloads();
+                        ctor public AllOptionalJvmOverloads(optional int foo);
+                        ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
+                      }
+                      public final class AllOptionalJvmOverloadsBothSides {
+                        ctor public AllOptionalJvmOverloadsBothSides();
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo);
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo, optional int bar);
+                      }
+                      public final class SomeOptionalJvmOverloads {
+                        ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
+                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
+                      }
+                    }
+                """
         )
     }
 
@@ -5545,6 +5672,50 @@ class ApiFileTest : DriverTest() {
                         private fun shouldBePrivate() {}
                     """
                     ),
+                    kotlin(
+                        "test/pkg/Path1.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path1(): Path1
+
+                        interface Path1 {
+                          infix fun xor(path: Path1): Path1
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/Path2.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path2(): Path2
+
+                        fun Path2.copy(): Path2 = TODO()
+
+                        interface Path2 {
+                          infix fun xor(path: Path2): Path2
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/LazyLayoutItemProvider.kt",
+                        """
+                        package test.pkg
+
+                        interface LazyLayoutItemProvider {
+                          val itemCount: Int
+                          fun getIndex(): Int = -1
+                        }
+
+                        internal fun LazyLayoutItemProvider.findIndexByKey(
+                          key: Any?,
+                          lastKnownIndex: Int,
+                        ): Int = TODO()
+
+                        expect fun getDefaultLazyLayoutKey(index: Int): Any
+                        """
+                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5565,6 +5736,20 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
+                  }
+                  public interface LazyLayoutItemProvider {
+                    method public default int getIndex();
+                    method public int getItemCount();
+                    property public abstract int itemCount;
+                  }
+                  public interface Path1 {
+                    method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
+                  }
+                  public interface Path2 {
+                    method public infix test.pkg.Path2 xor(test.pkg.Path2 path);
+                  }
+                  public final class Path2Kt {
+                    method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
                     method @kotlin.PublishedApi internal static void internalYetPublished();
@@ -5920,93 +6105,151 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `FlaggedApi annotated items can be hidden if requested via command line`() {
-        fun checkFlaggedApi(api: String, extraArguments: Array<String>) {
-            check(
-                format = FileFormat.V2,
-                sourceFiles =
-                    arrayOf(
-                        java(
-                            """
-                        package test.pkg;
-
-                        import android.annotation.FlaggedApi;
-                        import android.annotation.SystemApi;
-
-                        public class Foo {
-                            @FlaggedApi("foo/bar")
-                            public void flaggedPublicApi() {}
-
-                            /** @hide */
-                            @SystemApi
-                            @FlaggedApi("foo/bar")
-                            public void flaggedSystemApi() {}
-                        }
-                    """
-                        ),
-                        systemApiSource,
-                        flaggedApiSource
-                    ),
-                api = api,
-                extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation") + extraArguments
-            )
-        }
-
-        // public api scope, including flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
-                  }
-                }
-            """,
-            extraArguments = arrayOf()
-        )
-
-        // public api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                  }
-                }
-            """,
-            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "android.annotation.FlaggedApi")
-        )
-
-        // system api scope, including flagged APIs
-        checkFlaggedApi(
-            api =
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Foo {
-                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
-                  }
-                }
-            """,
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "android.annotation.SystemApi")
-        )
-
-        // system api scope, excluding flagged APIs
-        checkFlaggedApi(
-            api = """
-                // Signature format: 2.0
-            """,
-            extraArguments =
+    fun `Type-use annotations can be included in signature files`() {
+        check(
+            sourceFiles =
                 arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_ANNOTATION,
-                    "android.annotation.FlaggedApi"
-                )
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                            public @interface TypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                            public @interface MethodAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE})
+                            public @interface MethodAndTypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                @MethodAnnotation
+                                @MethodAndTypeAnnotation
+                                public @TypeAnnotation List<@TypeAnnotation String> foo() {}
+                            }
+                        """
+                    )
+                ),
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.pkg.MethodAndTypeAnnotation @test.pkg.MethodAnnotation public foo(): java.util.@test.pkg.MethodAndTypeAnnotation @test.pkg.TypeAnnotation List<java.lang.@test.pkg.TypeAnnotation String!>!;
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE}) public @interface MethodAndTypeAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD) public @interface MethodAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Test signature including parameterized converted type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface VisibleInterface<V> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.RestrictTo;
+                            @RestrictTo(RestrictTo.Scope.LIBRARY)
+                            public interface HiddenInterface<H> extends VisibleInterface<H> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo<F> implements HiddenInterface<List<F>> {}
+                        """
+                    ),
+                    restrictToSource
+                ),
+            // When `HiddenInterface` is hidden, the implements clause for `Foo` is converted to
+            // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
+            // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
+            // `List` for legacy reasons.
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
+                        ctor public Foo();
+                      }
+                      public interface VisibleInterface<V> {
+                      }
+                    }
+                """,
+            skipEmitPackages = listOf("androidx.annotation"),
+            hideAnnotations = arrayOf("androidx.annotation.RestrictTo"),
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
+        )
+    }
+
+    @Test
+    fun `sealed class with internal setter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            sealed class TransitionState<S> {
+                              abstract var currentState: S
+                                internal set
+                            }
+
+                            class SeekableTransitionState<S>(
+                                initialState: S
+                            ) : TransitionState<S>() {
+                              override var currentState: S = initialState
+                                internal set
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
+                    ctor public SeekableTransitionState(S initialState);
+                    method public S getCurrentState();
+                    property public S currentState;
+                  }
+                  public abstract sealed class TransitionState<S> {
+                    method public abstract S getCurrentState();
+                    property public abstract S currentState;
+                  }
+                }
+                """
         )
     }
 }

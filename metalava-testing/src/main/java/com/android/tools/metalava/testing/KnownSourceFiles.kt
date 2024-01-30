@@ -100,4 +100,52 @@ object KnownSourceFiles {
     """
             )
             .indented()
+
+    /**
+     * The version of the Jetbrains nullness annotations used by metalava is not type-use, but the
+     * latest version is.
+     */
+    val jetbrainsNullableTypeUseSource: TestFile =
+        TestFiles.java(
+                """
+    package org.jetbrains.annotations;
+    @java.lang.annotation.Target({ java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.TYPE_USE })
+    public @interface Nullable {}
+            """
+            )
+            .indented()
+
+    /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
+    val intRangeTypeUseSource =
+        java(
+                """
+        package androidx.annotation;
+        import java.lang.annotation.*;
+        import static java.lang.annotation.ElementType.*;
+        import static java.lang.annotation.RetentionPolicy.SOURCE;
+        @Retention(SOURCE)
+        @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE,TYPE_USE})
+        public @interface IntRange {
+            long from() default Long.MIN_VALUE;
+            long to() default Long.MAX_VALUE;
+        }
+        """
+            )
+            .indented()
+
+    val supportParameterName =
+        java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface ParameterName {
+                    String value();
+                }
+            """
+        )
 }

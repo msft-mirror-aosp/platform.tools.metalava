@@ -392,7 +392,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static void foo(String![] vs, optional boolean b);
+                    method public static void foo(String[] vs, optional boolean b);
                   }
                 }
             """
@@ -465,9 +465,8 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        // TODO(b/287343397): restore Enum.entries output
-        // val e = if (isK2) "test.pkg.Event" else "E!"
-        // val s = if (isK2) "test.pkg.State" else "E!"
+        val e = "test.pkg.Event"
+        val s = "test.pkg.State"
         uastCheck(
             isK2,
             sourceFiles =
@@ -504,6 +503,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum Event {
+                    method public static kotlin.enums.EnumEntries<$e> getEntries();
                     method public static final test.pkg.Event? upTo(test.pkg.State state);
                     method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Event[] values();
@@ -517,6 +517,7 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Event? upTo(test.pkg.State state);
                   }
                   public enum State {
+                    method public static kotlin.enums.EnumEntries<$s> getEntries();
                     method public final boolean isAtLeast(test.pkg.State state);
                     method public final boolean isFinished();
                     method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
@@ -570,9 +571,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        // TODO(b/287343397): restore Enum.entries output
-        // val c = if (isK2) "test.pkg.PowerCategory" else "E!"
-        // val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
+        val c = "test.pkg.PowerCategory"
+        val d = "test.pkg.PowerCategoryDisplayLevel"
         uastCheck(
             isK2,
             sourceFiles =
@@ -628,12 +628,14 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum PowerCategory {
+                    method public static kotlin.enums.EnumEntries<$c> getEntries();
                     method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.PowerCategory[] values();
                     enum_constant public static final test.pkg.PowerCategory CPU;
                     enum_constant public static final test.pkg.PowerCategory MEMORY;
                   }
                   public enum PowerCategoryDisplayLevel {
+                    method public static kotlin.enums.EnumEntries<$d> getEntries();
                     method public static test.pkg.PowerCategoryDisplayLevel valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.PowerCategoryDisplayLevel[] values();
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel BREAKDOWN;
@@ -671,8 +673,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `Upper bound wildcards -- type alias`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61460
-        val upperBound = if (isK2) "? extends " else ""
+        // https://youtrack.jetbrains.com/issue/KT-61460
         uastCheck(
             isK2,
             sourceFiles =
@@ -695,7 +696,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class PerfettoSdkHandshake {
-                    ctor public PerfettoSdkHandshake(String targetPackage, kotlin.jvm.functions.Function1<? super java.lang.String,? extends java.util.Map<java.lang.String,java.lang.String>> parseJsonMap, kotlin.jvm.functions.Function1<? super java.lang.String,${upperBound}java.lang.String> executeShellCommand);
+                    ctor public PerfettoSdkHandshake(String targetPackage, kotlin.jvm.functions.Function1<? super java.lang.String,? extends java.util.Map<java.lang.String,java.lang.String>> parseJsonMap, kotlin.jvm.functions.Function1<? super java.lang.String,java.lang.String> executeShellCommand);
                   }
                 }
                 """
@@ -741,7 +742,7 @@ abstract class UastTestBase : DriverTest() {
                   public interface NavGraphBuilder {
                   }
                   public final class NavGraphBuilderKt {
-                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition>? enterTransition);
+                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
                   }
                 }
                 """
@@ -749,8 +750,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `boxed type argument as method return type`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57579 nullity missed...
-        val n = if (isK2) "!" else ""
+        // https://youtrack.jetbrains.com/issue/KT-57579
         uastCheck(
             isK2,
             sourceFiles =
@@ -783,7 +783,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class StartActivityForResult extends test.pkg.ActivityResultContract<test.pkg.Intent,java.lang.Boolean> {
                     ctor public StartActivityForResult();
-                    method public Boolean$n parseResult(int resultCode, test.pkg.Intent? intent);
+                    method public Boolean parseResult(int resultCode, test.pkg.Intent? intent);
                   }
                 }
             """
@@ -791,8 +791,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `setter returns this with type cast`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61459
-        val extends = if (isK2) "" else " extends test.pkg.AbstractAlarm.Builder<Self, Built>"
+        // https://youtrack.jetbrains.com/issue/KT-61459
         uastCheck(
             isK2,
             sourceFiles =
@@ -833,7 +832,7 @@ abstract class UastTestBase : DriverTest() {
                     method public final String getIdentifier();
                     property public final String identifier;
                   }
-                  public abstract static class AbstractAlarm.Builder<Self$extends, Built extends test.pkg.AbstractAlarm<Built, Self>> implements test.pkg.Alarm.Builder<Self> {
+                  public abstract static class AbstractAlarm.Builder<Self extends test.pkg.AbstractAlarm.Builder<Self, Built>, Built extends test.pkg.AbstractAlarm<Built, Self>> implements test.pkg.Alarm.Builder<Self> {
                     ctor public AbstractAlarm.Builder();
                     method public final Built build();
                     method public final Self setIdentifier(String text);
@@ -850,14 +849,6 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `suspend fun in interface`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-61544
-        // TODO(b/297113621)
-        val n = if (isK2) "" else "?"
-        val contByte =
-            if (isK2) ""
-            else ", kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>"
-        val contUnit =
-            if (isK2) ""
-            else ", kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>"
         uastCheck(
             isK2,
             sourceFiles =
@@ -881,8 +872,8 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public interface GattClientScope {
                     method public suspend Object? await(kotlin.jvm.functions.Function0<kotlin.Unit> block, kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method public suspend Object$n readCharacteristic(test.pkg.MyInterface p$contByte);
-                    method public suspend Object$n writeCharacteristic(test.pkg.MyInterface p, byte[] value$contUnit);
+                    method public suspend Object? readCharacteristic(test.pkg.MyInterface p, kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>);
+                    method public suspend Object? writeCharacteristic(test.pkg.MyInterface p, byte[] value, kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>);
                   }
                   public interface MyInterface {
                   }
@@ -892,8 +883,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `nullable return type via type alias`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61460
-        val extends = if (isK2) "? extends " else ""
+        // https://youtrack.jetbrains.com/issue/KT-61460
         uastCheck(
             isK2,
             sourceFiles =
@@ -914,8 +904,8 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class PrepareGetCredentialResponse {
-                    method public kotlin.jvm.functions.Function0<${extends}java.lang.Boolean>? getHasAuthResultsDelegate();
-                    property public final kotlin.jvm.functions.Function0<${extends}java.lang.Boolean>? hasAuthResultsDelegate;
+                    method public kotlin.jvm.functions.Function0<java.lang.Boolean>? getHasAuthResultsDelegate();
+                    property public final kotlin.jvm.functions.Function0<java.lang.Boolean>? hasAuthResultsDelegate;
                   }
                 }
             """
@@ -923,8 +913,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `IntDef with constant in companion object`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61497
-        val fq = if (isK2) "" else "test.pkg.RemoteAuthClient."
+        // https://youtrack.jetbrains.com/issue/KT-61497
         uastCheck(
             isK2,
             sourceFiles =
@@ -973,10 +962,186 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public static final class RemoteAuthClient.Companion {
                   }
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({${fq}NO_ERROR, ${fq}ERROR_UNSUPPORTED, ${fq}ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({test.pkg.RemoteAuthClient.NO_ERROR, test.pkg.RemoteAuthClient.ERROR_UNSUPPORTED, test.pkg.RemoteAuthClient.ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
                   }
                 }
                 """
+        )
+    }
+
+    protected fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
+        isK2: Boolean,
+        api: String,
+    ) {
+        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-27244
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class Test_noAccessor {
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_noAccessor_deprecatedOnProperty: String = "42"
+
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_noAccessor_deprecatedOnGetter: String = "42"
+
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_noAccessor_deprecatedOnSetter: String = "42"
+
+                            var pNew_noAccessor: String = "42"
+                        }
+
+                        class Test_getter {
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_getter_deprecatedOnProperty: String? = null
+                                get() = field ?: "null?"
+
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_getter_deprecatedOnGetter: String? = null
+                                get() = field ?: "null?"
+
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_getter_deprecatedOnSetter: String? = null
+                                get() = field ?: "null?"
+
+                            var pNew_getter: String? = null
+                                get() = field ?: "null?"
+                        }
+
+                        class Test_setter {
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_setter_deprecatedOnProperty: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_setter_deprecatedOnGetter: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_setter_deprecatedOnSetter: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            var pNew_setter: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+                        }
+
+                        class Test_accessors {
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_accessors_deprecatedOnProperty: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_accessors_deprecatedOnGetter: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_accessors_deprecatedOnSetter: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            var pNew_accessors: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+                        }
+
+                        @Target(
+                          AnnotationTarget.PROPERTY,
+                          AnnotationTarget.PROPERTY_GETTER,
+                          AnnotationTarget.PROPERTY_SETTER
+                        )
+                        annotation class MyAnnotation
+
+                        interface TestInterface {
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty: Int
+
+                            @get:MyAnnotation
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty_myAnnoOnGetter: Int
+
+                            @set:MyAnnotation
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty_myAnnoOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:MyAnnotation
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnProperty_myAnnoOnBoth: Int
+
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter: Int
+
+                            @get:MyAnnotation
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter_myAnnoOnGetter: Int
+
+                            @set:MyAnnotation
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter_myAnnoOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:MyAnnotation
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnGetter_myAnnoOnBoth: Int
+
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter_myAnnoOnGetter: Int
+
+                            @set:MyAnnotation
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter_myAnnoOnSetter: Int
+
+                            @get:MyAnnotation
+                            @set:MyAnnotation
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
+                            var pOld_deprecatedOnSetter_myAnnoOnBoth: Int
+                        }
+                        """
+                    )
+                ),
+            api = api,
         )
     }
 }

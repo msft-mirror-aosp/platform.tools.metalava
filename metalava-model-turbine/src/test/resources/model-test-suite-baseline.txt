@@ -1,38 +1,31 @@
-com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  040 - check package exists[turbine,java]
-  050 - check field exists[turbine,java]
-  060 - check method exists[turbine,java]
-  070 - check constructor exists[turbine,java]
-  090 - check class hierarchy[turbine,java]
-
-com.android.tools.metalava.model.testsuite.CommonClassItemTest
-  empty class[turbine,java]
-
-com.android.tools.metalava.model.testsuite.CommonMethodItemTest
-  MethodItem type[turbine,java]
-
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with annotation values[turbine,java]
-  annotation with boolean values[turbine,java]
-  annotation with char values[turbine,java]
-  annotation with class values[turbine,java]
-  annotation with number values[turbine,java]
-  annotation with string values[turbine,java]
+  annotation toSource() with compound expression values[turbine,java]
+  annotation toSource() with constant literal values[turbine,java]
+
+com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
+  test findClass()[turbine,java,java.lang.Object]
+  test findClass()[turbine,java,java.lang.Throwable]
+
+com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
+  test default value of an enum constant field[turbine,java]
+  test non final field with default value as constant expression[turbine,java]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
+  Test throws method type parameter does not extend Throwable[turbine,java]
+  Test throws method type parameter extends Throwable[turbine,java]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test publicName reports correct name when called on binary class - Object#equals[turbine,java]
+  Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine,java]
+
+com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
+  Test @hide in package html[turbine,java]
+  Test nullability annotation in package info[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test class array types[turbine,java]
-  Test class types[turbine,java]
-  Test inner parameterized types[turbine,java]
-  Test inner types[turbine,java]
+  Test inner types from classpath[turbine,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test interface types[turbine,java]
-  Test multidimensional primitive array types[turbine,java]
-  Test primitive array types[turbine,java]
-  Test primitive types[turbine,java]
-  Test primitive vararg types[turbine,java]
-  Test super class type[turbine,java]
+  Test leading annotation on array type[turbine,java]
   Test super class and interface types of interface[turbine,java]
-  Test variable types[turbine,java]
-  Test wildcard types[turbine,java]
-  Test field type variable types[turbine,java]
-  Test method parameter type variable types[turbine,java]
-  Test method return type variable types[turbine,java]
