@@ -448,24 +448,26 @@ private constructor(
                     }
                 }
             }
+
+        val classTypeParameterScope = TypeParameterScope.from(cl)
         while (true) {
             if ("}" == token) {
                 break
             } else if ("ctor" == token) {
                 token = tokenizer.requireToken()
-                parseConstructor(api, tokenizer, cl, token)
+                parseConstructor(api, tokenizer, cl, classTypeParameterScope, token)
             } else if ("method" == token) {
                 token = tokenizer.requireToken()
-                parseMethod(api, tokenizer, cl, token)
+                parseMethod(api, tokenizer, cl, classTypeParameterScope, token)
             } else if ("field" == token) {
                 token = tokenizer.requireToken()
-                parseField(api, tokenizer, cl, token, false)
+                parseField(api, tokenizer, cl, classTypeParameterScope, token, false)
             } else if ("enum_constant" == token) {
                 token = tokenizer.requireToken()
-                parseField(api, tokenizer, cl, token, true)
+                parseField(api, tokenizer, cl, classTypeParameterScope, token, true)
             } else if ("property" == token) {
                 token = tokenizer.requireToken()
-                parseProperty(api, tokenizer, cl, token)
+                parseProperty(api, tokenizer, cl, classTypeParameterScope, token)
             } else {
                 throw ApiParseException("expected ctor, enum_constant, field or method", tokenizer)
             }
@@ -608,6 +610,7 @@ private constructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
+        classTypeParameterScope: TypeParameterScope,
         startingToken: String
     ) {
         var token = startingToken
@@ -630,10 +633,7 @@ private constructor(
             ) // For inner classes, strip outer classes from name
         // Collect all type parameters in scope into one list
         val typeParameterScope =
-            TypeParameterScope.from(
-                localTypeParameters = typeParameterList.typeParameters(),
-                owner = cl
-            )
+            classTypeParameterScope.nestedScope(typeParameterList.typeParameters())
         val parameters = parseParameterList(api, tokenizer, typeParameterScope)
         // Constructors cannot return null.
         val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
@@ -659,6 +659,7 @@ private constructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
+        classTypeParameterScope: TypeParameterScope,
         startingToken: String
     ) {
         var token = startingToken
@@ -677,10 +678,7 @@ private constructor(
         tokenizer.assertIdent(token)
         // Collect all type parameters in scope into one list
         val typeParameterScope =
-            TypeParameterScope.from(
-                localTypeParameters = typeParameterList.typeParameters(),
-                owner = cl
-            )
+            classTypeParameterScope.nestedScope(typeParameterList.typeParameters())
 
         val returnType: TextTypeItem
         val parameters: List<TextParameterItem>
@@ -750,6 +748,7 @@ private constructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
+        classTypeParameterScope: TypeParameterScope,
         startingToken: String,
         isEnum: Boolean
     ) {
@@ -767,15 +766,13 @@ private constructor(
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type =
-                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
+            type = parseType(api, tokenizer, token, classTypeParameterScope, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
-            type =
-                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
+            type = parseType(api, tokenizer, token, classTypeParameterScope, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -979,6 +976,7 @@ private constructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
         cl: TextClassItem,
+        classTypeParameterScope: TypeParameterScope,
         startingToken: String
     ) {
         var token = startingToken
@@ -997,15 +995,13 @@ private constructor(
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type =
-                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
+            type = parseType(api, tokenizer, token, classTypeParameterScope, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
-            type =
-                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
+            type = parseType(api, tokenizer, token, classTypeParameterScope, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -1413,7 +1409,7 @@ internal class ReferenceResolver(
             val superClassType =
                 codebase.typeResolver.obtainTypeFromString(
                     superClassTypeString,
-                    TypeParameterScope.from(owner = cl)
+                    TypeParameterScope.from(cl)
                 ) as TextClassTypeItem
 
             // Force the creation of the super class if it does not exist in the codebase.
@@ -1424,13 +1420,13 @@ internal class ReferenceResolver(
 
     private fun resolveInterfaces() {
         for (cl in classes) {
+            val typeParameterScope = TypeParameterScope.from(cl)
+
             val interfaces = context.superInterfaceTypeStrings(cl) ?: continue
             for (interfaceName in interfaces) {
                 val typeItem =
-                    codebase.typeResolver.obtainTypeFromString(
-                        interfaceName,
-                        TypeParameterScope.from(owner = cl)
-                    ) as TextClassTypeItem
+                    codebase.typeResolver.obtainTypeFromString(interfaceName, typeParameterScope)
+                        as TextClassTypeItem
                 cl.addInterface(typeItem)
 
                 // Force the creation of the interface class if it does not exist in the codebase.
@@ -1441,20 +1437,25 @@ internal class ReferenceResolver(
 
     private fun resolveThrowsClasses() {
         for (cl in classes) {
+            val classTypeParameterScope = TypeParameterScope.from(cl)
             for (methodItem in cl.constructors()) {
-                resolveThrowsClasses(methodItem)
+                resolveThrowsClasses(classTypeParameterScope, methodItem)
             }
             for (methodItem in cl.methods()) {
-                resolveThrowsClasses(methodItem)
+                resolveThrowsClasses(classTypeParameterScope, methodItem)
             }
         }
     }
 
-    private fun resolveThrowsClasses(methodItem: MethodItem) {
+    private fun resolveThrowsClasses(
+        classTypeParameterScope: TypeParameterScope,
+        methodItem: MethodItem
+    ) {
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
-            val typeParameterScope = TypeParameterScope.from(owner = methodItem)
+            val typeParameterScope =
+                classTypeParameterScope.nestedScope(methodItem.typeParameterList().typeParameters())
             val throwsList =
                 names.map { exception ->
                     // Search in this codebase, then possibly check for a type parameter, if not

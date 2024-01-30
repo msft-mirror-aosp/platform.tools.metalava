@@ -62,7 +62,7 @@ internal class TextTypeParameterItem(
                     boundsStringList.map {
                         codebase.typeResolver.obtainTypeFromString(
                             it,
-                            TypeParameterScope.from(owner = owner)
+                            TypeParameterScope.from(owner)
                         )
                     }
                 }

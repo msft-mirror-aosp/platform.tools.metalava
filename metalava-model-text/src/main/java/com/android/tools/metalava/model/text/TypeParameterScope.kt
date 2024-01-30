@@ -39,65 +39,55 @@ import com.android.tools.metalava.model.TypeParameterItem
 internal sealed class TypeParameterScope private constructor() {
 
     /** True if there are no type parameters in scope. */
-    abstract fun isEmpty(): Boolean
+    fun isEmpty() = count == 0
+
+    /**
+     * Create a nested [TypeParameterScope] that will delegate to this one for any
+     * [TypeParameterItem]s that it cannot find.
+     */
+    fun nestedScope(typeParameters: List<TypeParameterItem>) =
+        // If the typeParameters is empty then just reuse this one, otherwise create a new scope
+        // delegating to this.
+        if (typeParameters.isEmpty()) this else ListWrapper(typeParameters, this)
 
     /** Finds the closest [TypeParameterItem] with the specified name. */
     abstract fun findTypeParameter(name: String): TypeParameterItem?
+
+    protected abstract val count: Int
 
     companion object {
         val empty: TypeParameterScope = Empty
 
         /**
-         * Collect all the type parameters in scope for the given [owner], prepended with
-         * [localTypeParameters], if any. Then wrap them in an [TypeParameterScope].
+         * Collect all the type parameters in scope for the given [owner] then wrap them in an
+         * [TypeParameterScope].
          */
-        fun from(
-            localTypeParameters: List<TypeParameterItem>? = null,
-            owner: TypeParameterListOwner?
-        ): TypeParameterScope {
-            val list = gatherTypeParams(localTypeParameters, owner)
-            return if (list.isEmpty()) empty else ListWrapper(list)
-        }
-
-        /**
-         * Collect all the type parameters in scope for the given [owner], prepended with
-         * [localTypeParameters], if any.
-         */
-        private fun gatherTypeParams(
-            localTypeParameters: List<TypeParameterItem>? = null,
-            owner: TypeParameterListOwner?
-        ): List<TypeParameterItem> {
-            if (owner == null) {
-                return localTypeParameters ?: emptyList()
-            } else {
-                val ownerTypeParameters = owner.typeParameterList().typeParameters()
-
-                // Combine the owner and local parameters into a single list.
-                val combinedTypeParameters =
-                    if (localTypeParameters.isNullOrEmpty()) {
-                        ownerTypeParameters
-                    } else {
-                        localTypeParameters + ownerTypeParameters
-                    }
-
-                // Pass the combined list to the next level up to be combined with any additional
-                // type parameters, if necessary.
-                return gatherTypeParams(
-                    localTypeParameters = combinedTypeParameters,
-                    owner.typeParameterListOwnerParent()
-                )
+        fun from(owner: TypeParameterListOwner?): TypeParameterScope {
+            return if (owner == null) empty
+            else {
+                // Construct a scope from the owner.
+                from(owner.typeParameterListOwnerParent())
+                    // Nest this inside it.
+                    .nestedScope(owner.typeParameterList().typeParameters())
             }
         }
     }
 
-    private class ListWrapper(private val list: List<TypeParameterItem>) : TypeParameterScope() {
-        override fun isEmpty() = false
+    private class ListWrapper(
+        private val list: List<TypeParameterItem>,
+        private val enclosingScope: TypeParameterScope
+    ) : TypeParameterScope() {
 
-        override fun findTypeParameter(name: String) = list.firstOrNull { it.name() == name }
+        override val count: Int = list.size + enclosingScope.count
+
+        override fun findTypeParameter(name: String) =
+            // Search in this scope first, then delegate to the parent.
+            list.firstOrNull { it.name() == name } ?: enclosingScope.findTypeParameter(name)
     }
 
     private object Empty : TypeParameterScope() {
-        override fun isEmpty() = true
+
+        override val count: Int = 0
 
         override fun findTypeParameter(name: String) = null
     }
