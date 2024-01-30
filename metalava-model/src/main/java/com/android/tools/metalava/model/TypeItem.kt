@@ -74,14 +74,6 @@ interface TypeItem {
         spaceBetweenParameters: Boolean = false
     ): String
 
-    /** Legacy alias for [toErasedTypeString]`()`. */
-    @Deprecated(
-        "the context item is no longer used",
-        replaceWith = ReplaceWith("toErasedTypeString()")
-    )
-    @MetalavaApi
-    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
-
     /**
      * Get a string representation of the erased type.
      *
@@ -93,9 +85,6 @@ interface TypeItem {
      * mainly used at runtime which treats a vararg parameter as a standard array type.
      */
     @MetalavaApi fun toErasedTypeString(): String
-
-    /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
-    @MetalavaApi fun arrayDimensions(): Int = 0
 
     /** Returns the internal name of the type, as seen in bytecode. */
     fun internalName(): String
@@ -747,8 +736,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
 
     /** Whether this array type represents a varargs parameter. */
     val isVarargs: Boolean
-
-    override fun arrayDimensions(): Int = 1 + componentType.arrayDimensions()
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)

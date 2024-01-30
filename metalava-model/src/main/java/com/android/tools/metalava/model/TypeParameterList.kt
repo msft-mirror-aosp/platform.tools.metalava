@@ -31,7 +31,7 @@ interface TypeParameterList {
     override fun toString(): String
 
     /** Returns the type parameters, if any */
-    @MetalavaApi fun typeParameters(): List<TypeParameterItem>
+    fun typeParameters(): List<TypeParameterItem>
 
     /** Returns the number of type parameters */
     fun typeParameterCount() = typeParameters().size
