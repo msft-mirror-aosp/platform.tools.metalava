@@ -369,7 +369,7 @@ internal constructor(
             val fullName = computeFullClassName(psiClass)
             val qualifiedName = psiClass.qualifiedName ?: simpleName
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
-            val classType = ClassType.getClassType(psiClass)
+            val classType = getClassType(psiClass)
 
             val commentText = javadoc(psiClass)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
@@ -577,6 +577,17 @@ internal constructor(
                 }
 
             return item
+        }
+
+        internal fun getClassType(psiClass: PsiClass): ClassType {
+            return when {
+                psiClass.isAnnotationType -> ClassType.ANNOTATION_TYPE
+                psiClass.isInterface -> ClassType.INTERFACE
+                psiClass.isEnum -> ClassType.ENUM
+                psiClass is PsiTypeParameter ->
+                    error("Must not call this with a PsiTypeParameter - $psiClass")
+                else -> ClassType.CLASS
+            }
         }
 
         /**

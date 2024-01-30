@@ -16,23 +16,9 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.google.turbine.model.TurbineTyKind
-
-internal enum class TurbineClassType() {
+enum class ClassType {
     INTERFACE,
     ENUM,
-    ANNOTATION,
-    TYPE_PARAMETER,
-    CLASS;
-
-    companion object {
-        fun getClassType(type: TurbineTyKind): TurbineClassType {
-            return when (type) {
-                TurbineTyKind.INTERFACE -> INTERFACE
-                TurbineTyKind.ENUM -> ENUM
-                TurbineTyKind.ANNOTATION -> ANNOTATION
-                else -> CLASS
-            }
-        }
-    }
+    ANNOTATION_TYPE,
+    CLASS
 }

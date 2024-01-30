@@ -16,25 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiTypeParameter
-
-internal enum class ClassType {
+enum class ClassType {
     INTERFACE,
     ENUM,
     ANNOTATION_TYPE,
-    CLASS;
-
-    companion object {
-        fun getClassType(psiClass: PsiClass): ClassType {
-            return when {
-                psiClass.isAnnotationType -> ANNOTATION_TYPE
-                psiClass.isInterface -> INTERFACE
-                psiClass.isEnum -> ENUM
-                psiClass is PsiTypeParameter ->
-                    error("Must not call this with a PsiTypeParameter - $psiClass")
-                else -> CLASS
-            }
-        }
-    }
+    CLASS
 }

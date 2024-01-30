@@ -60,6 +60,7 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.Assign
@@ -299,7 +300,7 @@ internal open class TurbineCodebaseInitialiser(
                 qualifiedName,
                 sym,
                 modifierItem,
-                TurbineClassType.getClassType(cls.kind()),
+                getClassType(cls.kind()),
                 typeParameters,
                 getCommentedDoc(documentation),
                 sourceFile,
@@ -364,6 +365,15 @@ internal open class TurbineCodebaseInitialiser(
         classItem.constructors.forEach { it.setThrowsTypes() }
 
         return classItem
+    }
+
+    fun getClassType(type: TurbineTyKind): ClassType {
+        return when (type) {
+            TurbineTyKind.INTERFACE -> ClassType.INTERFACE
+            TurbineTyKind.ENUM -> ClassType.ENUM
+            TurbineTyKind.ANNOTATION -> ClassType.ANNOTATION_TYPE
+            else -> ClassType.CLASS
+        }
     }
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
