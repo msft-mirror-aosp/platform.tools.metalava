@@ -998,7 +998,7 @@ class CompatibilityCheck(
         @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
-            oldCodebase: Codebase,
+            oldCodebases: MergedCodebase,
             apiType: ApiType,
             baseApi: Codebase?,
             reporter: Reporter,
@@ -1021,11 +1021,11 @@ class CompatibilityCheck(
 
             val oldFullCodebase =
                 if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                    MergedCodebase(listOfNotNull(oldCodebase, baseApi))
+                    baseApi?.let { MergedCodebase(oldCodebases.children + baseApi) } ?: oldCodebases
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
                     // first parameter is master, so we don't change values of oldCodeBase
-                    MergedCodebase(listOfNotNull(oldCodebase, newCodebase))
+                    MergedCodebase(oldCodebases.children + newCodebase)
                 }
             val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
 
@@ -1036,7 +1036,7 @@ class CompatibilityCheck(
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebases.children.last().location}"
 
             if (checker.foundProblems) {
                 throw MetalavaCliException(exitCode = -1, stderr = message)
