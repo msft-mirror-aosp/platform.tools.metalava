@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassType
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -37,7 +37,7 @@ internal open class TurbineClassItem(
     private val qualifiedName: String,
     private val classSymbol: ClassSymbol,
     modifiers: TurbineModifierItem,
-    private val classType: ClassType,
+    private val classKind: ClassKind,
     private val typeParameters: TypeParameterList,
     documentation: String,
     private val source: SourceFile?
@@ -137,15 +137,15 @@ internal open class TurbineClassItem(
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
-    override fun isAnnotationType(): Boolean = classType == ClassType.ANNOTATION_TYPE
+    override fun isAnnotationType(): Boolean = classKind == ClassKind.ANNOTATION_TYPE
 
     override fun isDefined(): Boolean {
         TODO("b/295800205")
     }
 
-    override fun isEnum(): Boolean = classType == ClassType.ENUM
+    override fun isEnum(): Boolean = classKind == ClassKind.ENUM
 
-    override fun isInterface(): Boolean = classType == ClassType.INTERFACE
+    override fun isInterface(): Boolean = classKind == ClassKind.INTERFACE
 
     override fun methods(): List<MethodItem> = methods
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,21 @@
 
 package com.android.tools.metalava.model
 
-enum class ClassType {
+/**
+ * The kind of class.
+ *
+ * Corresponds to similarly named values in [javax.lang.model.element.ElementKind].
+ */
+enum class ClassKind {
+    /** An interface. */
     INTERFACE,
+
+    /** An enum class. */
     ENUM,
+
+    /** An annotation class. */
     ANNOTATION_TYPE,
+
+    /** A normal class. */
     CLASS
 }
