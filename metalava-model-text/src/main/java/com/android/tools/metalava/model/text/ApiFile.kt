@@ -36,7 +36,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNullableAnnotation
@@ -631,9 +630,9 @@ private constructor(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
         // Collect all type parameters in scope into one list
-        val typeParams =
+        val typeParameterScope =
             gatherTypeParams(localTypeParameters = typeParameterList.typeParameters(), owner = cl)
-        val parameters = parseParameterList(api, tokenizer, typeParams)
+        val parameters = parseParameterList(api, tokenizer, typeParameterScope)
         // Constructors cannot return null.
         val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
         method =
@@ -675,7 +674,7 @@ private constructor(
         }
         tokenizer.assertIdent(token)
         // Collect all type parameters in scope into one list
-        val typeParams =
+        val typeParameterScope =
             gatherTypeParams(localTypeParameters = typeParameterList.typeParameters(), owner = cl)
 
         val returnType: TextTypeItem
@@ -684,7 +683,7 @@ private constructor(
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
-            parameters = parseParameterList(api, tokenizer, typeParams)
+            parameters = parseParameterList(api, tokenizer, typeParameterScope)
             token = tokenizer.requireToken()
             if (token != ":") {
                 throw ApiParseException(
@@ -694,18 +693,18 @@ private constructor(
             }
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            returnType = parseType(api, tokenizer, token, typeParameterScope, annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the return type, the name, and then the parameter list.
-            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            returnType = parseType(api, tokenizer, token, typeParameterScope, annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
-            parameters = parseParameterList(api, tokenizer, typeParams)
+            parameters = parseParameterList(api, tokenizer, typeParameterScope)
             token = tokenizer.requireToken()
         }
 
@@ -1045,7 +1044,7 @@ private constructor(
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
-        typeParameters: List<TypeParameterItem>
+        typeParameterScope: TypeParameterScope
     ): List<TextParameterItem> {
         val parameters = mutableListOf<TextParameterItem>()
         var token: String = tokenizer.requireToken()
@@ -1091,13 +1090,13 @@ private constructor(
                     }
                 token = tokenizer.requireToken()
                 // Token should now represent the type
-                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                type = parseType(api, tokenizer, token, typeParameterScope, annotations)
                 // TODO(b/300081840): update nullability handling
                 modifiers.addAnnotations(annotations)
                 token = tokenizer.current
             } else {
                 // Java style: parse the type, then the public name if it has one.
-                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                type = parseType(api, tokenizer, token, typeParameterScope, annotations)
                 modifiers.addAnnotations(annotations)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token) && token != "=") {
@@ -1226,7 +1225,7 @@ private constructor(
     /**
      * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
      * that the full type string is gathered, even when there are type-use annotations. Once the
-     * full type string is found, this parses the type in the context of the [typeParameters].
+     * full type string is found, this parses the type in the context of the [typeParameterScope].
      *
      * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
      * that nullability to [annotations].
@@ -1244,7 +1243,7 @@ private constructor(
         api: TextCodebase,
         tokenizer: Tokenizer,
         startingToken: String,
-        typeParameters: List<TypeParameterItem>,
+        typeParameterScope: TypeParameterScope,
         annotations: MutableList<String>
     ): TextTypeItem {
         var prev = getAnnotationCompleteToken(tokenizer, startingToken)
@@ -1262,7 +1261,7 @@ private constructor(
             token = tokenizer.current
         }
 
-        val parsedType = api.typeResolver.obtainTypeFromString(type, typeParameters)
+        val parsedType = api.typeResolver.obtainTypeFromString(type, typeParameterScope)
         if (kotlinStyleNulls) {
             // Treat varargs as non-null for consistency with the psi model.
             if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
@@ -1446,31 +1445,19 @@ internal class ReferenceResolver(
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
-            val typeParametersInScope = gatherTypeParams(owner = methodItem)
+            val typeParameterScope = gatherTypeParams(owner = methodItem)
             val throwsList =
                 names.map { exception ->
                     // Search in this codebase, then possibly check for a type parameter, if not
                     // found then fall back to searching in a base codebase and finally creating a
                     // stub.
                     codebase.findClass(exception)?.let { ThrowableType.ofClass(it) }
-                        ?: findTypeParameterItem(typeParametersInScope, exception)?.let {
+                        ?: typeParameterScope.findTypeParameter(exception)?.let {
                             ThrowableType.ofTypeParameter(it)
                         }
                             ?: getOrCreateThrowableClass(exception)
                 }
             methodInfo.setThrowsList(throwsList)
-        }
-    }
-
-    private fun findTypeParameterItem(
-        typeParametersInScope: List<TypeParameterItem>,
-        exception: String
-    ): TypeParameterItem? {
-        return if ('.' in exception) {
-            null
-        } else {
-            // The exception name does not have a '.' so it might be a type parameter name.
-            typeParametersInScope.firstOrNull { it.name() == exception }
         }
     }
 

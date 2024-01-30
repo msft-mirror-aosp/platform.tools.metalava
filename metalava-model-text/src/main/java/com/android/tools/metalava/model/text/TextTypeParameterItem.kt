@@ -191,7 +191,7 @@ internal class TextTypeParameterItem(
         internal fun gatherTypeParams(
             localTypeParameters: List<TypeParameterItem>? = null,
             owner: TypeParameterListOwner?
-        ): List<TypeParameterItem> {
+        ): TypeParameterScope {
             if (owner == null) {
                 return localTypeParameters ?: emptyList()
             } else {

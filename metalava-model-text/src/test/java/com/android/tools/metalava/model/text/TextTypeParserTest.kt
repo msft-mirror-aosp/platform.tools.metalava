@@ -415,7 +415,7 @@ class TextTypeParserTest : Assertions {
 
     private val typeParser = TextTypeParser(ApiFile.parseApi("test", "") as TextCodebase)
 
-    private fun parseType(type: String) = typeParser.obtainTypeFromString(type)
+    private fun parseType(type: String) = typeParser.obtainTypeFromString(type, emptyList())
 
     /**
      * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
