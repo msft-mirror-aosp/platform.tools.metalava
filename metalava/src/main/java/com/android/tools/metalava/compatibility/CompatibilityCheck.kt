@@ -658,7 +658,7 @@ class CompatibilityCheck(
                         "${describe(
                         new,
                         capitalize = true
-                    )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
+                    )} made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message)
                 }
             }

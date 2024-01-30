@@ -38,7 +38,7 @@ internal class PsiTypeParameterItem(
     ),
     TypeParameterItem {
 
-    override fun simpleName() = name
+    override fun name() = name
 
     override fun type(): VariableTypeItem {
         return codebase.getType(codebase.getClassType(psiClass)) as VariableTypeItem
@@ -70,7 +70,7 @@ internal class PsiTypeParameterItem(
         if (this === other) return true
         if (other !is TypeParameterItem) return false
 
-        return name == other.simpleName()
+        return name == other.name()
     }
 
     override fun hashCode(): Int {

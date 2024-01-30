@@ -1357,8 +1357,8 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val t = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "T" }
-            val x = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "X" }
+            val t = fooClass.typeParameterList().typeParameters().single { it.name() == "T" }
+            val x = fooClass.typeParameterList().typeParameters().single { it.name() == "X" }
             val numberType = fooClass.assertField("numberType").type()
 
             val matchingBindings = mapOf(t to numberType)

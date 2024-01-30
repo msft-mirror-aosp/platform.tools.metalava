@@ -758,19 +758,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(
                 classParameterNames,
-                classTypeParameterList.typeParameters().map { it.simpleName() }
+                classTypeParameterList.typeParameters().map { it.name() }
             )
-            assertEquals(
-                emptyList(),
-                annoTypeParameterList.typeParameters().map { it.simpleName() }
-            )
+            assertEquals(emptyList(), annoTypeParameterList.typeParameters().map { it.name() })
             assertEquals(
                 method1ParameterNames,
-                method1TypeParameterList.typeParameters().map { it.simpleName() }
+                method1TypeParameterList.typeParameters().map { it.name() }
             )
             assertEquals(
                 method2TypeParameterNames,
-                method2TypeParameterList.typeParameters().map { it.simpleName() }
+                method2TypeParameterList.typeParameters().map { it.name() }
             )
 
             assertEquals(

@@ -120,7 +120,7 @@ internal open class TextMethodItem(
 
     override fun resolveParameter(variable: String): TypeParameterItem? {
         for (t in typeParameterList.typeParameters()) {
-            if (t.simpleName() == variable) {
+            if (t.name() == variable) {
                 return t
             }
         }

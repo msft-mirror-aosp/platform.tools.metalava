@@ -20,7 +20,7 @@ package com.android.tools.metalava.model
 interface TypeParameterItem : Item {
 
     /** The name of the type parameter. */
-    fun simpleName(): String
+    fun name(): String
 
     /** The [VariableTypeItem] representing the type of this type parameter. */
     override fun type(): VariableTypeItem
@@ -42,7 +42,7 @@ interface TypeParameterItem : Item {
             if (isReified()) {
                 append("reified ")
             }
-            append(simpleName())
+            append(name())
             // If the only bound is Object, omit it because it is implied.
             if (
                 typeBounds().isNotEmpty() && typeBounds().singleOrNull()?.isJavaLangObject() != true

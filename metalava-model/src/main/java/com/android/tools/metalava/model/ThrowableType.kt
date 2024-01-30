@@ -112,13 +112,13 @@ interface ThrowableType {
             get() = typeParameterItem.typeBounds().firstNotNullOfOrNull { it.asClass() }
 
         override fun description() =
-            "${typeParameterItem.simpleName()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
+            "${typeParameterItem.name()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
 
         /** A TypeParameterItem name is not prefixed by a containing class. */
-        override fun fullName() = typeParameterItem.simpleName()
+        override fun fullName() = typeParameterItem.name()
 
         /** A TypeParameterItem name is not qualified by the package. */
-        override fun qualifiedName() = typeParameterItem.simpleName()
+        override fun qualifiedName() = typeParameterItem.name()
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

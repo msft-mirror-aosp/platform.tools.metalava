@@ -1437,7 +1437,7 @@ internal class ReferenceResolver(
             null
         } else {
             // The exception name does not have a '.' so it might be a type parameter name.
-            typeParametersInScope.firstOrNull { it.simpleName() == exception }
+            typeParametersInScope.firstOrNull { it.name() == exception }
         }
     }
 

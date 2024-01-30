@@ -35,7 +35,7 @@ internal class TurbineTypeParameterItem(
     ),
     TypeParameterItem {
 
-    override fun simpleName() = name
+    override fun name() = name
 
     // Java does not supports reified generics
     override fun isReified(): Boolean = false
@@ -50,7 +50,7 @@ internal class TurbineTypeParameterItem(
         if (this === other) return true
         if (other !is TypeParameterItem) return false
 
-        return name == other.simpleName()
+        return name == other.name()
     }
 
     override fun hashCode(): Int {

@@ -131,7 +131,7 @@ internal open class TextClassItem(
     override fun resolveParameter(variable: String): TypeParameterItem? {
         if (hasTypeVariables()) {
             for (t in typeParameterList().typeParameters()) {
-                if (t.simpleName() == variable) {
+                if (t.name() == variable) {
                     return t
                 }
             }

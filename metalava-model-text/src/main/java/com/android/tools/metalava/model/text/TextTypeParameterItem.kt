@@ -38,7 +38,7 @@ internal class TextTypeParameterItem(
 
     private var bounds: List<TypeItem>? = null
 
-    override fun simpleName(): String {
+    override fun name(): String {
         return name
     }
 
@@ -78,7 +78,7 @@ internal class TextTypeParameterItem(
         if (this === other) return true
         if (other !is TypeParameterItem) return false
 
-        return name == other.simpleName()
+        return name == other.name()
     }
 
     override fun hashCode(): Int {
@@ -129,7 +129,7 @@ internal class TextTypeParameterItem(
                         ?.typeParameters()
                         ?: return emptyList()
                 for (p in parameters) {
-                    if (p.simpleName() == s) {
+                    if (p.name() == s) {
                         return p.typeBounds().map { it.toTypeString() }
                     }
                 }
