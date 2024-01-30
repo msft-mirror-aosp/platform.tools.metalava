@@ -42,7 +42,6 @@ import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeParameterItem.Companion.gatherTypeParams
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -631,7 +630,10 @@ private constructor(
             ) // For inner classes, strip outer classes from name
         // Collect all type parameters in scope into one list
         val typeParameterScope =
-            gatherTypeParams(localTypeParameters = typeParameterList.typeParameters(), owner = cl)
+            TypeParameterScope.from(
+                localTypeParameters = typeParameterList.typeParameters(),
+                owner = cl
+            )
         val parameters = parseParameterList(api, tokenizer, typeParameterScope)
         // Constructors cannot return null.
         val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
@@ -675,7 +677,10 @@ private constructor(
         tokenizer.assertIdent(token)
         // Collect all type parameters in scope into one list
         val typeParameterScope =
-            gatherTypeParams(localTypeParameters = typeParameterList.typeParameters(), owner = cl)
+            TypeParameterScope.from(
+                localTypeParameters = typeParameterList.typeParameters(),
+                owner = cl
+            )
 
         val returnType: TextTypeItem
         val parameters: List<TextParameterItem>
@@ -762,13 +767,15 @@ private constructor(
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(api, tokenizer, token, gatherTypeParams(owner = cl), annotations)
+            type =
+                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the name, then the type.
-            type = parseType(api, tokenizer, token, gatherTypeParams(owner = cl), annotations)
+            type =
+                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -990,13 +997,15 @@ private constructor(
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
             tokenizer.assertIdent(token)
-            type = parseType(api, tokenizer, token, gatherTypeParams(owner = cl), annotations)
+            type =
+                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
             // TODO(b/300081840): update nullability handling
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
         } else {
             // Java style: parse the type, then the name.
-            type = parseType(api, tokenizer, token, gatherTypeParams(owner = cl), annotations)
+            type =
+                parseType(api, tokenizer, token, TypeParameterScope.from(owner = cl), annotations)
             modifiers.addAnnotations(annotations)
             token = tokenizer.current
             tokenizer.assertIdent(token)
@@ -1404,7 +1413,7 @@ internal class ReferenceResolver(
             val superClassType =
                 codebase.typeResolver.obtainTypeFromString(
                     superClassTypeString,
-                    gatherTypeParams(owner = cl)
+                    TypeParameterScope.from(owner = cl)
                 ) as TextClassTypeItem
 
             // Force the creation of the super class if it does not exist in the codebase.
@@ -1420,7 +1429,7 @@ internal class ReferenceResolver(
                 val typeItem =
                     codebase.typeResolver.obtainTypeFromString(
                         interfaceName,
-                        gatherTypeParams(owner = cl)
+                        TypeParameterScope.from(owner = cl)
                     ) as TextClassTypeItem
                 cl.addInterface(typeItem)
 
@@ -1445,7 +1454,7 @@ internal class ReferenceResolver(
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
-            val typeParameterScope = gatherTypeParams(owner = methodItem)
+            val typeParameterScope = TypeParameterScope.from(owner = methodItem)
             val throwsList =
                 names.map { exception ->
                     // Search in this codebase, then possibly check for a type parameter, if not

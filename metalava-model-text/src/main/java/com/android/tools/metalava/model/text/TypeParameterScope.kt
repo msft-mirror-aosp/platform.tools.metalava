@@ -36,9 +36,69 @@ import com.android.tools.metalava.model.TypeParameterItem
  *     }
  * ```
  */
-typealias TypeParameterScope = List<TypeParameterItem>
+internal sealed class TypeParameterScope private constructor() {
 
-/** Finds the closest [TypeParameterItem] with the specified name. */
-internal fun TypeParameterScope.findTypeParameter(name: String): TypeParameterItem? = firstOrNull {
-    it.name() == name
+    /** True if there are no type parameters in scope. */
+    abstract fun isEmpty(): Boolean
+
+    /** Finds the closest [TypeParameterItem] with the specified name. */
+    abstract fun findTypeParameter(name: String): TypeParameterItem?
+
+    companion object {
+        val empty: TypeParameterScope = Empty
+
+        /**
+         * Collect all the type parameters in scope for the given [owner], prepended with
+         * [localTypeParameters], if any. Then wrap them in an [TypeParameterScope].
+         */
+        fun from(
+            localTypeParameters: List<TypeParameterItem>? = null,
+            owner: TypeParameterListOwner?
+        ): TypeParameterScope {
+            val list = gatherTypeParams(localTypeParameters, owner)
+            return if (list.isEmpty()) empty else ListWrapper(list)
+        }
+
+        /**
+         * Collect all the type parameters in scope for the given [owner], prepended with
+         * [localTypeParameters], if any.
+         */
+        private fun gatherTypeParams(
+            localTypeParameters: List<TypeParameterItem>? = null,
+            owner: TypeParameterListOwner?
+        ): List<TypeParameterItem> {
+            if (owner == null) {
+                return localTypeParameters ?: emptyList()
+            } else {
+                val ownerTypeParameters = owner.typeParameterList().typeParameters()
+
+                // Combine the owner and local parameters into a single list.
+                val combinedTypeParameters =
+                    if (localTypeParameters.isNullOrEmpty()) {
+                        ownerTypeParameters
+                    } else {
+                        localTypeParameters + ownerTypeParameters
+                    }
+
+                // Pass the combined list to the next level up to be combined with any additional
+                // type parameters, if necessary.
+                return gatherTypeParams(
+                    localTypeParameters = combinedTypeParameters,
+                    owner.typeParameterListOwnerParent()
+                )
+            }
+        }
+    }
+
+    private class ListWrapper(private val list: List<TypeParameterItem>) : TypeParameterScope() {
+        override fun isEmpty() = false
+
+        override fun findTypeParameter(name: String) = list.firstOrNull { it.name() == name }
+    }
+
+    private object Empty : TypeParameterScope() {
+        override fun isEmpty() = true
+
+        override fun findTypeParameter(name: String) = null
+    }
 }

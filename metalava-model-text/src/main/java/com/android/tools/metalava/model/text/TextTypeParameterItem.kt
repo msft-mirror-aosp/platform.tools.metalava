@@ -62,7 +62,7 @@ internal class TextTypeParameterItem(
                     boundsStringList.map {
                         codebase.typeResolver.obtainTypeFromString(
                             it,
-                            gatherTypeParams(owner = owner)
+                            TypeParameterScope.from(owner = owner)
                         )
                     }
                 }
@@ -181,36 +181,6 @@ internal class TextTypeParameterItem(
                     list.add(element)
                     return
                 }
-            }
-        }
-
-        /**
-         * Collect all the type parameters in scope for the given [owner], prepended with
-         * [localTypeParameters], if any.
-         */
-        internal fun gatherTypeParams(
-            localTypeParameters: List<TypeParameterItem>? = null,
-            owner: TypeParameterListOwner?
-        ): TypeParameterScope {
-            if (owner == null) {
-                return localTypeParameters ?: emptyList()
-            } else {
-                val ownerTypeParameters = owner.typeParameterList().typeParameters()
-
-                // Combine the owner and local parameters into a single list.
-                val combinedTypeParameters =
-                    if (localTypeParameters.isNullOrEmpty()) {
-                        ownerTypeParameters
-                    } else {
-                        localTypeParameters + ownerTypeParameters
-                    }
-
-                // Pass the combined list to the next level up to be combined with any additional
-                // type parameters, if necessary.
-                return gatherTypeParams(
-                    localTypeParameters = combinedTypeParameters,
-                    owner.typeParameterListOwnerParent()
-                )
             }
         }
     }
