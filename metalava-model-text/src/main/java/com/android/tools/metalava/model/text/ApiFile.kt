@@ -351,26 +351,7 @@ private constructor(
         // full name followed by a '.' if there is one) plus the type parameter string.
         val declaredClassType: String = token
 
-        // Extract the full name and type parameters from declaredClassType.
-        val (fullName, typeParameters) = parseDeclaredClassType(api, declaredClassType)
-        val qualifiedClassName = qualifiedName(pkg.name(), fullName)
-
         token = tokenizer.requireToken()
-
-        // Create the TextClassItem and set its package but do not add it to the package or
-        // register it.
-        var cl =
-            TextClassItem(
-                api,
-                classPosition,
-                modifiers,
-                classKind,
-                qualifiedClassName,
-                fullName,
-                annotations,
-                typeParameters
-            )
-        cl.setContainingPackage(pkg)
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
             superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
@@ -396,11 +377,7 @@ private constructor(
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
-            cl.classKind = ClassKind.ENUM
-            // Above we marked all enums as static but for a top level class it's implicit
-            if (!cl.fullName().contains(".")) {
-                cl.modifiers.setStatic(false)
-            }
+            classKind = ClassKind.ENUM
         } else if (classKind == ClassKind.ANNOTATION_TYPE) {
             // If the annotation was defined using @interface that add the implicit
             // "implements java.lang.annotation.Annotation".
@@ -409,13 +386,37 @@ private constructor(
             // This can be taken either for a normal class that implements
             // java.lang.annotation.Annotation which was the old way of representing an annotation
             // in the API signature files.
-            cl.classKind = ClassKind.ANNOTATION_TYPE
+            classKind = ClassKind.ANNOTATION_TYPE
         }
 
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
         token = tokenizer.requireToken()
+
+        // Extract the full name and type parameters from declaredClassType.
+        val (fullName, typeParameters) = parseDeclaredClassType(api, declaredClassType)
+        val qualifiedClassName = qualifiedName(pkg.name(), fullName)
+
+        // Above we marked all enums as static but for a top level class it's implicit
+        if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
+            modifiers.setStatic(false)
+        }
+
+        // Create the TextClassItem and set its package but do not add it to the package or
+        // register it.
+        var cl =
+            TextClassItem(
+                api,
+                classPosition,
+                modifiers,
+                classKind,
+                qualifiedClassName,
+                fullName,
+                annotations,
+                typeParameters
+            )
+        cl.setContainingPackage(pkg)
 
         // Add the interface type strings to the set that need to be resolved for this class. This
         // is added before possibly replacing the newly created class with an existing one in which

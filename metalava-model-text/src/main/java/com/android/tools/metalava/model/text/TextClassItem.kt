@@ -35,7 +35,7 @@ internal open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
     modifiers: DefaultModifierList,
-    classKind: ClassKind = ClassKind.CLASS,
+    override val classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val annotations: List<String>? = null,
@@ -89,9 +89,6 @@ internal open class TextClassItem(
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
     }
-
-    override var classKind: ClassKind = classKind
-        internal set
 
     var containingClass: ClassItem? = null
 
