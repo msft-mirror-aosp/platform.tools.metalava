@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 

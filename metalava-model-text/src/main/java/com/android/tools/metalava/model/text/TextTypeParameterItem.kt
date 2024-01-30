@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterListOwner
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
