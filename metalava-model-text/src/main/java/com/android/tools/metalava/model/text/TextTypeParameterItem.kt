@@ -171,7 +171,7 @@ internal class TextTypeParameterItem(
         }
 
         /** Collect all the type parameters in scope for the given [owner]. */
-        private fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
+        internal fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
             return owner?.let {
                 it.typeParameterList().typeParameters() +
                     gatherTypeParams(owner.typeParameterListOwnerParent())
