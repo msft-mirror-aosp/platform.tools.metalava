@@ -42,7 +42,7 @@ interface MethodItem : MemberItem {
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
 
-    override fun type(): TypeItem? = returnType()
+    override fun type() = returnType()
 
     override fun findCorrespondingItemIn(codebase: Codebase) =
         containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
