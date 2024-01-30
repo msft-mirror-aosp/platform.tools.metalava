@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import java.util.function.Predicate
 
@@ -125,18 +124,6 @@ internal open class TextClassItem(
 
     override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
         return containingClass as? TypeParameterListOwner
-    }
-
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        if (hasTypeVariables()) {
-            for (t in typeParameterList().typeParameters()) {
-                if (t.name() == variable) {
-                    return t
-                }
-            }
-        }
-
-        return null
     }
 
     private var superClass: ClassItem? = null

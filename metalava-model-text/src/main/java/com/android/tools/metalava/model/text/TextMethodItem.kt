@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
@@ -115,16 +114,6 @@ internal open class TextMethodItem(
 
     override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
         return containingClass() as TextClassItem?
-    }
-
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        for (t in typeParameterList.typeParameters()) {
-            if (t.name() == variable) {
-                return t
-            }
-        }
-
-        return (containingClass() as TextClassItem).resolveParameter(variable)
     }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {

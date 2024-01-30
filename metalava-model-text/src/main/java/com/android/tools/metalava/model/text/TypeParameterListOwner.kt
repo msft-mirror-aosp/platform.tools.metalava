@@ -16,13 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 
 internal interface TypeParameterListOwner {
     fun typeParameterList(): TypeParameterList
-    /** Given a variable in this owner, resolves to a type parameter item */
-    fun resolveParameter(variable: String): TypeParameterItem?
 
     /** Parent type parameter list owner */
     fun typeParameterListOwnerParent(): TypeParameterListOwner?
