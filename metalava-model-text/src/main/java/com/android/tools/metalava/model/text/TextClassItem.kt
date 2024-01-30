@@ -35,7 +35,7 @@ internal open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
     modifiers: DefaultModifierList,
-    internal var classKind: ClassKind = ClassKind.CLASS,
+    classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val annotations: List<String>? = null,
@@ -90,11 +90,8 @@ internal open class TextClassItem(
         return false
     }
 
-    override fun isInterface() = classKind == ClassKind.INTERFACE
-
-    override fun isAnnotationType() = classKind == ClassKind.ANNOTATION_TYPE
-
-    override fun isEnum() = classKind == ClassKind.ENUM
+    override var classKind: ClassKind = classKind
+        internal set
 
     var containingClass: ClassItem? = null
 

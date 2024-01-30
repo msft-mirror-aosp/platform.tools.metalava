@@ -54,7 +54,7 @@ internal constructor(
     private val fullName: String,
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
-    internal val classKind: ClassKind,
+    override val classKind: ClassKind,
     modifiers: PsiModifierItem,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
@@ -82,12 +82,6 @@ internal constructor(
     override fun qualifiedName(): String = qualifiedName
 
     override fun isDefined(): Boolean = codebase.unsupported()
-
-    override fun isInterface(): Boolean = classKind == ClassKind.INTERFACE
-
-    override fun isAnnotationType(): Boolean = classKind == ClassKind.ANNOTATION_TYPE
-
-    override fun isEnum(): Boolean = classKind == ClassKind.ENUM
 
     override fun psi() = psiClass
 
