@@ -391,7 +391,6 @@ private constructor(
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
-        token = tokenizer.requireToken()
 
         // Extract the full name and type parameters from declaredClassType.
         val (fullName, typeParameters) = parseDeclaredClassType(api, declaredClassType)
@@ -449,6 +448,21 @@ private constructor(
                 }
             }
 
+        // Parse the class body adding each member created to the class item being populated.
+        parseClassBody(api, tokenizer, cl)
+
+        // Add the class to the package, it will only be added to the TextCodebase once the package
+        // body has been parsed.
+        pkg.addClass(cl)
+    }
+
+    /** Parse the class body, adding members to [cl]. */
+    private fun parseClassBody(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        cl: TextClassItem,
+    ) {
+        var token = tokenizer.requireToken()
         val classTypeParameterScope = TypeParameterScope.from(cl)
         while (true) {
             if ("}" == token) {
@@ -473,7 +487,6 @@ private constructor(
             }
             token = tokenizer.requireToken()
         }
-        pkg.addClass(cl)
     }
 
     /**
