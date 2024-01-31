@@ -401,6 +401,17 @@ private constructor(
             modifiers.setStatic(false)
         }
 
+        // Get the characteristics of the class being added as they may be needed to compare against
+        // the characteristics of the same class from a previously processed signature file.
+        val newClassCharacteristics =
+            ClassCharacteristics(
+                qualifiedName = qualifiedClassName,
+                fullName = fullName,
+                classKind = classKind,
+                modifiers = modifiers,
+                superClassTypeString = superClassTypeString,
+            )
+
         // Create the TextClassItem and set its package but do not add it to the package or
         // register it.
         var cl =
@@ -432,18 +443,22 @@ private constructor(
                     cl
                 }
                 else -> {
-                    if (!foundClass.isCompatible(cl)) {
+                    val existingCharacteristics = ClassCharacteristics.of(foundClass)
+                    if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
                         throw ApiParseException("Incompatible $foundClass definitions", cl.position)
-                    } else if (mClassToSuper[foundClass] != superClassTypeString) {
-                        // Duplicate class with conflicting superclass names are found.
-                        // Since the clas definition found later should be prioritized,
-                        // overwrite the superclass name as ext but set cl as
-                        // foundClass, where the class attributes are stored
-                        // and continue to add methods/fields in foundClass
-                        mapClassToSuper(cl, superClassTypeString)
-                        foundClass
                     } else {
-                        foundClass
+                        val newSuperClassTypeString = newClassCharacteristics.superClassTypeString
+                        if (mClassToSuper[foundClass] != newSuperClassTypeString) {
+                            // Duplicate class with conflicting superclass names are found.
+                            // Since the clas definition found later should be prioritized,
+                            // overwrite the superclass name as ext but set cl as
+                            // foundClass, where the class attributes are stored
+                            // and continue to add methods/fields in foundClass
+                            mapClassToSuper(cl, newSuperClassTypeString)
+                            foundClass
+                        } else {
+                            foundClass
+                        }
                     }
                 }
             }
@@ -1552,25 +1567,4 @@ private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) 
 
         addAnnotation(item)
     }
-}
-
-/**
- * Checks if the [cls] from different signature file can be merged with this [TextClassItem]. For
- * instance, `current.txt` and `system-current.txt` may contain equal class definitions with
- * different class methods. This method is used to determine if the two [TextClassItem]s can be
- * safely merged in such scenarios.
- *
- * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
- * @return a Boolean value representing if [cls] is compatible with [this]
- */
-private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
-    if (this === cls) {
-        return true
-    }
-    if (fullName() != cls.fullName()) {
-        return false
-    }
-
-    // TODO(b/323168612): Check super interface types and super class type of the two TextClassItem
-    return classKind == cls.classKind && modifiers == cls.modifiers
 }
