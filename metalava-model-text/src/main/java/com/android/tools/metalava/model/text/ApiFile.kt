@@ -368,19 +368,7 @@ private constructor(
 
         cl.setContainingPackage(pkg)
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
-            token = getAnnotationCompleteToken(tokenizer, tokenizer.requireToken())
-            var superClassName = token
-            // Make sure full super class name is found if there are type use annotations.
-            // This can't use [parseType] because the next token might be a separate type (classes
-            // only have a single `extends` type, but all interface supertypes are listed as
-            // `extends` instead of `implements`).
-            // However, this type cannot be an array, so unlike [parseType] this does not need to
-            // check if the next token has annotations.
-            while (isIncompleteTypeToken(token)) {
-                token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
-                superClassName += " $token"
-            }
-            ext = superClassName
+            ext = parseSuperTypeString(tokenizer, tokenizer.requireToken())
             token = tokenizer.current
         }
         if ("implements" == token || "extends" == token) {
@@ -389,15 +377,7 @@ private constructor(
                 if ("{" == token) {
                     break
                 } else if ("," != token) {
-                    var interfaceName = getAnnotationCompleteToken(tokenizer, token)
-                    // Make sure full interface name is found if there are type use annotations.
-                    // This can't use [parseType] because the next token might be a separate type.
-                    // However, this type cannot be an array, so unlike [parseType] this does not
-                    // need to check if the next token has annotations.
-                    while (isIncompleteTypeToken(token)) {
-                        token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
-                        interfaceName += " $token"
-                    }
+                    val interfaceName = parseSuperTypeString(tokenizer, token)
                     mapClassToInterface(cl, interfaceName)
                     token = tokenizer.current
                 } else {
@@ -476,6 +456,36 @@ private constructor(
             token = tokenizer.requireToken()
         }
         pkg.addClass(cl)
+    }
+
+    /**
+     * Parse a super type string, i.e. a string representing a super class type or a super interface
+     * type.
+     */
+    private fun parseSuperTypeString(tokenizer: Tokenizer, initialToken: String): String {
+        var token = getAnnotationCompleteToken(tokenizer, initialToken)
+
+        // Use the token directly if it is complete, otherwise construct the super class type
+        // string from as many tokens as necessary.
+        return if (!isIncompleteTypeToken(token)) {
+            token
+        } else {
+            buildString {
+                append(token)
+
+                // Make sure full super class name is found if there are type use
+                // annotations. This can't use [parseType] because the next token might be a
+                // separate type (classes only have a single `extends` type, but all
+                // interface supertypes are listed as `extends` instead of `implements`).
+                // However, this type cannot be an array, so unlike [parseType] this does
+                // not need to check if the next token has annotations.
+                do {
+                    token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
+                    append(" ")
+                    append(token)
+                } while (isIncompleteTypeToken(token))
+            }
+        }
     }
 
     /**
