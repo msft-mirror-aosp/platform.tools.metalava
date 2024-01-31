@@ -288,13 +288,6 @@ private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule 
                     // Run the test even if it is expected to fail as a change that fixes one test
                     // may fix more. Instead, this will just discard any failure.
                     base.evaluate()
-                    if (expectedFailure) {
-                        // If a test that was expected to fail passes then updating the baseline
-                        // will remove that test from the expected test failures.
-                        System.err.println(
-                            "Test was expected to fail but passed, please run $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
-                        )
-                    }
                 } catch (e: Throwable) {
                     if (expectedFailure) {
                         // If this was expected to fail then throw an AssumptionViolatedException
@@ -311,6 +304,24 @@ private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule 
                         // Rethrow the error
                         throw e
                     }
+                }
+
+                // Perform this check outside the try...catch block otherwise the exception gets
+                // caught, making it look like an actual failing test.
+                if (expectedFailure) {
+                    // If a test that was expected to fail passes then updating the baseline
+                    // will remove that test from the expected test failures. Fail the test so
+                    // that the developer will be forced to clean it up.
+                    throw IllegalStateException(
+                        """
+                            **************************************************************************************************
+                                Test was listed in the baseline file as it was expected to fail but it passed, please run:
+                                    $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE
+                            **************************************************************************************************
+
+                        """
+                            .trimIndent()
+                    )
                 }
             }
         }
