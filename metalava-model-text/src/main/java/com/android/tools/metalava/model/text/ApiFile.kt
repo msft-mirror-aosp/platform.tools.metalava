@@ -346,12 +346,19 @@ private constructor(
             }
         }
         tokenizer.assertIdent(token)
-        // The classType and qualifiedClassType include the type parameter string, the className and
-        // qualifiedClassName are just the name without type parameters.
-        val classType: String = token
-        val (className, typeParameters) = parseClassName(api, classType)
-        val qualifiedClassName = qualifiedName(pkg.name(), className)
+
+        // The declaredClassType consists of the full name (i.e. preceded by the containing class's
+        // full name followed by a '.' if there is one) plus the type parameter string.
+        val declaredClassType: String = token
+
+        // Extract the full name and type parameters from declaredClassType.
+        val (fullName, typeParameters) = parseDeclaredClassType(api, declaredClassType)
+        val qualifiedClassName = qualifiedName(pkg.name(), fullName)
+
         token = tokenizer.requireToken()
+
+        // Create the TextClassItem and set its package but do not add it to the package or
+        // register it.
         var cl =
             TextClassItem(
                 api,
@@ -359,12 +366,12 @@ private constructor(
                 modifiers,
                 classKind,
                 qualifiedClassName,
-                className,
+                fullName,
                 annotations,
                 typeParameters
             )
-
         cl.setContainingPackage(pkg)
+
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
             superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
             token = tokenizer.current
@@ -498,20 +505,23 @@ private constructor(
     }
 
     /**
-     * Splits the class type into its name and type parameter list.
+     * Splits the declared class type into its full name and type parameter list.
      *
-     * For example "Foo" would split into name "Foo" and an empty type parameter list, while "Foo<A,
-     * B extends java.lang.String, C>" would split into name "Foo" and type parameter list with "A",
-     * "B extends java.lang.String", and "C" as type parameters.
+     * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
+     * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
+     * parameter list with `"A"`,`"B extends java.lang.String"`, and `"C"` as type parameters.
      */
-    private fun parseClassName(api: TextCodebase, type: String): Pair<String, TypeParameterList> {
-        val paramIndex = type.indexOf('<')
+    private fun parseDeclaredClassType(
+        api: TextCodebase,
+        declaredClassType: String
+    ): Pair<String, TypeParameterList> {
+        val paramIndex = declaredClassType.indexOf('<')
         return if (paramIndex == -1) {
-            Pair(type, TypeParameterList.NONE)
+            Pair(declaredClassType, TypeParameterList.NONE)
         } else {
             Pair(
-                type.substring(0, paramIndex),
-                TextTypeParameterList.create(api, type.substring(paramIndex))
+                declaredClassType.substring(0, paramIndex),
+                TextTypeParameterList.create(api, declaredClassType.substring(paramIndex))
             )
         }
     }
