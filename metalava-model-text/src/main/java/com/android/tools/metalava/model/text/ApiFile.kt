@@ -405,6 +405,7 @@ private constructor(
         // the characteristics of the same class from a previously processed signature file.
         val newClassCharacteristics =
             ClassCharacteristics(
+                position = classPosition,
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
@@ -412,9 +413,15 @@ private constructor(
                 superClassTypeString = superClassTypeString,
             )
 
+        // Check to see if there is an existing class, if so merge this class definition into that
+        // one and return. Otherwise, drop through and create a whole new class.
+        if (tryMergingIntoExistingClass(api, tokenizer, newClassCharacteristics)) {
+            return
+        }
+
         // Create the TextClassItem and set its package but do not add it to the package or
         // register it.
-        var cl =
+        val cl =
             TextClassItem(
                 api,
                 classPosition,
@@ -427,6 +434,9 @@ private constructor(
             )
         cl.setContainingPackage(pkg)
 
+        // Record the super class type string as needing to be resolved for this class.
+        mapClassToSuper(cl, superClassTypeString)
+
         // Add the interface type strings to the set that need to be resolved for this class. This
         // is added before possibly replacing the newly created class with an existing one in which
         // case these interface type strings will be ignored.
@@ -434,41 +444,54 @@ private constructor(
             mapClassToInterface(cl, interfaceTypeString)
         }
 
-        cl =
-            when (val foundClass = api.findClass(cl.qualifiedName())) {
-                null -> {
-                    // Duplicate class is not found, thus update super class string
-                    // and keep cl
-                    mapClassToSuper(cl, superClassTypeString)
-                    cl
-                }
-                else -> {
-                    val existingCharacteristics = ClassCharacteristics.of(foundClass)
-                    if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
-                        throw ApiParseException("Incompatible $foundClass definitions", cl.position)
-                    } else {
-                        val newSuperClassTypeString = newClassCharacteristics.superClassTypeString
-                        if (mClassToSuper[foundClass] != newSuperClassTypeString) {
-                            // Duplicate class with conflicting superclass names are found.
-                            // Since the clas definition found later should be prioritized,
-                            // overwrite the superclass name as ext but set cl as
-                            // foundClass, where the class attributes are stored
-                            // and continue to add methods/fields in foundClass
-                            mapClassToSuper(cl, newSuperClassTypeString)
-                            foundClass
-                        } else {
-                            foundClass
-                        }
-                    }
-                }
-            }
-
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(api, tokenizer, cl)
 
         // Add the class to the package, it will only be added to the TextCodebase once the package
         // body has been parsed.
         pkg.addClass(cl)
+    }
+
+    /**
+     * Try merging the new class into an existing class that was previously loaded from a separate
+     * signature file.
+     *
+     * Will throw an exception if there is an existing class but it is not compatible with the new
+     * class.
+     *
+     * @return `false` if there is no existing class, `true` if there is and the merge succeeded.
+     */
+    private fun tryMergingIntoExistingClass(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        newClassCharacteristics: ClassCharacteristics,
+    ): Boolean {
+        // Check for the existing class from a previously parsed file. If it could not be found
+        // then return.
+        val existingClass = api.findClass(newClassCharacteristics.qualifiedName) ?: return false
+
+        // Make sure the new class characteristics are compatible with the old class class
+        // characteristic.s
+        val existingCharacteristics = ClassCharacteristics.of(existingClass)
+        if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
+            throw ApiParseException(
+                "Incompatible $existingClass definitions",
+                newClassCharacteristics.position
+            )
+        }
+
+        // Use the latest super class.
+        val newSuperClassTypeString = newClassCharacteristics.superClassTypeString
+        if (mClassToSuper[existingClass] != newSuperClassTypeString) {
+            // Duplicate class with conflicting superclass names are found. Since the class
+            // definition found later should be prioritized, overwrite the superclass name.
+            mapClassToSuper(existingClass, newSuperClassTypeString)
+        }
+
+        // Parse the class body adding each member created to the existing class.
+        parseClassBody(api, tokenizer, existingClass)
+
+        return true
     }
 
     /** Parse the class body, adding members to [cl]. */

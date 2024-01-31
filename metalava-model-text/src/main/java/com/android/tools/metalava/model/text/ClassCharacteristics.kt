@@ -26,6 +26,9 @@ import com.android.tools.metalava.model.ModifierList
  * signature file.
  */
 internal data class ClassCharacteristics(
+    /** The position of the class definition within the API signature file. */
+    val position: SourcePositionInfo,
+
     /** Name including package and full name. */
     val qualifiedName: String,
 
@@ -67,6 +70,7 @@ internal data class ClassCharacteristics(
     companion object {
         fun of(classItem: TextClassItem): ClassCharacteristics =
             ClassCharacteristics(
+                position = classItem.position,
                 qualifiedName = classItem.qualifiedName,
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
