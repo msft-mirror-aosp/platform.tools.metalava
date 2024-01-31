@@ -468,10 +468,11 @@ private constructor(
     ): Boolean {
         // Check for the existing class from a previously parsed file. If it could not be found
         // then return.
-        val existingClass = api.findClass(newClassCharacteristics.qualifiedName) ?: return false
+        val existingClass =
+            api.findClassInCodebase(newClassCharacteristics.qualifiedName) ?: return false
 
-        // Make sure the new class characteristics are compatible with the old class class
-        // characteristic.s
+        // Make sure the new class characteristics are compatible with the old class
+        // characteristic.
         val existingCharacteristics = ClassCharacteristics.of(existingClass)
         if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
             throw ApiParseException(
@@ -1532,7 +1533,7 @@ internal class ReferenceResolver(
                     // Search in this codebase, then possibly check for a type parameter, if not
                     // found then fall back to searching in a base codebase and finally creating a
                     // stub.
-                    codebase.findClass(exception)?.let { ThrowableType.ofClass(it) }
+                    codebase.findClassInCodebase(exception)?.let { ThrowableType.ofClass(it) }
                         ?: typeParameterScope.findTypeParameter(exception)?.let {
                             ThrowableType.ofTypeParameter(it)
                         }

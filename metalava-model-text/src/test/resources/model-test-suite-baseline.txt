@@ -14,12 +14,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
   Test access type parameter of outer class in extends type[text,signature]
   Test access type parameter of outer class in interface type[text,signature]
-  Test class no super class but implements lists[text,signature]
-  Test class no super class or implements lists[text,signature]
-
-com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
-  test findClass()[text,signature,java.lang.Object]
-  test findClass()[text,signature,java.lang.Throwable]
 
 com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
   Test access type parameter of outer class[text,signature]

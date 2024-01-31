@@ -116,7 +116,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
     }
 
     private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
-        val cls = codebase.findClass(fullClass.qualifiedName())
+        val cls = codebase.findClassInCodebase(fullClass.qualifiedName())
         if (cls != null) {
             return cls
         }
