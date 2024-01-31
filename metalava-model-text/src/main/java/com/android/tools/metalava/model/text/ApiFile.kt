@@ -391,20 +391,37 @@ private constructor(
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
-        token = tokenizer.requireToken()
 
         // Extract the full name and type parameters from declaredClassType.
-        val (fullName, typeParameters) = parseDeclaredClassType(api, declaredClassType)
-        val qualifiedClassName = qualifiedName(pkg.name(), fullName)
+        val (fullName, qualifiedClassName, typeParameters) =
+            parseDeclaredClassType(api, declaredClassType, pkg)
 
         // Above we marked all enums as static but for a top level class it's implicit
         if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
             modifiers.setStatic(false)
         }
 
+        // Get the characteristics of the class being added as they may be needed to compare against
+        // the characteristics of the same class from a previously processed signature file.
+        val newClassCharacteristics =
+            ClassCharacteristics(
+                position = classPosition,
+                qualifiedName = qualifiedClassName,
+                fullName = fullName,
+                classKind = classKind,
+                modifiers = modifiers,
+                superClassTypeString = superClassTypeString,
+            )
+
+        // Check to see if there is an existing class, if so merge this class definition into that
+        // one and return. Otherwise, drop through and create a whole new class.
+        if (tryMergingIntoExistingClass(api, tokenizer, newClassCharacteristics)) {
+            return
+        }
+
         // Create the TextClassItem and set its package but do not add it to the package or
         // register it.
-        var cl =
+        val cl =
             TextClassItem(
                 api,
                 classPosition,
@@ -417,6 +434,9 @@ private constructor(
             )
         cl.setContainingPackage(pkg)
 
+        // Record the super class type string as needing to be resolved for this class.
+        mapClassToSuper(cl, superClassTypeString)
+
         // Add the interface type strings to the set that need to be resolved for this class. This
         // is added before possibly replacing the newly created class with an existing one in which
         // case these interface type strings will be ignored.
@@ -424,31 +444,63 @@ private constructor(
             mapClassToInterface(cl, interfaceTypeString)
         }
 
-        cl =
-            when (val foundClass = api.findClass(cl.qualifiedName())) {
-                null -> {
-                    // Duplicate class is not found, thus update super class string
-                    // and keep cl
-                    mapClassToSuper(cl, superClassTypeString)
-                    cl
-                }
-                else -> {
-                    if (!foundClass.isCompatible(cl)) {
-                        throw ApiParseException("Incompatible $foundClass definitions", cl.position)
-                    } else if (mClassToSuper[foundClass] != superClassTypeString) {
-                        // Duplicate class with conflicting superclass names are found.
-                        // Since the clas definition found later should be prioritized,
-                        // overwrite the superclass name as ext but set cl as
-                        // foundClass, where the class attributes are stored
-                        // and continue to add methods/fields in foundClass
-                        mapClassToSuper(cl, superClassTypeString)
-                        foundClass
-                    } else {
-                        foundClass
-                    }
-                }
-            }
+        // Parse the class body adding each member created to the class item being populated.
+        parseClassBody(api, tokenizer, cl)
 
+        // Add the class to the package, it will only be added to the TextCodebase once the package
+        // body has been parsed.
+        pkg.addClass(cl)
+    }
+
+    /**
+     * Try merging the new class into an existing class that was previously loaded from a separate
+     * signature file.
+     *
+     * Will throw an exception if there is an existing class but it is not compatible with the new
+     * class.
+     *
+     * @return `false` if there is no existing class, `true` if there is and the merge succeeded.
+     */
+    private fun tryMergingIntoExistingClass(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        newClassCharacteristics: ClassCharacteristics,
+    ): Boolean {
+        // Check for the existing class from a previously parsed file. If it could not be found
+        // then return.
+        val existingClass = api.findClass(newClassCharacteristics.qualifiedName) ?: return false
+
+        // Make sure the new class characteristics are compatible with the old class class
+        // characteristic.s
+        val existingCharacteristics = ClassCharacteristics.of(existingClass)
+        if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
+            throw ApiParseException(
+                "Incompatible $existingClass definitions",
+                newClassCharacteristics.position
+            )
+        }
+
+        // Use the latest super class.
+        val newSuperClassTypeString = newClassCharacteristics.superClassTypeString
+        if (mClassToSuper[existingClass] != newSuperClassTypeString) {
+            // Duplicate class with conflicting superclass names are found. Since the class
+            // definition found later should be prioritized, overwrite the superclass name.
+            mapClassToSuper(existingClass, newSuperClassTypeString)
+        }
+
+        // Parse the class body adding each member created to the existing class.
+        parseClassBody(api, tokenizer, existingClass)
+
+        return true
+    }
+
+    /** Parse the class body, adding members to [cl]. */
+    private fun parseClassBody(
+        api: TextCodebase,
+        tokenizer: Tokenizer,
+        cl: TextClassItem,
+    ) {
+        var token = tokenizer.requireToken()
         val classTypeParameterScope = TypeParameterScope.from(cl)
         while (true) {
             if ("}" == token) {
@@ -473,7 +525,6 @@ private constructor(
             }
             token = tokenizer.requireToken()
         }
-        pkg.addClass(cl)
     }
 
     /**
@@ -506,8 +557,18 @@ private constructor(
         }
     }
 
+    /** Encapsulates multiple return values from [parseDeclaredClassType]. */
+    private data class DeclaredClassTypeComponents(
+        /** The full name of the class, including outer class prefix. */
+        val fullName: String,
+        /** The fully qualified name, including package and full name. */
+        val qualifiedName: String,
+        /** The set of type parameters. */
+        val typeParameters: TypeParameterList,
+    )
+
     /**
-     * Splits the declared class type into its full name and type parameter list.
+     * Splits the declared class type into its full name, qualified name and type parameter list.
      *
      * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
      * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
@@ -515,15 +576,25 @@ private constructor(
      */
     private fun parseDeclaredClassType(
         api: TextCodebase,
-        declaredClassType: String
-    ): Pair<String, TypeParameterList> {
+        declaredClassType: String,
+        pkg: TextPackageItem,
+    ): DeclaredClassTypeComponents {
         val paramIndex = declaredClassType.indexOf('<')
+        val pkgName = pkg.name()
         return if (paramIndex == -1) {
-            Pair(declaredClassType, TypeParameterList.NONE)
+            DeclaredClassTypeComponents(
+                fullName = declaredClassType,
+                qualifiedName = qualifiedName(pkgName, declaredClassType),
+                typeParameters = TypeParameterList.NONE,
+            )
         } else {
-            Pair(
-                declaredClassType.substring(0, paramIndex),
-                TextTypeParameterList.create(api, declaredClassType.substring(paramIndex))
+            val name = declaredClassType.substring(0, paramIndex)
+            val qualifiedName = qualifiedName(pkgName, name)
+            DeclaredClassTypeComponents(
+                fullName = name,
+                qualifiedName = qualifiedName,
+                typeParameters =
+                    TextTypeParameterList.create(api, declaredClassType.substring(paramIndex)),
             )
         }
     }
@@ -1539,26 +1610,4 @@ private fun DefaultModifierList.addAnnotations(annotationSources: List<String>) 
 
         addAnnotation(item)
     }
-}
-
-/**
- * Checks if the [cls] from different signature file can be merged with this [TextClassItem]. For
- * instance, `current.txt` and `system-current.txt` may contain equal class definitions with
- * different class methods. This method is used to determine if the two [TextClassItem]s can be
- * safely merged in such scenarios.
- *
- * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
- * @return a Boolean value representing if [cls] is compatible with [this]
- */
-private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
-    if (this === cls) {
-        return true
-    }
-    if (fullName() != cls.fullName()) {
-        return false
-    }
-
-    return modifiers == cls.modifiers &&
-        classKind == cls.classKind &&
-        allInterfaces().toSet() == cls.allInterfaces().toSet()
 }
