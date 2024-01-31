@@ -34,7 +34,7 @@ class CommonModelTest : BaseModelTest() {
                     // Signature format: 2.0
                 """),
             java(""),
-        ) { codebase ->
+        ) {
             assertNotNull(codebase)
         }
     }
@@ -65,7 +65,7 @@ class CommonModelTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Foo {
-                            public void foo(int i) {}                        
+                            public void foo(int i) {}
                         }
                     """
                 ),
@@ -73,13 +73,13 @@ class CommonModelTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Bar extends Foo {
-                            public void foo(int i) {}                        
-                            public int bar(String s) {return s.length();}                        
+                            public void foo(int i) {}
+                            public int bar(String s) {return s.length();}
                         }
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             // Iterate over the codebase and try and find every item that is visited.
             codebase.accept(
                 object : BaseItemVisitor() {
