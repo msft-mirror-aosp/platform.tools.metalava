@@ -17,21 +17,16 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.testing.createFiles
-import java.io.File
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class ApiFileTest : Assertions {
-
-    @get:Rule val temporaryFolder = TemporaryFolder()
+@RunWith(Parameterized::class)
+class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test parse from InputStream`() {
@@ -45,9 +40,8 @@ class ApiFileTest : Assertions {
 
     @Test
     fun `Test known Throwable`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runCodebaseTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package java.lang {
@@ -60,24 +54,23 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val objectClass = codebase.assertClass("java.lang.Object")
+            val throwable = codebase.assertClass("java.lang.Throwable")
+            assertSame(objectClass, throwable.superClass())
 
-        val objectClass = codebase.assertClass("java.lang.Object")
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        assertSame(objectClass, throwable.superClass())
-
-        // Make sure the stub Throwable is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(throwable, exception.classItem)
+            // Make sure the stub Throwable is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(throwable, exception.classItem)
+        }
     }
 
     @Test
     fun `Test known Throwable subclass`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runCodebaseTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package java.lang {
@@ -90,24 +83,23 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val throwable = codebase.assertClass("java.lang.Throwable")
+            val error = codebase.assertClass("java.lang.Error")
+            assertSame(throwable, error.superClass())
 
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        val error = codebase.assertClass("java.lang.Error")
-        assertSame(throwable, error.superClass())
-
-        // Make sure the stub Throwable is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(error, exception.classItem)
+            // Make sure the stub Throwable is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(error, exception.classItem)
+        }
     }
 
     @Test
     fun `Test unknown Throwable`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runCodebaseTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -116,24 +108,23 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val throwable = codebase.assertClass("java.lang.Throwable")
+            // This should probably be Object.
+            assertNull(throwable.superClass())
 
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        // This should probably be Object.
-        assertNull(throwable.superClass())
-
-        // Make sure the stub Throwable is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(throwable, exception.classItem)
+            // Make sure the stub Throwable is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(throwable, exception.classItem)
+        }
     }
 
     @Test
     fun `Test unknown Throwable subclass`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runCodebaseTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -142,18 +133,18 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val throwable = codebase.assertClass("java.lang.Throwable")
+            val unknownExceptionClass = codebase.assertClass("other.UnknownException")
+            // Make sure the stub UnknownException is initialized correctly.
+            assertSame(throwable, unknownExceptionClass.superClass())
 
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        val unknownExceptionClass = codebase.assertClass("other.UnknownException")
-        // Make sure the stub UnknownException is initialized correctly.
-        assertSame(throwable, unknownExceptionClass.superClass())
-
-        // Make sure the stub UnknownException is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception.classItem)
+            // Make sure the stub UnknownException is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(unknownExceptionClass, exception.classItem)
+        }
     }
 
     @Test
@@ -186,9 +177,6 @@ class ApiFileTest : Assertions {
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
         assertSame(unknownExceptionClass, exception.classItem)
     }
-
-    fun signature(filename: String, contents: String): TestFile =
-        TestFiles.source(filename, contents.trimIndent())
 
     @Test
     fun `Test parse multiple files correctly updates super class`() {
@@ -232,20 +220,22 @@ class ApiFileTest : Assertions {
                 ),
             )
 
-        fun checkSuperClass(files: List<File>, order: String, expectedSuperClass: String) {
-            val codebase = ApiFile.parseApi(files)
-            val fooClass = codebase.assertClass("test.pkg.Foo")
-            assertSame(
-                codebase.assertClass(expectedSuperClass),
-                fooClass.superClass(),
-                message = "incorrect super class from $order"
-            )
+        fun checkSuperClass(files: List<TestFile>, order: String, expectedSuperClass: String) {
+            runCodebaseTest(
+                inputSet(files),
+            ) {
+                val fooClass = codebase.assertClass("test.pkg.Foo")
+                assertSame(
+                    codebase.assertClass(expectedSuperClass),
+                    fooClass.superClass(),
+                    message = "incorrect super class from $order"
+                )
+            }
         }
 
         // Order matters, the last, non-null super class wins.
-        val files = testFiles.createFiles(temporaryFolder.newFolder())
-        checkSuperClass(files, "narrowest to widest", "test.pkg.Baz")
-        checkSuperClass(files.reversed(), "widest to narrowest", "test.pkg.Bar")
+        checkSuperClass(testFiles, "narrowest to widest", "test.pkg.Baz")
+        checkSuperClass(testFiles.reversed(), "widest to narrowest", "test.pkg.Bar")
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
