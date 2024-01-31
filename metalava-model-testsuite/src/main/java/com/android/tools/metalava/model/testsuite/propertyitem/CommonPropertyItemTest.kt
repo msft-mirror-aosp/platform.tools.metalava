@@ -29,6 +29,49 @@ import org.junit.runners.Parameterized
 class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
+    fun `Test access type parameter of outer class`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner {
+                        property public abstract O property;
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        inner class Middle private constructor() {
+                            abstract inner class Inner private constructor() {
+                                abstract val property: O
+                            }
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter =
+                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val propertyType =
+                codebase
+                    .assertClass("test.pkg.Outer.Middle.Inner")
+                    .assertProperty("property")
+                    .type()
+
+            propertyType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
     fun `Test deprecated getter and setter by annotation`() {
         runCodebaseTest(
             kotlin(
@@ -45,7 +88,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val property = barClass.properties().single()
             val methods = barClass.methods()

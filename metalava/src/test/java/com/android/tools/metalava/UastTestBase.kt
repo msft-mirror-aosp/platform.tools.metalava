@@ -392,7 +392,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static void foo(String![] vs, optional boolean b);
+                    method public static void foo(String[] vs, optional boolean b);
                   }
                 }
             """
@@ -465,8 +465,8 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        val e = if (isK2) "test.pkg.Event" else "E!"
-        val s = if (isK2) "test.pkg.State" else "E!"
+        val e = "test.pkg.Event"
+        val s = "test.pkg.State"
         uastCheck(
             isK2,
             sourceFiles =
@@ -571,8 +571,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        val c = if (isK2) "test.pkg.PowerCategory" else "E!"
-        val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
+        val c = "test.pkg.PowerCategory"
+        val d = "test.pkg.PowerCategoryDisplayLevel"
         uastCheck(
             isK2,
             sourceFiles =
@@ -742,7 +742,7 @@ abstract class UastTestBase : DriverTest() {
                   public interface NavGraphBuilder {
                   }
                   public final class NavGraphBuilderKt {
-                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition>? enterTransition);
+                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
                   }
                 }
                 """
@@ -983,28 +983,28 @@ abstract class UastTestBase : DriverTest() {
                         package test.pkg
 
                         class Test_noAccessor {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_noAccessor_deprecatedOnProperty: String = "42"
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_noAccessor_deprecatedOnGetter: String = "42"
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_noAccessor_deprecatedOnSetter: String = "42"
 
                             var pNew_noAccessor: String = "42"
                         }
 
                         class Test_getter {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_getter_deprecatedOnProperty: String? = null
                                 get() = field ?: "null?"
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_getter_deprecatedOnGetter: String? = null
                                 get() = field ?: "null?"
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_getter_deprecatedOnSetter: String? = null
                                 get() = field ?: "null?"
 
@@ -1013,7 +1013,7 @@ abstract class UastTestBase : DriverTest() {
                         }
 
                         class Test_setter {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_setter_deprecatedOnProperty: String? = null
                                 set(value) {
                                     if (field == null) {
@@ -1021,7 +1021,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_setter_deprecatedOnGetter: String? = null
                                 set(value) {
                                     if (field == null) {
@@ -1029,7 +1029,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_setter_deprecatedOnSetter: String? = null
                                 set(value) {
                                     if (field == null) {
@@ -1046,7 +1046,7 @@ abstract class UastTestBase : DriverTest() {
                         }
 
                         class Test_accessors {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_accessors_deprecatedOnProperty: String? = null
                                 get() = field ?: "null?"
                                 set(value) {
@@ -1055,7 +1055,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_accessors_deprecatedOnGetter: String? = null
                                 get() = field ?: "null?"
                                 set(value) {
@@ -1064,7 +1064,7 @@ abstract class UastTestBase : DriverTest() {
                                     }
                                 }
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_accessors_deprecatedOnSetter: String? = null
                                 get() = field ?: "null?"
                                 set(value) {
@@ -1090,52 +1090,52 @@ abstract class UastTestBase : DriverTest() {
                         annotation class MyAnnotation
 
                         interface TestInterface {
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnProperty: Int
 
                             @get:MyAnnotation
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnProperty_myAnnoOnGetter: Int
 
                             @set:MyAnnotation
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnProperty_myAnnoOnSetter: Int
 
                             @get:MyAnnotation
                             @set:MyAnnotation
-                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            @Deprecated("no more property", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnProperty_myAnnoOnBoth: Int
 
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnGetter: Int
 
                             @get:MyAnnotation
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnGetter_myAnnoOnGetter: Int
 
                             @set:MyAnnotation
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnGetter_myAnnoOnSetter: Int
 
                             @get:MyAnnotation
                             @set:MyAnnotation
-                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            @get:Deprecated("no more getter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnGetter_myAnnoOnBoth: Int
 
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnSetter: Int
 
                             @get:MyAnnotation
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnSetter_myAnnoOnGetter: Int
 
                             @set:MyAnnotation
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnSetter_myAnnoOnSetter: Int
 
                             @get:MyAnnotation
                             @set:MyAnnotation
-                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            @set:Deprecated("no more setter", level = DeprecationLevel.HIDDEN)
                             var pOld_deprecatedOnSetter_myAnnoOnBoth: Int
                         }
                         """

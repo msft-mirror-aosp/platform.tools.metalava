@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
-class TurbineConstructorItem(
+internal class TurbineConstructorItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     methodSymbol: MethodSymbol,
@@ -29,6 +29,7 @@ class TurbineConstructorItem(
     returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
+    documentation: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -36,7 +37,8 @@ class TurbineConstructorItem(
         containingClass,
         returnType,
         modifiers,
-        typeParameters
+        typeParameters,
+        documentation
     ),
     ConstructorItem {
 
@@ -68,9 +70,10 @@ class TurbineConstructorItem(
                     name,
                     symbol,
                     containingClass,
-                    containingClass.toType(),
+                    containingClass.type(),
                     modifiers,
                     parameters,
+                    "",
                 )
             modifiers.setOwner(ctorItem)
             ctorItem.parameters = emptyList()
