@@ -314,6 +314,11 @@ private constructor(
         val annotations: List<String> = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, annotations)
+
+        // Remember this position as this seems like a good place to use to report issues with the
+        // class item.
+        val classPosition = tokenizer.pos()
+
         token = tokenizer.current
         when (token) {
             "class" -> {
@@ -350,7 +355,7 @@ private constructor(
         var cl =
             TextClassItem(
                 api,
-                tokenizer.pos(),
+                classPosition,
                 modifiers,
                 classKind,
                 qualifiedClassName,
