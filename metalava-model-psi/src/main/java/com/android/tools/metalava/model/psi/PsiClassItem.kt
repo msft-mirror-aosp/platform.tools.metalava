@@ -202,9 +202,6 @@ internal constructor(
         }
     }
 
-    override val isTypeParameter: Boolean
-        get() = psiClass is PsiTypeParameter
-
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
@@ -321,19 +318,7 @@ internal constructor(
         val method = template as PsiMethodItem
         val newMethod = PsiMethodItem.create(codebase, this, method)
 
-        if (template.throwsTypes().isEmpty()) {
-            newMethod.setThrowsTypes(emptyList())
-        } else {
-            val throwsTypes = mutableListOf<ClassItem>()
-            for (type in template.throwsTypes()) {
-                if (type.codebase === codebase) {
-                    throwsTypes.add(type)
-                } else {
-                    throwsTypes.add(codebase.findOrCreateClass(((type as PsiClassItem).psiClass)))
-                }
-            }
-            newMethod.setThrowsTypes(throwsTypes)
-        }
+        newMethod.setThrowsTypes(method.throwsTypes())
         newMethod.finishInitialization()
 
         // Remember which class this method was copied from.
@@ -395,7 +380,9 @@ internal constructor(
             fromClassPath: Boolean
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
-                return PsiTypeParameterItem.create(codebase, psiClass)
+                error(
+                    "Must not be called with PsiTypeParameter; use PsiTypeParameterItem.create(...) instead"
+                )
             }
             val simpleName = psiClass.name!!
             val fullName = computeFullClassName(psiClass)
