@@ -56,6 +56,7 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -102,6 +103,7 @@ import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
+import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.reporter.Issues.GENERIC_CALLBACKS
@@ -178,6 +180,7 @@ import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
 import java.util.Locale
 import java.util.function.Predicate
+import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UMethod
@@ -206,7 +209,6 @@ private constructor(
         config = config,
         // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
-        fieldComparator = FieldItem.comparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -249,7 +251,9 @@ private constructor(
     private fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
-            CodebaseComparator()
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
                 .compare(
                     object : ComparisonVisitor() {
                         override fun added(new: Item) {
@@ -277,13 +281,6 @@ private constructor(
             // No previous codebase to compare with: visit the whole thing
             codebase.accept(this)
         }
-    }
-
-    override fun skip(item: Item): Boolean {
-        return super.skip(item) ||
-            item is ClassItem && !isInteresting(item) ||
-            item is MethodItem && !isInteresting(item.containingClass()) ||
-            item is FieldItem && !isInteresting(item.containingClass())
     }
 
     private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
@@ -372,6 +369,7 @@ private constructor(
         checkExtends(cls)
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
+        checkFlaggedApiLiteral(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -387,6 +385,7 @@ private constructor(
         checkSettingKeys(field)
         checkNullableCollections(field.type(), field)
         checkHasFlaggedApi(field)
+        checkFlaggedApiLiteral(field)
     }
 
     private fun checkMethod(method: MethodItem, filterReference: Predicate<Item>) {
@@ -404,6 +403,48 @@ private constructor(
         checkContextFirst(method)
         checkListenerLast(method)
         checkHasFlaggedApi(method)
+        checkFlaggedApiLiteral(method)
+    }
+
+    private fun checkFlaggedApiLiteral(item: Item) {
+        if (item.codebase.preFiltered) {
+            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // literals.
+            return
+        }
+
+        val annotation =
+            item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
+        val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
+
+        if (attr.value.resolve() == null) {
+            val value = attr.value.value() as? String
+            if (value == attr.value.toSource()) {
+                // For a string literal, source and value are never the same, so this happens only
+                // when a reference isn't resolvable.
+                return
+            }
+
+            val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
+
+            val replacement =
+                if (field != null) {
+                    val (fieldSource, fieldItem) = field
+                    if (fieldItem != null) {
+                        fieldSource
+                    } else {
+                        "$fieldSource, however this flag doesn't seem to exist"
+                    }
+                } else {
+                    "furthermore, the current flag literal seems to be malformed"
+                }
+
+            report(
+                FLAGGED_API_LITERAL,
+                item,
+                "@FlaggedApi contains a string literal, but should reference the field generated by aconfig ($replacement).",
+            )
+        }
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -1820,9 +1861,9 @@ private constructor(
             val type = item.type()
             val inherited =
                 when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedMethod
-                    is FieldItem -> item.inheritedField
-                    is MethodItem -> item.inheritedMethod
+                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                    is FieldItem -> item.inheritedFromAncestor
+                    is MethodItem -> item.inheritedFromAncestor
                     else -> false
                 }
             if (inherited) {
@@ -1973,7 +2014,9 @@ private constructor(
             }
         }
 
-        val qualifiedName = type.asClass()?.qualifiedName() ?: return
+        // Only report issues with an actual type and not a generic type that extends Number as
+        // there is nothing that can be done to avoid auto-boxing when using generic types.
+        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }
@@ -3047,17 +3090,6 @@ private constructor(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun isInteresting(cls: ClassItem): Boolean {
-        val name = cls.qualifiedName()
-        for (prefix in options.checkApiIgnorePrefix) {
-            if (name.startsWith(prefix)) {
-                return false
-            }
-        }
-        return true
-    }
-
     companion object {
 
         /**
@@ -3274,6 +3306,38 @@ private constructor(
                         s.replace(acronym, replacement)
                     }
             }
+        }
+
+        /**
+         * Heuristically converts the given string [literal] into a reference to the equivalent
+         * `aconfig`-generated `Flags.java` field.
+         *
+         * @return a pair of the field reference as Java / Kotlin source, and the referenced field
+         *   item (if found in [codebase]); or `null` if the literal cannot be converted.
+         */
+        private fun aconfigFlagLiteralToFieldOrNull(
+            codebase: Codebase,
+            literal: String
+        ): Pair<String, FieldItem?>? {
+            if (literal.contains('/')) {
+                return null
+            }
+            val parts = literal.split('.')
+
+            val flag = parts.lastOrNull() ?: return null
+            val flagField = "FLAG_" + flag.toUpperCaseAsciiOnly()
+            val pkg = parts.dropLast(1).joinToString(separator = ".")
+            val className = "$pkg.Flags"
+            val fieldSource = "$className.$flagField"
+
+            val clazzOrNull = codebase.findClass(className)
+            val fieldOrNull =
+                clazzOrNull?.findField(
+                    flagField,
+                    includeSuperClasses = true,
+                    includeInterfaces = true
+                )
+            return fieldSource to fieldOrNull
         }
     }
 }

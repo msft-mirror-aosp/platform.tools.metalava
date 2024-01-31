@@ -20,36 +20,20 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterList(
+internal class TextTypeParameterList(
     val codebase: TextCodebase,
     private var owner: TypeParameterListOwner?,
-    private val typeListString: String
+    private val typeParameters: List<TextTypeParameterItem>,
 ) : TypeParameterList {
-    private var typeParameters: List<TextTypeParameterItem>? = null
-    private var typeParameterNames: List<String>? = null
-
-    override fun toString(): String = typeListString
-
-    override fun typeParameterNames(): List<String> {
-        if (typeParameterNames == null) {
-            typeParameterNames = typeParameters().map { it.simpleName() }
-        }
-        return typeParameterNames!!
-    }
+    override fun toString() = typeParameters.joinToString(prefix = "<", postfix = ">")
 
     override fun typeParameters(): List<TypeParameterItem> {
-        if (typeParameters == null) {
-            val strings = TextTypeParser.typeParameterStrings(typeListString)
-            val list = ArrayList<TextTypeParameterItem>(strings.size)
-            strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
-            typeParameters = list
-        }
-        return typeParameters!!
+        return typeParameters
     }
 
     internal fun setOwner(newOwner: TypeParameterListOwner) {
         owner = newOwner
-        typeParameters?.forEach { it.setOwner(newOwner) }
+        typeParameters.forEach { it.setOwner(newOwner) }
     }
 
     companion object {
@@ -61,7 +45,10 @@ class TextTypeParameterList(
          * like "<A>" or "<A, B extends java.lang.String, C>".
          */
         fun create(codebase: TextCodebase, typeListString: String): TypeParameterList {
-            return TextTypeParameterList(codebase, owner = null, typeListString)
+            val strings = TextTypeParser.typeParameterStrings(typeListString)
+            val typeParameters = strings.map { TextTypeParameterItem.create(codebase, it) }
+
+            return TextTypeParameterList(codebase, owner = null, typeParameters)
         }
     }
 }
