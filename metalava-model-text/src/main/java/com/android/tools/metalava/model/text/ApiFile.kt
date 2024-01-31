@@ -1571,7 +1571,6 @@ private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
         return false
     }
 
-    return modifiers == cls.modifiers &&
-        classKind == cls.classKind &&
-        allInterfaces().toSet() == cls.allInterfaces().toSet()
+    // TODO(b/323168612): Check super interface types and super class type of the two TextClassItem
+    return classKind == cls.classKind && modifiers == cls.modifiers
 }
