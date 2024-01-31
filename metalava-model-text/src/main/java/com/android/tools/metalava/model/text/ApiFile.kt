@@ -308,7 +308,7 @@ private constructor(
     ) {
         var token = startingToken
         var classKind = ClassKind.CLASS
-        var ext: String? = null
+        var superClassTypeString: String? = null
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -333,7 +333,7 @@ private constructor(
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
-                ext = JAVA_LANG_ENUM
+                superClassTypeString = JAVA_LANG_ENUM
                 token = tokenizer.requireToken()
             }
             else -> {
@@ -361,7 +361,7 @@ private constructor(
 
         cl.setContainingPackage(pkg)
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
-            ext = parseSuperTypeString(tokenizer, tokenizer.requireToken())
+            superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
             token = tokenizer.current
         }
 
@@ -380,7 +380,7 @@ private constructor(
                 }
             }
         }
-        if (JAVA_LANG_ENUM == ext) {
+        if (JAVA_LANG_ENUM == superClassTypeString) {
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
@@ -417,19 +417,19 @@ private constructor(
                 null -> {
                     // Duplicate class is not found, thus update super class string
                     // and keep cl
-                    mapClassToSuper(cl, ext)
+                    mapClassToSuper(cl, superClassTypeString)
                     cl
                 }
                 else -> {
                     if (!foundClass.isCompatible(cl)) {
                         throw ApiParseException("Incompatible $foundClass definitions", cl.position)
-                    } else if (mClassToSuper[foundClass] != ext) {
+                    } else if (mClassToSuper[foundClass] != superClassTypeString) {
                         // Duplicate class with conflicting superclass names are found.
                         // Since the clas definition found later should be prioritized,
                         // overwrite the superclass name as ext but set cl as
                         // foundClass, where the class attributes are stored
                         // and continue to add methods/fields in foundClass
-                        mapClassToSuper(cl, ext)
+                        mapClassToSuper(cl, superClassTypeString)
                         foundClass
                     } else {
                         foundClass
