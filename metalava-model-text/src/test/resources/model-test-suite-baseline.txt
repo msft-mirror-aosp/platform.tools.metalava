@@ -3,7 +3,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with char values[text,signature]
   annotation toSource() with class values[text,signature]
   annotation toSource() with compound expression values[text,signature]
-  annotation toSource() with constant literal values[text,signature]
   annotation toSource() with enum values[text,signature]
   annotation toSource() with number values[text,signature]
   annotation toSource() with string values[text,signature]
