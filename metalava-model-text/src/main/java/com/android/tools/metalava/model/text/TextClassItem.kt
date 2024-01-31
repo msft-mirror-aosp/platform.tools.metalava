@@ -38,6 +38,7 @@ internal open class TextClassItem(
     override val classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    val fullName: String = name,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
@@ -210,8 +211,6 @@ internal open class TextClassItem(
         retention = ClassItem.findRetention(this)
         return retention!!
     }
-
-    private var fullName: String = name
 
     override fun simpleName(): String = name.substring(name.lastIndexOf('.') + 1)
 

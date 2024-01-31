@@ -384,7 +384,7 @@ private constructor(
         }
 
         // Extract the full name and type parameters from declaredClassType.
-        val (fullName, qualifiedClassName, typeParameters) =
+        val (className, fullName, qualifiedClassName, outerClass, typeParameters) =
             parseDeclaredClassType(api, declaredClassType, pkg)
 
         // Above we marked all enums as static but for a top level class it's implicit
@@ -419,11 +419,21 @@ private constructor(
                 modifiers,
                 classKind,
                 qualifiedClassName,
+                className,
                 fullName,
                 annotations,
                 typeParameters
             )
         cl.setContainingPackage(pkg)
+        cl.containingClass = outerClass
+        if (outerClass == null) {
+            // Add the class to the package, it will only be added to the TextCodebase once the
+            // package
+            // body has been parsed.
+            pkg.addClass(cl)
+        } else {
+            outerClass.addInnerClass(cl)
+        }
         api.registerClass(cl)
 
         // Record the super class type string as needing to be resolved for this class.
@@ -438,10 +448,6 @@ private constructor(
 
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(api, tokenizer, cl)
-
-        // Add the class to the package, it will only be added to the TextCodebase once the package
-        // body has been parsed.
-        pkg.addClass(cl)
     }
 
     /**
@@ -552,16 +558,19 @@ private constructor(
 
     /** Encapsulates multiple return values from [parseDeclaredClassType]. */
     private data class DeclaredClassTypeComponents(
+        /** The simple name of the class, i.e. not including any outer class prefix. */
+        val simpleName: String,
         /** The full name of the class, including outer class prefix. */
         val fullName: String,
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
+        val outerClass: ClassItem?,
         /** The set of type parameters. */
         val typeParameters: TypeParameterList,
     )
 
     /**
-     * Splits the declared class type into its full name, qualified name and type parameter list.
+     * Splits the declared class type into [DeclaredClassTypeComponents].
      *
      * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
      * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
@@ -572,24 +581,46 @@ private constructor(
         declaredClassType: String,
         pkg: TextPackageItem,
     ): DeclaredClassTypeComponents {
+        // Split the declared class type into full name and type parameters.
         val paramIndex = declaredClassType.indexOf('<')
+        val (fullName, typeParameterString) =
+            if (paramIndex == -1) {
+                Pair(declaredClassType, "")
+            } else {
+                Pair(
+                    declaredClassType.substring(0, paramIndex),
+                    declaredClassType.substring(paramIndex)
+                )
+            }
         val pkgName = pkg.name()
-        return if (paramIndex == -1) {
-            DeclaredClassTypeComponents(
-                fullName = declaredClassType,
-                qualifiedName = qualifiedName(pkgName, declaredClassType),
-                typeParameters = TypeParameterList.NONE,
-            )
-        } else {
-            val name = declaredClassType.substring(0, paramIndex)
-            val qualifiedName = qualifiedName(pkgName, name)
-            DeclaredClassTypeComponents(
-                fullName = name,
-                qualifiedName = qualifiedName,
-                typeParameters =
-                    TextTypeParameterList.create(api, declaredClassType.substring(paramIndex)),
-            )
-        }
+        val qualifiedName = qualifiedName(pkgName, fullName)
+
+        // Split the full name into an optional outer class and a simple name.
+        val nestedClassIndex = fullName.lastIndexOf('.')
+        val (outerClass, simpleName) =
+            if (nestedClassIndex == -1) {
+                Pair(null, fullName)
+            } else {
+                val outerClassFullName = fullName.substring(0, nestedClassIndex)
+                val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
+
+                // Search for the outer class in the codebase. This is safe as the outer class
+                // always precedes its nested classes.
+                val outerClass = api.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
+
+                val innerClassName = fullName.substring(nestedClassIndex + 1)
+                Pair(outerClass, innerClassName)
+            }
+
+        return DeclaredClassTypeComponents(
+            simpleName = simpleName,
+            fullName = fullName,
+            qualifiedName = qualifiedName,
+            outerClass = outerClass,
+            typeParameters =
+                if (typeParameterString == "") TypeParameterList.NONE
+                else TextTypeParameterList.create(api, typeParameterString)
+        )
     }
 
     /**
@@ -1431,14 +1462,6 @@ internal class ReferenceResolver(
      */
     private val classes = codebase.mAllClasses.values.toList()
 
-    /**
-     * A list of all the packages in the text codebase.
-     *
-     * This takes a copy of the `values` collection rather than use it correctly to avoid
-     * [ConcurrentModificationException].
-     */
-    private val packages = codebase.mPackages.values.toList()
-
     companion object {
         fun resolveReferences(context: ResolverContext, codebase: TextCodebase) {
             val resolver = ReferenceResolver(context, codebase)
@@ -1450,7 +1473,6 @@ internal class ReferenceResolver(
         resolveSuperclasses()
         resolveInterfaces()
         resolveThrowsClasses()
-        resolveInnerClasses()
     }
 
     private fun resolveSuperclasses() {
@@ -1554,37 +1576,6 @@ internal class ReferenceResolver(
         }
 
         return ThrowableType.ofClass(exceptionClass)
-    }
-
-    private fun resolveInnerClasses() {
-        for (pkg in packages) {
-            // make copy: we'll be removing non-top level classes during iteration
-            val classes = ArrayList(pkg.classList())
-            for (cls in classes) {
-                // External classes are already resolved.
-                if (cls.codebase != codebase) continue
-                val cl = cls as TextClassItem
-                val name = cl.name
-                var index = name.lastIndexOf('.')
-                if (index != -1) {
-                    cl.name = name.substring(index + 1)
-                    val qualifiedName = cl.qualifiedName
-                    index = qualifiedName.lastIndexOf('.')
-                    assert(index != -1) { qualifiedName }
-                    val outerClassName = qualifiedName.substring(0, index)
-                    // If the outer class doesn't exist in the text codebase, it should not be
-                    // resolved through the classpath--if it did exist there, this inner class
-                    // would be overridden by the version from the classpath.
-                    val outerClass = codebase.getOrCreateClass(outerClassName, isOuterClass = true)
-                    cl.containingClass = outerClass
-                    outerClass.addInnerClass(cl)
-                }
-            }
-        }
-
-        for (pkg in packages) {
-            pkg.pruneClassList()
-        }
     }
 }
 
