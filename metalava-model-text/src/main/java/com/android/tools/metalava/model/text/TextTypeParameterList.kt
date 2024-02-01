@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.TypeParameterList
 
 internal class TextTypeParameterList(
     val codebase: TextCodebase,
-    private var owner: TypeParameterListOwner?,
     private val typeParameters: List<TextTypeParameterItem>,
 ) : TypeParameterList {
     override fun toString() = typeParameters.joinToString(prefix = "<", postfix = ">")
@@ -30,21 +29,13 @@ internal class TextTypeParameterList(
         return typeParameters
     }
 
-    internal fun setOwner(newOwner: TypeParameterListOwner) {
-        owner = newOwner
-        typeParameters.forEach { it.setOwner(newOwner) }
-    }
-
     companion object {
-        /**
-         * Creates a [TextTypeParameterList] without a set owner, for type parameters created before
-         * their owners are. The owner should be set after it is created.
-         */
+        /** Creates a [TextTypeParameterList]. */
         fun create(
             codebase: TextCodebase,
             typeParameters: List<TextTypeParameterItem>,
         ): TypeParameterList {
-            return TextTypeParameterList(codebase, owner = null, typeParameters)
+            return TextTypeParameterList(codebase, typeParameters)
         }
     }
 }

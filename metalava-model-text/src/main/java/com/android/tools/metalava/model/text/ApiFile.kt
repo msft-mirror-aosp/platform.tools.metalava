@@ -785,9 +785,6 @@ private constructor(
                 tokenizer.pos()
             )
         method.setTypeParameterList(typeParameterList)
-        if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.setOwner(method)
-        }
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
@@ -861,9 +858,6 @@ private constructor(
         method =
             TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
-        if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.setOwner(method)
-        }
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
         }
@@ -1182,8 +1176,7 @@ private constructor(
     }
 
     /**
-     * Creates a [TextTypeParameterList] without a set owner, for type parameters created before
-     * their owners are. The owner should be set after it is created.
+     * Creates a [TextTypeParameterList].
      *
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".

@@ -41,17 +41,7 @@ internal open class TextClassItem(
     val fullName: String = simpleName,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) :
-    TextItem(codebase = codebase, position = position, modifiers = modifiers),
-    ClassItem,
-    TypeParameterListOwner {
-
-    init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
-        if (typeParameterList is TextTypeParameterList) {
-            @Suppress("LeakingThis") typeParameterList.setOwner(this)
-        }
-    }
+) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
 
@@ -107,10 +97,6 @@ internal open class TextClassItem(
     override fun hasTypeVariables(): Boolean = typeParameterList.typeParameterCount() > 0
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
-
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass as? TypeParameterListOwner
-    }
 
     private var superClass: ClassItem? = null
     private var superClassType: ClassTypeItem? = null

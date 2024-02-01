@@ -32,8 +32,6 @@ internal class TextTypeParameterItem(
     ),
     TypeParameterItem {
 
-    private var owner: TypeParameterListOwner? = null
-
     lateinit var bounds: List<TypeItem>
 
     override fun name(): String {
@@ -64,10 +62,6 @@ internal class TextTypeParameterItem(
     override fun typeBounds(): List<TypeItem> = bounds
 
     override fun isReified(): Boolean = isReified
-
-    internal fun setOwner(newOwner: TypeParameterListOwner) {
-        owner = newOwner
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
