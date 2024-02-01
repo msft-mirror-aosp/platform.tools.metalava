@@ -19,7 +19,9 @@ package com.android.tools.metalava.model.text
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
@@ -298,6 +300,142 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 ) {}
             }
         assertThat(exception.message).contains("Contradicting declaration of package test.pkg")
+    }
+
+    /** Dump the package structure of [codebase] to a string for easy comparison. */
+    private fun dumpPackageStructure(codebase: Codebase) = buildString {
+        codebase.getPackages().packages.map { packageItem ->
+            append("${packageItem.qualifiedName()}\n")
+            for (classItem in packageItem.allClasses()) {
+                append("    ${classItem.qualifiedName()}\n")
+            }
+        }
+    }
+
+    /** Check that the package structure created from the [sources] matches what is expected. */
+    private fun checkPackageStructureCreatedCorrectly(vararg sources: TestFile) {
+        runCodebaseTest(
+            inputSet(*sources),
+        ) {
+            val data = dumpPackageStructure(codebase)
+
+            assertEquals(
+                """
+                        test.pkg
+                            test.pkg.Outer
+                            test.pkg.Outer.Middle
+                            test.pkg.Outer.Middle.Inner
+                    """
+                    .trimIndent(),
+                data.trimEnd()
+            )
+        }
+    }
+
+    @Test
+    fun `Test missing all containing classes`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test missing outer class`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle {
+                        }
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test missing middle class`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer {
+                        }
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test split across multiple files, middle missing`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer {
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test split across multiple files`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer {
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle {
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
