@@ -152,7 +152,7 @@ internal constructor(
     private lateinit var innerClasses: List<PsiClassItem>
     private lateinit var interfaceTypes: List<ClassTypeItem>
     private lateinit var constructors: List<PsiConstructorItem>
-    private lateinit var methods: List<PsiMethodItem>
+    private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
@@ -304,7 +304,7 @@ internal constructor(
     }
 
     override fun addMethod(method: MethodItem) {
-        (methods as MutableList<PsiMethodItem>).add(method as PsiMethodItem)
+        methods.add(method as PsiMethodItem)
     }
 
     private var retention: AnnotationRetention? = null
