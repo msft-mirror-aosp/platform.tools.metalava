@@ -55,6 +55,9 @@ private constructor(
     private val formatForLegacyFiles: FileFormat?,
 ) : ResolverContext {
 
+    /** Provides support for parsing and caching `TypeItem` instances. */
+    private val typeParser = TextTypeParser(codebase)
+
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
      * suffix means unknown, and absence of a suffix means not nullable.
@@ -239,7 +242,7 @@ private constructor(
      */
     private fun postProcess() {
         // Use this as the context for resolving references.
-        ReferenceResolver.resolveReferences(this, codebase)
+        ReferenceResolver.resolveReferences(this, codebase, typeParser)
     }
 
     private fun parseApiSingleFile(
@@ -253,7 +256,7 @@ private constructor(
             FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
-        codebase.typeResolver.kotlinStyleNulls = kotlinStyleNulls
+        typeParser.kotlinStyleNulls = kotlinStyleNulls
 
         if (appending) {
             // When we're appending, and the content is empty, nothing to do.
@@ -1218,7 +1221,7 @@ private constructor(
         // string into a `TypeItem`.
         for ((typeParameterItem, boundsStringList) in itemToBoundsList) {
             typeParameterItem.bounds =
-                boundsStringList.map { codebase.typeResolver.obtainTypeFromString(it, scope) }
+                boundsStringList.map { typeParser.obtainTypeFromString(it, scope) }
         }
 
         return TextTypeParameterList.create(codebase, typeParameters)
@@ -1449,7 +1452,7 @@ private constructor(
             token = tokenizer.current
         }
 
-        val parsedType = codebase.typeResolver.obtainTypeFromString(type, typeParameterScope)
+        val parsedType = typeParser.obtainTypeFromString(type, typeParameterScope)
         if (kotlinStyleNulls) {
             // Treat varargs as non-null for consistency with the psi model.
             if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
@@ -1541,6 +1544,7 @@ internal interface ResolverContext {
 internal class ReferenceResolver(
     private val context: ResolverContext,
     private val codebase: TextCodebase,
+    private val typeParser: TextTypeParser,
 ) {
     /**
      * A list of all the classes in the text codebase.
@@ -1551,8 +1555,12 @@ internal class ReferenceResolver(
     private val classes = codebase.mAllClasses.values.toList()
 
     companion object {
-        fun resolveReferences(context: ResolverContext, codebase: TextCodebase) {
-            val resolver = ReferenceResolver(context, codebase)
+        fun resolveReferences(
+            context: ResolverContext,
+            codebase: TextCodebase,
+            typeParser: TextTypeParser
+        ) {
+            val resolver = ReferenceResolver(context, codebase, typeParser)
             resolver.resolveReferences()
         }
     }
@@ -1581,10 +1589,8 @@ internal class ReferenceResolver(
                     }
 
             val superClassType =
-                codebase.typeResolver.obtainTypeFromString(
-                    superClassTypeString,
-                    TypeParameterScope.from(cl)
-                ) as TextClassTypeItem
+                typeParser.obtainTypeFromString(superClassTypeString, TypeParameterScope.from(cl))
+                    as TextClassTypeItem
 
             // Force the creation of the super class if it does not exist in the codebase.
             val superclass = codebase.getOrCreateClass(superClassType.qualifiedName)
@@ -1599,7 +1605,7 @@ internal class ReferenceResolver(
             val interfaces = context.superInterfaceTypeStrings(cl) ?: continue
             for (interfaceName in interfaces) {
                 val typeItem =
-                    codebase.typeResolver.obtainTypeFromString(interfaceName, typeParameterScope)
+                    typeParser.obtainTypeFromString(interfaceName, typeParameterScope)
                         as TextClassTypeItem
                 cl.addInterface(typeItem)
 

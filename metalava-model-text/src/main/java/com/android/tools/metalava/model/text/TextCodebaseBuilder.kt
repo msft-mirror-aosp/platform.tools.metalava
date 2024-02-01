@@ -62,7 +62,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
             // All this actually does is add in an appropriate super class depending on the class
             // type.
-            ReferenceResolver.resolveReferences(context, codebase)
+            ReferenceResolver.resolveReferences(context, codebase, TextTypeParser(codebase))
 
             return codebase
         }
