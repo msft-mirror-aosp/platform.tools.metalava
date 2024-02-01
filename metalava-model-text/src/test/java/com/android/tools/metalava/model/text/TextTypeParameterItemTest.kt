@@ -32,29 +32,5 @@ class TextTypeParameterItemTest : Assertions {
             .isEqualTo("[java.lang.Comparable<? super T>]")
         assertThat(bounds("T extends java.util.List<Number> & java.util.RandomAccess").toString())
             .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
-
-        // When a type variable is on a member and the type variable is defined on the surrounding
-        // class, look up the bound on the class type parameter:
-        val codebase =
-            ApiFile.parseApi(
-                "test",
-                """
-            // Signature format: 2.0
-            package androidx.navigation {
-              public final class NavDestination {
-                ctor public NavDestination();
-              }
-              public class NavDestinationBuilder<D extends androidx.navigation.NavDestination> {
-                ctor public NavDestinationBuilder(int id);
-                method public D build();
-              }
-            }
-            """
-                    .trimIndent(),
-            )
-        val cls = codebase.assertClass("androidx.navigation.NavDestinationBuilder")
-        val method = cls.assertMethod("build", "") as TextMethodItem
-        assertThat(method).isNotNull()
-        assertThat(bounds("D", method).toString()).isEqualTo("[androidx.navigation.NavDestination]")
     }
 }

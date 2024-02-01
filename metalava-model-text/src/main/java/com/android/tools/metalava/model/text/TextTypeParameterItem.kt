@@ -54,7 +54,7 @@ internal class TextTypeParameterItem(
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
-            val boundsStringList = bounds(typeParameterString, owner)
+            val boundsStringList = bounds(typeParameterString)
             bounds =
                 if (boundsStringList.isEmpty()) {
                     emptyList()
@@ -119,23 +119,10 @@ internal class TextTypeParameterItem(
             )
         }
 
-        fun bounds(typeString: String?, owner: TypeParameterListOwner? = null): List<String> {
+        fun bounds(typeString: String?): List<String> {
             val s = typeString ?: return emptyList()
             val index = s.indexOf("extends ")
             if (index == -1) {
-                // See if this is a type variable that has bounds in the parent
-                val parameters =
-                    (owner as? TextMemberItem)
-                        ?.containingClass()
-                        ?.typeParameterList()
-                        ?.typeParameters()
-                        ?: return emptyList()
-                for (p in parameters) {
-                    if (p.name() == s) {
-                        return p.typeBounds().map { it.toTypeString() }
-                    }
-                }
-
                 return emptyList()
             }
             val list = mutableListOf<String>()
