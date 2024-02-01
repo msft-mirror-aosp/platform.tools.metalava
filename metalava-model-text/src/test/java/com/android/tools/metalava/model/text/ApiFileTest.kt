@@ -98,9 +98,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val objectClass = codebase.assertClass("java.lang.Object")
             val throwable = codebase.assertClass("java.lang.Throwable")
-            assertSame(objectClass, throwable.superClass())
+
+            // Get the super class to force it to be loaded.
+            val throwableSuperClass = throwable.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, throwableSuperClass)
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
@@ -127,9 +133,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val throwable = codebase.assertClass("java.lang.Throwable")
             val error = codebase.assertClass("java.lang.Error")
-            assertSame(throwable, error.superClass())
+
+            // Get the super class to force it to be loaded.
+            val errorSuperClass = error.superClassType()?.asClass()
+
+            // Now get the throwable class.
+            val throwable = codebase.assertClass("java.lang.Throwable")
+
+            assertSame(throwable, errorSuperClass)
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
