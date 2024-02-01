@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
@@ -70,7 +71,6 @@ private constructor(
     lateinit var format: FileFormat
 
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
-    private val mClassToInterface = HashMap<TextClassItem, MutableSet<String>>(10000)
 
     companion object {
         /**
@@ -330,13 +330,6 @@ private constructor(
         superclass?.let { mClassToSuper.put(classInfo, superclass) }
     }
 
-    private fun mapClassToInterface(classInfo: TextClassItem, interfaceTypeString: String) {
-        mClassToInterface.computeIfAbsent(classInfo) { mutableSetOf() }.add(interfaceTypeString)
-    }
-
-    /** Implements [ResolverContext] interface */
-    override fun superInterfaceTypeStrings(cl: ClassItem): Set<String>? = mClassToInterface[cl]
-
     /** Implements [ResolverContext] interface */
     override fun superClassTypeString(cl: ClassItem): String? = mClassToSuper[cl]
 
@@ -386,6 +379,16 @@ private constructor(
         // full name followed by a '.' if there is one) plus the type parameter string.
         val declaredClassType: String = token
 
+        // Extract lots of information from the declared class type.
+        val (
+            className,
+            fullName,
+            qualifiedClassName,
+            outerClass,
+            typeParameterList,
+            typeParameterScope,
+        ) = parseDeclaredClassType(pkg, declaredClassType)
+
         token = tokenizer.requireToken()
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
@@ -393,7 +396,7 @@ private constructor(
             token = tokenizer.current
         }
 
-        val interfaceTypeStrings = mutableSetOf<String>()
+        val interfaceTypes = mutableSetOf<ClassTypeItem>()
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
@@ -401,7 +404,10 @@ private constructor(
                     break
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer, token)
-                    interfaceTypeStrings.add(interfaceTypeString)
+                    val interfaceType =
+                        typeParser.obtainTypeFromString(interfaceTypeString, typeParameterScope)
+                            as ClassTypeItem
+                    interfaceTypes.add(interfaceType)
                     token = tokenizer.current
                 } else {
                     token = tokenizer.requireToken()
@@ -413,30 +419,27 @@ private constructor(
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
             classKind = ClassKind.ENUM
-        } else if (classKind == ClassKind.ANNOTATION_TYPE) {
-            // If the annotation was defined using @interface that add the implicit
-            // "implements java.lang.annotation.Annotation".
-            interfaceTypeStrings.add(JAVA_LANG_ANNOTATION)
-        } else if (JAVA_LANG_ANNOTATION in interfaceTypeStrings) {
-            // This can be taken either for a normal class that implements
-            // java.lang.annotation.Annotation which was the old way of representing an annotation
-            // in the API signature files.
-            classKind = ClassKind.ANNOTATION_TYPE
+        } else {
+            val annotationType =
+                typeParser.obtainTypeFromString(JAVA_LANG_ANNOTATION, TypeParameterScope.empty)
+                    as ClassTypeItem
+
+            if (classKind == ClassKind.ANNOTATION_TYPE) {
+                // If the annotation was defined using @interface that add the implicit
+                // "implements java.lang.annotation.Annotation".
+                interfaceTypes.add(annotationType)
+            } else if (annotationType in interfaceTypes) {
+                // This can be taken either for a normal class that implements
+                // java.lang.annotation.Annotation which was the old way of representing an
+                // annotation
+                // in the API signature files.
+                classKind = ClassKind.ANNOTATION_TYPE
+            }
         }
 
         if ("{" != token) {
             throw ApiParseException("expected {, was $token", tokenizer)
         }
-
-        // Extract lots of information from the declared class type.
-        val (
-            className,
-            fullName,
-            qualifiedClassName,
-            outerClass,
-            typeParameterList,
-            typeParameterScope,
-        ) = parseDeclaredClassType(pkg, declaredClassType)
 
         // Above we marked all enums as static but for a top level class it's implicit
         if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
@@ -475,6 +478,9 @@ private constructor(
                 annotations = annotations,
                 typeParameterList = typeParameterList,
             )
+
+        cl.setInterfaceTypes(interfaceTypes.toList())
+
         cl.setContainingPackage(pkg)
         cl.containingClass = outerClass
         if (outerClass == null) {
@@ -489,13 +495,6 @@ private constructor(
 
         // Record the super class type string as needing to be resolved for this class.
         mapClassToSuper(cl, superClassTypeString)
-
-        // Add the interface type strings to the set that need to be resolved for this class. This
-        // is added before possibly replacing the newly created class with an existing one in which
-        // case these interface type strings will be ignored.
-        for (interfaceTypeString in interfaceTypeStrings) {
-            mapClassToInterface(cl, interfaceTypeString)
-        }
 
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeParameterScope)
@@ -1545,12 +1544,6 @@ private constructor(
  */
 internal interface ResolverContext {
     /**
-     * Get the string representations of the super interface types of the supplied class, returns
-     * null if there were no super interface types specified.
-     */
-    fun superInterfaceTypeStrings(cl: ClassItem): Set<String>?
-
-    /**
      * Get the string representation of the super class type extended by the supplied class, returns
      * null if there was no specified super class type.
      */
@@ -1584,7 +1577,6 @@ internal class ReferenceResolver(
 
     fun resolveReferences() {
         resolveSuperclasses()
-        resolveInterfaces()
         resolveThrowsClasses()
     }
 
@@ -1612,23 +1604,6 @@ internal class ReferenceResolver(
             // Force the creation of the super class if it does not exist in the codebase.
             val superclass = codebase.getOrCreateClass(superClassType.qualifiedName)
             cl.setSuperClass(superclass, superClassType)
-        }
-    }
-
-    private fun resolveInterfaces() {
-        for (cl in classes) {
-            val typeParameterScope = TypeParameterScope.from(cl)
-
-            val interfaces = context.superInterfaceTypeStrings(cl) ?: continue
-            for (interfaceName in interfaces) {
-                val typeItem =
-                    typeParser.obtainTypeFromString(interfaceName, typeParameterScope)
-                        as TextClassTypeItem
-                cl.addInterface(typeItem)
-
-                // Force the creation of the interface class if it does not exist in the codebase.
-                codebase.getOrCreateClass(typeItem.qualifiedName, isInterface = true)
-            }
         }
     }
 

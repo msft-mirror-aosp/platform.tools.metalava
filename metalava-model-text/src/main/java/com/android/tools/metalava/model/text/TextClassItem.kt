@@ -111,7 +111,7 @@ internal open class TextClassItem(
     }
 
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        this.interfaceTypes = interfaceTypes.toMutableList()
+        this.interfaceTypes = interfaceTypes
     }
 
     private var typeInfo: TextClassTypeItem? = null
@@ -132,7 +132,7 @@ internal open class TextClassItem(
         return typeInfo!!
     }
 
-    private var interfaceTypes = mutableListOf<ClassTypeItem>()
+    private var interfaceTypes = emptyList<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -145,10 +145,6 @@ internal open class TextClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun properties(): List<PropertyItem> = properties
-
-    fun addInterface(itf: ClassTypeItem) {
-        interfaceTypes.add(itf)
-    }
 
     fun addConstructor(constructor: TextConstructorItem) {
         constructors += constructor
