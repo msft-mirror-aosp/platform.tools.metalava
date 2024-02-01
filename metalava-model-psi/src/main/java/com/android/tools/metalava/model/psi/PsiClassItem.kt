@@ -47,7 +47,7 @@ import org.jetbrains.uast.getParentOfType
 
 open class PsiClassItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     private val name: String,
     private val fullName: String,
@@ -66,6 +66,8 @@ internal constructor(
         element = psiClass
     ),
     ClassItem {
+
+    override var emit: Boolean = !modifiers.isExpect()
 
     lateinit var containingPackage: PsiPackageItem
 
@@ -86,7 +88,7 @@ internal constructor(
 
     override fun isEnum(): Boolean = classType == ClassType.ENUM
 
-    override fun psi(): PsiClass = psiClass
+    override fun psi() = psiClass
 
     override fun isFromClassPath(): Boolean = fromClassPath
 
@@ -200,9 +202,6 @@ internal constructor(
         }
     }
 
-    override val isTypeParameter: Boolean
-        get() = psiClass is PsiTypeParameter
-
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
@@ -303,16 +302,6 @@ internal constructor(
         this.fields = fields
     }
 
-    override fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
-        // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
-        return if (isKotlin()) {
-            emptyMap()
-        } else {
-            super.mapTypeVariables(target)
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
@@ -325,35 +314,15 @@ internal constructor(
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
     }
 
-    override fun createMethod(template: MethodItem): MethodItem {
+    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
+        val newMethod = PsiMethodItem.create(codebase, this, method)
 
-        val replacementMap = mapTypeVariables(template.containingClass())
-        val newMethod: PsiMethodItem
-        if (replacementMap.isEmpty()) {
-            newMethod = PsiMethodItem.create(codebase, this, method)
-        } else {
-            val stub = method.toStubForCloning(replacementMap)
-            val psiMethod = codebase.createPsiMethod(stub, psiClass)
-            newMethod = PsiMethodItem.create(codebase, this, psiMethod)
-            newMethod.inheritedMethod = method.inheritedMethod
-            newMethod.documentation = method.documentation
-        }
-
-        if (template.throwsTypes().isEmpty()) {
-            newMethod.setThrowsTypes(emptyList())
-        } else {
-            val throwsTypes = mutableListOf<ClassItem>()
-            for (type in template.throwsTypes()) {
-                if (type.codebase === codebase) {
-                    throwsTypes.add(type)
-                } else {
-                    throwsTypes.add(codebase.findOrCreateClass(((type as PsiClassItem).psiClass)))
-                }
-            }
-            newMethod.setThrowsTypes(throwsTypes)
-        }
+        newMethod.setThrowsTypes(method.throwsTypes())
         newMethod.finishInitialization()
+
+        // Remember which class this method was copied from.
+        newMethod.inheritedFrom = template.containingClass()
 
         return newMethod
     }
@@ -411,7 +380,9 @@ internal constructor(
             fromClassPath: Boolean
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
-                return PsiTypeParameterItem.create(codebase, psiClass)
+                error(
+                    "Must not be called with PsiTypeParameter; use PsiTypeParameterItem.create(...) instead"
+                )
             }
             val simpleName = psiClass.name!!
             val fullName = computeFullClassName(psiClass)

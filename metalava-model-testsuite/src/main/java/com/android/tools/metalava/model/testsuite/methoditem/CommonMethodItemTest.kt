@@ -16,9 +16,14 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.throwableClass
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -54,7 +59,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             val actual = buildString {
@@ -106,7 +111,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Base {
                             public Base() {}
                         }
@@ -115,14 +120,14 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Test extends Base {
                             public Test() {}
                         }
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testConstructor = testClass.constructors().single()
             assertEquals(emptyList(), testConstructor.superMethods())
@@ -153,7 +158,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Base {
                             public Base() {}
                             public void foo() {}
@@ -163,7 +168,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Test extends Base {
                             public Test() {}
                             public void foo() {}
@@ -171,7 +176,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val baseClass = codebase.assertClass("test.pkg.Base")
             val testClass = codebase.assertClass("test.pkg.Test")
 
@@ -179,6 +184,112 @@ class CommonMethodItemTest : BaseModelTest() {
             val testFoo = testClass.methods().single()
 
             assertEquals(listOf(baseFoo), testFoo.superMethods())
+        }
+    }
+
+    @Test
+    fun `Test equality of methods with type parameters`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public <T extends Number> void foo(T t) {}
+                        public <T extends String> void foo(T t) {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public <T extends java.lang.Number> void foo(T);
+                        method public <T extends java.lang.String> void foo(T);
+                      }
+                    }
+                """
+            )
+        ) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals(methods.size, 2)
+
+            val numBounds = methods[0]
+            val strBounds = methods[1]
+            // These methods look the same besides their type parameter bounds
+            assertNotEquals(numBounds, strBounds)
+        }
+    }
+
+    @Test
+    fun `Test throws method type parameter extends Throwable`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public <X extends Throwable> void throwsTypeParameter() throws X {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public <X extends Throwable> void throwsTypeParameter() throws X;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val throwsType = methodItem.throwsTypes().single()
+            assertEquals(typeParameterItem, throwsType)
+            assertEquals(throwsType.throwableClass?.qualifiedName(), JAVA_LANG_THROWABLE)
+        }
+    }
+
+    @Test
+    fun `Test throws method type parameter does not extend Throwable`() {
+        // This is an error but Metalava should try not to fail on an error.
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public <X> void throwsTypeParameter() throws X {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Test {
+                        method public <X> void throwsTypeParameter() throws X;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val throwsType = methodItem.throwsTypes().single()
+            assertEquals(typeParameterItem, throwsType)
+            // The type parameter does not extend a throwable type.
+            assertNull(throwsType.throwableClass)
         }
     }
 }
