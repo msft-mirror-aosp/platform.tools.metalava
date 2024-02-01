@@ -257,7 +257,9 @@ private constructor(
                 }
                 existing
             } else {
-                TextPackageItem(api, name, modifiers, tokenizer.pos())
+                val newPackageItem = TextPackageItem(api, name, modifiers, tokenizer.pos())
+                api.addPackage(newPackageItem)
+                newPackageItem
             }
 
         token = tokenizer.requireToken()
@@ -272,7 +274,6 @@ private constructor(
                 parseClass(api, pkg, tokenizer, token)
             }
         }
-        api.addPackage(pkg)
     }
 
     private fun mapClassToSuper(classInfo: TextClassItem, superclass: String?) {
@@ -423,6 +424,7 @@ private constructor(
                 typeParameters
             )
         cl.setContainingPackage(pkg)
+        api.registerClass(cl)
 
         // Record the super class type string as needing to be resolved for this class.
         mapClassToSuper(cl, superClassTypeString)
