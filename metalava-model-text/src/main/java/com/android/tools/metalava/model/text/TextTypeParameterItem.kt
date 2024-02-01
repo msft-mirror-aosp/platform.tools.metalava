@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
-    private val typeParameterString: String,
+    private val boundsStringList: List<String>,
     private val name: String,
     private val isReified: Boolean,
 ) :
@@ -41,7 +41,17 @@ internal class TextTypeParameterItem(
         return name
     }
 
-    override fun toString() = typeParameterString
+    override fun toString() =
+        if (boundsStringList.isEmpty() && !isReified) name
+        else
+            buildString {
+                if (isReified) append("reified ")
+                append(name)
+                if (boundsStringList.isNotEmpty()) {
+                    append(" extends ")
+                    boundsStringList.joinTo(this, " & ")
+                }
+            }
 
     override fun type(): TextVariableTypeItem {
         return TextVariableTypeItem(
@@ -54,7 +64,6 @@ internal class TextTypeParameterItem(
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
-            val boundsStringList = bounds(typeParameterString)
             bounds =
                 if (boundsStringList.isEmpty()) {
                     emptyList()
@@ -111,16 +120,25 @@ internal class TextTypeParameterItem(
                 }
             }
             val name = typeParameterString.substring(nameStart, nameEnd)
+
+            val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
+
             return TextTypeParameterItem(
                 codebase = codebase,
-                typeParameterString = typeParameterString,
+                boundsStringList = boundsStringList,
                 name = name,
                 isReified = isReified,
             )
         }
 
-        fun bounds(typeString: String?): List<String> {
-            val s = typeString ?: return emptyList()
+        /**
+         * Extracts the bounds string list from the [typeParameterString].
+         *
+         * Given `T extends a.B & b.C<? super T>` this will return a list of `a.B` and `b.C<? super
+         * T>`.
+         */
+        fun extractTypeParameterBoundsStringList(typeParameterString: String?): List<String> {
+            val s = typeParameterString ?: return emptyList()
             val index = s.indexOf("extends ")
             if (index == -1) {
                 return emptyList()
@@ -132,43 +150,32 @@ internal class TextTypeParameterItem(
             for (i in start until length) {
                 val c = s[i]
                 if (c == '&' && angleBracketBalance == 0) {
-                    add(list, typeString, start, i)
+                    addNonBlankStringToList(list, typeParameterString, start, i)
                     start = i + 1
                 } else if (c == '<') {
                     angleBracketBalance++
                 } else if (c == '>') {
                     angleBracketBalance--
                     if (angleBracketBalance == 0) {
-                        add(list, typeString, start, i + 1)
+                        addNonBlankStringToList(list, typeParameterString, start, i + 1)
                         start = i + 1
                     }
                 }
             }
             if (start < length) {
-                add(list, typeString, start, length)
+                addNonBlankStringToList(list, typeParameterString, start, length)
             }
             return list
         }
 
-        private fun add(list: MutableList<String>, s: String, from: Int, to: Int) {
-            for (i in from until to) {
-                if (!Character.isWhitespace(s[i])) {
-                    var end = to
-                    while (end > i && s[end - 1].isWhitespace()) {
-                        end--
-                    }
-                    var begin = i
-                    while (begin < end && s[begin].isWhitespace()) {
-                        begin++
-                    }
-                    if (begin == end) {
-                        return
-                    }
-                    val element = s.substring(begin, end)
-                    list.add(element)
-                    return
-                }
-            }
+        private fun addNonBlankStringToList(
+            list: MutableList<String>,
+            s: String,
+            from: Int,
+            to: Int
+        ) {
+            val element = s.substring(from, to).trim()
+            if (element.isNotEmpty()) list.add(element)
         }
     }
 }

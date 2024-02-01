@@ -17,20 +17,29 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.Assertions
-import com.android.tools.metalava.model.text.TextTypeParameterItem.Companion.bounds
+import com.android.tools.metalava.model.text.TextTypeParameterItem.Companion.extractTypeParameterBoundsStringList
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class TextTypeParameterItemTest : Assertions {
     @Test
     fun testTypeParameterNames() {
-        assertThat(bounds(null).toString()).isEqualTo("[]")
-        assertThat(bounds("").toString()).isEqualTo("[]")
-        assertThat(bounds("X").toString()).isEqualTo("[]")
-        assertThat(bounds("DEF extends T").toString()).isEqualTo("[T]")
-        assertThat(bounds("T extends java.lang.Comparable<? super T>").toString())
+        assertThat(extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
+        assertThat(extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
+        assertThat(extractTypeParameterBoundsStringList("X").toString()).isEqualTo("[]")
+        assertThat(extractTypeParameterBoundsStringList("DEF extends T").toString())
+            .isEqualTo("[T]")
+        assertThat(
+                extractTypeParameterBoundsStringList("T extends java.lang.Comparable<? super T>")
+                    .toString()
+            )
             .isEqualTo("[java.lang.Comparable<? super T>]")
-        assertThat(bounds("T extends java.util.List<Number> & java.util.RandomAccess").toString())
+        assertThat(
+                extractTypeParameterBoundsStringList(
+                        "T extends java.util.List<Number> & java.util.RandomAccess"
+                    )
+                    .toString()
+            )
             .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
     }
 }
