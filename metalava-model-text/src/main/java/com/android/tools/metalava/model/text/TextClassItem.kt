@@ -98,15 +98,13 @@ internal open class TextClassItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
-    private var superClass: ClassItem? = null
     private var superClassType: ClassTypeItem? = null
 
-    override fun superClass(): ClassItem? = superClass
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
-        this.superClass = superClass
+    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
 

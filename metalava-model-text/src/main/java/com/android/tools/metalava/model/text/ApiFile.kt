@@ -1614,9 +1614,7 @@ internal class ReferenceResolver(
                 typeParser.obtainTypeFromString(superClassTypeString, TypeParameterScope.from(cl))
                     as TextClassTypeItem
 
-            // Force the creation of the super class if it does not exist in the codebase.
-            val superclass = codebase.getOrCreateClass(superClassType.qualifiedName)
-            cl.setSuperClass(superclass, superClassType)
+            cl.setSuperClassType(superClassType)
         }
     }
 
@@ -1670,7 +1668,7 @@ internal class ReferenceResolver(
             // which case it does not need modifying.
             if (exception != JAVA_LANG_THROWABLE) {
                 val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
-                exceptionClass.setSuperClass(throwableClass, throwableClass.type())
+                exceptionClass.setSuperClassType(throwableClass.type())
             }
         }
 
