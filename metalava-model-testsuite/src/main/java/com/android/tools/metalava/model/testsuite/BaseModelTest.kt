@@ -134,38 +134,38 @@ abstract class BaseModelTest : Assertions {
     /**
      * Create an [InputSet].
      *
-     * It is an error if [testFiles] is empty or if [testFiles] have different [InputFormat]. That
-     * means that it is not currently possible to mix Kotlin and Java files.
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.Kotlin]) and signature ([InputFormat.SIGNATURE]). It it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
      */
     fun inputSet(vararg testFiles: TestFile): InputSet {
         if (testFiles.isEmpty()) {
             throw IllegalStateException("Must provide at least one source file")
         }
 
-        val (htmlFiles, nonHtmlFiles) =
-            testFiles.partition { it.targetRelativePath.endsWith(".html") }
+        val inputFormat =
+            testFiles
+                .asSequence()
+                // Map to path.
+                .map { it.targetRelativePath }
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
 
-        // Make sure that all the test files are the same InputFormat. Ignore HTML files.
-        val byInputFormat = nonHtmlFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
-
-        val inputFormatCount = byInputFormat.size
-        if (inputFormatCount != 1) {
-            throw IllegalStateException(
-                buildString {
-                    append(
-                        "All files in the list must be the same input format, but found $inputFormatCount different input formats:\n"
-                    )
-                    byInputFormat.forEach { (format, files) ->
-                        append("    $format\n")
-                        files.forEach { append("        $it\n") }
-                    }
-                }
-            )
-        }
-
-        val (inputFormat, files) = byInputFormat.entries.single()
-        return InputSet(inputFormat, files + htmlFiles)
+        return InputSet(inputFormat, testFiles.toList())
     }
+
+    /**
+     * Context within which the main body of tests that check the state of the [Codebase] will run.
+     */
+    class CodebaseContext<C : Codebase>(
+        /** The newly created [Codebase]. */
+        val codebase: C,
+    )
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -183,7 +183,7 @@ abstract class BaseModelTest : Assertions {
             .singleOrNull { it.inputFormat == inputFormat }
             ?.let {
                 val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFiles, test)
+                runner.createCodebaseAndRun(tempDir, it.testFiles) { codebase -> test(codebase) }
             }
     }
 
@@ -200,7 +200,7 @@ abstract class BaseModelTest : Assertions {
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
-        test: (Codebase) -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -216,12 +216,14 @@ abstract class BaseModelTest : Assertions {
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
-        test: (Codebase) -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             *sources,
-            test = test,
-        )
+        ) { codebase ->
+            val context = CodebaseContext(codebase)
+            context.test()
+        }
     }
 
     /**
@@ -233,7 +235,7 @@ abstract class BaseModelTest : Assertions {
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
-        test: (SourceCodebase) -> Unit,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -249,12 +251,14 @@ abstract class BaseModelTest : Assertions {
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
-        test: (SourceCodebase) -> Unit,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             *sources,
-        ) {
-            test(it as SourceCodebase)
+        ) { codebase ->
+            codebase as SourceCodebase
+            val context = CodebaseContext(codebase)
+            context.test()
         }
     }
 

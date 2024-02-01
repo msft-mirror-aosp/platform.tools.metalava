@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MutableModifierList
 import java.nio.file.Path
 
-abstract class TextItem(
+internal abstract class TextItem(
     override val codebase: TextCodebase,
     internal val position: SourcePositionInfo,
     override var docOnly: Boolean = false,
@@ -47,8 +47,6 @@ abstract class TextItem(
 
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
-
-    override fun isCloned(): Boolean = false
 
     override fun location(): Location {
         val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
