@@ -121,52 +121,5 @@ internal class TextTypeParameterItem(
                 isReified = isReified,
             )
         }
-
-        /**
-         * Extracts the bounds string list from the [typeParameterString].
-         *
-         * Given `T extends a.B & b.C<? super T>` this will return a list of `a.B` and `b.C<? super
-         * T>`.
-         */
-        fun extractTypeParameterBoundsStringList(typeParameterString: String?): List<String> {
-            val s = typeParameterString ?: return emptyList()
-            val index = s.indexOf("extends ")
-            if (index == -1) {
-                return emptyList()
-            }
-            val list = mutableListOf<String>()
-            var angleBracketBalance = 0
-            var start = index + "extends ".length
-            val length = s.length
-            for (i in start until length) {
-                val c = s[i]
-                if (c == '&' && angleBracketBalance == 0) {
-                    addNonBlankStringToList(list, typeParameterString, start, i)
-                    start = i + 1
-                } else if (c == '<') {
-                    angleBracketBalance++
-                } else if (c == '>') {
-                    angleBracketBalance--
-                    if (angleBracketBalance == 0) {
-                        addNonBlankStringToList(list, typeParameterString, start, i + 1)
-                        start = i + 1
-                    }
-                }
-            }
-            if (start < length) {
-                addNonBlankStringToList(list, typeParameterString, start, length)
-            }
-            return list
-        }
-
-        private fun addNonBlankStringToList(
-            list: MutableList<String>,
-            s: String,
-            from: Int,
-            to: Int
-        ) {
-            val element = s.substring(from, to).trim()
-            if (element.isNotEmpty()) list.add(element)
-        }
     }
 }
