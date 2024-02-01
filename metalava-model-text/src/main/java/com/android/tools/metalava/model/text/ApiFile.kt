@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
@@ -1635,12 +1634,12 @@ internal class ReferenceResolver(
             }
             val superClassTypeString: String =
                 context.superClassTypeString(cl)
-                    ?: when {
-                        cl.isEnum() -> JAVA_LANG_ENUM
-                        cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
-                        // Interfaces do not extend java.lang.Object so drop out before the else
-                        // clause.
-                        cl.isInterface() -> return
+                    ?: when (cl.classKind) {
+                        ClassKind.ENUM -> JAVA_LANG_ENUM
+                        // Interfaces and annotations do not have super classes so drop out before
+                        // the else clause.
+                        ClassKind.ANNOTATION_TYPE,
+                        ClassKind.INTERFACE -> continue
                         else -> JAVA_LANG_OBJECT
                     }
 
