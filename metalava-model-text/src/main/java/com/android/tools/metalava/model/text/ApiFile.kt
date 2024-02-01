@@ -429,8 +429,14 @@ private constructor(
         }
 
         // Extract lots of information from the declared class type.
-        val (className, fullName, qualifiedClassName, outerClass, typeParameterList) =
-            parseDeclaredClassType(pkg, declaredClassType)
+        val (
+            className,
+            fullName,
+            qualifiedClassName,
+            outerClass,
+            typeParameterList,
+            typeParameterScope,
+        ) = parseDeclaredClassType(pkg, declaredClassType)
 
         // Above we marked all enums as static but for a top level class it's implicit
         if (classKind == ClassKind.ENUM && !fullName.contains(".")) {
@@ -492,7 +498,7 @@ private constructor(
         }
 
         // Parse the class body adding each member created to the class item being populated.
-        parseClassBody(tokenizer, cl)
+        parseClassBody(tokenizer, cl, typeParameterScope)
     }
 
     /**
@@ -532,15 +538,18 @@ private constructor(
         }
 
         // Parse the class body adding each member created to the existing class.
-        parseClassBody(tokenizer, existingClass)
+        parseClassBody(tokenizer, existingClass, TypeParameterScope.from(existingClass))
 
         return true
     }
 
     /** Parse the class body, adding members to [cl]. */
-    private fun parseClassBody(tokenizer: Tokenizer, cl: TextClassItem) {
+    private fun parseClassBody(
+        tokenizer: Tokenizer,
+        cl: TextClassItem,
+        classTypeParameterScope: TypeParameterScope,
+    ) {
         var token = tokenizer.requireToken()
-        val classTypeParameterScope = TypeParameterScope.from(cl)
         while (true) {
             if ("}" == token) {
                 break
@@ -608,6 +617,8 @@ private constructor(
         val outerClass: ClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
+        /** The [TypeParameterScope] including [typeParameterList]. */
+        val typeParameterScope: TypeParameterScope,
     )
 
     /**
@@ -655,17 +666,18 @@ private constructor(
 
         val outerClassTypeParameterScope = TypeParameterScope.from(outerClass as? TextClassItem)
 
-        val typeParameterList =
-            if (typeParameterListString == "") TypeParameterList.NONE
-            else {
-                createTypeParameterList(outerClassTypeParameterScope, typeParameterListString).first
-            }
+        val (typeParameterList, typeParameterScope) =
+            if (typeParameterListString == "")
+                Pair(TypeParameterList.NONE, outerClassTypeParameterScope)
+            else createTypeParameterList(outerClassTypeParameterScope, typeParameterListString)
+
         return DeclaredClassTypeComponents(
             simpleName = simpleName,
             fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,
             typeParameterList = typeParameterList,
+            typeParameterScope = typeParameterScope,
         )
     }
 
