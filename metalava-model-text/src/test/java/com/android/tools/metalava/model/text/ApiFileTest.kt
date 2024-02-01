@@ -19,8 +19,10 @@ package com.android.tools.metalava.model.text
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -236,6 +238,66 @@ class ApiFileTest : BaseTextCodebaseTest() {
         // Order matters, the last, non-null super class wins.
         checkSuperClass(testFiles, "narrowest to widest", "test.pkg.Baz")
         checkSuperClass(testFiles.reversed(), "widest to narrowest", "test.pkg.Bar")
+    }
+
+    @Test
+    fun `Test matching package annotations are allowed`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    "file1.txt",
+                    """
+                        // Signature format: 2.0
+                        package @PackageAnnotation test.pkg {
+                            public class Foo {
+                            }
+                        }
+                    """
+                ),
+                signature(
+                    "file2.txt",
+                    """
+                        // Signature format: 2.0
+                        package @PackageAnnotation test.pkg {
+                            public class Foo {
+                            }
+                        }
+                    """
+                ),
+            ),
+        ) {}
+    }
+
+    @Test
+    fun `Test different package annotations are not allowed`() {
+        val exception =
+            assertThrows(ApiParseException::class.java) {
+                runCodebaseTest(
+                    inputSet(
+                        signature(
+                            "file1.txt",
+                            """
+                        // Signature format: 2.0
+                        package @PackageAnnotation1 test.pkg {
+                            public class Foo {
+                            }
+                        }
+                    """
+                        ),
+                        signature(
+                            "file2.txt",
+                            """
+                        // Signature format: 2.0
+                        package @PackageAnnotation2 test.pkg {
+                            public class Foo {
+                            }
+                        }
+                    """
+                        ),
+                    ),
+                ) {}
+            }
+        assertThat(exception.message).contains("Contradicting declaration of package test.pkg")
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
