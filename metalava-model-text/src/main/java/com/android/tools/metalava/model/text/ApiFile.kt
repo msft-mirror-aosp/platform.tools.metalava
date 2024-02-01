@@ -428,8 +428,8 @@ private constructor(
             throw ApiParseException("expected {, was $token", tokenizer)
         }
 
-        // Extract the full name and type parameters from declaredClassType.
-        val (className, fullName, qualifiedClassName, outerClass, typeParameters) =
+        // Extract lots of information from the declared class type.
+        val (className, fullName, qualifiedClassName, outerClass, typeParameterList) =
             parseDeclaredClassType(pkg, declaredClassType)
 
         // Above we marked all enums as static but for a top level class it's implicit
@@ -467,7 +467,7 @@ private constructor(
                 simpleName = className,
                 fullName = fullName,
                 annotations = annotations,
-                typeParameterList = typeParameters,
+                typeParameterList = typeParameterList,
             )
         cl.setContainingPackage(pkg)
         cl.containingClass = outerClass
@@ -604,9 +604,10 @@ private constructor(
         val fullName: String,
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
+        /** The optional, resolved outer [ClassItem]. */
         val outerClass: ClassItem?,
         /** The set of type parameters. */
-        val typeParameters: TypeParameterList,
+        val typeParameterList: TypeParameterList,
     )
 
     /**
@@ -652,17 +653,19 @@ private constructor(
                 Pair(outerClass, innerClassName)
             }
 
+        val outerClassTypeParameterScope = TypeParameterScope.from(outerClass as? TextClassItem)
+
+        val typeParameterList =
+            if (typeParameterListString == "") TypeParameterList.NONE
+            else {
+                createTypeParameterList(outerClassTypeParameterScope, typeParameterListString).first
+            }
         return DeclaredClassTypeComponents(
             simpleName = simpleName,
             fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,
-            typeParameters =
-                if (typeParameterListString == "") TypeParameterList.NONE
-                else {
-                    val scope = TypeParameterScope.from(outerClass as? TextClassItem)
-                    createTypeParameterList(scope, typeParameterListString)
-                }
+            typeParameterList = typeParameterList,
         )
     }
 
@@ -752,25 +755,28 @@ private constructor(
     ) {
         var token = startingToken
         val method: TextConstructorItem
-        var typeParameterList = TypeParameterList.NONE
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, annotations)
         token = tokenizer.current
-        if ("<" == token) {
-            typeParameterList = parseTypeParameterList(tokenizer, classTypeParameterScope)
-            token = tokenizer.requireToken()
-        }
+
+        // Get a TypeParameterList and accompanying TypeParameterScope
+        val (typeParameterList, typeParameterScope) =
+            if ("<" == token) {
+                parseTypeParameterList(tokenizer, classTypeParameterScope).also {
+                    token = tokenizer.requireToken()
+                }
+            } else {
+                Pair(TypeParameterList.NONE, classTypeParameterScope)
+            }
+
         tokenizer.assertIdent(token)
         val name: String =
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
-        // Collect all type parameters in scope into one list
-        val typeParameterScope =
-            classTypeParameterScope.nestedScope(typeParameterList.typeParameters())
         val parameters = parseParameterList(tokenizer, typeParameterScope)
         // Constructors cannot return null.
         val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
@@ -805,21 +811,24 @@ private constructor(
     ) {
         var token = startingToken
         val method: TextMethodItem
-        var typeParameterList = TypeParameterList.NONE
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(tokenizer, token, null)
         token = tokenizer.current
-        if ("<" == token) {
-            typeParameterList = parseTypeParameterList(tokenizer, classTypeParameterScope)
-            token = tokenizer.requireToken()
-        }
+
+        // Get a TypeParameterList and accompanying TypeParameterScope
+        val (typeParameterList, typeParameterScope) =
+            if ("<" == token) {
+                parseTypeParameterList(tokenizer, classTypeParameterScope).also {
+                    token = tokenizer.requireToken()
+                }
+            } else {
+                Pair(TypeParameterList.NONE, classTypeParameterScope)
+            }
+
         tokenizer.assertIdent(token)
-        // Collect all type parameters in scope into one list
-        val typeParameterScope =
-            classTypeParameterScope.nestedScope(typeParameterList.typeParameters())
 
         val returnType: TextTypeItem
         val parameters: List<TextParameterItem>
@@ -1155,7 +1164,7 @@ private constructor(
     private fun parseTypeParameterList(
         tokenizer: Tokenizer,
         enclosingTypeParameterScope: TypeParameterScope,
-    ): TypeParameterList {
+    ): Pair<TypeParameterList, TypeParameterScope> {
         var token: String
         val start = tokenizer.offset() - 1
         var balance = 1
@@ -1169,7 +1178,7 @@ private constructor(
         }
         val typeParameterListString = tokenizer.getStringFromOffset(start)
         return if (typeParameterListString.isEmpty()) {
-            TypeParameterList.NONE
+            Pair(TypeParameterList.NONE, enclosingTypeParameterScope)
         } else {
             createTypeParameterList(enclosingTypeParameterScope, typeParameterListString)
         }
@@ -1180,11 +1189,14 @@ private constructor(
      *
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
+     *
+     * @return a [Pair] of [TypeParameterList] and [TypeParameterScope] that contains those type
+     *   parameters.
      */
     private fun createTypeParameterList(
         enclosingTypeParameterScope: TypeParameterScope,
         typeParameterListString: String
-    ): TypeParameterList {
+    ): Pair<TypeParameterList, TypeParameterScope> {
         // A type parameter list can contain cycles between its type parameters, e.g.
         //     class Node<L extends Node<L, R>, R extends Node<L, R>>
         // Parsing that requires a multi-stage approach.
@@ -1217,7 +1229,7 @@ private constructor(
                 boundsStringList.map { typeParser.obtainTypeFromString(it, scope) }
         }
 
-        return TextTypeParameterList.create(codebase, typeParameters)
+        return Pair(TextTypeParameterList.create(codebase, typeParameters), scope)
     }
 
     /**
