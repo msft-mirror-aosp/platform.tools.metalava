@@ -228,7 +228,6 @@ private constructor(
     }
 
     private fun parsePackage(api: TextCodebase, tokenizer: Tokenizer) {
-        var pkg: TextPackageItem
         var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
@@ -240,36 +239,27 @@ private constructor(
         val name: String = token
 
         // If the same package showed up multiple times, make sure they have the same modifiers.
-        // (Packages can't have public/private/etc, but they can have annotations, which are part of
-        // ModifierList.)
-        // ModifierList doesn't provide equals(), neither does AnnotationItem which ModifierList
-        // contains,
-        // so we just use toString() here for equality comparison.
-        // However, ModifierList.toString() throws if the owner is not yet set, so we have to
-        // instantiate an
-        // (owner) TextPackageItem here.
-        // If it's a duplicate package, then we'll replace pkg with the existing one in the
-        // following if block.
-
-        // TODO: However, currently this parser can't handle annotations on packages, so we will
-        // never hit this case.
-        // Once the parser supports that, we should add a test case for this too.
-        pkg = TextPackageItem(api, name, modifiers, tokenizer.pos())
+        // (Packages can't have public/private/etc., but they can have annotations, which are part
+        // of ModifierList.)
         val existing = api.findPackage(name)
-        if (existing != null) {
-            if (pkg.modifiers != existing.modifiers) {
-                throw ApiParseException(
-                    String.format(
-                        "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
-                        name,
-                        pkg.modifiers,
-                        modifiers
-                    ),
-                    tokenizer
-                )
+        val pkg =
+            if (existing != null) {
+                if (modifiers != existing.modifiers) {
+                    throw ApiParseException(
+                        String.format(
+                            "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
+                            name,
+                            existing.modifiers,
+                            modifiers
+                        ),
+                        tokenizer
+                    )
+                }
+                existing
+            } else {
+                TextPackageItem(api, name, modifiers, tokenizer.pos())
             }
-            pkg = existing
-        }
+
         token = tokenizer.requireToken()
         if ("{" != token) {
             throw ApiParseException("expected '{' got $token", tokenizer)
