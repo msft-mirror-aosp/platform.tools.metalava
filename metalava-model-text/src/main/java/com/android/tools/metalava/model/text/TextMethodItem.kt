@@ -25,14 +25,15 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 
-open class TextMethodItem(
+internal open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
-    private val returnType: TextTypeItem,
+    private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :
@@ -70,6 +71,21 @@ open class TextMethodItem(
                 return false
             }
         }
+
+        val typeParameters1 = typeParameterList().typeParameters()
+        val typeParameters2 = other.typeParameterList().typeParameters()
+
+        if (typeParameters1.size != typeParameters2.size) {
+            return false
+        }
+
+        for (i in typeParameters1.indices) {
+            val typeParameter1 = typeParameters1[i]
+            val typeParameter2 = typeParameters2[i]
+            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
+                return false
+            }
+        }
         return true
     }
 
@@ -82,31 +98,7 @@ open class TextMethodItem(
     override fun returnType(): TypeItem = returnType
 
     override fun superMethods(): List<MethodItem> {
-        if (isConstructor()) {
-            return emptyList()
-        }
-
-        val list = mutableListOf<MethodItem>()
-
-        var curr = containingClass().superClass()
-        while (curr != null) {
-            val superMethod = curr.findMethod(this)
-            if (superMethod != null) {
-                list.add(superMethod)
-                break
-            }
-            curr = curr.superClass()
-        }
-
-        // Interfaces
-        for (itf in containingClass().allInterfaces()) {
-            val interfaceMethod = itf.findMethod(this)
-            if (interfaceMethod != null) {
-                list.add(interfaceMethod)
-            }
-        }
-
-        return list
+        return computeSuperMethods()
     }
 
     override fun findMainDocumentation(): String = documentation
@@ -136,16 +128,15 @@ open class TextMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
+        val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
             TextMethodItem(
                 codebase,
                 name(),
                 targetContainingClass,
                 modifiers.duplicate(),
-                returnType,
-                // Consider cloning these: they have back references to the parent method (though
-                // it's unlikely anyone will care about the difference in parent methods)
-                parameters,
+                returnType.convertType(typeVariableMap),
+                parameters.map { it.duplicate(typeVariableMap) },
                 position
             )
         duplicated.inheritedFrom = containingClass()
@@ -193,13 +184,8 @@ open class TextMethodItem(
         throwsTypes += throwsType
     }
 
-    private val varargs: Boolean = parameters.any { it.isVarArgs() }
-
-    fun isVarArg(): Boolean = varargs
-
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     @Deprecated("This property should not be accessed directly.")
@@ -219,15 +205,5 @@ open class TextMethodItem(
 
     override fun defaultValue(): String {
         return annotationDefault
-    }
-
-    override fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean {
-        if (typeString1[0].isUpperCase() && typeString1.length == 1) {
-            return true
-        }
-        if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit()) {
-            return true
-        }
-        return false
     }
 }

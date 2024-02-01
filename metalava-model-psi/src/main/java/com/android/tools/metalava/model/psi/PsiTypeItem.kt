@@ -16,164 +16,37 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_STRING
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.model.findAnnotation
-import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiArrayType
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiCompiledElement
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiEllipsisType
-import com.intellij.psi.PsiJavaCodeReferenceElement
-import com.intellij.psi.PsiJavaToken
 import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiRecursiveElementVisitor
-import com.intellij.psi.PsiReferenceList
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
-import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.PsiTypeParameterList
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.impl.source.PsiImmediateClassType
-import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
-import java.util.function.Predicate
-import org.jetbrains.uast.kotlin.isKotlin
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
+sealed class PsiTypeItem(val codebase: PsiBasedCodebase, val psiType: PsiType) :
     DefaultTypeItem(codebase) {
-    private var toString: String? = null
-    private var toAnnotatedString: String? = null
-    private var asClass: PsiClassItem? = null
-
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        context: Item?,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
-    ): String {
-        if (!kotlinStyleNulls) {
-            return super.toTypeString(
-                annotations,
-                kotlinStyleNulls,
-                context,
-                filter,
-                spaceBetweenParameters
-            )
-        }
-
-        if (filter != null) {
-            // No caching when specifying filter.
-            // TODO: When we support type use annotations, here we need to deal with markRecent
-            //  and clearAnnotations not really having done their job.
-            return toTypeString(
-                codebase = codebase,
-                type = psiType,
-                annotations = annotations,
-                kotlinStyleNulls = kotlinStyleNulls,
-                context = context,
-                filter = filter
-            )
-        }
-
-        return when {
-            kotlinStyleNulls && annotations -> {
-                if (toAnnotatedString == null) {
-                    toAnnotatedString =
-                        toTypeString(
-                            codebase = codebase,
-                            type = psiType,
-                            annotations = annotations,
-                            kotlinStyleNulls = kotlinStyleNulls,
-                            context = context,
-                            filter = filter
-                        )
-                }
-                toAnnotatedString!!
-            }
-            kotlinStyleNulls || annotations ->
-                toTypeString(
-                    codebase = codebase,
-                    type = psiType,
-                    annotations = annotations,
-                    kotlinStyleNulls = kotlinStyleNulls,
-                    context = context,
-                    filter = filter
-                )
-            else -> {
-                if (toString == null) {
-                    toString =
-                        TypeItem.formatType(
-                            getCanonicalText(
-                                codebase = codebase,
-                                owner = context,
-                                type = psiType,
-                                annotated = false,
-                                mapAnnotations = false,
-                                kotlinStyleNulls = kotlinStyleNulls,
-                                filter = filter
-                            )
-                        )
-                }
-                toString!!
-            }
-        }
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-
-        return when (other) {
-            is TypeItem -> TypeItem.equalsWithoutSpace(toTypeString(), other.toTypeString())
-            else -> false
-        }
-    }
-
-    override fun asClass(): PsiClassItem? {
-        if (this is PrimitiveTypeItem) {
-            return null
-        }
-        if (asClass == null) {
-            asClass = codebase.findClass(psiType)
-        }
-        return asClass
-    }
-
-    override fun hashCode(): Int {
-        return psiType.hashCode()
-    }
-
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        val s = convertTypeString(replacementMap)
-        // This is a string based type conversion, so there is no Kotlin type information.
-        return create(codebase, codebase.createPsiType(s, (owner as? PsiItem)?.psi()), null)
-    }
-
-    override fun hasTypeArguments(): Boolean {
-        val type = psiType
-        return type is PsiClassType && type.hasParameters()
-    }
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
@@ -206,136 +79,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         }
     }
 
-    internal abstract fun duplicate(): PsiTypeItem
-
     companion object {
-        private fun toTypeString(
-            codebase: PsiBasedCodebase,
-            type: PsiType,
-            annotations: Boolean,
-            kotlinStyleNulls: Boolean,
-            context: Item?,
-            filter: Predicate<Item>?
-        ): String {
-            val typeString =
-                if (kotlinStyleNulls || annotations) {
-                    try {
-                        getCanonicalText(
-                            codebase = codebase,
-                            owner = context,
-                            type = type,
-                            annotated = annotations,
-                            mapAnnotations = true,
-                            kotlinStyleNulls = kotlinStyleNulls,
-                            filter = filter
-                        )
-                    } catch (ignore: Throwable) {
-                        type.canonicalText
-                    }
-                } else {
-                    type.canonicalText
-                }
-
-            return TypeItem.formatType(typeString)
-        }
-
-        private fun getCanonicalText(
-            codebase: PsiBasedCodebase,
-            owner: Item?,
-            type: PsiType,
-            annotated: Boolean,
-            mapAnnotations: Boolean,
-            kotlinStyleNulls: Boolean,
-            filter: Predicate<Item>?
-        ): String {
-            return try {
-                if (kotlinStyleNulls && owner?.hasInheritedGenericType() != true) {
-                    // Any nullness annotations on the element to merge in? When we have something
-                    // like
-                    //  @Nullable String foo
-                    // the Nullable annotation can be on the element itself rather than the type,
-                    // so if we print the type without knowing the nullness annotation on the
-                    // element, we'll think it's unannotated and we'll display it as "String!".
-                    val nullness =
-                        owner?.modifiers?.findAnnotation(AnnotationItem::isNullnessAnnotation)
-                    var elementAnnotations =
-                        if (nullness != null) {
-                            listOf(nullness)
-                        } else null
-
-                    val implicitNullness = if (owner != null) owner.implicitNullness() else null
-                    val annotatedType =
-                        if (implicitNullness != null) {
-                            val provider =
-                                if (implicitNullness == true) {
-                                    codebase.getNullableAnnotationProvider()
-                                } else {
-                                    codebase.getNonNullAnnotationProvider()
-                                }
-
-                            // Special handling for implicitly non-null arrays that also have an
-                            // implicitly non-null component type
-                            if (
-                                implicitNullness == false &&
-                                    type is PsiArrayType &&
-                                    owner != null &&
-                                    owner.impliesNonNullArrayComponents()
-                            ) {
-                                type.componentType
-                                    .annotate(provider)
-                                    .createArrayType()
-                                    .annotate(provider)
-                            } else if (
-                                implicitNullness == false &&
-                                    owner is ParameterItem &&
-                                    owner.containingMethod().isEnumSyntheticMethod()
-                            ) {
-                                // Workaround the fact that the Kotlin synthetic enum methods
-                                // do not have nullness information; this must be the parameter
-                                // to the valueOf(String) method.
-                                // See https://youtrack.jetbrains.com/issue/KT-39667.
-                                return JAVA_LANG_STRING
-                            } else {
-                                type.annotate(provider)
-                            }
-                        } else if (
-                            nullness != null &&
-                                owner.modifiers.isVarArg() &&
-                                owner.isKotlin() &&
-                                type is PsiEllipsisType
-                        ) {
-                            // Varargs the annotation applies to the component type instead
-                            val nonNullProvider = codebase.getNonNullAnnotationProvider()
-                            val provider =
-                                if (nullness.isNonNull()) {
-                                    nonNullProvider
-                                } else codebase.getNullableAnnotationProvider()
-                            val componentType = type.componentType.annotate(provider)
-                            elementAnnotations = null
-                            PsiEllipsisType(componentType, nonNullProvider)
-                        } else {
-                            type
-                        }
-                    val printer =
-                        PsiTypePrinter(
-                            codebase,
-                            filter,
-                            mapAnnotations,
-                            kotlinStyleNulls,
-                            annotated
-                        )
-
-                    printer.getAnnotatedCanonicalText(annotatedType, elementAnnotations)
-                } else if (annotated) {
-                    type.getCanonicalText(true)
-                } else {
-                    type.getCanonicalText(false)
-                }
-            } catch (e: Throwable) {
-                return type.getCanonicalText(false)
-            }
-        }
-
         /**
          * Determine if this item implies that its associated type is a non-null array with non-null
          * components. This is true for the synthetic `Enum.values()` method and any annotation
@@ -366,245 +110,52 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
             kotlinType: KotlinTypeInfo?
         ): PsiTypeItem {
             return when (psiType) {
-                is PsiPrimitiveType -> PsiPrimitiveTypeItem(codebase, psiType, kotlinType)
-                is PsiArrayType -> PsiArrayTypeItem(codebase, psiType, kotlinType)
+                is PsiPrimitiveType ->
+                    PsiPrimitiveTypeItem.create(
+                        codebase = codebase,
+                        psiType = psiType,
+                        kotlinType = kotlinType,
+                    )
+                is PsiArrayType ->
+                    PsiArrayTypeItem.create(
+                        codebase = codebase,
+                        psiType = psiType,
+                        kotlinType = kotlinType,
+                    )
                 is PsiClassType -> {
                     if (psiType.resolve() is PsiTypeParameter) {
-                        PsiVariableTypeItem(codebase, psiType, kotlinType)
+                        PsiVariableTypeItem.create(
+                            codebase = codebase,
+                            psiType = psiType,
+                            kotlinType = kotlinType,
+                        )
                     } else {
-                        PsiClassTypeItem(codebase, psiType, kotlinType)
+                        PsiClassTypeItem.create(
+                            codebase = codebase,
+                            psiType = psiType,
+                            kotlinType = kotlinType,
+                        )
                     }
                 }
-                is PsiWildcardType -> PsiWildcardTypeItem(codebase, psiType, kotlinType)
+                is PsiWildcardType ->
+                    PsiWildcardTypeItem.create(
+                        codebase = codebase,
+                        psiType = psiType,
+                        kotlinType = kotlinType,
+                    )
                 // There are other [PsiType]s, but none can appear in API surfaces.
                 else -> throw IllegalStateException("Invalid type in API surface: $psiType")
             }
-        }
-
-        fun typeParameterList(typeList: PsiTypeParameterList?): String? {
-            if (typeList != null && typeList.typeParameters.isNotEmpty()) {
-                // TODO: Filter the type list classes? Try to construct a typelist of a private API!
-                // We can't just use typeList.text here, because that just
-                // uses the declaration from the source, which may not be
-                // fully qualified - e.g. we might get
-                //    <T extends View> instead of <T extends android.view.View>
-                // Therefore, we'll need to compute it ourselves; I can't find
-                // a utility for this
-                val sb = StringBuilder()
-                typeList.accept(
-                    object : PsiRecursiveElementVisitor() {
-                        override fun visitElement(element: PsiElement) {
-                            if (element is PsiTypeParameterList) {
-                                val typeParameters = element.typeParameters
-                                if (typeParameters.isEmpty()) {
-                                    return
-                                }
-                                sb.append("<")
-                                var first = true
-                                for (parameter in typeParameters) {
-                                    if (!first) {
-                                        sb.append(", ")
-                                    }
-                                    first = false
-                                    visitElement(parameter)
-                                }
-                                sb.append(">")
-                                return
-                            } else if (element is PsiTypeParameter) {
-                                if (PsiTypeParameterItem.isReified(element)) {
-                                    sb.append("reified ")
-                                }
-                                sb.append(element.name)
-                                // TODO: How do I get super -- e.g. "Comparable<? super T>"
-                                val extendsList = element.extendsList
-                                val refList = extendsList.referenceElements
-                                if (refList.isNotEmpty()) {
-                                    sb.append(" extends ")
-                                    var first = true
-                                    for (refElement in refList) {
-                                        if (!first) {
-                                            sb.append(" & ")
-                                        } else {
-                                            first = false
-                                        }
-
-                                        if (refElement is PsiJavaCodeReferenceElement) {
-                                            visitElement(refElement)
-                                            continue
-                                        }
-                                        val resolved = refElement.resolve()
-                                        if (resolved is PsiClass) {
-                                            sb.append(resolved.qualifiedName ?: resolved.name)
-                                            resolved.typeParameterList?.accept(this)
-                                        } else {
-                                            sb.append(refElement.referenceName)
-                                        }
-                                    }
-                                } else {
-                                    val extendsListTypes = element.extendsListTypes
-                                    if (extendsListTypes.isNotEmpty()) {
-                                        sb.append(" extends ")
-                                        var first = true
-                                        for (type in extendsListTypes) {
-                                            if (!first) {
-                                                sb.append(" & ")
-                                            } else {
-                                                first = false
-                                            }
-                                            val resolved = type.resolve()
-                                            if (resolved == null) {
-                                                sb.append(type.className)
-                                            } else {
-                                                sb.append(resolved.qualifiedName ?: resolved.name)
-                                                resolved.typeParameterList?.accept(this)
-                                            }
-                                        }
-                                    }
-                                }
-                                return
-                            } else if (element is PsiJavaCodeReferenceElement) {
-                                val resolved = element.resolve()
-                                if (resolved is PsiClass) {
-                                    if (resolved.qualifiedName == null) {
-                                        sb.append(resolved.name)
-                                    } else {
-                                        sb.append(resolved.qualifiedName)
-                                    }
-                                    val typeParameters = element.parameterList
-                                    if (typeParameters != null) {
-                                        val typeParameterElements =
-                                            typeParameters.typeParameterElements
-                                        if (typeParameterElements.isEmpty()) {
-                                            return
-                                        }
-
-                                        // When reading in this from bytecode, the order is
-                                        // sometimes wrong
-                                        // (for example, for
-                                        //    public interface BaseStream<T, S extends BaseStream<T,
-                                        // S>>
-                                        // the extends type BaseStream<T, S> will return the
-                                        // typeParameterElements
-                                        // as [S,T] instead of [T,S]. However, the
-                                        // typeParameters.typeArguments
-                                        // list is correct, so order the elements by the
-                                        // typeArguments array instead
-
-                                        // Special case: just one type argument: no sorting issue
-                                        if (typeParameterElements.size == 1) {
-                                            sb.append("<")
-                                            var first = true
-                                            for (parameter in typeParameterElements) {
-                                                if (!first) {
-                                                    sb.append(", ")
-                                                }
-                                                first = false
-                                                visitElement(parameter)
-                                            }
-                                            sb.append(">")
-                                            return
-                                        }
-
-                                        // More than one type argument
-
-                                        val typeArguments = typeParameters.typeArguments
-                                        if (typeArguments.isNotEmpty()) {
-                                            sb.append("<")
-                                            var first = true
-                                            for (parameter in typeArguments) {
-                                                if (!first) {
-                                                    sb.append(", ")
-                                                }
-                                                first = false
-                                                // Try to match up a type parameter element
-                                                var found = false
-                                                for (typeElement in typeParameterElements) {
-                                                    if (parameter == typeElement.type) {
-                                                        found = true
-                                                        visitElement(typeElement)
-                                                        break
-                                                    }
-                                                }
-                                                if (!found) {
-                                                    // No type element matched: use type instead
-                                                    val classType =
-                                                        PsiTypesUtil.getPsiClass(parameter)
-                                                    if (classType != null) {
-                                                        visitElement(classType)
-                                                    } else {
-                                                        sb.append(parameter.canonicalText)
-                                                    }
-                                                }
-                                            }
-                                            sb.append(">")
-                                        }
-                                    }
-                                    return
-                                }
-                            } else if (element is PsiTypeElement) {
-                                val type = element.type
-                                if (type is PsiWildcardType) {
-                                    sb.append("?")
-                                    if (type.isBounded) {
-                                        if (type.isExtends) {
-                                            sb.append(" extends ")
-                                            sb.append(type.extendsBound.canonicalText)
-                                        }
-                                        if (type.isSuper) {
-                                            sb.append(" super ")
-                                            sb.append(type.superBound.canonicalText)
-                                        }
-                                    }
-                                    return
-                                }
-                                sb.append(type.canonicalText)
-                                return
-                            } else if (
-                                element is PsiJavaToken && element.tokenType == JavaTokenType.COMMA
-                            ) {
-                                sb.append(",")
-                                return
-                            }
-                            if (element.firstChild == null) { // leaf nodes only
-                                if (element is PsiCompiledElement) {
-                                    if (element is PsiReferenceList) {
-                                        val referencedTypes = element.referencedTypes
-                                        var first = true
-                                        for (referenceType in referencedTypes) {
-                                            if (first) {
-                                                first = false
-                                            } else {
-                                                sb.append(", ")
-                                            }
-                                            sb.append(referenceType.canonicalText)
-                                        }
-                                    }
-                                } else {
-                                    sb.append(element.text)
-                                }
-                            }
-                            super.visitElement(element)
-                        }
-                    }
-                )
-
-                val typeString = sb.toString()
-                return TypeItem.cleanupGenerics(typeString)
-            }
-
-            return null
         }
     }
 }
 
 /** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
 internal class PsiPrimitiveTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiPrimitiveType,
-    kotlinType: KotlinTypeInfo? = null,
-    override val kind: PrimitiveTypeItem.Primitive = getKind(psiType),
-    override val modifiers: PsiTypeModifiers =
-        PsiTypeModifiers.create(codebase, psiType, kotlinType)
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
+    override val kind: PrimitiveTypeItem.Primitive,
+    override val modifiers: PsiTypeModifiers,
 ) : PrimitiveTypeItem, PsiTypeItem(codebase, psiType) {
     override fun duplicate(): PsiPrimitiveTypeItem =
         PsiPrimitiveTypeItem(
@@ -615,6 +166,18 @@ internal class PsiPrimitiveTypeItem(
         )
 
     companion object {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiPrimitiveType,
+            kotlinType: KotlinTypeInfo?,
+        ) =
+            PsiPrimitiveTypeItem(
+                codebase = codebase,
+                psiType = psiType,
+                kind = getKind(psiType),
+                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            )
+
         private fun getKind(type: PsiPrimitiveType): PrimitiveTypeItem.Primitive {
             return when (type) {
                 PsiTypes.booleanType() -> PrimitiveTypeItem.Primitive.BOOLEAN
@@ -634,52 +197,89 @@ internal class PsiPrimitiveTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiArrayType]. */
 internal class PsiArrayTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiArrayType,
-    kotlinType: KotlinTypeInfo? = null,
-    override val componentType: PsiTypeItem =
-        create(codebase, psiType.componentType, kotlinType?.forArrayComponentType()),
-    override val isVarargs: Boolean = psiType is PsiEllipsisType,
-    override val modifiers: PsiTypeModifiers =
-        PsiTypeModifiers.create(codebase, psiType, kotlinType)
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
+    override val componentType: PsiTypeItem,
+    override val isVarargs: Boolean,
+    override val modifiers: PsiTypeModifiers,
 ) : ArrayTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(): PsiArrayTypeItem =
+    override fun duplicate(componentType: TypeItem): ArrayTypeItem =
         PsiArrayTypeItem(
             codebase = codebase,
             psiType = psiType,
-            componentType = componentType.duplicate(),
+            componentType = componentType as PsiTypeItem,
             isVarargs = isVarargs,
             modifiers = modifiers.duplicate()
         )
+
+    companion object {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiArrayType,
+            kotlinType: KotlinTypeInfo?,
+        ) =
+            PsiArrayTypeItem(
+                codebase = codebase,
+                psiType = psiType,
+                componentType =
+                    create(codebase, psiType.componentType, kotlinType?.forArrayComponentType()),
+                isVarargs = psiType is PsiEllipsisType,
+                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            )
+    }
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that does not represent a type variable. */
 internal class PsiClassTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiClassType,
-    kotlinType: KotlinTypeInfo? = null,
-    override val qualifiedName: String = computeQualifiedName(psiType),
-    override val parameters: List<PsiTypeItem> = computeParameters(codebase, psiType, kotlinType),
-    override val outerClassType: PsiClassTypeItem? =
-        computeOuterClass(psiType, codebase, kotlinType),
-    // This should be able to use `psiType.name`, but that sometimes returns null.
-    override val className: String = ClassTypeItem.computeClassName(qualifiedName),
-    override val modifiers: PsiTypeModifiers =
-        PsiTypeModifiers.create(codebase, psiType, kotlinType)
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
+    override val qualifiedName: String,
+    override val arguments: List<PsiTypeItem>,
+    override val outerClassType: PsiClassTypeItem?,
+    override val className: String,
+    override val modifiers: PsiTypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(): PsiClassTypeItem =
+
+    private var asClass: ClassItem? = null
+
+    override fun asClass(): ClassItem? {
+        if (asClass == null) {
+            asClass = codebase.findClass(psiType)
+        }
+        return asClass
+    }
+
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem =
         PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
-            parameters = parameters.map { it.duplicate() },
-            outerClassType = outerClassType?.duplicate(),
+            arguments = arguments.map { it as PsiTypeItem },
+            outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate()
         )
 
     companion object {
-        private fun computeParameters(
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiClassType,
+            kotlinType: KotlinTypeInfo?,
+        ): PsiClassTypeItem {
+            val qualifiedName = computeQualifiedName(psiType)
+            return PsiClassTypeItem(
+                codebase = codebase,
+                psiType = psiType,
+                qualifiedName = qualifiedName,
+                arguments = computeTypeArguments(codebase, psiType, kotlinType),
+                outerClassType = computeOuterClass(psiType, codebase, kotlinType),
+                // This should be able to use `psiType.name`, but that sometimes returns null.
+                className = ClassTypeItem.computeClassName(qualifiedName),
+                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            )
+        }
+
+        private fun computeTypeArguments(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?
@@ -722,7 +322,14 @@ internal class PsiClassTypeItem(
                     null
                 } else {
                     val psiOuterClassType =
-                        codebase.createPsiType(outerClassName, psiType.psiContext)
+                        codebase.createPsiType(
+                            outerClassName,
+                            // The context psi element allows variable types to be resolved (with no
+                            // context, they would be interpreted as class types). The [psiContext]
+                            // works in most cases, but is null when creating a type directly from a
+                            // class declaration, so the resolved [psiType] provides context then.
+                            psiType.psiContext ?: psiType.resolve()
+                        )
                     (create(codebase, psiOuterClassType, kotlinType?.forOuterClass())
                             as PsiClassTypeItem)
                         .apply {
@@ -737,15 +344,25 @@ internal class PsiClassTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
 internal class PsiVariableTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiClassType,
-    kotlinType: KotlinTypeInfo? = null,
-    override val name: String = psiType.name,
-    override val modifiers: PsiTypeModifiers =
-        PsiTypeModifiers.create(codebase, psiType, kotlinType),
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
+    override val name: String,
+    override val modifiers: PsiTypeModifiers,
 ) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
     override val asTypeParameter: TypeParameterItem by lazy {
-        codebase.findClass(psiType) as TypeParameterItem
+        val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
+        codebase.findOrCreateTypeParameter(cls as PsiTypeParameter)
+    }
+
+    private var asClass: ClassItem? = null
+
+    override fun asClass(): ClassItem? {
+        if (asClass == null) {
+            asClass =
+                asTypeParameter.typeBounds().firstOrNull()?.asClass()
+                    ?: codebase.findClass(JAVA_LANG_OBJECT)
+        }
+        return asClass
     }
 
     override fun duplicate(): PsiVariableTypeItem =
@@ -755,29 +372,49 @@ internal class PsiVariableTypeItem(
             name = name,
             modifiers = modifiers.duplicate()
         )
+
+    companion object {
+        fun create(codebase: PsiBasedCodebase, psiType: PsiClassType, kotlinType: KotlinTypeInfo?) =
+            PsiVariableTypeItem(
+                codebase = codebase,
+                psiType = psiType,
+                name = psiType.name,
+                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            )
+    }
 }
 
 /** A [PsiTypeItem] backed by a [PsiWildcardType]. */
 internal class PsiWildcardTypeItem(
-    override val codebase: PsiBasedCodebase,
-    override val psiType: PsiWildcardType,
-    kotlinType: KotlinTypeInfo? = null,
-    override val extendsBound: PsiTypeItem? =
-        createBound(psiType.extendsBound, codebase, kotlinType),
-    override val superBound: PsiTypeItem? = createBound(psiType.superBound, codebase, kotlinType),
-    override val modifiers: PsiTypeModifiers =
-        PsiTypeModifiers.create(codebase, psiType, kotlinType)
+    codebase: PsiBasedCodebase,
+    psiType: PsiType,
+    override val extendsBound: PsiTypeItem?,
+    override val superBound: PsiTypeItem?,
+    override val modifiers: PsiTypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(): PsiWildcardTypeItem =
+    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem =
         PsiWildcardTypeItem(
             codebase = codebase,
             psiType = psiType,
-            extendsBound = extendsBound?.duplicate(),
-            superBound = superBound?.duplicate(),
+            extendsBound = extendsBound as? PsiTypeItem,
+            superBound = superBound as? PsiTypeItem,
             modifiers = modifiers.duplicate()
         )
 
     companion object {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiType: PsiWildcardType,
+            kotlinType: KotlinTypeInfo?,
+        ) =
+            PsiWildcardTypeItem(
+                codebase = codebase,
+                psiType = psiType,
+                extendsBound = createBound(psiType.extendsBound, codebase, kotlinType),
+                superBound = createBound(psiType.superBound, codebase, kotlinType),
+                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+            )
+
         /**
          * If a [PsiWildcardType] doesn't have a bound, the bound is represented as the null
          * [PsiType] instead of just `null`.
