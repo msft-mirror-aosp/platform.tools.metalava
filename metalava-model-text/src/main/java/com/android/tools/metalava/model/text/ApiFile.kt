@@ -583,7 +583,7 @@ private constructor(
     ): DeclaredClassTypeComponents {
         // Split the declared class type into full name and type parameters.
         val paramIndex = declaredClassType.indexOf('<')
-        val (fullName, typeParameterString) =
+        val (fullName, typeParameterListString) =
             if (paramIndex == -1) {
                 Pair(declaredClassType, "")
             } else {
@@ -618,8 +618,11 @@ private constructor(
             qualifiedName = qualifiedName,
             outerClass = outerClass,
             typeParameters =
-                if (typeParameterString == "") TypeParameterList.NONE
-                else TextTypeParameterList.create(api, typeParameterString)
+                if (typeParameterListString == "") TypeParameterList.NONE
+                else {
+                    val scope = TypeParameterScope.from(outerClass as? TextClassItem)
+                    TextTypeParameterList.create(api, scope, typeParameterListString)
+                }
         )
     }
 
@@ -718,7 +721,7 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, annotations)
         token = tokenizer.current
         if ("<" == token) {
-            typeParameterList = parseTypeParameterList(api, tokenizer)
+            typeParameterList = parseTypeParameterList(api, tokenizer, classTypeParameterScope)
             token = tokenizer.requireToken()
         }
         tokenizer.assertIdent(token)
@@ -767,7 +770,7 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         if ("<" == token) {
-            typeParameterList = parseTypeParameterList(api, tokenizer)
+            typeParameterList = parseTypeParameterList(api, tokenizer, classTypeParameterScope)
             token = tokenizer.requireToken()
         }
         tokenizer.assertIdent(token)
@@ -1113,7 +1116,8 @@ private constructor(
 
     private fun parseTypeParameterList(
         codebase: TextCodebase,
-        tokenizer: Tokenizer
+        tokenizer: Tokenizer,
+        enclosingTypeParameterScope: TypeParameterScope,
     ): TypeParameterList {
         var token: String
         val start = tokenizer.offset() - 1
@@ -1126,11 +1130,15 @@ private constructor(
                 balance--
             }
         }
-        val typeParameterList = tokenizer.getStringFromOffset(start)
-        return if (typeParameterList.isEmpty()) {
+        val typeParameterListString = tokenizer.getStringFromOffset(start)
+        return if (typeParameterListString.isEmpty()) {
             TypeParameterList.NONE
         } else {
-            TextTypeParameterList.create(codebase, typeParameterList)
+            TextTypeParameterList.create(
+                codebase,
+                enclosingTypeParameterScope,
+                typeParameterListString
+            )
         }
     }
 

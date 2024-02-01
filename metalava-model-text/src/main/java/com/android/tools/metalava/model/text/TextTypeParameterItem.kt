@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.TypeParameterItem
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
-    private val boundsStringList: List<String>,
     private val name: String,
     private val isReified: Boolean,
 ) :
@@ -35,21 +34,21 @@ internal class TextTypeParameterItem(
 
     private var owner: TypeParameterListOwner? = null
 
-    private var bounds: List<TypeItem>? = null
+    lateinit var bounds: List<TypeItem>
 
     override fun name(): String {
         return name
     }
 
     override fun toString() =
-        if (boundsStringList.isEmpty() && !isReified) name
+        if (bounds.isEmpty() && !isReified) name
         else
             buildString {
                 if (isReified) append("reified ")
                 append(name)
-                if (boundsStringList.isNotEmpty()) {
+                if (bounds.isNotEmpty()) {
                     append(" extends ")
-                    boundsStringList.joinTo(this, " & ")
+                    bounds.joinTo(this, " & ")
                 }
             }
 
@@ -62,22 +61,7 @@ internal class TextTypeParameterItem(
         )
     }
 
-    override fun typeBounds(): List<TypeItem> {
-        if (bounds == null) {
-            bounds =
-                if (boundsStringList.isEmpty()) {
-                    emptyList()
-                } else {
-                    boundsStringList.map {
-                        codebase.typeResolver.obtainTypeFromString(
-                            it,
-                            TypeParameterScope.from(owner)
-                        )
-                    }
-                }
-        }
-        return bounds!!
-    }
+    override fun typeBounds(): List<TypeItem> = bounds
 
     override fun isReified(): Boolean = isReified
 
@@ -97,6 +81,16 @@ internal class TextTypeParameterItem(
     }
 
     companion object {
+
+        /**
+         * Create a partially initialized [TextTypeParameterItem].
+         *
+         * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
+         * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
+         *
+         * This must ONLY be used by [TextTypeParameterList.create] as that will complete the
+         * initialization of the [bounds] property.
+         */
         fun create(
             codebase: TextCodebase,
             typeParameterString: String,
@@ -121,11 +115,8 @@ internal class TextTypeParameterItem(
             }
             val name = typeParameterString.substring(nameStart, nameEnd)
 
-            val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
-
             return TextTypeParameterItem(
                 codebase = codebase,
-                boundsStringList = boundsStringList,
                 name = name,
                 isReified = isReified,
             )
