@@ -37,8 +37,8 @@ internal open class TextClassItem(
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
-    var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    val fullName: String = name,
+    var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    val fullName: String = simpleName,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
@@ -212,7 +212,7 @@ internal open class TextClassItem(
         return retention!!
     }
 
-    override fun simpleName(): String = name.substring(name.lastIndexOf('.') + 1)
+    override fun simpleName(): String = simpleName
 
     override fun fullName(): String = fullName
 
@@ -239,8 +239,8 @@ internal open class TextClassItem(
             val cls =
                 TextClassItem(
                     codebase = codebase,
-                    name = fullName,
                     qualifiedName = qualifiedName,
+                    fullName = fullName,
                     classKind = if (isInterface) ClassKind.INTERFACE else ClassKind.CLASS,
                     modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
                 )

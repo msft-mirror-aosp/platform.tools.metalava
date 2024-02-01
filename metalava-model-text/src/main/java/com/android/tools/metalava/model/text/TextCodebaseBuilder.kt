@@ -123,15 +123,15 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         val textClass = fullClass as TextClassItem
         val newClass =
             TextClassItem(
-                codebase,
-                SourcePositionInfo.UNKNOWN,
-                textClass.modifiers,
-                textClass.classKind,
-                textClass.qualifiedName,
-                textClass.name,
-                textClass.fullName,
-                textClass.annotations,
-                textClass.typeParameterList
+                codebase = codebase,
+                position = SourcePositionInfo.UNKNOWN,
+                modifiers = textClass.modifiers,
+                classKind = textClass.classKind,
+                qualifiedName = textClass.qualifiedName,
+                simpleName = textClass.simpleName,
+                fullName = textClass.fullName,
+                annotations = textClass.annotations,
+                typeParameterList = textClass.typeParameterList,
             )
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
         pkg.addClass(newClass)

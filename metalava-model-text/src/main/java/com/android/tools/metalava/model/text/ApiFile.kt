@@ -414,15 +414,15 @@ private constructor(
         // register it.
         val cl =
             TextClassItem(
-                api,
-                classPosition,
-                modifiers,
-                classKind,
-                qualifiedClassName,
-                className,
-                fullName,
-                annotations,
-                typeParameters
+                codebase = api,
+                position = classPosition,
+                modifiers = modifiers,
+                classKind = classKind,
+                qualifiedName = qualifiedClassName,
+                simpleName = className,
+                fullName = fullName,
+                annotations = annotations,
+                typeParameterList = typeParameters,
             )
         cl.setContainingPackage(pkg)
         cl.containingClass = outerClass
