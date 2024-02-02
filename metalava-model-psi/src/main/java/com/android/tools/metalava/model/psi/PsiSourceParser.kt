@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
 import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
-import com.android.tools.metalava.model.source.utils.extractRoots
 import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
@@ -90,23 +89,11 @@ internal class PsiSourceParser(
         description: String,
         classPath: List<File>,
     ): PsiBasedCodebase {
-        val absoluteSources = sourceSet.absoluteSources
-        val absoluteCommonSources = commonSourceSet.absoluteSources
-
-        val absoluteSourceRoots = sourceSet.absoluteSourcePaths.toMutableList()
-        val absoluteCommonSourceRoots = commonSourceSet.absoluteSourcePaths.toMutableList()
-
-        // Add in source roots implied by the source files
-        extractRoots(reporter, absoluteSources, absoluteSourceRoots)
-        extractRoots(reporter, absoluteCommonSources, absoluteCommonSourceRoots)
-
-        val absoluteClasspath = classPath.map { it.absoluteFile }
-
         return parseAbsoluteSources(
-            SourceSet(absoluteSources, absoluteSourceRoots),
-            SourceSet(absoluteCommonSources, absoluteCommonSourceRoots),
+            sourceSet.absoluteCopy().extractRoots(reporter),
+            commonSourceSet.absoluteCopy().extractRoots(reporter),
             description,
-            absoluteClasspath,
+            classPath.map { it.absoluteFile }
         )
     }
 

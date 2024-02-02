@@ -71,7 +71,7 @@ internal fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<Fil
     return sources.sortedWith(compareBy { it.name })
 }
 
-fun extractRoots(
+internal fun extractRoots(
     reporter: Reporter,
     sources: List<File>,
     sourceRoots: MutableList<File> = mutableListOf()

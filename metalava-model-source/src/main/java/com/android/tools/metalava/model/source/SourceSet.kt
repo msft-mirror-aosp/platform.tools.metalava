@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.source.utils.extractRoots
 import com.android.tools.metalava.model.source.utils.gatherSources
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -40,6 +41,20 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
         get() {
             return sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }
         }
+
+    /** Creates a copy of [SourceSet], but with elements mapped with [File.getAbsoluteFile] */
+    fun absoluteCopy(): SourceSet {
+        return SourceSet(absoluteSources, absoluteSourcePaths)
+    }
+
+    /**
+     * Creates a new instance of [SourceSet], adding in source roots implied by the source files in
+     * the current [SourceSet]
+     */
+    fun extractRoots(reporter: Reporter): SourceSet {
+        val sourceRoots = extractRoots(reporter, sources, sourcePath.toMutableList())
+        return SourceSet(sources, sourceRoots)
+    }
 
     companion object {
         fun empty(): SourceSet = SourceSet(emptyList(), emptyList())
