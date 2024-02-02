@@ -19,21 +19,17 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
     private val typeParameterString: String,
-    name: String,
+    private val name: String,
     private val isReified: Boolean,
 ) :
-    TextClassItem(
+    TextItem(
         codebase = codebase,
+        position = SourcePositionInfo.UNKNOWN,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-        name = name,
-        qualifiedName = name,
-        typeParameterList = TypeParameterList.NONE
     ),
     TypeParameterItem {
 
@@ -41,9 +37,13 @@ internal class TextTypeParameterItem(
 
     private var bounds: List<TypeItem>? = null
 
+    override fun name(): String {
+        return name
+    }
+
     override fun toString() = typeParameterString
 
-    override fun toType(): TextTypeItem {
+    override fun type(): TextVariableTypeItem {
         return TextVariableTypeItem(
             codebase,
             name,
@@ -60,7 +60,10 @@ internal class TextTypeParameterItem(
                     emptyList()
                 } else {
                     boundsStringList.map {
-                        codebase.typeResolver.obtainTypeFromString(it, gatherTypeParams(owner))
+                        codebase.typeResolver.obtainTypeFromString(
+                            it,
+                            TypeParameterScope.from(owner)
+                        )
                     }
                 }
         }
@@ -71,6 +74,17 @@ internal class TextTypeParameterItem(
 
     internal fun setOwner(newOwner: TypeParameterListOwner) {
         owner = newOwner
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
     }
 
     companion object {
@@ -117,7 +131,7 @@ internal class TextTypeParameterItem(
                         ?.typeParameters()
                         ?: return emptyList()
                 for (p in parameters) {
-                    if (p.simpleName() == s) {
+                    if (p.name() == s) {
                         return p.typeBounds().map { it.toTypeString() }
                     }
                 }
@@ -168,15 +182,6 @@ internal class TextTypeParameterItem(
                     return
                 }
             }
-        }
-
-        /** Collect all the type parameters in scope for the given [owner]. */
-        internal fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
-            return owner?.let {
-                it.typeParameterList().typeParameters() +
-                    gatherTypeParams(owner.typeParameterListOwnerParent())
-            }
-                ?: emptyList()
         }
     }
 }
