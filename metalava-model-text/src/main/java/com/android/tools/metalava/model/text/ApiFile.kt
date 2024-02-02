@@ -76,6 +76,13 @@ private constructor(
     /** The file format of the file being parsed. */
     lateinit var format: FileFormat
 
+    /**
+     * The set of interface types needed for later resolution.
+     *
+     * TODO(b/323516595): Find a better way.
+     */
+    private val interfaceTypesForResolution = mutableSetOf<ClassTypeItem>()
+
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
 
     companion object {
@@ -249,6 +256,13 @@ private constructor(
     private fun postProcess() {
         // Use this as the context for resolving references.
         ReferenceResolver.resolveReferences(this, codebase, typeParser)
+
+        // Resolve all interface types that were found in the signature file.
+        // TODO(b/323516595): Find a better way.
+        for (interfaceType in interfaceTypesForResolution) {
+            // Resolve the interface type to a class.
+            interfaceType.asClass()
+        }
     }
 
     private fun parseApiSingleFile(
@@ -485,6 +499,11 @@ private constructor(
             )
 
         cl.setInterfaceTypes(interfaceTypes.toList())
+
+        // Save the interface types to later when they will be resolved. That is needed to avoid
+        // later changes to the model which would/could cause concurrent modification issues.
+        // TODO(b/323516595): Find a better way.
+        interfaceTypesForResolution.addAll(interfaceTypes)
 
         cl.setContainingPackage(pkg)
         cl.containingClass = outerClass
@@ -1605,6 +1624,12 @@ internal class ReferenceResolver(
             val superClassType =
                 typeParser.getSuperType(superClassTypeString, TypeParameterScope.from(cl))
             cl.setSuperClassType(superClassType)
+
+            // Resolve super class types. This is needed because otherwise code that manipulates
+            // the codebase while visiting the codebase can cause concurrent modification
+            // exceptions.
+            // TODO(b/323516595): Find a better way.
+            cl.superClass()
         }
     }
 
