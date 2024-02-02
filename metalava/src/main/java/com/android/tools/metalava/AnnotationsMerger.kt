@@ -59,10 +59,10 @@ import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.utils.extractRoots
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor

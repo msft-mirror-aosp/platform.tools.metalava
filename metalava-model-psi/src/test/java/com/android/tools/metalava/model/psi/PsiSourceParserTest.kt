@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.source.utils.extractRoots
+import com.android.tools.metalava.model.source.utils.gatherSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
