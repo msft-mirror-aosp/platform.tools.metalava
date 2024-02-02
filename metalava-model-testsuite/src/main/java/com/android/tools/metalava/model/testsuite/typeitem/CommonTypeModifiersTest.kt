@@ -2167,4 +2167,44 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertNonNull(superInterfaceType, expectAnnotation = false)
         }
     }
+
+    @Test
+    fun `Test nullability of generic super class and interface type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.List;
+                    public abstract class Foo<E> extends Number implements List<E> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import java.util.List
+                    abstract class Foo<E>: List<E> {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo<E> extends Number implements java.util.List<E> {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // The super class type must be non-null.
+            val superClassType = codebase.assertClass("test.pkg.Foo").superClassType()!!
+            assertNonNull(superClassType, expectAnnotation = false)
+
+            // The super interface types must be non-null.
+            val superInterfaceType = fooClass.interfaceTypes().single()
+            assertNonNull(superInterfaceType, expectAnnotation = false)
+        }
+    }
 }
