@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -614,9 +615,8 @@ private fun ActionContext.loadFromSources(
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
-            sources,
+            SourceSet(sources, options.sourcePath),
             "Codebase loaded from source folders",
-            sourcePath = options.sourcePath,
             classPath = options.classpath,
         )
 

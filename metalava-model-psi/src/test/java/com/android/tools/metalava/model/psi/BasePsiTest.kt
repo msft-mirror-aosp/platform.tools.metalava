@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -91,9 +92,8 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
         return environmentManager
             .createSourceParser(reporter, noOpAnnotationManager)
             .parseSources(
-                sources = sources.map { it.createFile(directory) },
+                SourceSet(sources.map { it.createFile(directory) }, listOf(directory)),
                 description = "Test Codebase",
-                sourcePath = listOf(directory),
                 classPath = classPath,
             )
     }

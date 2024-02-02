@@ -33,17 +33,14 @@ interface SourceParser {
     /**
      * Parse a set of sources into a [SourceCodebase].
      *
-     * @param sources the list of source files.
+     * @param sourceSet the list of source files and root directories.
      * @param description the description to use for [Codebase.description].
-     * @param sourcePath a possibly empty list of root directories within which sources files may be
-     *   found.
      * @param classPath the possibly empty list of jar files which may provide additional classes
      *   referenced by the sources.
      */
     fun parseSources(
-        sources: List<File>,
+        sourceSet: SourceSet,
         description: String,
-        sourcePath: List<File>,
         classPath: List<File>,
     ): SourceCodebase
 

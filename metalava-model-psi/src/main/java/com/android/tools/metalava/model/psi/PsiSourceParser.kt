@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
@@ -80,15 +81,13 @@ internal class PsiSourceParser(
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
     override fun parseSources(
-        sources: List<File>,
+        sourceSet: SourceSet,
         description: String,
-        sourcePath: List<File>,
         classPath: List<File>,
     ): PsiBasedCodebase {
-        val absoluteSources = sources.map { it.absoluteFile }
+        val absoluteSources = sourceSet.absoluteSources
 
-        val absoluteSourceRoots =
-            sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
+        val absoluteSourceRoots = sourceSet.absoluteSourcePaths.toMutableList()
 
         // Add in source roots implied by the source files
         extractRoots(reporter, absoluteSources, absoluteSourceRoots)
@@ -96,26 +95,24 @@ internal class PsiSourceParser(
         val absoluteClasspath = classPath.map { it.absoluteFile }
 
         return parseAbsoluteSources(
-            absoluteSources,
+            SourceSet(sourceSet.absoluteSources, absoluteSourceRoots),
             description,
-            absoluteSourceRoots,
             absoluteClasspath,
         )
     }
 
     /** Returns a codebase initialized from the given set of absolute files. */
     private fun parseAbsoluteSources(
-        sources: List<File>,
+        sourceSet: SourceSet,
         description: String,
-        sourceRoots: List<File>,
         classpath: List<File>,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
+        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
-        configureUastEnvironment(config, sourceRoots, classpath, rootDir)
+        configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
         jdkHome?.let {
             if (isJdkModular(it)) {
@@ -126,11 +123,11 @@ internal class PsiSourceParser(
 
         val environment = psiEnvironmentManager.createEnvironment(config)
 
-        val kotlinFiles = sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
+        val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
-        val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
-        val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
+        val units = Extractor.createUnitsForFiles(environment.ideaProject, sourceSet.sources)
+        val packageDocs = gatherPackageJavadoc(sourceSet)
 
         val codebase = PsiBasedCodebase(rootDir, description, annotationManager, reporter)
         codebase.initialize(environment, units, packageDocs)
@@ -191,12 +188,12 @@ internal class PsiSourceParser(
     }
 }
 
-private fun gatherPackageJavadoc(sources: List<File>, sourceRoots: List<File>): PackageDocs {
+private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
     val packageComments = HashMap<String, String>(100)
     val overviewHtml = HashMap<String, String>(10)
     val hiddenPackages = HashSet<String>(100)
-    val sortedSourceRoots = sourceRoots.sortedBy { -it.name.length }
-    for (file in sources) {
+    val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
+    for (file in sourceSet.sources) {
         var javadoc = false
         val map =
             when (file.name) {

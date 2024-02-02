@@ -70,9 +70,8 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
         return environmentManager
             .createSourceParser(reporter, noOpAnnotationManager)
             .parseSources(
-                sources = sources.map { it.createFile(directory) },
+                SourceSet(sources.map { it.createFile(directory) }, listOf(directory)),
                 description = "Test Codebase",
-                sourcePath = listOf(directory),
                 classPath = classPath,
             )
     }
