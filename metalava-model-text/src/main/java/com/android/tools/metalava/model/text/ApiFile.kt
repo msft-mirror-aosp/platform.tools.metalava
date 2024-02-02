@@ -432,22 +432,15 @@ private constructor(
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
             classKind = ClassKind.ENUM
-        } else {
-            val annotationType =
-                typeParser.obtainTypeFromString(JAVA_LANG_ANNOTATION, TypeParameterScope.empty)
-                    as ClassTypeItem
-
-            if (classKind == ClassKind.ANNOTATION_TYPE) {
-                // If the annotation was defined using @interface that add the implicit
-                // "implements java.lang.annotation.Annotation".
-                interfaceTypes.add(annotationType)
-            } else if (annotationType in interfaceTypes) {
-                // This can be taken either for a normal class that implements
-                // java.lang.annotation.Annotation which was the old way of representing an
-                // annotation
-                // in the API signature files.
-                classKind = ClassKind.ANNOTATION_TYPE
-            }
+        } else if (classKind == ClassKind.ANNOTATION_TYPE) {
+            // If the annotation was defined using @interface then add the implicit
+            // "implements java.lang.annotation.Annotation".
+            interfaceTypes.add(typeParser.superAnnotationType)
+        } else if (typeParser.superAnnotationType in interfaceTypes) {
+            // A normal class that implements java.lang.annotation.Annotation which was the old way
+            // of representing an annotation in the API signature files. So, update the class kind
+            // to match.
+            classKind = ClassKind.ANNOTATION_TYPE
         }
 
         if ("{" != token) {
