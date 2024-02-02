@@ -418,8 +418,7 @@ private constructor(
                 } else if ("," != token) {
                     val interfaceTypeString = parseSuperTypeString(tokenizer, token)
                     val interfaceType =
-                        typeParser.obtainTypeFromString(interfaceTypeString, typeParameterScope)
-                            as ClassTypeItem
+                        typeParser.getSuperType(interfaceTypeString, typeParameterScope)
                     interfaceTypes.add(interfaceType)
                     token = tokenizer.current
                 } else {
@@ -1604,9 +1603,7 @@ internal class ReferenceResolver(
                     }
 
             val superClassType =
-                typeParser.obtainTypeFromString(superClassTypeString, TypeParameterScope.from(cl))
-                    as TextClassTypeItem
-
+                typeParser.getSuperType(superClassTypeString, TypeParameterScope.from(cl))
             cl.setSuperClassType(superClassType)
         }
     }
