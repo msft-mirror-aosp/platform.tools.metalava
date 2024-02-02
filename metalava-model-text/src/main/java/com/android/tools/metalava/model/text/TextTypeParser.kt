@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -55,13 +56,17 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     internal var cacheHit = 0
     internal var cacheSize = 0
 
-    /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
-    private val nonNullTypeModifiers =
-        TextTypeModifiers.create(codebase, emptyList(), TypeNullability.NONNULL)
-
     /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
     val superAnnotationType
         get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
+
+    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
+    val superEnumType
+        get() = createJavaLangSuperType(JAVA_LANG_ENUM)
+
+    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
+    val superObjectType
+        get() = createJavaLangSuperType(JAVA_LANG_OBJECT)
 
     /**
      * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
