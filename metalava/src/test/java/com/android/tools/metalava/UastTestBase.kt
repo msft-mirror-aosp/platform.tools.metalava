@@ -1143,4 +1143,163 @@ abstract class UastTestBase : DriverTest() {
             api = api,
         )
     }
+
+    protected fun `actual typealias -- without value class`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/PointerEvent.kt",
+                """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+            )
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public test.pkg.PointerKeyboardModifiers getKeyboardModifiers();
+                    property public final test.pkg.PointerKeyboardModifiers keyboardModifiers;
+                  }
+                  public final class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    protected fun `actual typealias -- without common split`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    kotlin(
+                        "commonMain/src/test/pkg/PointerEvent.kt",
+                        """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        @kotlin.jvm.JvmInline
+                        value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public $typeAliasExpanded getKeyboardModifiers();
+                    property public final $typeAliasExpanded keyboardModifiers;
+                  }
+                  @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
+
+    protected fun `actual typealias`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-55085
+        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
+        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/PointerEvent.kt",
+                """
+                        package test.pkg
+
+                        expect class PointerEvent {
+                            val keyboardModifiers: PointerKeyboardModifiers
+                        }
+
+                        expect class NativePointerKeyboardModifiers
+
+                        @kotlin.jvm.JvmInline
+                        value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
+                        """
+            )
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/PointerEvent.android.kt",
+                        """
+                        package test.pkg
+
+                        actual class PointerEvent {
+                            actual val keyboardModifiers = PointerKeyboardModifiers(42)
+                        }
+
+                        internal actual typealias NativePointerKeyboardModifiers = Int
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package test.pkg {
+                  public final class PointerEvent {
+                    ctor public PointerEvent();
+                    method public int getKeyboardModifiers();
+                    property public final int keyboardModifiers;
+                  }
+                  @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                  }
+                }
+                """
+        )
+    }
 }
