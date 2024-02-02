@@ -101,7 +101,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 parseType(it.type, typeParameterScope, annotations, it.typeUse)
             }
         } else {
-            parseType(type, typeParameterScope, annotations)
+            parseType(type, typeParameterScope, annotations, typeUse)
         }
     }
 
