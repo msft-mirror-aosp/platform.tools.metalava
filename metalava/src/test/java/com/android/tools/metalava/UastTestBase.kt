@@ -193,8 +193,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `Annotation on parameters of data class synthetic copy`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57003
-        val typeAnno = if (isK2) "" else "@test.pkg.MyAnnotation "
+        // https://youtrack.jetbrains.com/issue/KT-57003
         uastCheck(
             isK2,
             sourceFiles =
@@ -215,7 +214,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(${typeAnno}int p1, String p2);
+                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
                     method public int getP1();
                     method public String getP2();
                     property public final int p1;
