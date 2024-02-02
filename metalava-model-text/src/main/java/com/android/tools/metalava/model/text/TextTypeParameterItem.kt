@@ -19,25 +19,38 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterItem(
+internal class TextTypeParameterItem(
     codebase: TextCodebase,
-    private var owner: TypeParameterListOwner?,
     private val typeParameterString: String,
-    name: String,
+    private val name: String,
     private val isReified: Boolean,
-    private var bounds: List<TypeItem>? = null,
 ) :
-    TextClassItem(
+    TextItem(
         codebase = codebase,
+        position = SourcePositionInfo.UNKNOWN,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-        name = name,
-        qualifiedName = name,
-        typeParameterList = TypeParameterList.NONE
     ),
     TypeParameterItem {
+
+    private var owner: TypeParameterListOwner? = null
+
+    private var bounds: List<TypeItem>? = null
+
+    override fun name(): String {
+        return name
+    }
+
+    override fun toString() = typeParameterString
+
+    override fun type(): TextVariableTypeItem {
+        return TextVariableTypeItem(
+            codebase,
+            name,
+            this,
+            TextTypeModifiers.create(codebase, emptyList(), null)
+        )
+    }
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
@@ -47,7 +60,10 @@ class TextTypeParameterItem(
                     emptyList()
                 } else {
                     boundsStringList.map {
-                        codebase.typeResolver.obtainTypeFromString(it, gatherTypeParams(owner))
+                        codebase.typeResolver.obtainTypeFromString(
+                            it,
+                            TypeParameterScope.from(owner)
+                        )
                     }
                 }
         }
@@ -60,12 +76,21 @@ class TextTypeParameterItem(
         owner = newOwner
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
+    }
+
     companion object {
         fun create(
             codebase: TextCodebase,
-            owner: TypeParameterListOwner?,
             typeParameterString: String,
-            bounds: List<TypeItem>? = null
         ): TextTypeParameterItem {
             val length = typeParameterString.length
             var nameEnd = length
@@ -88,11 +113,9 @@ class TextTypeParameterItem(
             val name = typeParameterString.substring(nameStart, nameEnd)
             return TextTypeParameterItem(
                 codebase = codebase,
-                owner = owner,
                 typeParameterString = typeParameterString,
                 name = name,
                 isReified = isReified,
-                bounds = bounds
             )
         }
 
@@ -108,7 +131,7 @@ class TextTypeParameterItem(
                         ?.typeParameters()
                         ?: return emptyList()
                 for (p in parameters) {
-                    if (p.simpleName() == s) {
+                    if (p.name() == s) {
                         return p.typeBounds().map { it.toTypeString() }
                     }
                 }
@@ -159,15 +182,6 @@ class TextTypeParameterItem(
                     return
                 }
             }
-        }
-
-        /** Collect all the type parameters in scope for the given [owner]. */
-        private fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
-            return owner?.let {
-                it.typeParameterList().typeParameters() +
-                    gatherTypeParams(owner.typeParameterListOwnerParent())
-            }
-                ?: emptyList()
         }
     }
 }

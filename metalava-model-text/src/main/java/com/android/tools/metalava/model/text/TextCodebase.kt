@@ -33,9 +33,10 @@ import java.util.HashMap
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
 // data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
-class TextCodebase(
+internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
+    private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
     internal val mPackages = HashMap<String, TextPackageItem>(300)
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
@@ -43,6 +44,11 @@ class TextCodebase(
     private val externalClasses = HashMap<String, ClassItem>()
 
     internal val typeResolver = TextTypeParser(this)
+
+    /**
+     * A set of empty [TextTypeModifiers] owned by, and reused by items within, this [TextCodebase].
+     */
+    internal val emptyTypeModifiers = TextTypeModifiers.create(this, emptyList(), null)
 
     override fun trustedApi(): Boolean = true
 
@@ -56,9 +62,10 @@ class TextCodebase(
         return mPackages.size
     }
 
-    override fun findClass(className: String): TextClassItem? {
-        return mAllClasses[className]
-    }
+    /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
+    fun findClassInCodebase(className: String) = mAllClasses[className]
+
+    override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
 
     override fun supportsDocumentation(): Boolean = false
 
@@ -77,44 +84,61 @@ class TextCodebase(
     }
 
     /**
+     * Gets an existing, or creates a new [ClassItem].
+     *
      * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
      * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
      * empty stub class (or interface, if [isInterface] is true).
      *
      * Initializes outer classes and packages for the created class as needed.
+     *
+     * @param name the name of the class.
+     * @param isInterface true if the class must be an interface, i.e. is referenced from an
+     *   `implements` list (or Kotlin equivalent).
+     * @param isOuterClass if `true` then this is searching for an outer class of a class in this
+     *   codebase, in which case this must only search classes in this codebase, otherwise it can
+     *   search for external classes too.
      */
     fun getOrCreateClass(
         name: String,
         isInterface: Boolean = false,
-        classResolver: ClassResolver? = null,
+        isOuterClass: Boolean = false,
     ): ClassItem {
-        val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased] ?: externalClasses[erased]
-        if (cls != null) {
-            return cls
+        // Check this codebase first, if found then return it.
+        mAllClasses[name]?.let { found ->
+            return found
         }
 
-        if (classResolver != null) {
-            val classItem = classResolver.resolveClass(erased)
+        // Only check for external classes if this is not searching for an outer class and there is
+        // a class resolver that will populate the external classes.
+        if (!isOuterClass && classResolver != null) {
+            // Check to see whether the class has already been retrieved from the resolver. If it
+            // has then return it.
+            externalClasses[name]?.let { found ->
+                return found
+            }
+
+            // Else try and resolve the class.
+            val classItem = classResolver.resolveClass(name)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[erased] = classItem
+                externalClasses[name] = classItem
                 return classItem
             }
         }
 
         val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[erased] = stubClass
+        mAllClasses[name] = stubClass
         stubClass.emit = false
 
         val fullName = stubClass.fullName()
         if (fullName.contains('.')) {
             // We created a new inner class stub. We need to fully initialize it with outer classes,
             // themselves possibly stubs
-            val outerName = erased.substring(0, erased.lastIndexOf('.'))
+            val outerName = name.substring(0, name.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, isInterface = false, classResolver = null)
+            val outerClass = getOrCreateClass(outerName, isOuterClass = true)
 
             // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
             // another.
@@ -129,8 +153,8 @@ class TextCodebase(
             outerClass.addInnerClass(stubClass)
         } else {
             // Add to package
-            val endIndex = erased.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) erased.substring(0, endIndex) else ""
+            val endIndex = name.lastIndexOf('.')
+            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
             val pkg =
                 findPackage(pkgPath)
                     ?: run {

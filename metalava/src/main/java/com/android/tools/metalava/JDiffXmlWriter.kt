@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -55,8 +56,6 @@ class JDiffXmlWriter(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
         inlineInheritedFields = true,
-        methodComparator = MethodItem.comparator,
-        fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
@@ -251,9 +250,7 @@ class JDiffXmlWriter(
                     if (!cls.isClass() && superClass.isJavaLangObject()) {
                         return
                     }
-                    XmlUtils.toXmlAttributeValue(
-                        formatType(superClass.toTypeString(context = superClass.asClass()))
-                    )
+                    XmlUtils.toXmlAttributeValue(formatType(superClass.toTypeString()))
                 }
                 cls.isEnum() -> JAVA_LANG_ENUM
                 else -> return
@@ -271,7 +268,7 @@ class JDiffXmlWriter(
         if (interfaces.any()) {
             interfaces.sortedWith(TypeItem.totalComparator).forEach { item ->
                 writer.print("<implements name=\"")
-                val type = item.toTypeString(context = cls)
+                val type = item.toTypeString()
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
                 writer.println("\">\n</implements>")
             }
@@ -304,7 +301,7 @@ class JDiffXmlWriter(
                 else -> method.filteredThrowsTypes(filterReference).asSequence()
             }
         if (throws.any()) {
-            throws.sortedWith(ClassItem.fullNameComparator).forEach { type ->
+            throws.sortedWith(ThrowableType.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 writer.print(type.fullName())
                 writer.print("\" type=\"")
