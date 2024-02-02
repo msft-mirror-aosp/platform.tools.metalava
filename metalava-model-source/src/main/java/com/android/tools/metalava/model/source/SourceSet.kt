@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.source.utils.gatherSources
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /**
@@ -41,5 +43,11 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
 
     companion object {
         fun empty(): SourceSet = SourceSet(emptyList(), emptyList())
+
+        /** * Creates [SourceSet] from the given [sourcePath] */
+        fun createFromSourcePath(reporter: Reporter, sourcePath: List<File>): SourceSet {
+            val sources = gatherSources(reporter, sourcePath)
+            return SourceSet(sources, sourcePath)
+        }
     }
 }

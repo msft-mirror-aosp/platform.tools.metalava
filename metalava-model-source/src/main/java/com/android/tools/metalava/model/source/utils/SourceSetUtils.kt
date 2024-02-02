@@ -59,7 +59,7 @@ private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: Fi
     }
 }
 
-fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
+internal fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
     val sources = mutableListOf<File>()
     for (file in sourcePath) {
         if (file.path.isBlank()) {

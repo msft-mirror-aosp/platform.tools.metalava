@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.extractRoots
-import com.android.tools.metalava.model.source.utils.gatherSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -61,7 +61,7 @@ class PsiSourceParserTest : BasePsiTest() {
             // basically redoing what the previous code did to make sure that the underlying code
             // behaved exactly as expected. That means that the same error will be reported twice.
             val src = listOf(projectDir.resolve("src"))
-            val files = gatherSources(reporter, src)
+            val files = SourceSet.createFromSourcePath(reporter, src).sources
             val roots = extractRoots(reporter, files)
             assertEquals(1, roots.size)
             assertEquals(src[0].path, roots[0].path)
