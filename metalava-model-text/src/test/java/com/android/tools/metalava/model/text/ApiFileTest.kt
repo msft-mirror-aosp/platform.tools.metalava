@@ -33,6 +33,44 @@ import org.junit.runners.Parameterized
 class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
+    fun `Test mixture of kotlinStyleNulls settings`() {
+        val exception =
+            assertThrows(ApiParseException::class.java) {
+                runCodebaseTest(
+                    inputSet(
+                        signature(
+                            "file1.txt",
+                            """
+                                // Signature format: 5.0
+                                // - kotlin-style-nulls=yes
+                                package test.pkg {
+                                    public class Foo {
+                                        method void foo(Object);
+                                    }
+                                }
+                            """
+                        ),
+                        signature(
+                            "file2.txt",
+                            """
+                                // Signature format: 5.0
+                                // - kotlin-style-nulls=no
+                                package test.pkg {
+                                    public class Bar {
+                                        method void bar(Object);
+                                    }
+                                }
+                            """
+                        )
+                    ),
+                ) {}
+            }
+
+        assertThat(exception.message)
+            .contains("Cannot mix signature files with different settings of kotlinStyleNulls")
+    }
+
+    @Test
     fun `Test parse from InputStream`() {
         val fileName = "test-api.txt"
         val codebase =

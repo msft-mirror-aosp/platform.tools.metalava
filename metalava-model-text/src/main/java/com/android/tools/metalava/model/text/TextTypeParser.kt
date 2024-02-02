@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.TypeNullability
 import java.util.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: Boolean = false) {
+internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: Boolean = false) {
     private val typeCache = Cache<String, TextTypeItem>()
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */

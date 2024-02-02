@@ -56,8 +56,14 @@ private constructor(
     private val formatForLegacyFiles: FileFormat?,
 ) : ResolverContext {
 
-    /** Provides support for parsing and caching `TypeItem` instances. */
-    private val typeParser = TextTypeParser(codebase)
+    /**
+     * Provides support for parsing and caching `TypeItem` instances.
+     *
+     * Defer creation until after the first file has been read and [kotlinStyleNulls] has been set
+     * to a non-null value to ensure that it picks up the correct setting of [kotlinStyleNulls].
+     */
+    private val typeParser by
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeParser(codebase, kotlinStyleNulls!!) }
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -65,7 +71,7 @@ private constructor(
      *
      * Updated based on the header of the signature file being parsed.
      */
-    private var kotlinStyleNulls: Boolean = false
+    private var kotlinStyleNulls: Boolean? = null
 
     /** The file format of the file being parsed. */
     lateinit var format: FileFormat
@@ -255,8 +261,15 @@ private constructor(
         format =
             FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
                 ?: FileFormat.V2
-        kotlinStyleNulls = format.kotlinStyleNulls
-        typeParser.kotlinStyleNulls = kotlinStyleNulls
+
+        // Disallow a mixture of kotlinStyleNulls settings.
+        if (kotlinStyleNulls == null) {
+            kotlinStyleNulls = format.kotlinStyleNulls
+        } else if (kotlinStyleNulls != format.kotlinStyleNulls) {
+            throw ApiParseException(
+                "Cannot mix signature files with different settings of kotlinStyleNulls"
+            )
+        }
 
         if (appending) {
             // When we're appending, and the content is empty, nothing to do.
@@ -945,7 +958,7 @@ private constructor(
             token = tokenizer.requireToken()
             // If this is an implicitly null constant, add the nullability.
             if (
-                !kotlinStyleNulls &&
+                !typeParser.kotlinStyleNulls &&
                     modifiers.isFinal() &&
                     value != null &&
                     type.modifiers.nullability() != TypeNullability.NONNULL
@@ -1469,7 +1482,7 @@ private constructor(
         }
 
         val parsedType = typeParser.obtainTypeFromString(type, typeParameterScope)
-        if (kotlinStyleNulls) {
+        if (typeParser.kotlinStyleNulls) {
             // Treat varargs as non-null for consistency with the psi model.
             if (parsedType is ArrayTypeItem && parsedType.isVarargs) {
                 mergeAnnotations(annotations, ANDROIDX_NONNULL)
