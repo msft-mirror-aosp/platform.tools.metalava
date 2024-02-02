@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeUse
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -315,8 +316,7 @@ internal open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null) null
-                else createType(superClassType, false) as ClassTypeItem
+                if (superClassType == null) null else createSuperType(superClassType)
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
@@ -324,9 +324,7 @@ internal open class TurbineCodebaseInitialiser(
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
-        classItem.setInterfaceTypes(
-            cls.interfaceTypes().map { createType(it, false) as ClassTypeItem }
-        )
+        classItem.setInterfaceTypes(cls.interfaceTypes().map { createSuperType(it) })
 
         // Create fields
         createFields(classItem, cls.fields())
@@ -534,7 +532,18 @@ internal open class TurbineCodebaseInitialiser(
         }
     }
 
-    private fun createType(type: Type, isVarArg: Boolean): TurbineTypeItem {
+    /**
+     * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
+     * `implements` list.
+     */
+    private fun createSuperType(type: Type): ClassTypeItem =
+        createType(type, false, TypeUse.SUPER_TYPE) as ClassTypeItem
+
+    private fun createType(
+        type: Type,
+        isVarArg: Boolean,
+        typeUse: TypeUse = TypeUse.GENERAL,
+    ): TurbineTypeItem {
         return when (val kind = type.tyKind()) {
             TyKind.PRIM_TY -> {
                 type as PrimTy
@@ -568,7 +577,7 @@ internal open class TurbineCodebaseInitialiser(
                 for (simpleClass in type.classes()) {
                     // For all outer class types, set the nullability to non-null.
                     outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
-                    outerClass = createSimpleClassType(simpleClass, outerClass)
+                    outerClass = createSimpleClassType(simpleClass, outerClass, typeUse)
                 }
                 outerClass!!
             }
@@ -666,10 +675,13 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createSimpleClassType(
         type: SimpleClassTy,
-        outerClass: TurbineClassTypeItem?
+        outerClass: TurbineClassTypeItem?,
+        typeUse: TypeUse = TypeUse.GENERAL,
     ): TurbineClassTypeItem {
+        // Super types are always NONNULL.
+        val nullability = if (typeUse == TypeUse.SUPER_TYPE) TypeNullability.NONNULL else null
         val annotations = createAnnotations(type.annos())
-        val modifiers = TurbineTypeModifiers(annotations)
+        val modifiers = TurbineTypeModifiers(annotations, nullability)
         val qualifiedName = getQualifiedName(type.sym().binaryName())
         val parameters = type.targs().map { createType(it, false) }
         return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
