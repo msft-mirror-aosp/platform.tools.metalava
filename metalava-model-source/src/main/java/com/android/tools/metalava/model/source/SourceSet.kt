@@ -16,10 +16,15 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.source.utils.extractRoots
-import com.android.tools.metalava.model.source.utils.gatherSources
+import com.android.tools.metalava.model.source.utils.DOT_JAVA
+import com.android.tools.metalava.model.source.utils.DOT_KT
+import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
+import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
+import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
+import java.nio.file.Files
 
 /**
  * An abstraction of source files and root directories.
@@ -63,6 +68,100 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
         fun createFromSourcePath(reporter: Reporter, sourcePath: List<File>): SourceSet {
             val sources = gatherSources(reporter, sourcePath)
             return SourceSet(sources, sourcePath)
+        }
+
+        private fun skippableDirectory(file: File): Boolean =
+            file.path.endsWith(".git") && file.name == ".git"
+
+        private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: File) {
+            if (file.isDirectory) {
+                if (skippableDirectory(file)) {
+                    return
+                }
+                if (Files.isSymbolicLink(file.toPath())) {
+                    reporter.report(
+                        Issues.IGNORING_SYMLINK,
+                        file,
+                        "Ignoring symlink during source file discovery directory traversal"
+                    )
+                    return
+                }
+                val files = file.listFiles()
+                if (files != null) {
+                    for (child in files) {
+                        addSourceFiles(reporter, list, child)
+                    }
+                }
+            } else if (file.isFile) {
+                when {
+                    file.name.endsWith(DOT_JAVA) ||
+                        file.name.endsWith(DOT_KT) ||
+                        file.name.equals(PACKAGE_HTML) ||
+                        file.name.equals(OVERVIEW_HTML) -> list.add(file)
+                }
+            }
+        }
+
+        private fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
+            val sources = mutableListOf<File>()
+            for (file in sourcePath) {
+                if (file.path.isBlank()) {
+                    // --source-path "" means don't search source path; use "." for pwd
+                    continue
+                }
+                addSourceFiles(reporter, sources, file.absoluteFile)
+            }
+            return sources.sortedWith(compareBy { it.name })
+        }
+
+        private fun extractRoots(
+            reporter: Reporter,
+            sources: List<File>,
+            sourceRoots: MutableList<File> = mutableListOf()
+        ): List<File> {
+            // Cache for each directory since computing root for a source file is expensive
+            val dirToRootCache = mutableMapOf<String, File>()
+            for (file in sources) {
+                val parent = file.parentFile ?: continue
+                val found = dirToRootCache[parent.path]
+                if (found != null) {
+                    continue
+                }
+
+                val root = findRoot(reporter, file) ?: continue
+                dirToRootCache[parent.path] = root
+
+                if (!sourceRoots.contains(root)) {
+                    sourceRoots.add(root)
+                }
+            }
+            return sourceRoots
+        }
+
+        /**
+         * If given a full path to a Java or Kotlin source file, produces the path to the source
+         * root if possible.
+         */
+        private fun findRoot(reporter: Reporter, file: File): File? {
+            val path = file.path
+            if (path.endsWith(DOT_JAVA) || path.endsWith(DOT_KT)) {
+                val pkg = findPackage(file) ?: return null
+                val parent = file.parentFile ?: return null
+                val endIndex = parent.path.length - pkg.length
+                val before = path[endIndex - 1]
+                if (before == '/' || before == '\\') {
+                    return File(path.substring(0, endIndex))
+                } else {
+                    reporter.report(
+                        Issues.IO_ERROR,
+                        file,
+                        "Unable to determine the package name. " +
+                            "This usually means that a source file was where the directory does not seem to match the package " +
+                            "declaration; we expected the path $path to end with /${pkg.replace('.', '/') + '/' + file.name}"
+                    )
+                }
+            }
+            return null
         }
     }
 }
