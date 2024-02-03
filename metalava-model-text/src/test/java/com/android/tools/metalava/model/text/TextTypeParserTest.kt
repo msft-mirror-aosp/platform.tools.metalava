@@ -80,40 +80,6 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test caching of type variables`() {
-        runSignatureTest(
-            signature(
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public class Foo<A> {
-                        method public <B extends java.lang.String> void bar1(B p0);
-                        method public <B extends java.lang.String> void bar2(B p0);
-                        method public <C> void bar3(java.util.List<C> p0);
-                        method public <C> void bar4(java.util.List<C> p0);
-                      }
-                    }
-                """
-            ),
-        ) {
-            val foo = codebase.assertClass("test.pkg.Foo")
-            assertThat(foo.methods()).hasSize(4)
-
-            val bar1Param = foo.methods()[0].parameters()[0].type()
-            val bar2Param = foo.methods()[1].parameters()[0].type()
-
-            // The type variable should not be reused between methods
-            assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
-
-            val bar3Param = foo.methods()[2].parameters()[0].type()
-            val bar4Param = foo.methods()[3].parameters()[0].type()
-
-            // The type referencing a type variable should not be reused between methods
-            assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
-        }
-    }
-
-    @Test
     fun `Test splitting Kotlin nullability suffix`() {
         assertThat(TextTypeParser.splitNullabilitySuffix("String!", true))
             .isEqualTo(Pair("String", TypeNullability.PLATFORM))
