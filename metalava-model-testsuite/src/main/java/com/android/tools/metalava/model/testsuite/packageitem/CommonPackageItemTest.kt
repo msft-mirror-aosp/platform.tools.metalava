@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
+import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -26,7 +26,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonPackageItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonPackageItemTest : BaseModelTest() {
 
     @Test
     fun `Test @hide in package html`() {
@@ -52,7 +52,7 @@ class CommonPackageItemTest(parameters: TestParameters) : BaseModelTest(paramete
                         .trimIndent()
                 ),
             ),
-        ) { codebase ->
+        ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(true, packageItem.originallyHidden)
         }
@@ -80,9 +80,39 @@ class CommonPackageItemTest(parameters: TestParameters) : BaseModelTest(paramete
                         .trimIndent()
                 ),
             ),
-        ) { codebase ->
+        ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(true, packageItem.originallyHidden)
+        }
+    }
+
+    @Test
+    fun `Test nullability annotation in package info`() {
+        runSourceCodebaseTest(
+            inputSet(
+                nonNullSource,
+                java(
+                    """
+                        @android.annotation.NonNull
+                        package test.pkg;
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                        .trimIndent()
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            assertEquals(
+                "@android.annotation.NonNull",
+                packageItem.modifiers.annotations().single().toString()
+            )
         }
     }
 }

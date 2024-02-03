@@ -19,152 +19,102 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
-import java.util.function.Predicate
 
-sealed class TurbineTypeItem(
-    open val codebase: Codebase,
-    override val modifiers: TypeModifiers,
-) : DefaultTypeItem() {
+internal sealed class TurbineTypeItem(
+    val codebase: TurbineBasedCodebase,
+    override val modifiers: TurbineTypeModifiers,
+) : DefaultTypeItem(codebase) {}
 
-    override fun asClass(): TurbineClassItem? = TODO("b/295800205")
-
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =
-        TODO("b/295800205")
-
-    override fun markRecent() = TODO("b/295800205")
-
-    override fun scrubAnnotations() {
-        TODO("b/295800205")
-    }
-
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        context: Item?,
-        filter: Predicate<Item>?,
-    ): String {
-        if (annotations) {
-            TODO("b/295800205")
-        }
-
-        return unannotatedTypeString()
-    }
-
-    override fun typeArgumentClasses(): List<ClassItem> = TODO("b/295800205")
-
-    /**
-     * Same as toTypeString(false,false,false,false,null,null). The logic will be handled by the
-     * subclasses
-     */
-    abstract fun unannotatedTypeString(): String
-}
-
-class TurbinePrimitiveTypeItem(
-    override val codebase: Codebase,
-    override val modifiers: TypeModifiers,
+internal class TurbinePrimitiveTypeItem(
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun unannotatedTypeString(): String = kind.primitiveName
+    override fun duplicate(): PrimitiveTypeItem =
+        TurbinePrimitiveTypeItem(codebase, modifiers.duplicate(), kind)
 }
 
-class TurbineArrayTypeItem(
-    override val codebase: Codebase,
-    override val modifiers: TypeModifiers,
+internal class TurbineArrayTypeItem(
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val componentType: TurbineTypeItem,
     override val isVarargs: Boolean,
 ) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun unannotatedTypeString(): String {
-        val sb = StringBuilder()
-        sb.append(componentType.unannotatedTypeString())
-        if (isVarargs) {
-            sb.append("...")
-        } else {
-            sb.append("[]")
-        }
-        return sb.toString()
+    override fun duplicate(componentType: TypeItem): ArrayTypeItem {
+        return TurbineArrayTypeItem(
+            codebase,
+            modifiers.duplicate(),
+            componentType as TurbineTypeItem,
+            isVarargs
+        )
     }
 }
 
-class TurbineClassTypeItem(
-    override val codebase: Codebase,
-    override val modifiers: TypeModifiers,
+internal class TurbineClassTypeItem(
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val qualifiedName: String,
-    override val parameters: List<TurbineTypeItem>,
+    override val arguments: List<TurbineTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun unannotatedTypeString(): String {
-        val sb = StringBuilder()
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-        // For inner class fully qualified name of outer class and simple name of inner class will
-        // be used
-        if (outerClassType != null) {
-            sb.append(outerClassType.unannotatedTypeString())
-            sb.append(".")
-            val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-            sb.append(simpleName)
-        } else {
-            sb.append(qualifiedName)
-        }
+    override fun asClass(): TurbineClassItem? {
+        return codebase.findOrCreateClass(this.qualifiedName)
+    }
 
-        if (!parameters.isEmpty()) {
-            sb.append("<")
-            var first = true
-            for (parameter in parameters) {
-                if (!first) {
-                    sb.append(",")
-                }
-                sb.append(parameter.unannotatedTypeString())
-                first = false
-            }
-            sb.append(">")
-        }
-        return sb.toString()
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
+        return TurbineClassTypeItem(
+            codebase,
+            modifiers.duplicate(),
+            qualifiedName,
+            arguments.map { it as TurbineTypeItem },
+            outerClass as? TurbineClassTypeItem
+        )
     }
 }
 
-class TurbineVariableTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TypeModifiers,
+internal class TurbineVariableTypeItem(
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     private val symbol: TyVarSymbol
 ) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val name: String = symbol.name()
     override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
 
-    override fun unannotatedTypeString() = name
+    override fun asClass(): ClassItem? {
+        return asTypeParameter.typeBounds().firstOrNull()?.asClass()
+            ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
+    }
+
+    override fun duplicate(): VariableTypeItem =
+        TurbineVariableTypeItem(codebase, modifiers.duplicate(), symbol)
 }
 
-class TurbineWildcardTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TypeModifiers,
+internal class TurbineWildcardTypeItem(
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val extendsBound: TurbineTypeItem?,
     override val superBound: TurbineTypeItem?,
 ) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {
-
-    override fun unannotatedTypeString(): String {
-        val result =
-            StringBuilder().apply {
-                append("?")
-                extendsBound?.let {
-                    append(" extends ")
-                    append(it.unannotatedTypeString())
-                }
-                superBound?.let {
-                    append(" super ")
-                    append(it.unannotatedTypeString())
-                }
-            }
-
-        return result.toString()
+    override fun duplicate(
+        extendsBound: TypeItem?,
+        superBound: TypeItem?
+    ): TurbineWildcardTypeItem {
+        return TurbineWildcardTypeItem(
+            codebase,
+            modifiers.duplicate(),
+            extendsBound as? TurbineTypeItem,
+            superBound as? TurbineTypeItem
+        )
     }
 }

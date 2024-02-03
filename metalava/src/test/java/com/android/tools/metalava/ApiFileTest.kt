@@ -346,7 +346,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -759,8 +759,8 @@ class ApiFileTest : DriverTest() {
                 }
                 package androidx.core.app {
                   public class ActivityOptionsCompat {
-                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...);
-                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...);
+                    method public static java.util.List<java.lang.String!> javaListOf(java.lang.String!...!);
+                    method public static java.util.List<java.lang.String!>? javaListOfNullable(java.lang.String!...!);
                   }
                 }
                 """,
@@ -2097,6 +2097,50 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Remove findViewById type nullness annotation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    import libcore.util.Nullable;
+
+                    @SuppressWarnings("ALL")
+                    public abstract class Foo {
+                        public @Nullable String findViewById(int id) { return ""; }
+                        public @Nullable String notFindViewById(int id) { return ""; }
+                    }
+                    """
+                    ),
+                    libcoreNullableSource
+                ),
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
+                """,
+            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
+            skipEmitPackages = listOf("libcore.util"),
+            format =
+                FileFormat.V5.copy(
+                    kotlinNameTypeOrder = true,
+                    includeTypeUseAnnotations = true,
+                    kotlinStyleNulls = false
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract class Foo {
+                    ctor public Foo();
+                    method public findViewById(_: int): String;
+                    method @Nullable public notFindViewById(_: int): @Nullable String;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Package with only hidden classes should be removed from signature files`() {
         // Checks that if we have packages that are hidden, or contain only hidden or doconly
         // classes, the entire package is omitted from the signature file. Note how the
@@ -3203,6 +3247,122 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test whether partial or total ordering`() {
+        check(
+            format = FileFormat.V2,
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends other.Bar mine.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends mine.Bar other.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
@@ -3251,6 +3411,74 @@ class ApiFileTest : DriverTest() {
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
+                    method public void close();
+                  }
+                }
+                package android.util {
+                  public interface AttributeSet {
+                  }
+                }
+                package my {
+                  public interface AutoCloseable {
+                  }
+                }
+                package org.xmlpull.v1 {
+                  public interface XmlPullParser {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
+        // Real-world example: XmlResourceParser
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.content.res;
+                    import android.util.AttributeSet;
+                    import org.xmlpull.v1.XmlPullParser;
+                    import my.AutoCloseable;
+
+                    @SuppressWarnings("UnnecessaryInterfaceModifier")
+                    public interface XmlResourceParser extends XmlPullParser, AttributeSet, AutoCloseable {
+                        public void close();
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.util;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface AttributeSet {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package my;
+                    public interface AutoCloseable {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package org.xmlpull.v1;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface XmlPullParser {
+                    }
+                    """
+                    )
+                ),
+            api =
+                """
+                package android.content.res {
+                  public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
                     method public void close();
                   }
                 }
@@ -3968,7 +4196,7 @@ class ApiFileTest : DriverTest() {
             """
             package Test.pkg {
               public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4597,7 +4825,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V?> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved);
                   }
                 }
                 """,
@@ -5444,6 +5672,50 @@ class ApiFileTest : DriverTest() {
                         private fun shouldBePrivate() {}
                     """
                     ),
+                    kotlin(
+                        "test/pkg/Path1.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path1(): Path1
+
+                        interface Path1 {
+                          infix fun xor(path: Path1): Path1
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/Path2.kt",
+                        """
+                        package test.pkg
+
+                        expect fun Path2(): Path2
+
+                        fun Path2.copy(): Path2 = TODO()
+
+                        interface Path2 {
+                          infix fun xor(path: Path2): Path2
+                        }
+                    """
+                    ),
+                    kotlin(
+                        "test/pkg/LazyLayoutItemProvider.kt",
+                        """
+                        package test.pkg
+
+                        interface LazyLayoutItemProvider {
+                          val itemCount: Int
+                          fun getIndex(): Int = -1
+                        }
+
+                        internal fun LazyLayoutItemProvider.findIndexByKey(
+                          key: Any?,
+                          lastKnownIndex: Int,
+                        ): Int = TODO()
+
+                        expect fun getDefaultLazyLayoutKey(index: Int): Any
+                        """
+                    ),
                     restrictToSource,
                     visibleForTestingSource,
                 ),
@@ -5464,6 +5736,20 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
+                  }
+                  public interface LazyLayoutItemProvider {
+                    method public default int getIndex();
+                    method public int getItemCount();
+                    property public abstract int itemCount;
+                  }
+                  public interface Path1 {
+                    method public infix test.pkg.Path1 xor(test.pkg.Path1 path);
+                  }
+                  public interface Path2 {
+                    method public infix test.pkg.Path2 xor(test.pkg.Path2 path);
+                  }
+                  public final class Path2Kt {
+                    method public static test.pkg.Path2 copy(test.pkg.Path2);
                   }
                   public final class TestKt {
                     method @kotlin.PublishedApi internal static void internalYetPublished();
@@ -5872,6 +6158,97 @@ class ApiFileTest : DriverTest() {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
                       }
                     }
+                """
+        )
+    }
+
+    @Test
+    fun `Test signature including parameterized converted type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface VisibleInterface<V> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.RestrictTo;
+                            @RestrictTo(RestrictTo.Scope.LIBRARY)
+                            public interface HiddenInterface<H> extends VisibleInterface<H> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo<F> implements HiddenInterface<List<F>> {}
+                        """
+                    ),
+                    restrictToSource
+                ),
+            // When `HiddenInterface` is hidden, the implements clause for `Foo` is converted to
+            // `VisibleInterface` using [ClassItem.mapTypeVariables]. It really should become
+            // `implements test.pkg.VisibleInterface<java.util.List<F>>`, but the `F` is erased from
+            // `List` for legacy reasons.
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
+                        ctor public Foo();
+                      }
+                      public interface VisibleInterface<V> {
+                      }
+                    }
+                """,
+            skipEmitPackages = listOf("androidx.annotation"),
+            hideAnnotations = arrayOf("androidx.annotation.RestrictTo"),
+            expectedIssues =
+                "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
+        )
+    }
+
+    @Test
+    fun `sealed class with internal setter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            sealed class TransitionState<S> {
+                              abstract var currentState: S
+                                internal set
+                            }
+
+                            class SeekableTransitionState<S>(
+                                initialState: S
+                            ) : TransitionState<S>() {
+                              override var currentState: S = initialState
+                                internal set
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
+                    ctor public SeekableTransitionState(S initialState);
+                    method public S getCurrentState();
+                    property public S currentState;
+                  }
+                  public abstract sealed class TransitionState<S> {
+                    method public abstract S getCurrentState();
+                    property public abstract S currentState;
+                  }
+                }
                 """
         )
     }

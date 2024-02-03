@@ -51,6 +51,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
+import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -62,8 +63,10 @@ import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
+import org.jetbrains.uast.kotlin.isKotlin
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
@@ -562,15 +565,6 @@ open class PsiBasedCodebase(
             }
         }
 
-        if (classItem.classType == ClassType.TYPE_PARAMETER) {
-            // Don't put PsiTypeParameter classes into the registry; e.g. when we're visiting
-            //  java.util.stream.Stream<R>
-            // we come across "R" and would try to place it here.
-            classItem.containingPackage = emptyPackage
-            classItem.finishInitialization()
-            return classItem
-        }
-
         // TODO: Cache for adjacent files!
         val packageName = getPackageName(clz)
         registerPackageClass(packageName, classItem)
@@ -630,6 +624,12 @@ open class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
+        if (psiClass is PsiTypeParameter) {
+            error(
+                "Must not be called with PsiTypeParameter; call findOrCreateTypeParameter(...) instead"
+            )
+        }
+
         val existing = findClass(psiClass)
         if (existing != null) {
             return existing
@@ -678,23 +678,48 @@ open class PsiBasedCodebase(
         return null
     }
 
+    /**
+     * Find or create a [PsiTypeParameterItem] representing [PsiTypeParameter].
+     *
+     * At the moment this always create a new instance to replicate legacy behavior but this will be
+     * fixed in future.
+     *
+     * TODO(b/321075216): Find and reuse existing instances.
+     */
+    internal fun findOrCreateTypeParameter(
+        psiTypeParameter: PsiTypeParameter
+    ): PsiTypeParameterItem {
+        return PsiTypeParameterItem.create(this, psiTypeParameter)
+    }
+
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
     internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
 
-    internal fun getType(psiType: PsiType): PsiTypeItem {
+    /**
+     * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
+     * information for Kotlin types.
+     */
+    internal fun getType(psiType: PsiType, context: PsiElement? = null): PsiTypeItem {
+        val kotlinTypeInfo =
+            if (context != null && isKotlin(context)) {
+                KotlinTypeInfo.fromContext(context)
+            } else {
+                null
+            }
+
         // Note: We do *not* cache these; it turns out that storing PsiType instances
         // in a map is bad for performance; it has a very expensive equals operation
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType)
+        return PsiTypeItem.create(this, psiType, kotlinTypeInfo)
     }
 
     internal fun getType(psiClass: PsiClass): PsiTypeItem {
-        return PsiTypeItem.create(this, getFactory().createType(psiClass))
+        return PsiTypeItem.create(this, getFactory().createType(psiClass), null)
     }
 
     private fun getPackageName(clz: PsiClass): String {
@@ -764,6 +789,13 @@ open class PsiBasedCodebase(
         for (method in methods) {
             val psiMethod = (method as PsiMethodItem).psiMethod
             map[psiMethod] = method
+            if (psiMethod is UMethod) {
+                // Register LC method as a key too
+                // so that we can find the corresponding [MethodItem]
+                // Otherwise, we will end up creating a new [MethodItem]
+                // without source PSI, resulting in wrong modifier.
+                map[psiMethod.javaPsi] = method
+            }
         }
     }
 

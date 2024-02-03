@@ -17,13 +17,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.truth.Truth.assertThat
@@ -31,7 +31,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Test
 
-class SignatureInputOutputTest {
+class SignatureInputOutputTest : Assertions {
     /**
      * Parses the API (without a header line, the header from [format] will be added) from the
      * [signature], runs the [codebaseTest] on the parsed codebase, and then writes the codebase
@@ -84,9 +84,8 @@ class SignatureInputOutputTest {
                 .trimIndent()
 
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.constructors()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.constructors()).hasSize(1)
             val ctor = foo.constructors().single()
             assertThat(ctor.parameters()).isEmpty()
         }
@@ -104,9 +103,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.properties()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.properties()).hasSize(1)
 
             val prop = foo.properties().single()
             assertThat(prop.name()).isEqualTo("foo")
@@ -127,9 +125,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.fields()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.fields()).hasSize(1)
 
             val field = foo.fields().single()
             assertThat(field.name()).isEqualTo("foo")
@@ -151,9 +148,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.fields()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.fields()).hasSize(1)
 
             val field = foo.fields().single()
             assertThat(field.name()).isEqualTo("foo")
@@ -176,9 +172,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.methods()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.methods()).hasSize(1)
 
             val method = foo.methods().single()
             assertThat(method.name()).isEqualTo("foo")
@@ -200,9 +195,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.methods()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.methods()).hasSize(1)
 
             val method = foo.methods().single()
             assertThat(method.name()).isEqualTo("foo")
@@ -229,9 +223,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            assertThat(foo!!.methods()).hasSize(1)
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.methods()).hasSize(1)
 
             val method = foo.methods().single()
             assertThat(method.name()).isEqualTo("foo")
@@ -257,9 +250,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
@@ -282,9 +274,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
@@ -311,9 +302,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, format) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
@@ -340,9 +330,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
@@ -352,7 +341,6 @@ class SignatureInputOutputTest {
             assertThat((param.type() as ArrayTypeItem).isVarargs).isTrue()
             assertThat(param.isVarArgs()).isTrue()
             assertThat(param.modifiers.isVarArg()).isTrue()
-            assertThat((method as TextMethodItem).isVarArg()).isTrue()
         }
     }
 
@@ -369,9 +357,8 @@ class SignatureInputOutputTest {
             """
                     .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
@@ -394,9 +381,8 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
@@ -413,15 +399,14 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(i: int, map: java.util.Map<java.lang.String, java.lang.Object>, arr: String[]): String;
+                    method public foo(i: int, map: java.util.Map<java.lang.String,java.lang.Object>, arr: String[]): String;
                   }
                 }
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(3)
 
@@ -438,9 +423,9 @@ class SignatureInputOutputTest {
             assertThat(p1.publicName()).isEqualTo("map")
             val mapType = p1.type() as ClassTypeItem
             assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
-            assertThat(mapType.parameters).hasSize(2)
-            assertThat(mapType.parameters[0].isString()).isTrue()
-            assertThat(mapType.parameters[1].isJavaLangObject()).isTrue()
+            assertThat(mapType.arguments).hasSize(2)
+            assertThat(mapType.arguments[0].isString()).isTrue()
+            assertThat(mapType.arguments[1].isJavaLangObject()).isTrue()
 
             // arr: String[]
             val p2 = method.parameters()[2]
@@ -456,15 +441,14 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(_: int, _: java.util.Map<java.lang.String, java.lang.Object>, _: String[]): String;
+                    method public foo(_: int, _: java.util.Map<java.lang.String,java.lang.Object>, _: String[]): String;
                   }
                 }
             """
                 .trimIndent()
         runInputOutputTest(api, kotlinStyleFormat) { codebase ->
-            val foo = codebase.findClass("test.pkg.Foo")
-            assertThat(foo).isNotNull()
-            val method = foo!!.methods().single()
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val method = foo.methods().single()
 
             assertThat(method.parameters()).hasSize(3)
 
@@ -481,9 +465,9 @@ class SignatureInputOutputTest {
             assertThat(p1.publicName()).isNull()
             val mapType = p1.type() as ClassTypeItem
             assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
-            assertThat(mapType.parameters).hasSize(2)
-            assertThat(mapType.parameters[0].isString()).isTrue()
-            assertThat(mapType.parameters[1].isJavaLangObject()).isTrue()
+            assertThat(mapType.arguments).hasSize(2)
+            assertThat(mapType.arguments[0].isString()).isTrue()
+            assertThat(mapType.arguments[1].isJavaLangObject()).isTrue()
 
             // _: String[]
             val p2 = method.parameters()[2]
@@ -500,32 +484,32 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class MyTest {
-                    method public abstract getParameterAnnotations(): @C java.lang.annotation.Annotation? @A [] @B []!;
+                    method public abstract getParameterAnnotations(): java.lang.annotation.@C Annotation? @A [] @B []!;
                   }
                 }
             """
                 .trimIndent()
         runInputOutputTest(api, format) { codebase ->
-            val method = codebase.findClass("test.pkg.MyTest")!!.methods().single()
+            val method = codebase.assertClass("test.pkg.MyTest").methods().single()
             // Return type has platform nullability
             assertThat(method.hasNullnessInfo()).isFalse()
 
             val annotationArrayArray = method.returnType()
             assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
             assertThat(annotationArrayArray.modifiers.annotations().map { it.qualifiedName })
-                .containsExactly("A")
+                .containsExactly("androidx.annotation.A")
 
             val annotationArray = (annotationArrayArray as ArrayTypeItem).componentType
             assertThat(annotationArray).isInstanceOf(ArrayTypeItem::class.java)
             assertThat(annotationArray.modifiers.annotations().map { it.qualifiedName })
-                .containsExactly("B")
+                .containsExactly("androidx.annotation.B")
 
             val annotation = (annotationArray as ArrayTypeItem).componentType
             assertThat(annotation).isInstanceOf(ClassTypeItem::class.java)
             assertThat((annotation as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.lang.annotation.Annotation")
             assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
-                .containsExactly("C")
+                .containsExactly("androidx.annotation.C")
 
             // TODO (b/300081840): test nullability of types
         }
@@ -543,7 +527,7 @@ class SignatureInputOutputTest {
             """
                 .trimIndent()
         runInputOutputTest(api, format) { codebase ->
-            val fooClass = codebase.findClass("test.pkg.Foo")!!
+            val fooClass = codebase.assertClass("test.pkg.Foo")
             val superClassType = fooClass.superClassType()
             assertThat(superClassType!!.modifiers.annotations().map { it.qualifiedName })
                 .containsExactly("test.pkg.A")

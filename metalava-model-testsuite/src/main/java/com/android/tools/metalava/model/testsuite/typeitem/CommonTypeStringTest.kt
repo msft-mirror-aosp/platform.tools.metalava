@@ -18,23 +18,23 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
+import java.util.function.Predicate
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameter
 
 @RunWith(Parameterized::class)
-class CommonTypeStringTest(combinedParameters: CombinedParameters) :
-    BaseModelTest(combinedParameters.baseParameters) {
+class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
         val name: String,
@@ -42,7 +42,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
         val typeStringConfiguration: TypeStringConfiguration = TypeStringConfiguration(),
         val expectedTypeString: String = sourceType,
         val typeParameters: String? = null,
-        val extraJavaSourceFiles: List<TestFile> = emptyList()
+        val extraJavaSourceFiles: List<TestFile> = emptyList(),
+        val extraTextPackages: List<String> = emptyList()
     ) {
         override fun toString(): String {
             return name
@@ -55,7 +56,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 expectedDefaultTypeString: String = sourceType,
                 expectedKotlinNullsTypeString: String = sourceType,
                 typeParameters: String? = null,
-                extraJavaSourceFiles: List<TestFile> = emptyList()
+                extraJavaSourceFiles: List<TestFile> = emptyList(),
+                extraTextPackages: List<String> = emptyList()
             ): List<TypeStringParameters> {
                 return fromConfigurations(
                     name = name,
@@ -74,7 +76,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                             )
                         ),
                     typeParameters = typeParameters,
-                    extraJavaSourceFiles = extraJavaSourceFiles
+                    extraJavaSourceFiles = extraJavaSourceFiles,
+                    extraTextPackages = extraTextPackages
                 )
             }
 
@@ -83,7 +86,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 sourceType: String,
                 configs: List<ConfigurationTestCase>,
                 typeParameters: String? = null,
-                extraJavaSourceFiles: List<TestFile> = emptyList()
+                extraJavaSourceFiles: List<TestFile> = emptyList(),
+                extraTextPackages: List<String> = emptyList()
             ): List<TypeStringParameters> {
                 return configs.map {
                     TypeStringParameters(
@@ -92,7 +96,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                         typeStringConfiguration = it.configuration,
                         expectedTypeString = it.expectedTypeString,
                         typeParameters = typeParameters,
-                        extraJavaSourceFiles = extraJavaSourceFiles
+                        extraJavaSourceFiles = extraJavaSourceFiles,
+                        extraTextPackages = extraTextPackages
                     )
                 }
             }
@@ -105,16 +110,22 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
         val expectedTypeString: String
     )
 
-    data class CombinedParameters(
-        val baseParameters: TestParameters,
-        val typeStringParameters: TypeStringParameters,
-    ) {
-        override fun toString(): String {
-            return "$baseParameters,$typeStringParameters"
-        }
-    }
+    data class TypeStringConfiguration(
+        val annotations: Boolean = false,
+        val kotlinStyleNulls: Boolean = false,
+        val filter: Predicate<Item>? = null,
+        val spaceBetweenParameters: Boolean = false,
+    )
 
-    private val parameters = combinedParameters.typeStringParameters
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * See [baseParameters] for more info.
+     */
+    @Parameter(1) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFiles() =
         inputSet(
@@ -136,19 +147,21 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 // Signature format: 5.0
                 // - kotlin-name-type-order=yes
                 // - include-type-use-annotations=yes
+                // - kotlin-style-nulls=no
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
                     method public ${parameters.typeParameters.orEmpty()} foo(_: ${parameters.sourceType}): void;
                   }
                 }
-            """
+            """ +
+                    parameters.extraTextPackages.joinToString("\n")
             )
         )
 
     @Test
     fun `Type string`() {
-        runCodebaseTest(javaTestFiles(), signatureTestFile()) { codebase ->
+        runCodebaseTest(javaTestFiles(), signatureTestFile()) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val param = method.parameters().single()
             val type = param.type()
@@ -157,7 +170,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
                     filter = parameters.typeStringConfiguration.filter,
-                    context = param
+                    spaceBetweenParameters =
+                        parameters.typeStringConfiguration.spaceBetweenParameters,
                 )
             assertThat(typeString).isEqualTo(parameters.expectedTypeString)
         }
@@ -176,12 +190,29 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     .trimIndent()
             )
 
+        private val libcoreTextPackage =
+            """
+                package libcore.util {
+                  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
+                  }
+                  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface Nullable {
+                  }
+                }
+            """
+        private val androidxTextPackage =
+            """
+                package androidx.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE_USE}) public @interface IntRange {
+                    method public abstract from(): long default java.lang.Long.MIN_VALUE;
+                    method public abstract to(): long default java.lang.Long.MAX_VALUE;
+                  }
+                }
+            """
+
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun combinedTestParameters(): Iterable<CombinedParameters> {
-            return testParameters().flatMap { baseParameters ->
-                testCases.map { CombinedParameters(baseParameters, it) }
-            }
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun combinedTestParameters(): Iterable<Array<Any>> {
+            return crossProduct(testCases)
         }
 
         private val testCases =
@@ -216,13 +247,14 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "int varargs",
-                    sourceType = "int..."
+                    sourceType = "int...",
+                    expectedKotlinNullsTypeString = "int...!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "string varargs",
                     sourceType = "String...",
                     expectedDefaultTypeString = "java.lang.String...",
-                    expectedKotlinNullsTypeString = "java.lang.String!..."
+                    expectedKotlinNullsTypeString = "java.lang.String!...!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "string list",
@@ -232,7 +264,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "extends string list",
                     sourceType = "java.util.List<? extends java.lang.String>",
-                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String>!"
+                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String!>!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "T",
@@ -269,7 +301,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 expectedTypeString = "java.lang.String?"
                             ),
                         ),
-                    extraJavaSourceFiles = listOf(libcoreNullableSource)
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "null annotated string list",
@@ -302,15 +335,41 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                     ),
                                 expectedTypeString = "java.util.List<java.lang.String>?"
                             ),
+                            ConfigurationTestCase(
+                                name = "spaced params",
+                                configuration =
+                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                expectedTypeString = "java.util.List<java.lang.String>"
+                            ),
                         ),
-                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource)
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
-                TypeStringParameters.forDefaultAndKotlinNulls(
+                TypeStringParameters.fromConfigurations(
                     name = "string to number map",
                     sourceType = "java.util.Map<String, Number>",
-                    expectedDefaultTypeString = "java.util.Map<java.lang.String,java.lang.Number>",
-                    expectedKotlinNullsTypeString =
-                        "java.util.Map<java.lang.String!,java.lang.Number!>!"
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString =
+                                    "java.util.Map<java.lang.String,java.lang.Number>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString =
+                                    "java.util.Map<java.lang.String!,java.lang.Number!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "spaced params",
+                                configuration =
+                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                expectedTypeString =
+                                    "java.util.Map<java.lang.String, java.lang.Number>"
+                            )
+                        )
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "2d string array",
@@ -349,11 +408,13 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 expectedTypeString = "java.lang.String?[]?"
                             ),
                         ),
-                    extraJavaSourceFiles = listOf(libcoreNullableSource)
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "null annotated string varargs",
-                    sourceType = "@libcore.util.Nullable String @libcore.util.NonNull ...",
+                    sourceType =
+                        "java.lang.@libcore.util.Nullable String @libcore.util.NonNull ...",
                     configs =
                         listOf(
                             ConfigurationTestCase(
@@ -382,7 +443,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 expectedTypeString = "java.lang.String?..."
                             ),
                         ),
-                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource)
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "null annotated T",
@@ -415,7 +477,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                             ),
                         ),
                     typeParameters = "<T>",
-                    extraJavaSourceFiles = listOf(libcoreNonNullSource)
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
                 TypeStringParameters(
                     name = "super T comparable",
@@ -455,7 +518,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                             ),
                         ),
                     typeParameters = "<T>",
-                    extraJavaSourceFiles = listOf(libcoreNullableSource)
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "int array list",
@@ -477,12 +541,12 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                     sourceType =
                         "java.util.Map<? extends java.lang.Number,? super java.lang.Number>",
                     expectedKotlinNullsTypeString =
-                        "java.util.Map<? extends java.lang.Number,? super java.lang.Number>!"
+                        "java.util.Map<? extends java.lang.Number!,? super java.lang.Number!>!"
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "annotated integer list",
                     sourceType =
-                        "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+                        "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>",
                     configs =
                         listOf(
                             ConfigurationTestCase(
@@ -494,7 +558,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 name = "annotated",
                                 configuration = TypeStringConfiguration(annotations = true),
                                 expectedTypeString =
-                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                             ),
                             ConfigurationTestCase(
                                 name = "kotlin nulls",
@@ -509,7 +573,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                         kotlinStyleNulls = true
                                     ),
                                 expectedTypeString =
-                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer!>!"
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer!>!"
                             ),
                             ConfigurationTestCase(
                                 name = "annotated with negative filter",
@@ -538,14 +602,15 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                         filter = { true },
                                     ),
                                 expectedTypeString =
-                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                             )
                         ),
-                    extraJavaSourceFiles = listOf(intRangeTypeUseSource)
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource),
+                    extraTextPackages = listOf(androidxTextPackage)
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "annotated primitive",
-                    sourceType = "@androidx.annotation.IntRange(from=5,to=10) int",
+                    sourceType = "@androidx.annotation.IntRange(from=5L, to=10L) int",
                     configs =
                         listOf(
                             ConfigurationTestCase(
@@ -557,7 +622,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 name = "annotated",
                                 configuration = TypeStringConfiguration(annotations = true),
                                 expectedTypeString =
-                                    "@androidx.annotation.IntRange(from=5,to=10) int"
+                                    "@androidx.annotation.IntRange(from=5L, to=10L) int"
                             ),
                             ConfigurationTestCase(
                                 name = "kotlin nulls",
@@ -565,7 +630,8 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                 expectedTypeString = "int"
                             )
                         ),
-                    extraJavaSourceFiles = listOf(intRangeTypeUseSource)
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource),
+                    extraTextPackages = listOf(androidxTextPackage)
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "parameterized inner type",
@@ -604,12 +670,13 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                             innerParameterizedTypeSource,
                             libcoreNullableSource,
                             libcoreNonNullSource
-                        )
+                        ),
+                    extraTextPackages = listOf(libcoreTextPackage)
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "multiple annotations integer list",
                     sourceType =
-                        "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5,to=10) Integer>",
+                        "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5L, to=10L) Integer>",
                     listOf(
                         ConfigurationTestCase(
                             name = "default",
@@ -620,7 +687,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                             name = "annotated",
                             configuration = TypeStringConfiguration(annotations = true),
                             expectedTypeString =
-                                "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5,to=10) Integer>"
+                                "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                         ),
                         ConfigurationTestCase(
                             name = "kotlin nulls",
@@ -635,7 +702,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                     kotlinStyleNulls = true
                                 ),
                             expectedTypeString =
-                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer?>!"
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
                         ),
                         ConfigurationTestCase(
                             name = "annotated with filter",
@@ -650,7 +717,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                     }
                                 ),
                             expectedTypeString =
-                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
                         ),
                         ConfigurationTestCase(
                             name = "annotated and kotlin nulls with filter",
@@ -667,10 +734,30 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                                     }
                                 ),
                             expectedTypeString =
-                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer?>!"
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
                         ),
                     ),
-                    extraJavaSourceFiles = listOf(libcoreNullableSource, intRangeTypeUseSource)
+                    extraJavaSourceFiles = listOf(libcoreNullableSource, intRangeTypeUseSource),
+                    extraTextPackages = listOf(libcoreTextPackage, androidxTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated multi-dimensional array",
+                    sourceType =
+                        "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ...",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "test.pkg.Foo[][]..."
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ..."
+                            )
+                        )
                 )
     }
 }

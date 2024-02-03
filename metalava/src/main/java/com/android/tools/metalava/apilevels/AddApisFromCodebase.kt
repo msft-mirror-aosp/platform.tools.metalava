@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.internalName
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -234,7 +233,7 @@ fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
             containingClass().containingClass() != null &&
             !containingClass().modifiers.isStatic()
     ) {
-        sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
+        sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
     }
 
     for (parameter in parameters()) {

@@ -17,21 +17,30 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
-class TurbineFieldItem(
-    override val codebase: Codebase,
+internal class TurbineFieldItem(
+    codebase: TurbineBasedCodebase,
     private val name: String,
-    private val containingClass: TurbineClassItem,
+    private val containingClass: ClassItem,
     private val type: TurbineTypeItem,
-    override val modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers), FieldItem {
+    modifiers: DefaultModifierList,
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), FieldItem {
+
+    internal var initialValueWithRequiredConstant: Any? = null
+
+    internal var initialValueWithoutRequiredConstant: Any? = null
+
+    private val isEnumConstantField by lazy {
+        containingClass.isEnum() &&
+            (type is TurbineClassTypeItem) &&
+            type.asClass() == containingClass
+    }
 
     override var inheritedFrom: ClassItem? = null
-
-    override var inheritedField: Boolean = false
 
     override fun name(): String = name
 
@@ -51,14 +60,38 @@ class TurbineFieldItem(
     override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        TODO("b/295800205")
+        val duplicateField =
+            TurbineFieldItem(
+                codebase,
+                name,
+                targetContainingClass,
+                type.duplicate() as TurbineTypeItem,
+                modifiers.duplicate(),
+                documentation
+            )
+        duplicateField.initialValueWithRequiredConstant = initialValueWithRequiredConstant
+        duplicateField.initialValueWithoutRequiredConstant = initialValueWithoutRequiredConstant
+        duplicateField.modifiers.setOwner(duplicateField)
+        duplicateField.inheritedFrom = containingClass
+
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (targetContainingClass.hidden) {
+            duplicateField.hidden = true
+        }
+        if (targetContainingClass.removed) {
+            duplicateField.removed = true
+        }
+        if (targetContainingClass.docOnly) {
+            duplicateField.docOnly = true
+        }
+
+        return duplicateField
     }
 
     override fun initialValue(requireConstant: Boolean): Any? {
-        TODO("b/295800205")
+        return if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
     }
 
-    override fun isEnumConstant(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isEnumConstant(): Boolean = isEnumConstantField
 }

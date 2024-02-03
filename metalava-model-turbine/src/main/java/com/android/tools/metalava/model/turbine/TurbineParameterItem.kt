@@ -16,31 +16,44 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 
-class TurbineParameterItem(
-    override val codebase: Codebase,
+internal class TurbineParameterItem(
+    codebase: TurbineBasedCodebase,
     private val name: String,
-    private val containingMethod: TurbineMethodItem,
+    private val containingMethod: MethodItem,
     override val parameterIndex: Int,
-    private val type: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers), ParameterItem {
+    private val type: TypeItem,
+    modifiers: DefaultModifierList,
+) : TurbineItem(codebase, modifiers, ""), ParameterItem {
 
     override fun name(): String = name
 
-    override fun publicName(): String? = TODO("b/295800205")
+    override fun publicName(): String? {
+        // Java: Look for @ParameterName annotation
+        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
+        return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+    }
 
     override fun containingMethod(): MethodItem = containingMethod
 
-    override fun hasDefaultValue(): Boolean = TODO("b/295800205")
+    override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
-    override fun isDefaultValueKnown(): Boolean = TODO("b/295800205")
+    override fun isDefaultValueKnown(): Boolean {
+        return modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
+    }
 
-    override fun defaultValue(): String? = TODO("b/295800205")
+    override fun defaultValue(): String? {
+        val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
+        return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+    }
 
     override fun equals(other: Any?): Boolean = TODO("b/295800205")
 
@@ -49,4 +62,23 @@ class TurbineParameterItem(
     override fun type(): TypeItem = type
 
     override fun isVarArgs(): Boolean = modifiers.isVarArg()
+
+    companion object {
+        internal fun duplicate(
+            codebase: TurbineBasedCodebase,
+            parameter: ParameterItem,
+            typeParameterBindings: TypeParameterBindings,
+        ): TurbineParameterItem {
+            val type = parameter.type().convertType(typeParameterBindings)
+            val mods = (parameter.modifiers as DefaultModifierList).duplicate()
+            return TurbineParameterItem(
+                codebase,
+                parameter.name(),
+                parameter.containingMethod(),
+                parameter.parameterIndex,
+                type,
+                mods
+            )
+        }
+    }
 }

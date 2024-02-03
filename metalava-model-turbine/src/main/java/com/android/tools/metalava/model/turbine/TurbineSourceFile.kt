@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.turbine
 
-interface TypeParameterListOwner {
-    fun typeParameterList(): TypeParameterList
-    /** Given a variable in this owner, resolves to a type parameter item */
-    fun resolveParameter(variable: String): TypeParameterItem?
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.SourceFile
 
-    /** Parent type parameter list owner */
-    fun typeParameterListOwnerParent(): TypeParameterListOwner?
+internal class TurbineSourceFile(
+    val codebase: TurbineBasedCodebase,
+    val source: String,
+) : SourceFile {
+
+    override fun getHeaderComments(): String? = codebase.getHeaderComments(source)
+
+    override fun classes(): Sequence<ClassItem> = TODO("b/295800205")
 }
