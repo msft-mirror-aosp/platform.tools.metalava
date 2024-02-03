@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -1340,7 +1341,7 @@ class CommonTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val t = fooClass.typeParameterList().typeParameters().single { it.name() == "T" }
             val x = fooClass.typeParameterList().typeParameters().single { it.name() == "X" }
-            val numberType = fooClass.assertField("numberType").type()
+            val numberType = fooClass.assertField("numberType").type() as ReferenceTypeItem
 
             val matchingBindings = mapOf(t to numberType)
             val nonMatchingBindings = mapOf(x to numberType)

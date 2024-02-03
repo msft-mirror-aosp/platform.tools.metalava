@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -103,18 +104,18 @@ internal class TurbineVariableTypeItem(
 internal class TurbineWildcardTypeItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
-    override val extendsBound: TurbineTypeItem?,
-    override val superBound: TurbineTypeItem?,
+    override val extendsBound: ReferenceTypeItem?,
+    override val superBound: ReferenceTypeItem?,
 ) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {
     override fun duplicate(
-        extendsBound: TypeItem?,
-        superBound: TypeItem?
+        extendsBound: ReferenceTypeItem?,
+        superBound: ReferenceTypeItem?
     ): TurbineWildcardTypeItem {
         return TurbineWildcardTypeItem(
             codebase,
             modifiers.duplicate(),
-            extendsBound as? TurbineTypeItem,
-            superBound as? TurbineTypeItem
+            extendsBound,
+            superBound,
         )
     }
 }

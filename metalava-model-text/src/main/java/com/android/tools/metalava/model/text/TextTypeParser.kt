@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeUse
 import kotlin.collections.HashMap
@@ -63,8 +64,8 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     }
 
     /** A [TextTypeItem] representing `java.lang.Object`, suitable for general use. */
-    private val objectType
-        get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty)
+    private val objectType: ReferenceTypeItem
+        get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
 
     /**
      * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
@@ -306,7 +307,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             val extendsBound = bound.substring(8)
             TextWildcardTypeItem(
                 codebase,
-                cachedParseType(extendsBound, typeParameterScope),
+                getWildcardBound(extendsBound, typeParameterScope),
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
@@ -316,7 +317,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 codebase,
                 // All wildcards have an implicit Object extends bound
                 objectType,
-                cachedParseType(superBound, typeParameterScope),
+                getWildcardBound(superBound, typeParameterScope),
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else {
@@ -325,6 +326,9 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             )
         }
     }
+
+    private fun getWildcardBound(bound: String, typeParameterScope: TypeParameterScope) =
+        cachedParseType(bound, typeParameterScope) as ReferenceTypeItem
 
     /**
      * Try parsing [type] as a type variable. This will return a non-null [TextVariableTypeItem] if

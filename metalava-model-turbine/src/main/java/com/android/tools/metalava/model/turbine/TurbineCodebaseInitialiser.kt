@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
@@ -595,18 +596,18 @@ internal open class TurbineCodebaseInitialiser(
                 val modifiers = TurbineTypeModifiers(annotations, TypeNullability.UNDEFINED)
                 when (type.boundKind()) {
                     BoundKind.UPPER -> {
-                        val upperBound = createType(type.bound(), false)
+                        val upperBound = createWildcardBound(type.bound())
                         TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
                     }
                     BoundKind.LOWER -> {
                         // LowerBounded types have java.lang.Object as upper bound
-                        val upperBound = createType(ClassTy.OBJECT, false)
-                        val lowerBound = createType(type.bound(), false)
+                        val upperBound = createWildcardBound(ClassTy.OBJECT)
+                        val lowerBound = createWildcardBound(type.bound())
                         TurbineWildcardTypeItem(codebase, modifiers, upperBound, lowerBound)
                     }
                     BoundKind.NONE -> {
                         // Unbounded types have java.lang.Object as upper bound
-                        val upperBound = createType(ClassTy.OBJECT, false)
+                        val upperBound = createWildcardBound(ClassTy.OBJECT)
                         TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
                     }
                     else ->
@@ -641,6 +642,8 @@ internal open class TurbineCodebaseInitialiser(
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
     }
+
+    private fun createWildcardBound(type: Type) = createType(type, false) as ReferenceTypeItem
 
     private fun createArrayType(type: ArrayTy, isVarArg: Boolean): TurbineTypeItem {
         // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse

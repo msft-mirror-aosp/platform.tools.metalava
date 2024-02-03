@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -392,16 +393,19 @@ internal class PsiVariableTypeItem(
 internal class PsiWildcardTypeItem(
     codebase: PsiBasedCodebase,
     psiType: PsiType,
-    override val extendsBound: PsiTypeItem?,
-    override val superBound: PsiTypeItem?,
+    override val extendsBound: ReferenceTypeItem?,
+    override val superBound: ReferenceTypeItem?,
     override val modifiers: PsiTypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem =
+    override fun duplicate(
+        extendsBound: ReferenceTypeItem?,
+        superBound: ReferenceTypeItem?
+    ): WildcardTypeItem =
         PsiWildcardTypeItem(
             codebase = codebase,
             psiType = psiType,
-            extendsBound = extendsBound as? PsiTypeItem,
-            superBound = superBound as? PsiTypeItem,
+            extendsBound = extendsBound,
+            superBound = superBound,
             modifiers = modifiers.duplicate()
         )
 
@@ -427,12 +431,12 @@ internal class PsiWildcardTypeItem(
             bound: PsiType,
             codebase: PsiBasedCodebase,
             kotlinType: KotlinTypeInfo?
-        ): PsiTypeItem? {
+        ): ReferenceTypeItem? {
             return if (bound == PsiTypes.nullType()) {
                 null
             } else {
                 // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-                create(codebase, bound, kotlinType)
+                create(codebase, bound, kotlinType) as ReferenceTypeItem
             }
         }
     }

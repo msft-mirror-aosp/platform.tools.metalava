@@ -348,8 +348,13 @@ interface TypeItem {
  *
  * e.g. Given `Map<K, V>` and a subinterface `StringToIntMap extends Map<String, Integer>` then this
  * would contain a mapping from `K -> String` and `V -> Integer`.
+ *
+ * Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
+ * `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list cannot have a
+ * `WildcardTypeItem` as an argument so this cast is safe. See
+ * https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
  */
-typealias TypeParameterBindings = Map<TypeParameterItem, TypeItem>
+typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
 abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 
@@ -669,11 +674,24 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 }
 
 /**
+ * The type for a reference.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-ReferenceType.
+ */
+interface ReferenceTypeItem : TypeItem {
+    /** Override to specialize the return type. */
+    override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
+
+    /** Override to specialize the return type. */
+    override fun duplicate(): ReferenceTypeItem
+}
+
+/**
  * The type of [TypeParameterItem]'s type bounds.
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
  */
-interface BoundsTypeItem : TypeItem
+interface BoundsTypeItem : TypeItem, ReferenceTypeItem
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
@@ -721,7 +739,7 @@ interface PrimitiveTypeItem : TypeItem {
 }
 
 /** Represents an array type, including vararg types. */
-interface ArrayTypeItem : TypeItem {
+interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     /** The array's inner type (which for multidimensional arrays is another array type). */
     val componentType: TypeItem
 
@@ -757,7 +775,7 @@ interface ArrayTypeItem : TypeItem {
 }
 
 /** Represents a class type. */
-interface ClassTypeItem : TypeItem, BoundsTypeItem {
+interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
     /** The qualified name of this class, e.g. "java.lang.String". */
     val qualifiedName: String
 
@@ -830,7 +848,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem {
 }
 
 /** Represents a type variable type. */
-interface VariableTypeItem : TypeItem, BoundsTypeItem {
+interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
     /** The name of the type variable */
     val name: String
 
@@ -841,7 +859,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem {
         visitor.visit(this)
     }
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeItem {
+    override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
         return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
     }
 
@@ -860,10 +878,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem {
  */
 interface WildcardTypeItem : TypeItem {
     /** The type this wildcard must extend. If null, the extends bound is implicitly `Object`. */
-    val extendsBound: TypeItem?
+    val extendsBound: ReferenceTypeItem?
 
     /** The type this wildcard must be a super class of. */
-    val superBound: TypeItem?
+    val superBound: ReferenceTypeItem?
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -877,7 +895,10 @@ interface WildcardTypeItem : TypeItem {
      * mutated), but substituting in the provided [extendsBound] and [superBound] in place of this
      * type's bounds.
      */
-    fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
+    fun duplicate(
+        extendsBound: ReferenceTypeItem?,
+        superBound: ReferenceTypeItem?,
+    ): WildcardTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return duplicate(
