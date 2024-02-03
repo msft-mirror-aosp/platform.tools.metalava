@@ -83,15 +83,10 @@ internal class TextClassTypeItem(
 ) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-    /** Cached result of calling [asClass]. */
-    private var cachedAsClass: ClassItem? = null
+    private val asClassCache by
+        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
-    override fun asClass(): ClassItem {
-        if (cachedAsClass == null) {
-            cachedAsClass = codebase.getOrCreateClass(qualifiedName)
-        }
-        return cachedAsClass!!
-    }
+    override fun asClass() = asClassCache
 
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextClassTypeItem(

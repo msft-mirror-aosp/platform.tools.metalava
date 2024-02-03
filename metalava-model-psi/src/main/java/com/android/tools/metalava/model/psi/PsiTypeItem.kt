@@ -245,14 +245,10 @@ internal class PsiClassTypeItem(
     override val modifiers: PsiTypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
 
-    private var asClass: ClassItem? = null
+    private val asClassCache by
+        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
-    override fun asClass(): ClassItem? {
-        if (asClass == null) {
-            asClass = codebase.findClass(psiType)
-        }
-        return asClass
-    }
+    override fun asClass() = asClassCache
 
     override fun duplicate(
         outerClass: ClassTypeItem?,

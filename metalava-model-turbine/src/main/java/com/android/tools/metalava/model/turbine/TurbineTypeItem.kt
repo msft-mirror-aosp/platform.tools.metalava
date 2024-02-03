@@ -70,9 +70,10 @@ internal class TurbineClassTypeItem(
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-    override fun asClass(): TurbineClassItem? {
-        return codebase.findOrCreateClass(this.qualifiedName)
-    }
+    private val asClassCache by
+        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
+
+    override fun asClass() = asClassCache
 
     override fun duplicate(
         outerClass: ClassTypeItem?,
