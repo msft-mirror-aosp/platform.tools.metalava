@@ -55,18 +55,9 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return getSuperType(standardClassName, TypeParameterScope.empty)
     }
 
-    /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
-    fun obtainObjectType(): TextTypeItem {
-        return typeCache.obtain(Key(TypeUse.GENERAL, JAVA_LANG_OBJECT)) {
-            TextClassTypeItem(
-                codebase,
-                JAVA_LANG_OBJECT,
-                emptyList(),
-                null,
-                codebase.emptyTypeModifiers
-            )
-        }
-    }
+    /** A [TextTypeItem] representing `java.lang.Object`, suitable for general use. */
+    private val objectType
+        get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty)
 
     /**
      * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
@@ -288,7 +279,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         if (type == "?")
             return TextWildcardTypeItem(
                 codebase,
-                obtainObjectType(),
+                objectType,
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
@@ -308,7 +299,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             TextWildcardTypeItem(
                 codebase,
                 // All wildcards have an implicit Object extends bound
-                obtainObjectType(),
+                objectType,
                 cachedParseType(superBound, typeParameterScope),
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
