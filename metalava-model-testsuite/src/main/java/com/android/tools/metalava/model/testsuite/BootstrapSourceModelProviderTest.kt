@@ -20,12 +20,12 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -812,14 +812,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val testExceptionClass = codebase.assertClass("test.pkg.TestException")
-            val ioExceptionClass = codebase.assertClass("java.io.IOException")
             val methodItem = testClass.assertMethod("foo", "")
+            val testExceptionClass = codebase.assertClass("test.pkg.TestException")
 
-            assertEquals(
-                listOf(ioExceptionClass, testExceptionClass).map(ThrowableType::ofClass),
-                methodItem.throwsTypes()
-            )
+            // This must only be available after resolving throwable types.
+            assertNull(codebase.findClass("java.io.IOException"))
+
+            // Resolve the types to classes.
+            val throwableClasses = methodItem.throwsTypes().map { it.classItem }
+
+            // This must be available after resolving throwable types.
+            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+
+            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
         }
     }
 

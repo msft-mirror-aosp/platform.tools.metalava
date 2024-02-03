@@ -30,10 +30,12 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
@@ -357,12 +359,6 @@ internal open class TurbineCodebaseInitialiser(
         // Create InnerClasses.
         val children = cls.children()
         createInnerClasses(classItem, children.values.asList())
-
-        // Set the throwslist for methods
-        classItem.methods.forEach { it.setThrowsTypes() }
-
-        // Set the throwslist for constructors
-        classItem.constructors.forEach { it.setThrowsTypes() }
 
         return classItem
     }
@@ -801,7 +797,7 @@ internal open class TurbineCodebaseInitialiser(
                         )
                     methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters())
-                    methodItem.throwsClassNames = getThrowsList(method.exceptions())
+                    methodItem.throwableTypes = getThrowsList(method.exceptions())
                     methodItem
                 }
         // Ignore default enum methods
@@ -862,7 +858,7 @@ internal open class TurbineCodebaseInitialiser(
                         )
                     constructorModifierItem.setOwner(constructorItem)
                     createParameters(constructorItem, constructor.parameters())
-                    constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
+                    constructorItem.throwableTypes = getThrowsList(constructor.exceptions())
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
@@ -905,10 +901,10 @@ internal open class TurbineCodebaseInitialiser(
         return javadoc?.contains("@deprecated") ?: false
     }
 
-    private fun getThrowsList(throwsTypes: List<Type>): List<String> {
-        return throwsTypes.mapNotNull { it ->
-            val sym = (it as? ClassTy)?.sym()
-            sym?.let { getQualifiedName(it.binaryName()) }
+    private fun getThrowsList(throwsTypes: List<Type>): List<ThrowableType> {
+        return throwsTypes.map { type ->
+            val exceptionTypeItem = createType(type, false) as ExceptionTypeItem
+            ThrowableType.ofExceptionType(exceptionTypeItem)
         }
     }
 

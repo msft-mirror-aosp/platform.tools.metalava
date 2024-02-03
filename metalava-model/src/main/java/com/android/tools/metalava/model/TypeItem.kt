@@ -688,6 +688,13 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
  */
 interface BoundsTypeItem : TypeItem, ReferenceTypeItem
 
+/**
+ * The type of [MethodItem.throwsTypes]'s.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
+ */
+sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem
+
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
     /** The kind of [Primitive] this type is. */
@@ -770,7 +777,7 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
 }
 
 /** Represents a class type. */
-interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
+interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, ExceptionTypeItem {
     /** The qualified name of this class, e.g. "java.lang.String". */
     val qualifiedName: String
 
@@ -848,7 +855,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
 }
 
 /** Represents a type variable type. */
-interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
+interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, ExceptionTypeItem {
     /** The name of the type variable */
     val name: String
 
@@ -931,4 +938,36 @@ enum class TypeUse {
      * Super type, e.g. in an `extends` or `implements` list; is always [TypeNullability.NONNULL].
      */
     SUPER_TYPE,
+}
+
+/**
+ * Attempt to get the full name from the qualified name.
+ *
+ * The full name is the qualified name without the package including any outer class names.
+ *
+ * It relies on the convention that packages start with a lower case letter and classes start with
+ * an upper case letter.
+ */
+fun bestGuessAtFullName(qualifiedName: String): String {
+    val length = qualifiedName.length
+    var prev: Char? = null
+    var lastDotIndex = -1
+    for (i in 0..length - 1) {
+        val c = qualifiedName[i]
+        if (prev == null || prev == '.') {
+            if (c.isUpperCase()) {
+                return qualifiedName.substring(i)
+            }
+        }
+        if (c == '.') {
+            lastDotIndex = i
+        }
+        prev = c
+    }
+
+    return if (lastDotIndex == -1) {
+        qualifiedName
+    } else {
+        qualifiedName.substring(lastDotIndex + 1)
+    }
 }
