@@ -75,19 +75,28 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     fun getSuperType(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String> = emptyList(),
     ): ClassTypeItem =
-        obtainTypeFromString(type, typeParameterScope, annotations, TypeUse.SUPER_TYPE)
-            as ClassTypeItem
+        obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
+
+    /**
+     * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
+     * the type parameters from [typeParameterScope], if applicable.
+     */
+    fun obtainTypeFromString(
+        type: String,
+        typeParameterScope: TypeParameterScope,
+        typeUse: TypeUse = TypeUse.GENERAL,
+    ): TextTypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
 
     /**
      * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
      * the type parameters from [typeParameterScope], if applicable.
      *
-     * The [annotations] are optional leading type-use annotations that have already been removed
-     * from the type string.
+     * Used internally, as it has an extra [annotations] parameter that allows the annotations on
+     * array components to be correctly associated with the correct component. They are optional
+     * leading type-use annotations that have already been removed from the arrays type string.
      */
-    fun obtainTypeFromString(
+    private fun cachedParseType(
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<String> = emptyList(),
@@ -236,7 +245,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // the leading annotations already removed from the type string.
         componentString += componentNullability?.suffix.orEmpty()
         val deepComponentType =
-            obtainTypeFromString(componentString, typeParameterScope, componentAnnotations)
+            cachedParseType(componentString, typeParameterScope, componentAnnotations)
 
         // Join the annotations and nullability markers -- as described in the comment above, these
         // appear in the string in reverse order of each other. The modifiers list will be ordered
@@ -290,7 +299,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             val extendsBound = bound.substring(8)
             TextWildcardTypeItem(
                 codebase,
-                obtainTypeFromString(extendsBound, typeParameterScope),
+                cachedParseType(extendsBound, typeParameterScope),
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
@@ -300,7 +309,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 codebase,
                 // All wildcards have an implicit Object extends bound
                 obtainObjectType(),
-                obtainTypeFromString(superBound, typeParameterScope),
+                cachedParseType(superBound, typeParameterScope),
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else {
@@ -372,7 +381,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             }
 
         val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
-        val params = paramStrings.map { obtainTypeFromString(it, typeParameterScope) }
+        val params = paramStrings.map { cachedParseType(it, typeParameterScope) }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
         // the leading annotations (they belong to the inner class type).
         val classModifiers =
