@@ -452,7 +452,7 @@ interface ClassItem : Item {
     }
 
     fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
-        var superClassType: TypeItem? = superClassType() ?: return null
+        var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
             val superClass = superClassType.asClass() ?: return null

@@ -1370,4 +1370,36 @@ class CommonTypeItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test hasTypeArguments`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public abstract class Foo implements Comparable<String> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Foo: Comparable<String>
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo implements Comparable<String> {}
+                    }
+                """
+            ),
+        ) {
+            val classType = codebase.assertClass("test.pkg.Foo").type()
+            assertThat(classType.hasTypeArguments()).isFalse()
+
+            val interfaceType = codebase.assertClass("test.pkg.Foo").interfaceTypes().single()
+            assertThat(interfaceType.hasTypeArguments()).isTrue()
+        }
+    }
 }
