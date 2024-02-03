@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeUse
-import java.util.HashMap
+import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
 internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: Boolean = false) {
@@ -37,7 +37,8 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      */
     private data class Key(val typeUse: TypeUse, val type: String)
 
-    private val typeCache = Cache<Key, TextTypeItem>()
+    /** The cache from [Key] to [TextTypeItem]. */
+    private val typeCache = HashMap<Key, TextTypeItem>()
 
     /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
     private val nonNullTypeModifiers =
@@ -97,9 +98,16 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // variables from different contexts being parsed as the same type.
         // Also don't use the cache when there are type-use annotations not contained in the string.
         return if (typeParameterScope.isEmpty() && annotations.isEmpty()) {
-            typeCache.obtain(Key(typeUse, type)) {
-                parseType(it.type, typeParameterScope, annotations, it.typeUse)
-            }
+            val key = Key(typeUse, type)
+
+            // Check it in the cache and if not found then create it and put it into the cache
+            typeCache[key]
+                ?: run {
+                    // Create it, cache it and return
+                    parseType(type, typeParameterScope, annotations, typeUse).also {
+                        typeCache[key] = it
+                    }
+                }
         } else {
             parseType(type, typeParameterScope, annotations, typeUse)
         }
@@ -412,20 +420,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         nullability: TypeNullability?
     ): TextTypeModifiers {
         return TextTypeModifiers.create(codebase, annotations, nullability)
-    }
-
-    private class Cache<Key, Value> {
-        private val cache = HashMap<Key, Value>()
-
-        fun obtain(o: Key, make: (Key) -> Value): Value {
-            var r = cache[o]
-            if (r == null) {
-                r = make(o)
-                cache[o] = r
-            }
-            // r must be non-null: either it was cached or created with make
-            return r!!
-        }
     }
 
     companion object {
