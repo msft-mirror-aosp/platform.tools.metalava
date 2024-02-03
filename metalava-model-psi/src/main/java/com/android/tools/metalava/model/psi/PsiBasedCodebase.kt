@@ -612,12 +612,21 @@ open class PsiBasedCodebase(
         return classMap[className]
     }
 
+    override fun resolveClass(className: String): ClassItem? = findOrCreateClass(className)
+
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
         return classMap[qualifiedName]
     }
 
     internal fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
+        // Check to see if the class has already been seen and if so return it immediately.
+        findClass(qualifiedName)?.let {
+            return it
+        }
+
+        // The following cannot find a class whose name does not correspond to the file name, e.g.
+        // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
         val psiClass =
             finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
