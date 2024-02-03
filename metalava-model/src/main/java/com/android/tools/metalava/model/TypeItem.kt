@@ -592,9 +592,7 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                 }
                 is ClassTypeItem -> append(type.qualifiedName)
                 is VariableTypeItem ->
-                    type.asTypeParameter.typeBounds().firstOrNull()?.let {
-                        appendErasedTypeString(it)
-                    }
+                    type.asTypeParameter.asErasedType()?.let { appendErasedTypeString(it) }
                         ?: append(JAVA_LANG_OBJECT)
                 else ->
                     throw IllegalStateException(
@@ -872,6 +870,8 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
         return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
     }
+
+    override fun asClass() = asTypeParameter.asErasedType()?.asClass()
 
     override fun duplicate(): VariableTypeItem
 

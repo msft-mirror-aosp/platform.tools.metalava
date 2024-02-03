@@ -17,10 +17,8 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -113,11 +111,6 @@ internal class TextVariableTypeItem(
     override val asTypeParameter: TypeParameterItem,
     modifiers: TextTypeModifiers
 ) : VariableTypeItem, TextTypeItem(codebase, modifiers) {
-
-    override fun asClass(): ClassItem {
-        return asTypeParameter.typeBounds().firstOrNull()?.asClass()
-            ?: codebase.getOrCreateClass(JAVA_LANG_OBJECT)
-    }
 
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextVariableTypeItem(

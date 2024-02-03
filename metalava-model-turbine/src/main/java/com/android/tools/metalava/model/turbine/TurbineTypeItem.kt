@@ -17,10 +17,8 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -96,11 +94,6 @@ internal class TurbineVariableTypeItem(
 ) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val name: String = symbol.name()
     override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
-
-    override fun asClass(): ClassItem? {
-        return asTypeParameter.typeBounds().firstOrNull()?.asClass()
-            ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
-    }
 
     override fun duplicate(): VariableTypeItem =
         TurbineVariableTypeItem(codebase, modifiers.duplicate(), symbol)

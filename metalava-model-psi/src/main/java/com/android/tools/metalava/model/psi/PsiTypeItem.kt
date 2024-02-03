@@ -17,11 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -357,17 +355,6 @@ internal class PsiVariableTypeItem(
     override val asTypeParameter: TypeParameterItem by lazy {
         val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
         codebase.findOrCreateTypeParameter(cls as PsiTypeParameter)
-    }
-
-    private var asClass: ClassItem? = null
-
-    override fun asClass(): ClassItem? {
-        if (asClass == null) {
-            asClass =
-                asTypeParameter.typeBounds().firstOrNull()?.asClass()
-                    ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
-        }
-        return asClass
     }
 
     override fun duplicate(): PsiVariableTypeItem =
