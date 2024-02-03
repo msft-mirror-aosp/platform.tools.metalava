@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -25,7 +24,7 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Assert
 import org.junit.Test
 
-class TextTypeParserTest : Assertions {
+class TextTypeParserTest : BaseTextCodebaseTest() {
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -82,36 +81,36 @@ class TextTypeParserTest : Assertions {
 
     @Test
     fun `Test caching of type variables`() {
-        val codebase =
-            ApiFile.parseApi(
-                "test",
+        runSignatureTest(
+            signature(
                 """
                     // Signature format: 4.0
                     package test.pkg {
                       public class Foo<A> {
-                        method public void bar1<B extends java.lang.String>(B p0);
-                        method public void bar2<B extends java.lang.String>(B p0);
-                        method public void bar3<C>(java.util.List<C> p0);
-                        method public void bar4<C>(java.util.List<C> p0);
+                        method public <B extends java.lang.String> void bar1(B p0);
+                        method public <B extends java.lang.String> void bar2(B p0);
+                        method public <C> void bar3(java.util.List<C> p0);
+                        method public <C> void bar4(java.util.List<C> p0);
                       }
                     }
                 """
-                    .trimIndent()
-            )
-        val foo = codebase.assertClass("test.pkg.Foo")
-        assertThat(foo.methods()).hasSize(4)
+            ),
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.methods()).hasSize(4)
 
-        val bar1Param = foo.methods()[0].parameters()[0].type()
-        val bar2Param = foo.methods()[1].parameters()[0].type()
+            val bar1Param = foo.methods()[0].parameters()[0].type()
+            val bar2Param = foo.methods()[1].parameters()[0].type()
 
-        // The type variable should not be reused between methods
-        assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
+            // The type variable should not be reused between methods
+            assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
 
-        val bar3Param = foo.methods()[2].parameters()[0].type()
-        val bar4Param = foo.methods()[3].parameters()[0].type()
+            val bar3Param = foo.methods()[2].parameters()[0].type()
+            val bar4Param = foo.methods()[3].parameters()[0].type()
 
-        // The type referencing a type variable should not be reused between methods
-        assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
+            // The type referencing a type variable should not be reused between methods
+            assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
+        }
     }
 
     @Test
