@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -702,10 +703,10 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): TurbineTypeParameterItem {
-        val typeBounds = mutableListOf<TurbineTypeItem>()
+        val typeBounds = mutableListOf<BoundsTypeItem>()
         val upperBounds = param.upperBound()
-        upperBounds.bounds().mapTo(typeBounds) { createType(it, false) }
-        param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
+        upperBounds.bounds().mapTo(typeBounds) { createType(it, false) as BoundsTypeItem }
+        param.lowerBound()?.let { typeBounds.add(createType(it, false) as BoundsTypeItem) }
         val modifiers =
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
@@ -1313,7 +1314,9 @@ private constructor(
         // string into a `TypeItem`.
         for ((typeParameterItem, boundsStringList) in itemToBoundsList) {
             typeParameterItem.bounds =
-                boundsStringList.map { typeParser.obtainTypeFromString(it, scope) }
+                boundsStringList.map {
+                    typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem
+                }
         }
 
         return Pair(TextTypeParameterList.create(codebase, typeParameters), scope)
