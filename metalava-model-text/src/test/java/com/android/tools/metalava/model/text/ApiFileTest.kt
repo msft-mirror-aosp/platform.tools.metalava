@@ -36,33 +36,31 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test mixture of kotlinStyleNulls settings`() {
         val exception =
             assertThrows(ApiParseException::class.java) {
-                runCodebaseTest(
-                    inputSet(
-                        signature(
-                            "file1.txt",
-                            """
-                                // Signature format: 5.0
-                                // - kotlin-style-nulls=yes
-                                package test.pkg {
-                                    public class Foo {
-                                        method void foo(Object);
-                                    }
+                runSignatureTest(
+                    signature(
+                        "file1.txt",
+                        """
+                            // Signature format: 5.0
+                            // - kotlin-style-nulls=yes
+                            package test.pkg {
+                                public class Foo {
+                                    method void foo(Object);
                                 }
-                            """
-                        ),
-                        signature(
-                            "file2.txt",
-                            """
-                                // Signature format: 5.0
-                                // - kotlin-style-nulls=no
-                                package test.pkg {
-                                    public class Bar {
-                                        method void bar(Object);
-                                    }
-                                }
-                            """
-                        )
+                            }
+                        """
                     ),
+                    signature(
+                        "file2.txt",
+                        """
+                            // Signature format: 5.0
+                            // - kotlin-style-nulls=no
+                            package test.pkg {
+                                public class Bar {
+                                    method void bar(Object);
+                                }
+                            }
+                        """
+                    )
                 ) {}
             }
 
@@ -82,7 +80,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test known Throwable`() {
-        runCodebaseTest(
+        runSignatureTest(
             signature(
                 """
                     // Signature format: 2.0
@@ -117,7 +115,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test known Throwable subclass`() {
-        runCodebaseTest(
+        runSignatureTest(
             signature(
                 """
                     // Signature format: 2.0
@@ -152,7 +150,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test unknown Throwable`() {
-        runCodebaseTest(
+        runSignatureTest(
             signature(
                 """
                     // Signature format: 2.0
@@ -177,7 +175,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test unknown Throwable subclass`() {
-        runCodebaseTest(
+        runSignatureTest(
             signature(
                 """
                     // Signature format: 2.0
@@ -239,12 +237,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 signature(
                     "first.txt",
                     """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public class Foo {
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Foo {
+                            }
                         }
-                    }
-                """
+                    """
                 ),
                 signature(
                     "second.txt",
@@ -261,23 +259,21 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 signature(
                     "third.txt",
                     """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public class Bar {
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Bar {
+                            }
+                            public class Baz {
+                            }
+                            public class Foo extends test.pkg.Baz {
+                            }
                         }
-                        public class Baz {
-                        }
-                        public class Foo extends test.pkg.Baz {
-                        }
-                    }
-                """
+                    """
                 ),
             )
 
         fun checkSuperClass(files: List<TestFile>, order: String, expectedSuperClass: String) {
-            runCodebaseTest(
-                inputSet(files),
-            ) {
+            runSignatureTest(*files.toTypedArray()) {
                 val fooClass = codebase.assertClass("test.pkg.Foo")
                 assertSame(
                     codebase.assertClass(expectedSuperClass),
@@ -294,28 +290,26 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test matching package annotations are allowed`() {
-        runCodebaseTest(
-            inputSet(
-                signature(
-                    "file1.txt",
-                    """
-                        // Signature format: 2.0
-                        package @PackageAnnotation test.pkg {
-                            public class Foo {
-                            }
+        runSignatureTest(
+            signature(
+                "file1.txt",
+                """
+                    // Signature format: 2.0
+                    package @PackageAnnotation test.pkg {
+                        public class Foo {
                         }
-                    """
-                ),
-                signature(
-                    "file2.txt",
-                    """
-                        // Signature format: 2.0
-                        package @PackageAnnotation test.pkg {
-                            public class Foo {
-                            }
+                    }
+                """
+            ),
+            signature(
+                "file2.txt",
+                """
+                    // Signature format: 2.0
+                    package @PackageAnnotation test.pkg {
+                        public class Foo {
                         }
-                    """
-                ),
+                    }
+                """
             ),
         ) {}
     }
@@ -324,28 +318,26 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test different package annotations are not allowed`() {
         val exception =
             assertThrows(ApiParseException::class.java) {
-                runCodebaseTest(
-                    inputSet(
-                        signature(
-                            "file1.txt",
-                            """
-                        // Signature format: 2.0
-                        package @PackageAnnotation1 test.pkg {
-                            public class Foo {
+                runSignatureTest(
+                    signature(
+                        "file1.txt",
+                        """
+                            // Signature format: 2.0
+                            package @PackageAnnotation1 test.pkg {
+                                public class Foo {
+                                }
                             }
-                        }
-                    """
-                        ),
-                        signature(
-                            "file2.txt",
-                            """
-                        // Signature format: 2.0
-                        package @PackageAnnotation2 test.pkg {
-                            public class Foo {
+                        """
+                    ),
+                    signature(
+                        "file2.txt",
+                        """
+                            // Signature format: 2.0
+                            package @PackageAnnotation2 test.pkg {
+                                public class Foo {
+                                }
                             }
-                        }
-                    """
-                        ),
+                        """
                     ),
                 ) {}
             }
@@ -364,18 +356,16 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     /** Check that the package structure created from the [sources] matches what is expected. */
     private fun checkPackageStructureCreatedCorrectly(vararg sources: TestFile) {
-        runCodebaseTest(
-            inputSet(*sources),
-        ) {
+        runSignatureTest(*sources) {
             val data = dumpPackageStructure(codebase)
 
             assertEquals(
                 """
-                        test.pkg
-                            test.pkg.Outer
-                            test.pkg.Outer.Middle
-                            test.pkg.Outer.Middle.Inner
-                    """
+                    test.pkg
+                        test.pkg.Outer
+                        test.pkg.Outer.Middle
+                        test.pkg.Outer.Middle.Inner
+                """
                     .trimIndent(),
                 data.trimEnd()
             )
