@@ -65,15 +65,30 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
         fun empty(): SourceSet = SourceSet(emptyList(), emptyList())
 
         /** * Creates [SourceSet] from the given [sourcePath] */
-        fun createFromSourcePath(reporter: Reporter, sourcePath: List<File>): SourceSet {
-            val sources = gatherSources(reporter, sourcePath)
+        fun createFromSourcePath(
+            reporter: Reporter,
+            sourcePath: List<File>,
+            fileTester: (File) -> Boolean = ::isSupportedSource,
+        ): SourceSet {
+            val sources = gatherSources(reporter, sourcePath, fileTester)
             return SourceSet(sources, sourcePath)
         }
 
         private fun skippableDirectory(file: File): Boolean =
             file.path.endsWith(".git") && file.name == ".git"
 
-        private fun addSourceFiles(reporter: Reporter, list: MutableList<File>, file: File) {
+        private fun isSupportedSource(file: File): Boolean =
+            file.name.endsWith(DOT_JAVA) ||
+                file.name.endsWith(DOT_KT) ||
+                file.name.equals(PACKAGE_HTML) ||
+                file.name.equals(OVERVIEW_HTML)
+
+        private fun addSourceFiles(
+            reporter: Reporter,
+            list: MutableList<File>,
+            file: File,
+            fileTester: (File) -> Boolean = ::isSupportedSource,
+        ) {
             if (file.isDirectory) {
                 if (skippableDirectory(file)) {
                     return
@@ -93,23 +108,24 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
                     }
                 }
             } else if (file.isFile) {
-                when {
-                    file.name.endsWith(DOT_JAVA) ||
-                        file.name.endsWith(DOT_KT) ||
-                        file.name.equals(PACKAGE_HTML) ||
-                        file.name.equals(OVERVIEW_HTML) -> list.add(file)
+                if (fileTester.invoke(file)) {
+                    list.add(file)
                 }
             }
         }
 
-        private fun gatherSources(reporter: Reporter, sourcePath: List<File>): List<File> {
+        private fun gatherSources(
+            reporter: Reporter,
+            sourcePath: List<File>,
+            fileTester: (File) -> Boolean = ::isSupportedSource,
+        ): List<File> {
             val sources = mutableListOf<File>()
             for (file in sourcePath) {
                 if (file.path.isBlank()) {
                     // --source-path "" means don't search source path; use "." for pwd
                     continue
                 }
-                addSourceFiles(reporter, sources, file.absoluteFile)
+                addSourceFiles(reporter, sources, file.absoluteFile, fileTester)
             }
             return sources.sortedWith(compareBy { it.name })
         }
