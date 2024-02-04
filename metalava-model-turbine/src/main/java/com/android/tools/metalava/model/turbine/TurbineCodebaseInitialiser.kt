@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -60,6 +61,7 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.Assign
@@ -299,7 +301,7 @@ internal open class TurbineCodebaseInitialiser(
                 qualifiedName,
                 sym,
                 modifierItem,
-                TurbineClassType.getClassType(cls.kind()),
+                getClassKind(cls.kind()),
                 typeParameters,
                 getCommentedDoc(documentation),
                 sourceFile,
@@ -313,7 +315,8 @@ internal open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null) null else createType(superClassType, false)
+                if (superClassType == null) null
+                else createType(superClassType, false) as ClassTypeItem
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
@@ -321,7 +324,9 @@ internal open class TurbineCodebaseInitialiser(
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
-        classItem.setInterfaceTypes(cls.interfaceTypes().map { createType(it, false) })
+        classItem.setInterfaceTypes(
+            cls.interfaceTypes().map { createType(it, false) as ClassTypeItem }
+        )
 
         // Create fields
         createFields(classItem, cls.fields())
@@ -361,6 +366,15 @@ internal open class TurbineCodebaseInitialiser(
         classItem.constructors.forEach { it.setThrowsTypes() }
 
         return classItem
+    }
+
+    fun getClassKind(type: TurbineTyKind): ClassKind {
+        return when (type) {
+            TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
+            TurbineTyKind.ENUM -> ClassKind.ENUM
+            TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            else -> ClassKind.CLASS
+        }
     }
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
@@ -765,7 +779,8 @@ internal open class TurbineCodebaseInitialiser(
                     methodItem
                 }
         // Ignore default enum methods
-        classItem.methods = methodItems.filter { !isDefaultEnumMethod(classItem, it) }
+        classItem.methods =
+            methodItems.filter { !isDefaultEnumMethod(classItem, it) }.toMutableList()
     }
 
     private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {
@@ -838,7 +853,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun fixCtorReturnType(classItem: TurbineClassItem) {
         val result =
             classItem.constructors.map {
-                it.setReturnType(classItem.toType())
+                it.setReturnType(classItem.type())
                 it
             }
         classItem.constructors = result

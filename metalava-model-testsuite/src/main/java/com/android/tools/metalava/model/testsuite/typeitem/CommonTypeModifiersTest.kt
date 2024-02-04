@@ -670,14 +670,14 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val bar = interfaces[0]
             assertThat(bar).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((bar as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
+            assertThat(bar.qualifiedName).isEqualTo("test.pkg.Bar")
             val annotations = bar.modifiers.annotations()
             assertThat(annotations).hasSize(1)
             assertThat(annotations.single().qualifiedName).isEqualTo("test.pkg.A")
 
             val baz = interfaces[1]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(baz.qualifiedName).isEqualTo("test.pkg.Baz")
         }
     }
 
@@ -744,12 +744,12 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val bar = interfaces[0]
             assertThat(bar).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((bar as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
+            assertThat(bar.qualifiedName).isEqualTo("test.pkg.Bar")
             assertThat(bar.annotationNames()).containsExactly("test.pkg.A")
 
             val baz = interfaces[1]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(baz.qualifiedName).isEqualTo("test.pkg.Baz")
             assertThat(baz.arguments).hasSize(1)
             assertThat(baz.annotationNames()).containsExactly("test.pkg.B")
 
@@ -759,7 +759,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val biz = interfaces[2]
             assertThat(biz).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((biz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
+            assertThat(biz.qualifiedName).isEqualTo("test.pkg.Biz")
             assertThat(biz.annotationNames()).isEmpty()
         }
     }
@@ -847,10 +847,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val interfaces = fooClass.interfaceTypes()
             val bazInterface = interfaces[0]
-            assertThat((bazInterface as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            assertThat(bazInterface.qualifiedName).isEqualTo("test.pkg.Baz")
             testModifiers(bazInterface.modifiers)
             val bizInterface = interfaces[1]
-            assertThat((bizInterface as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
+            assertThat(bizInterface.qualifiedName).isEqualTo("test.pkg.Biz")
             testModifiers(bizInterface.modifiers)
 
             val fooMethod = fooClass.methods().single()
@@ -2095,6 +2095,76 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertNonNull(typeArgument, expectAnnotation = false)
             val returnType = functionType.arguments[1]
             assertNullable(returnType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of super class type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Number {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo: Number {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends Number {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val superClassType = codebase.assertClass("test.pkg.Foo").superClassType()!!
+            assertNonNull(superClassType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of super interface type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.Map;
+                    public abstract class Foo implements Map.Entry<String, String> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import java.util.Map
+                    abstract class Foo: Map.Entry<String, String> {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo implements java.util.Map.Entry<java.lang.String, java.lang.String> {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val superInterfaceType = codebase.assertClass("test.pkg.Foo").interfaceTypes().single()
+
+            // The outer class type must be non-null.
+            val outerClassType = superInterfaceType.outerClassType!!
+            assertNonNull(outerClassType, expectAnnotation = false)
+
+            // As must the nested class.
+            assertNonNull(superInterfaceType, expectAnnotation = false)
         }
     }
 }
