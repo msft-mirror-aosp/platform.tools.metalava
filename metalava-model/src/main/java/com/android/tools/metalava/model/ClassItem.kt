@@ -27,7 +27,7 @@ import java.util.function.Predicate
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : Item {
+interface ClassItem : Item, TypeParameterListOwner {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
     fun simpleName(): String
 
@@ -209,12 +209,6 @@ interface ClassItem : Item {
 
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
-
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
