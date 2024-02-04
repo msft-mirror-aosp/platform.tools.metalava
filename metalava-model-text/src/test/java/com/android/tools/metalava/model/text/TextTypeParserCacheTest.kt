@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.testing.getAndroidTxt
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
@@ -63,6 +64,27 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                 )
             context.test()
         }
+    }
+
+    @Test
+    fun `Test loading previously released public API`() {
+        val androidTxtFiles =
+            listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
+        ApiFile.parseApi(
+            androidTxtFiles,
+            apiStatsConsumer = { stats ->
+                assertThat(stats)
+                    .isEqualTo(
+                        ApiFile.Stats(
+                            totalClasses = 7315,
+                            typeCacheRequests = 179088,
+                            typeCacheSkip = 9383,
+                            typeCacheHit = 161454,
+                            typeCacheSize = 8251,
+                        )
+                    )
+            }
+        )
     }
 
     @Test

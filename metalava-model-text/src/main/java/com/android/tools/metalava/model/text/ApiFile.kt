@@ -117,6 +117,8 @@ private constructor(
             description: String? = null,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
+            // Provides the called with access to the ApiFile.
+            apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api =
@@ -149,6 +151,9 @@ private constructor(
             }
             api.description = actualDescription
             parser.postProcess()
+
+            apiStatsConsumer(parser.stats)
+
             return api
         }
 
@@ -1558,6 +1563,24 @@ private constructor(
     private fun qualifiedName(pkg: String, className: String): String {
         return "$pkg.$className"
     }
+
+    private val stats
+        get() =
+            Stats(
+                codebase.getPackages().allClasses().count(),
+                typeParser.requests,
+                typeParser.cacheSkip,
+                typeParser.cacheHit,
+                typeParser.cacheSize,
+            )
+
+    data class Stats(
+        val totalClasses: Int,
+        val typeCacheRequests: Int,
+        val typeCacheSkip: Int,
+        val typeCacheHit: Int,
+        val typeCacheSize: Int,
+    )
 }
 
 /**

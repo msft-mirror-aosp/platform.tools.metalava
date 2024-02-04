@@ -40,6 +40,12 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     /** The cache from [Key] to [TextTypeItem]. */
     private val typeCache = HashMap<Key, TextTypeItem>()
 
+    internal var requests = 0
+    internal var cacheSkip = 0
+    internal var cacheHit = 0
+    internal val cacheSize
+        get() = typeCache.size
+
     /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
     private val nonNullTypeModifiers =
         TextTypeModifiers.create(codebase, emptyList(), TypeNullability.NONNULL)
@@ -94,6 +100,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         annotations: List<String> = emptyList(),
         typeUse: TypeUse = TypeUse.GENERAL,
     ): TextTypeItem {
+        requests++
         // Only use the cache if there are no type parameters to prevent identically named type
         // variables from different contexts being parsed as the same type.
         // Also don't use the cache when there are type-use annotations not contained in the string.
@@ -101,7 +108,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             val key = Key(typeUse, type)
 
             // Check it in the cache and if not found then create it and put it into the cache
-            typeCache[key]
+            typeCache[key]?.also { cacheHit++ }
                 ?: run {
                     // Create it, cache it and return
                     parseType(type, typeParameterScope, annotations, typeUse).also {
@@ -109,6 +116,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                     }
                 }
         } else {
+            cacheSkip++
             parseType(type, typeParameterScope, annotations, typeUse)
         }
     }
