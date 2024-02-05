@@ -16,16 +16,22 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.common.collect.ImmutableList
@@ -34,6 +40,7 @@ import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
+import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
@@ -54,13 +61,20 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.model.TurbineTyKind
+import com.google.turbine.tree.Tree
+import com.google.turbine.tree.Tree.ArrayInit
+import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
+import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
 import com.google.turbine.type.Type.ClassTy
 import com.google.turbine.type.Type.ClassTy.SimpleClassTy
+import com.google.turbine.type.Type.ErrorTy
 import com.google.turbine.type.Type.PrimTy
 import com.google.turbine.type.Type.TyKind
 import com.google.turbine.type.Type.TyVar
@@ -77,7 +91,7 @@ import kotlin.collections.ArrayDeque
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-open class TurbineCodebaseInitialiser(
+internal open class TurbineCodebaseInitialiser(
     val units: List<CompUnit>,
     val codebase: TurbineBasedCodebase,
     val classpath: List<File>,
@@ -162,7 +176,7 @@ open class TurbineCodebaseInitialiser(
 
     private fun createAllPackages() {
         // Root package
-        findOrCreatePackage("")
+        findOrCreatePackage("", "")
 
         for (unit in units) {
             val optPkg = unit.pkg()
@@ -172,7 +186,13 @@ open class TurbineCodebaseInitialiser(
                 val pkgNameList = pkg.name().map { it.value() }
                 pkgName = pkgNameList.joinToString(separator = ".")
             }
-            findOrCreatePackage(pkgName)
+            var doc = ""
+            // No class declarations. Will be a case of package-info file
+            if (unit.decls().isEmpty()) {
+                val source = unit.source().source()
+                doc = codebase.getHeaderComments(source)
+            }
+            findOrCreatePackage(pkgName, doc)
         }
     }
 
@@ -180,13 +200,14 @@ open class TurbineCodebaseInitialiser(
      * Searches for the package with supplied name in the codebase's package map and if not found
      * creates the corresponding TurbinePackageItem and adds it to the package map.
      */
-    private fun findOrCreatePackage(name: String): TurbinePackageItem {
+    private fun findOrCreatePackage(name: String, document: String): TurbinePackageItem {
         val pkgItem = codebase.findPackage(name)
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
+            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers, document)
+            modifiers.setOwner(turbinePkgItem)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -225,12 +246,14 @@ open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
-            // Inner class should not be created directly from here. Instead create its
-            // TopLevelClass which
-            // will automatically create the innerclass via createInnerClasses method
+            // For inner classes, create the outer class first if not created.
             if (sym.binaryName().contains("$")) {
                 val topClassSym = getClassSymbol(className)!!
-                createClass(topClassSym)
+                if (codebase.findClass(getQualifiedName(topClassSym.binaryName())) != null) {
+                    createClass(sym) // Create the inner class if top class exists
+                } else {
+                    createClass(topClassSym) // Create the outer class if it doesn't exist
+                }
             } else {
                 createClass(sym)
             }
@@ -245,33 +268,46 @@ open class TurbineCodebaseInitialiser(
         cls = if (cls != null) cls else envClassMap.get(sym)!!
         val decl = (cls as? SourceTypeBoundClass)?.decl()
 
+        val isTopClass = cls.owner() == null
+        val isFromClassPath = !(cls is SourceTypeBoundClass)
+
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
+        val pkgItem = findOrCreatePackage(pkgName, "")
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
+        val documentation = decl?.javadoc() ?: ""
         val modifierItem =
             TurbineModifierItem.create(
                 codebase,
                 cls.access(),
                 annotations,
-                isDeprecated(decl?.javadoc())
+                isDeprecated(documentation)
             )
         val typeParameters = createTypeParameters(cls.typeParameterTypes())
+        val sourceFile =
+            if (isTopClass && !isFromClassPath)
+                TurbineSourceFile(codebase, (cls as SourceTypeBoundClass).source().source())
+            else null
         val classItem =
             TurbineClassItem(
                 codebase,
                 simpleName,
                 fullName,
                 qualifiedName,
+                sym,
                 modifierItem,
-                TurbineClassType.getClassType(cls.kind()),
-                typeParameters
+                getClassKind(cls.kind()),
+                typeParameters,
+                getCommentedDoc(documentation),
+                sourceFile,
             )
+        modifierItem.setOwner(classItem)
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
         if (!classItem.isInterface()) {
@@ -279,8 +315,8 @@ open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
-                else createType(superClassType, false)
+                if (superClassType == null) null
+                else createType(superClassType, false) as ClassTypeItem
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
@@ -289,9 +325,7 @@ open class TurbineCodebaseInitialiser(
 
         // Set interface types
         classItem.setInterfaceTypes(
-            cls.interfaceTypes()
-                .filter { it.tyKind() != TyKind.ERROR_TY }
-                .map { createType(it, false) }
+            cls.interfaceTypes().map { createType(it, false) as ClassTypeItem }
         )
 
         // Create fields
@@ -304,7 +338,6 @@ open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods())
 
         // Add to the codebase
-        val isTopClass = cls.owner() == null
         codebase.addClass(classItem, isTopClass)
 
         // Add the class to corresponding PackageItem
@@ -312,9 +345,19 @@ open class TurbineCodebaseInitialiser(
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
             // If the class is top class, fix the constructor return type right away. Otherwise wait
-            // for containingClass to be set via setInnerClasses
+            // for containingClass to be set via createInnerClasses
             fixCtorReturnType(classItem)
         }
+
+        // Do not emit to signature file if it is from classpath
+        if (isFromClassPath) {
+            pkgItem.emit = false
+            classItem.emit = false
+        }
+
+        // Create InnerClasses.
+        val children = cls.children()
+        createInnerClasses(classItem, children.values.asList())
 
         // Set the throwslist for methods
         classItem.methods.forEach { it.setThrowsTypes() }
@@ -322,11 +365,16 @@ open class TurbineCodebaseInitialiser(
         // Set the throwslist for constructors
         classItem.constructors.forEach { it.setThrowsTypes() }
 
-        // Create InnerClasses.
-        val children = cls.children()
-        createInnerClasses(classItem, children.values.asList())
-
         return classItem
+    }
+
+    fun getClassKind(type: TurbineTyKind): ClassKind {
+        return when (type) {
+            TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
+            TurbineTyKind.ENUM -> ClassKind.ENUM
+            TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            else -> ClassKind.CLASS
+        }
     }
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
@@ -335,7 +383,7 @@ open class TurbineCodebaseInitialiser(
     }
 
     private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
-        val annoAttrs = getAnnotationAttributes(annotation.values())
+        val annoAttrs = getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
 
         val nameList = annotation.tree()?.let { tree -> tree.name().map { it.value() } }
         val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
@@ -348,24 +396,119 @@ open class TurbineCodebaseInitialiser(
 
     /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
     private fun getAnnotationAttributes(
-        attrs: ImmutableMap<String, Const>
+        attrs: ImmutableMap<String, Const>,
+        exprs: ImmutableList<Expression>?
     ): List<AnnotationAttribute> {
         val attributes = mutableListOf<AnnotationAttribute>()
-        for ((name, value) in attrs) {
-            attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value)))
+        if (exprs != null) {
+            for (exp in exprs) {
+                when (exp.kind()) {
+                    Tree.Kind.ASSIGN -> {
+                        exp as Assign
+                        val name = exp.name().value()
+                        val assignExp = exp.expr()
+                        attributes.add(
+                            DefaultAnnotationAttribute(
+                                name,
+                                createAttrValue(attrs[name]!!, assignExp)
+                            )
+                        )
+                    }
+                    else -> {
+                        val name = ANNOTATION_ATTR_VALUE
+                        attributes.add(
+                            DefaultAnnotationAttribute(name, createAttrValue(attrs[name]!!, exp))
+                        )
+                    }
+                }
+            }
+        } else {
+            for ((name, value) in attrs) {
+                attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value, null)))
+            }
         }
         return attributes
     }
 
-    private fun createAttrValue(const: Const): AnnotationAttributeValue {
+    private fun createAttrValue(const: Const, expr: Expression?): AnnotationAttributeValue {
         if (const.kind() == Kind.ARRAY) {
-            val arrayVal = const as ArrayInitValue
+            const as ArrayInitValue
+            if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
+                // This is case where defined type is array type but provided attribute value is
+                // single non-array element
+                // For e.g. @Anno(5) where Anno is @interfacce Anno {int [] value()}
+                val constLiteral = const.elements().single()
+                return DefaultAnnotationSingleAttributeValue(
+                    { getSource(constLiteral, expr) },
+                    { getValue(constLiteral) }
+                )
+            }
             return DefaultAnnotationArrayAttributeValue(
-                { arrayVal.toString() },
-                { arrayVal.elements().map { createAttrValue(it) } }
+                { getSource(const, expr) },
+                { const.elements().map { createAttrValue(it, null) } }
             )
         }
-        return DefaultAnnotationSingleAttributeValue({ const.toString() }, { getValue(const) })
+        return DefaultAnnotationSingleAttributeValue(
+            { getSource(const, expr) },
+            { getValue(const) }
+        )
+    }
+
+    private fun getSource(const: Const, expr: Expression?): String {
+        return when (const.kind()) {
+            Kind.PRIMITIVE -> {
+                when ((const as Value).constantTypeKind()) {
+                    PrimKind.INT -> {
+                        val value = (const as Const.IntValue).value()
+                        if (value < 0 || (expr != null && expr.kind() == Tree.Kind.TYPE_CAST))
+                            "0x" + value.toUInt().toString(16) // Hex Value
+                        else value.toString()
+                    }
+                    PrimKind.SHORT -> {
+                        val value = (const as Const.ShortValue).value()
+                        if (value < 0) "0x" + value.toUInt().toString(16) else value.toString()
+                    }
+                    PrimKind.FLOAT -> {
+                        val value = (const as Const.FloatValue).value()
+                        when {
+                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
+                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
+                            value < 0 -> value.toString() + "F" // Handling negative values
+                            else -> value.toString() + "f" // Handling positive values
+                        }
+                    }
+                    PrimKind.DOUBLE -> {
+                        val value = (const as Const.DoubleValue).value()
+                        when {
+                            value == Double.POSITIVE_INFINITY ->
+                                "java.lang.Double.POSITIVE_INFINITY"
+                            value == Double.NEGATIVE_INFINITY ->
+                                "java.lang.Double.NEGATIVE_INFINITY"
+                            else -> const.toString()
+                        }
+                    }
+                    PrimKind.BYTE -> const.getValue().toString()
+                    else -> const.toString()
+                }
+            }
+            Kind.ARRAY -> {
+                const as ArrayInitValue
+                val pairs =
+                    if (expr != null) const.elements().zip((expr as ArrayInit).exprs())
+                    else const.elements().map { Pair(it, null) }
+                buildString {
+                        append("{")
+                        pairs.joinTo(this, ", ") { getSource(it.first, it.second) }
+                        append("}")
+                    }
+                    .toString()
+            }
+            Kind.ENUM_CONSTANT -> getValue(const).toString()
+            Kind.CLASS_LITERAL -> {
+                if (expr != null) expr.toString() else getValue(const).toString()
+            }
+            else -> const.toString()
+        }
     }
 
     private fun getValue(const: Const): Any? {
@@ -379,7 +522,15 @@ open class TurbineCodebaseInitialiser(
                 val value = const as TurbineClassValue
                 return value.type().toString()
             }
-            else -> return const.toString()
+            Kind.ENUM_CONSTANT -> {
+                val value = const as EnumConstantValue
+                val temp =
+                    getQualifiedName(value.sym().owner().binaryName()) + "." + value.toString()
+                return temp
+            }
+            else -> {
+                return const.toString()
+            }
         }
     }
 
@@ -466,6 +617,17 @@ open class TurbineCodebaseInitialiser(
                     TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
+            TyKind.ERROR_TY -> {
+                // This is case of unresolved superclass or implemented interface
+                type as ErrorTy
+                TurbineClassTypeItem(
+                    codebase,
+                    TurbineTypeModifiers(emptyList(), TypeNullability.UNDEFINED),
+                    type.name(),
+                    emptyList(),
+                    null,
+                )
+            }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
     }
@@ -536,6 +698,7 @@ open class TurbineCodebaseInitialiser(
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =
             TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
+        modifiers.setOwner(typeParamItem)
         codebase.addTypeParameter(sym, typeParamItem)
         return typeParamItem
     }
@@ -547,7 +710,7 @@ open class TurbineCodebaseInitialiser(
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = createClass(cls)
+                val innerClassItem = findOrCreateClass(cls)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem
@@ -567,18 +730,26 @@ open class TurbineCodebaseInitialiser(
                         isDeprecated(field.decl()?.javadoc())
                     )
                 val type = createType(field.type(), false)
-                TurbineFieldItem(
-                    codebase,
-                    field.name(),
-                    classItem,
-                    type,
-                    fieldModifierItem,
-                )
+                val documentation = field.decl()?.javadoc() ?: ""
+                val fieldItem =
+                    TurbineFieldItem(
+                        codebase,
+                        field.name(),
+                        classItem,
+                        type,
+                        fieldModifierItem,
+                        getCommentedDoc(documentation),
+                    )
+                fieldModifierItem.setOwner(fieldItem)
+                val optExpr = field.decl()?.init()
+                val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
+                setInitialValue(fieldItem, field.value()?.getValue(), expr)
+                fieldItem
             }
     }
 
     private fun createMethods(classItem: TurbineClassItem, methods: List<MethodInfo>) {
-        classItem.methods =
+        val methodItems =
             methods
                 .filter { it.sym().name() != "<init>" }
                 .map { method ->
@@ -591,6 +762,7 @@ open class TurbineCodebaseInitialiser(
                             isDeprecated(method.decl()?.javadoc())
                         )
                     val typeParams = createTypeParameters(method.tyParams())
+                    val documentation = method.decl()?.javadoc() ?: ""
                     val methodItem =
                         TurbineMethodItem(
                             codebase,
@@ -599,11 +771,16 @@ open class TurbineCodebaseInitialiser(
                             createType(method.returnType(), false),
                             methodModifierItem,
                             typeParams,
+                            getCommentedDoc(documentation),
                         )
+                    methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters())
                     methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
                 }
+        // Ignore default enum methods
+        classItem.methods =
+            methodItems.filter { !isDefaultEnumMethod(classItem, it) }.toMutableList()
     }
 
     private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {
@@ -613,14 +790,17 @@ open class TurbineCodebaseInitialiser(
                 val parameterModifierItem =
                     TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type = createType(parameter.type(), parameterModifierItem.isVarArg())
-                TurbineParameterItem(
-                    codebase,
-                    parameter.name(),
-                    methodItem,
-                    idx,
-                    type,
-                    parameterModifierItem,
-                )
+                val parameterItem =
+                    TurbineParameterItem(
+                        codebase,
+                        parameter.name(),
+                        methodItem,
+                        idx,
+                        type,
+                        parameterModifierItem,
+                    )
+                parameterModifierItem.setOwner(parameterItem)
+                parameterItem
             }
     }
 
@@ -642,6 +822,7 @@ open class TurbineCodebaseInitialiser(
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
                     val name = classItem.simpleName()
+                    val documentation = constructor.decl()?.javadoc() ?: ""
                     val constructorItem =
                         TurbineConstructorItem(
                             codebase,
@@ -651,7 +832,9 @@ open class TurbineCodebaseInitialiser(
                             createType(constructor.returnType(), false),
                             constructorModifierItem,
                             typeParams,
+                            getCommentedDoc(documentation),
                         )
+                    constructorModifierItem.setOwner(constructorItem)
                     createParameters(constructorItem, constructor.parameters())
                     constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
                     constructorItem
@@ -670,7 +853,7 @@ open class TurbineCodebaseInitialiser(
     private fun fixCtorReturnType(classItem: TurbineClassItem) {
         val result =
             classItem.constructors.map {
-                it.setReturnType(classItem.toType())
+                it.setReturnType(classItem.type())
                 it
             }
         classItem.constructors = result
@@ -702,4 +885,66 @@ open class TurbineCodebaseInitialiser(
             sym?.let { getQualifiedName(it.binaryName()) }
         }
     }
+
+    private fun getCommentedDoc(doc: String): String {
+        return buildString {
+                if (doc != "") {
+                    append("/**")
+                    append(doc)
+                    append("*/")
+                }
+            }
+            .toString()
+    }
+
+    private fun setInitialValue(fieldItem: TurbineFieldItem, value: Any?, expr: Expression?) {
+        if (value != null) {
+            fieldItem.initialValueWithRequiredConstant = value
+            fieldItem.initialValueWithoutRequiredConstant = value
+            return
+        }
+        if (expr != null) {
+            return when (expr.kind()) {
+                Tree.Kind.LITERAL -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant =
+                        getValue((expr as Literal).value())
+                }
+                // Class Type
+                Tree.Kind.CLASS_LITERAL -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant = expr
+                }
+                else -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant = null
+                }
+            }
+        }
+    }
+
+    /** Determines whether the given method is a default enum method ("values" or "valueOf"). */
+    private fun isDefaultEnumMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
+        classItem.isEnum() &&
+            (methodItem.name() == "values" && isValuesMethod(classItem, methodItem) ||
+                methodItem.name() == "valueOf" && isValueOfMethod(classItem, methodItem))
+
+    /** Checks if the given method matches the signature of the "values" enum method. */
+    private fun isValuesMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
+        methodItem.returnType().let { returnType ->
+            returnType is ArrayTypeItem &&
+                matchType(returnType.componentType, classItem) &&
+                methodItem.parameters().isEmpty()
+        }
+
+    /** Checks if the given method matches the signature of the "valueOf" enum method. */
+    private fun isValueOfMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
+        matchType(methodItem.returnType(), classItem) &&
+            methodItem.parameters().singleOrNull()?.type()?.let {
+                it is ClassTypeItem && it.qualifiedName == "java.lang.String"
+            }
+                ?: false
+
+    private fun matchType(typeItem: TypeItem, classItem: ClassItem): Boolean =
+        typeItem is ClassTypeItem && typeItem.qualifiedName == classItem.qualifiedName()
 }

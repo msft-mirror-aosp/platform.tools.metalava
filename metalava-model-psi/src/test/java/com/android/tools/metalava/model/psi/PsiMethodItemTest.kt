@@ -66,11 +66,11 @@ class PsiMethodItemTest : BasePsiTest() {
             """
             )
         testCodebase(codebase) { c ->
-            val ctorItem = c.assertClass("Foo").findMethod("Foo", "")
-            val ctorReturnType = ctorItem!!.returnType()
+            val ctorItem = c.assertClass("Foo").assertMethod("Foo", "")
+            val ctorReturnType = ctorItem.returnType()
 
-            val methodItem = c.assertClass("Foo").findMethod("bar", "")
-            val methodReturnType = methodItem!!.returnType()
+            val methodItem = c.assertClass("Foo").assertMethod("bar", "")
+            val methodReturnType = methodItem.returnType()
 
             assertNotNull(ctorReturnType)
             assertEquals(
@@ -317,7 +317,7 @@ class PsiMethodItemTest : BasePsiTest() {
             assertEquals(TypeNullability.NONNULL, toString.returnType().modifiers.nullability())
 
             val barClass = codebase.assertClass("test.pkg.Bar")
-            val duplicated = barClass.createMethod(toString)
+            val duplicated = barClass.inheritMethodFromNonApiAncestor(toString)
             assertEquals(TypeNullability.NONNULL, duplicated.returnType().modifiers.nullability())
         }
     }

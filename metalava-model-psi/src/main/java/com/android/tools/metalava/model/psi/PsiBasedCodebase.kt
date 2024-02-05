@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -51,6 +52,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
+import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -62,6 +64,7 @@ import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 import org.jetbrains.uast.kotlin.isKotlin
@@ -563,15 +566,6 @@ open class PsiBasedCodebase(
             }
         }
 
-        if (classItem.classType == ClassType.TYPE_PARAMETER) {
-            // Don't put PsiTypeParameter classes into the registry; e.g. when we're visiting
-            //  java.util.stream.Stream<R>
-            // we come across "R" and would try to place it here.
-            classItem.containingPackage = emptyPackage
-            classItem.finishInitialization()
-            return classItem
-        }
-
         // TODO: Cache for adjacent files!
         val packageName = getPackageName(clz)
         registerPackageClass(packageName, classItem)
@@ -631,6 +625,12 @@ open class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
+        if (psiClass is PsiTypeParameter) {
+            error(
+                "Must not be called with PsiTypeParameter; call findOrCreateTypeParameter(...) instead"
+            )
+        }
+
         val existing = findClass(psiClass)
         if (existing != null) {
             return existing
@@ -679,6 +679,20 @@ open class PsiBasedCodebase(
         return null
     }
 
+    /**
+     * Find or create a [PsiTypeParameterItem] representing [PsiTypeParameter].
+     *
+     * At the moment this always create a new instance to replicate legacy behavior but this will be
+     * fixed in future.
+     *
+     * TODO(b/321075216): Find and reuse existing instances.
+     */
+    internal fun findOrCreateTypeParameter(
+        psiTypeParameter: PsiTypeParameter
+    ): PsiTypeParameterItem {
+        return PsiTypeParameterItem.create(this, psiTypeParameter)
+    }
+
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
@@ -686,10 +700,22 @@ open class PsiBasedCodebase(
         getFactory().createDocCommentFromText(string, parent)
 
     /**
+     * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
+     * or `implements` list.
+     */
+    internal fun getSuperType(psiType: PsiType): PsiClassTypeItem {
+        return getType(psiType, typeUse = TypeUse.SUPER_TYPE) as PsiClassTypeItem
+    }
+
+    /**
      * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
      * information for Kotlin types.
      */
-    internal fun getType(psiType: PsiType, context: PsiElement? = null): PsiTypeItem {
+    internal fun getType(
+        psiType: PsiType,
+        context: PsiElement? = null,
+        typeUse: TypeUse = TypeUse.GENERAL
+    ): PsiTypeItem {
         val kotlinTypeInfo =
             if (context != null && isKotlin(context)) {
                 KotlinTypeInfo.fromContext(context)
@@ -702,7 +728,7 @@ open class PsiBasedCodebase(
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType, kotlinTypeInfo)
+        return PsiTypeItem.create(this, psiType, kotlinTypeInfo, typeUse)
     }
 
     internal fun getType(psiClass: PsiClass): PsiTypeItem {
@@ -776,6 +802,13 @@ open class PsiBasedCodebase(
         for (method in methods) {
             val psiMethod = (method as PsiMethodItem).psiMethod
             map[psiMethod] = method
+            if (psiMethod is UMethod) {
+                // Register LC method as a key too
+                // so that we can find the corresponding [MethodItem]
+                // Otherwise, we will end up creating a new [MethodItem]
+                // without source PSI, resulting in wrong modifier.
+                map[psiMethod.javaPsi] = method
+            }
         }
     }
 

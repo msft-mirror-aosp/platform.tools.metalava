@@ -57,10 +57,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -134,9 +136,9 @@ class AnnotationsMerger(
                 roots.addAll(options.sourcePath)
                 val javaStubsCodebase =
                     sourceParser.parseSources(
-                        javaStubFiles,
+                        SourceSet(javaStubFiles, roots),
+                        SourceSet.empty(),
                         "Codebase loaded from stubs",
-                        sourcePath = roots,
                         classPath = options.classpath
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
@@ -241,9 +243,12 @@ class AnnotationsMerger(
 
     private fun mergeAnnotationsSignatureFile(path: String) {
         try {
-            val signatureCodebase = ApiFile.parseApi(File(path), codebase.annotationManager)
-            signatureCodebase.description =
-                "Signature files for annotation merger: loaded from $path"
+            val signatureCodebase =
+                ApiFile.parseApi(
+                    File(path),
+                    codebase.annotationManager,
+                    "Signature files for annotation merger: loaded from $path"
+                )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $path: ${ex.message}"
@@ -309,13 +314,13 @@ class AnnotationsMerger(
                     }
 
                     if (addAnnotation) {
-                        new.mutableModifiers()
-                            .addAnnotation(
-                                new.codebase.createAnnotation(
-                                    annotation.toSource(showDefaultAttrs = false),
-                                    new,
-                                )
+                        mergeAnnotation(
+                            new,
+                            new.codebase.createAnnotation(
+                                annotation.toSource(showDefaultAttrs = false),
+                                new,
                             )
+                        )
                     }
                 }
 
@@ -326,7 +331,10 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        CodebaseComparator(
+                apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+            )
+            .compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
@@ -367,7 +375,7 @@ class AnnotationsMerger(
                     val modifiers = mainItem.mutableModifiers()
                     for (annotation in annotationsToCopy) {
                         if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
-                            modifiers.addAnnotation(annotation)
+                            mergeAnnotation(mainItem, annotation)
                         }
                     }
 
@@ -575,7 +583,7 @@ class AnnotationsMerger(
             }
 
             val annotationItem = createAnnotation(annotationElement) ?: continue
-            item.mutableModifiers().addAnnotation(annotationItem)
+            mergeAnnotation(item, annotationItem)
         }
     }
 
@@ -818,6 +826,15 @@ class AnnotationsMerger(
             name == ANDROID_NULLABLE ||
             name == ANDROIDX_NULLABLE ||
             name == SUPPORT_NULLABLE
+    }
+
+    private fun mergeAnnotation(item: Item, annotation: AnnotationItem) {
+        item.mutableModifiers().addAnnotation(annotation)
+        if (annotation.isNullable()) {
+            item.type()?.modifiers?.setNullability(TypeNullability.NULLABLE)
+        } else if (annotation.isNonNull()) {
+            item.type()?.modifiers?.setNullability(TypeNullability.NONNULL)
+        }
     }
 
     private fun unescapeXml(escaped: String): String {
