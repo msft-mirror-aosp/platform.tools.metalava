@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.text
 
-interface TypeParameterListOwner {
-    fun typeParameterList(): TypeParameterList
-    /** Given a variable in this owner, resolves to a type parameter item */
-    fun resolveParameter(variable: String): TypeParameterItem?
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.testsuite.TestParameters
 
-    /** Parent type parameter list owner */
-    fun typeParameterListOwnerParent(): TypeParameterListOwner?
-}
+/**
+ * Base class for text test classes that parse signature files to create a [TextCodebase] that can
+ * then be introspected.
+ */
+open class BaseTextCodebaseTest :
+    BaseModelTest(TestParameters(TextModelSuiteRunner(), InputFormat.SIGNATURE)) {}
