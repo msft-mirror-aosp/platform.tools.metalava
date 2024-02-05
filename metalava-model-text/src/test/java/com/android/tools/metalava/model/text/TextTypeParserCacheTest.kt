@@ -68,7 +68,7 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test loading previously released public API`() {
+    fun `Test load Android public API to measure cache behavior for kotlinStyleNulls=no`() {
         val androidTxtFiles =
             listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
         ApiFile.parseApi(
@@ -82,6 +82,32 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                             typeCacheSkip = 9383,
                             typeCacheHit = 161407,
                             typeCacheSize = 8251,
+                        )
+                    )
+            }
+        )
+    }
+
+    @Test
+    fun `Test load AndroidX public API to measure cache behavior for kotlinStyleNulls=yes`() {
+        val testFile = temporaryFolder.newFile("core-api-1.12.0-beta-1.txt")
+        testFile.outputStream().use {
+            val resourceName = "core/api/1.12.0-beta01.txt"
+            javaClass.getResourceAsStream(resourceName)?.copyTo(it)
+                ?: error("Cannot load resource $resourceName")
+        }
+
+        ApiFile.parseApi(
+            listOf(testFile),
+            apiStatsConsumer = { stats ->
+                assertThat(stats)
+                    .isEqualTo(
+                        ApiFile.Stats(
+                            totalClasses = 346,
+                            typeCacheRequests = 6882,
+                            typeCacheSkip = 216,
+                            typeCacheHit = 6087,
+                            typeCacheSize = 579,
                         )
                     )
             }
