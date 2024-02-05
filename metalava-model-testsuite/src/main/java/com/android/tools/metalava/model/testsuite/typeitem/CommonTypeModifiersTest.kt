@@ -174,8 +174,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
             val typeParameter = variableMethod.typeParameterList().typeParameters().single()
-            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).isEmpty()
         }
@@ -246,8 +245,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
             val typeParameter = variableMethod.typeParameterList().typeParameters().single()
-            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
         }
@@ -290,8 +288,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
             val typeParameter = variableMethod.typeParameterList().typeParameters().single()
-            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).isEmpty()
             assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
         }
@@ -480,9 +477,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val arrayType = method.returnType()
             assertThat(arrayType).isInstanceOf(ArrayTypeItem::class.java)
             val componentType = (arrayType as ArrayTypeItem).componentType
-            assertThat(componentType).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((componentType as VariableTypeItem).asTypeParameter)
-                .isEqualTo(methodTypeParam)
+            componentType.assertReferencesTypeParameter(methodTypeParam)
             assertThat(componentType.annotationNames()).containsExactly("test.pkg.A")
         }
     }
@@ -624,9 +619,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertThat(innerType.annotationNames()).containsExactly("test.pkg.C")
 
             val innerTypeArgument = innerType.arguments.single()
-            assertThat(innerTypeArgument).isInstanceOf(VariableTypeItem::class.java)
+            innerTypeArgument.assertReferencesTypeParameter(p2)
             assertThat((innerTypeArgument as VariableTypeItem).name).isEqualTo("P2")
-            assertThat(innerTypeArgument.asTypeParameter).isEqualTo(p2)
             assertThat(innerTypeArgument.annotationNames()).containsExactly("test.pkg.D")
 
             val outerType = innerType.outerClassType
@@ -637,9 +631,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             assertThat(outerType.annotationNames()).containsExactly("test.pkg.A")
 
             val outerClassArgument = outerType.arguments.single()
-            assertThat(outerClassArgument).isInstanceOf(VariableTypeItem::class.java)
+            outerClassArgument.assertReferencesTypeParameter(p1)
             assertThat((outerClassArgument as VariableTypeItem).name).isEqualTo("P1")
-            assertThat(outerClassArgument.asTypeParameter).isEqualTo(p1)
             assertThat(outerClassArgument.annotationNames()).containsExactly("test.pkg.B")
         }
     }
@@ -859,7 +852,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val typeVarArray = fooMethod.parameters().single().type()
             testModifiers(typeVarArray.modifiers)
             val typeVar = (typeVarArray as ArrayTypeItem).componentType
-            assertThat((typeVar as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+            typeVar.assertReferencesTypeParameter(typeParam)
             testModifiers(typeVar.modifiers)
 
             val stringList = fooMethod.returnType()
