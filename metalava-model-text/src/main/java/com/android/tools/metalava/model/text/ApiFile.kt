@@ -46,6 +46,7 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.StringReader
+import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
 @MetalavaApi
@@ -74,6 +75,9 @@ private constructor(
 
     /** The file format of the file being parsed. */
     lateinit var format: FileFormat
+
+    /** Map from [ClassItem] to [TypeParameterScope]. */
+    private val classToTypeParameterScope = IdentityHashMap<ClassItem, TypeParameterScope>()
 
     /**
      * The set of interface types needed for later resolution.
@@ -259,7 +263,9 @@ private constructor(
      */
     private fun postProcess() {
         // Use this as the context for resolving references.
-        ReferenceResolver.resolveReferences(this, codebase, typeParser)
+        ReferenceResolver.resolveReferences(this, codebase, typeParser) {
+            typeParameterScopeForClass(it)
+        }
 
         // Resolve all interface types that were found in the signature file.
         // TODO(b/323516595): Find a better way.
@@ -418,7 +424,7 @@ private constructor(
             outerClass,
             typeParameterList,
             typeParameterScope,
-        ) = parseDeclaredClassType(pkg, declaredClassType)
+        ) = parseDeclaredClassType(pkg, declaredClassType, classPosition)
 
         token = tokenizer.requireToken()
 
@@ -509,6 +515,12 @@ private constructor(
         // TODO(b/323516595): Find a better way.
         interfaceTypesForResolution.addAll(interfaceTypes)
 
+        // Store the [TypeParameterScope] for this [ClassItem] so it can be retrieved later in
+        // [typeParameterScopeFromClass].
+        if (!typeParameterScope.isEmpty()) {
+            classToTypeParameterScope[cl] = typeParameterScope
+        }
+
         cl.setContainingPackage(pkg)
         cl.containingClass = outerClass
         if (outerClass == null) {
@@ -565,10 +577,14 @@ private constructor(
         }
 
         // Parse the class body adding each member created to the existing class.
-        parseClassBody(tokenizer, existingClass, TypeParameterScope.from(existingClass))
+        parseClassBody(tokenizer, existingClass, typeParameterScopeForClass(existingClass))
 
         return true
     }
+
+    /** Get the [TypeParameterScope] for a previously created [ClassItem]. */
+    private fun typeParameterScopeForClass(classItem: ClassItem?): TypeParameterScope =
+        classItem?.let { classToTypeParameterScope[classItem] } ?: TypeParameterScope.empty
 
     /** Parse the class body, adding members to [cl]. */
     private fun parseClassBody(
@@ -654,10 +670,13 @@ private constructor(
      * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
      * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
      * parameter list with `"A"`,`"B extends java.lang.String"`, and `"C"` as type parameters.
+     *
+     * If the qualified name matches an existing class then return its information.
      */
     private fun parseDeclaredClassType(
         pkg: TextPackageItem,
         declaredClassType: String,
+        classPosition: SourcePositionInfo,
     ): DeclaredClassTypeComponents {
         // Split the declared class type into full name and type parameters.
         val paramIndex = declaredClassType.indexOf('<')
@@ -691,20 +710,49 @@ private constructor(
                 Pair(outerClass, innerClassName)
             }
 
-        val outerClassTypeParameterScope = TypeParameterScope.from(outerClass as? TextClassItem)
+        // Get the [TypeParameterScope] for the outer class, if any, from a previously stored one,
+        // otherwise use the empty scope as the [ClassItem] is a stub and so has no type parameters.
+        val outerClassTypeParameterScope = typeParameterScopeForClass(outerClass)
 
+        // Create type parameter list and scope from the string and optional outer class scope.
         val (typeParameterList, typeParameterScope) =
             if (typeParameterListString == "")
                 Pair(TypeParameterList.NONE, outerClassTypeParameterScope)
             else createTypeParameterList(outerClassTypeParameterScope, typeParameterListString)
+
+        // Decide which type parameter list and scope to actually use.
+        //
+        // If the class already exists then reuse its type parameter list and scope, otherwise use
+        // the newly created one.
+        //
+        // The reason for this is that otherwise any types parsed with the newly created scope would
+        // reference type parameters in the newly created list which are different to the ones
+        // belonging to the existing class.
+        val (actualTypeParameterList, actualTypeParameterScope) =
+            codebase.findClassInCodebase(qualifiedName)?.let { existingClass ->
+                // Check to make sure that the type parameter lists are the same.
+                val existingTypeParameterList = existingClass.typeParameterList
+                val existingTypeParameterListString = existingTypeParameterList.toString()
+                val normalizedTypeParameterListString = typeParameterList.toString()
+                if (!normalizedTypeParameterListString.equals(existingTypeParameterListString)) {
+                    val location = existingClass.location()
+                    throw ApiParseException(
+                        "Inconsistent type parameter list for $qualifiedName, this has $normalizedTypeParameterListString but it was previously defined as $existingTypeParameterListString at ${location.path}:${location.line}",
+                        classPosition
+                    )
+                }
+
+                Pair(existingTypeParameterList, typeParameterScopeForClass(existingClass))
+            }
+                ?: Pair(typeParameterList, typeParameterScope)
 
         return DeclaredClassTypeComponents(
             simpleName = simpleName,
             fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,
-            typeParameterList = typeParameterList,
-            typeParameterScope = typeParameterScope,
+            typeParameterList = actualTypeParameterList,
+            typeParameterScope = actualTypeParameterScope,
         )
     }
 
@@ -1601,6 +1649,7 @@ internal class ReferenceResolver(
     private val context: ResolverContext,
     private val codebase: TextCodebase,
     private val typeParser: TextTypeParser,
+    private val classScopeProvider: (ClassItem) -> TypeParameterScope,
 ) {
     /**
      * A list of all the classes in the text codebase.
@@ -1614,9 +1663,10 @@ internal class ReferenceResolver(
         fun resolveReferences(
             context: ResolverContext,
             codebase: TextCodebase,
-            typeParser: TextTypeParser
+            typeParser: TextTypeParser,
+            classScopeProvider: (ClassItem) -> TypeParameterScope = { TypeParameterScope.empty },
         ) {
-            val resolver = ReferenceResolver(context, codebase, typeParser)
+            val resolver = ReferenceResolver(context, codebase, typeParser, classScopeProvider)
             resolver.resolveReferences()
         }
     }
@@ -1644,7 +1694,7 @@ internal class ReferenceResolver(
                     }
 
             val superClassType =
-                typeParser.getSuperType(superClassTypeString, TypeParameterScope.from(cl))
+                typeParser.getSuperType(superClassTypeString, classScopeProvider(cl))
             cl.setSuperClassType(superClassType)
 
             // Resolve super class types. This is needed because otherwise code that manipulates
@@ -1657,7 +1707,7 @@ internal class ReferenceResolver(
 
     private fun resolveThrowsClasses() {
         for (cl in classes) {
-            val classTypeParameterScope = TypeParameterScope.from(cl)
+            val classTypeParameterScope = classScopeProvider(cl)
             for (methodItem in cl.constructors()) {
                 resolveThrowsClasses(classTypeParameterScope, methodItem)
             }

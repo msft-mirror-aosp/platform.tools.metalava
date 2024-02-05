@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** Contains tests for when loading multiple files into a single [TextCodebase]. */
@@ -79,5 +81,39 @@ class MultipleFileTest : BaseTextCodebaseTest() {
         // Order matters, the last, non-null super class wins.
         checkSuperClass(testFiles, "narrowest to widest", "test.pkg.Baz")
         checkSuperClass(testFiles.reversed(), "widest to narrowest", "test.pkg.Bar")
+    }
+
+    @Test
+    fun `Test generic class split across multiple files detect type parameter inconsistencies`() {
+        val exception =
+            assertThrows(ApiParseException::class.java) {
+                runSignatureTest(
+                    signature(
+                        "file1.txt",
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Generic<T, S extends Comparable<S>> {
+                          }
+                        }
+                    """
+                    ),
+                    signature(
+                        "file2.txt",
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Generic<S extends Comparable<S>, T> {
+                          }
+                        }
+                    """
+                    ),
+                ) {}
+            }
+
+        assertThat(exception.message)
+            .matches(
+                """.*\Q/file2.txt:3: Inconsistent type parameter list for test.pkg.Generic, this has <S extends java.lang.Comparable<S>, T> but it was previously defined as <T, S extends java.lang.Comparable<S>>\E at .*/file1.txt:3"""
+            )
     }
 }
