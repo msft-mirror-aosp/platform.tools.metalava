@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -76,7 +77,7 @@ internal class TextArrayTypeItem(
 internal class TextClassTypeItem(
     codebase: TextCodebase,
     override val qualifiedName: String,
-    override val arguments: List<TypeItem>,
+    override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: ClassTypeItem?,
     modifiers: TextTypeModifiers
 ) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
@@ -102,7 +103,10 @@ internal class TextClassTypeItem(
         )
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): ClassTypeItem {
         return TextClassTypeItem(codebase, qualifiedName, arguments, outerClass, modifiers)
     }
 }

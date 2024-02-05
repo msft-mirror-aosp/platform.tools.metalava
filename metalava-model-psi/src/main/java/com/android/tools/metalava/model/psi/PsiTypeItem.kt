@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -238,7 +239,7 @@ internal class PsiClassTypeItem(
     codebase: PsiBasedCodebase,
     psiType: PsiType,
     override val qualifiedName: String,
-    override val arguments: List<PsiTypeItem>,
+    override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
     override val className: String,
     override val modifiers: PsiTypeModifiers,
@@ -253,12 +254,15 @@ internal class PsiClassTypeItem(
         return asClass
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem =
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): ClassTypeItem =
         PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
-            arguments = arguments.map { it as PsiTypeItem },
+            arguments = arguments,
             outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate()
@@ -288,7 +292,7 @@ internal class PsiClassTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?
-        ): List<PsiTypeItem> {
+        ): List<TypeArgumentTypeItem> {
             val psiParameters =
                 psiType.parameters.toList().ifEmpty {
                     // Sometimes an immediate class type has no parameters even though the class
@@ -300,7 +304,7 @@ internal class PsiClassTypeItem(
                 }
 
             return psiParameters.mapIndexed { i, param ->
-                create(codebase, param, kotlinType?.forParameter(i))
+                create(codebase, param, kotlinType?.forParameter(i)) as TypeArgumentTypeItem
             }
         }
 

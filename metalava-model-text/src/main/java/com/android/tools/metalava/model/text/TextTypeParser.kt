@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeUse
 import kotlin.collections.HashMap
@@ -391,8 +392,9 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 name
             }
 
-        val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
-        val params = paramStrings.map { cachedParseType(it, typeParameterScope) }
+        val (argumentStrings, remainder) = typeParameterStringsWithRemainder(afterName)
+        val arguments =
+            argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
         // the leading annotations (they belong to the inner class type).
         val classModifiers =
@@ -404,7 +406,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
                 modifiers(classAnnotations + annotations, actualNullability)
             }
         val classType =
-            TextClassTypeItem(codebase, qualifiedName, params, outerClassType, classModifiers)
+            TextClassTypeItem(codebase, qualifiedName, arguments, outerClassType, classModifiers)
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {

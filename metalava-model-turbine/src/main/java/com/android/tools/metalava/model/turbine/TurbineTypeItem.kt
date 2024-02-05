@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -64,7 +65,7 @@ internal class TurbineClassTypeItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val qualifiedName: String,
-    override val arguments: List<TurbineTypeItem>,
+    override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
@@ -73,12 +74,15 @@ internal class TurbineClassTypeItem(
         return codebase.findOrCreateClass(this.qualifiedName)
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): ClassTypeItem {
         return TurbineClassTypeItem(
             codebase,
             modifiers.duplicate(),
             qualifiedName,
-            arguments.map { it as TurbineTypeItem },
+            arguments,
             outerClass as? TurbineClassTypeItem
         )
     }

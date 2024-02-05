@@ -674,11 +674,24 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 }
 
 /**
+ * The type for [ClassTypeItem.arguments].
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeArgument.
+ */
+interface TypeArgumentTypeItem : TypeItem {
+    /** Override to specialize the return type. */
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem
+
+    /** Override to specialize the return type. */
+    override fun duplicate(): TypeArgumentTypeItem
+}
+
+/**
  * The type for a reference.
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-ReferenceType.
  */
-interface ReferenceTypeItem : TypeItem {
+interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     /** Override to specialize the return type. */
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
 
@@ -785,7 +798,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
      * i.e. The specific types that this class type assigns to each of the referenced [ClassItem]'s
      * type parameters.
      */
-    val arguments: List<TypeItem>
+    val arguments: List<TypeArgumentTypeItem>
 
     /** The outer class type of this class, if it is an inner type. */
     val outerClassType: ClassTypeItem?
@@ -814,7 +827,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
      * mutated), but substituting in the provided [outerClass] and [arguments] in place of this
      * instance's [outerClass] and [arguments].
      */
-    fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem
+    fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeArgumentTypeItem>): ClassTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return duplicate(
@@ -876,7 +889,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem {
  * Represents a wildcard type, like `?`, `? extends String`, and `? super String` in Java, or `*`,
  * `out String`, and `in String` in Kotlin.
  */
-interface WildcardTypeItem : TypeItem {
+interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     /** The type this wildcard must extend. If null, the extends bound is implicitly `Object`. */
     val extendsBound: ReferenceTypeItem?
 

@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
@@ -687,7 +688,7 @@ internal open class TurbineCodebaseInitialiser(
         val annotations = createAnnotations(type.annos())
         val modifiers = TurbineTypeModifiers(annotations, nullability)
         val qualifiedName = getQualifiedName(type.sym().binaryName())
-        val parameters = type.targs().map { createType(it, false) }
+        val parameters = type.targs().map { createType(it, false) as TypeArgumentTypeItem }
         return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
     }
 
