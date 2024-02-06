@@ -41,10 +41,15 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.methods().single().parameters().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo("kotlin.jvm.functions.Function0<kotlin.Unit>")
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString()).isEqualTo("kotlin.jvm.functions.Function0<kotlin.Unit>")
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes).isEmpty()
+                assertThat(returnType.toString()).isEqualTo("void")
+            }
         }
     }
 
@@ -63,12 +68,18 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.methods().single().parameters().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function1<? super java.lang.String,java.lang.Integer>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function1<? super java.lang.String,java.lang.Integer>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString()).isEqualTo("[java.lang.String]")
+                assertThat(returnType.toString()).isEqualTo("int")
+            }
         }
     }
 
@@ -87,12 +98,18 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.methods().single().parameters().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function1<? super java.lang.String,java.lang.Integer>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function1<? super java.lang.String,java.lang.Integer>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString()).isEqualTo("[java.lang.String]")
+                assertThat(returnType.toString()).isEqualTo("java.lang.Integer")
+            }
         }
     }
 
@@ -111,12 +128,18 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.methods().single().parameters().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function2<? super java.lang.Number,? super java.lang.String[],? extends T>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function2<? super java.lang.Number,? super java.lang.String[],? extends T>"
+                    )
+
+                assertThat(receiverType.toString()).isEqualTo("java.lang.Number")
+                assertThat(parameterTypes.toString()).isEqualTo("[java.lang.String[]]")
+                assertThat(returnType.toString()).isEqualTo("T")
+            }
         }
     }
 
@@ -135,12 +158,19 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.methods().single().parameters().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function1<? super kotlin.jvm.functions.Function0<kotlin.Unit>,kotlin.Unit>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function1<? super kotlin.jvm.functions.Function0<kotlin.Unit>,kotlin.Unit>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString())
+                    .isEqualTo("[kotlin.jvm.functions.Function0<kotlin.Unit>]")
+                assertThat(returnType.toString()).isEqualTo("void")
+            }
         }
     }
 
@@ -159,12 +189,19 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.methods().single().parameters().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function0<? extends kotlin.jvm.functions.Function0<kotlin.Unit>>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function0<? extends kotlin.jvm.functions.Function0<kotlin.Unit>>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString()).isEqualTo("[]")
+                assertThat(returnType.toString())
+                    .isEqualTo("kotlin.jvm.functions.Function0<kotlin.Unit>")
+            }
         }
     }
 
@@ -183,10 +220,16 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.fields().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo("kotlin.jvm.functions.Function0<java.lang.Boolean>")
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo("kotlin.jvm.functions.Function0<java.lang.Boolean>")
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString()).isEqualTo("[]")
+                assertThat(returnType.toString()).isEqualTo("boolean")
+            }
         }
     }
 
@@ -205,12 +248,19 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.fields().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function1<kotlin.jvm.functions.Function0<java.lang.Boolean>,kotlin.Unit>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function1<kotlin.jvm.functions.Function0<java.lang.Boolean>,kotlin.Unit>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString())
+                    .isEqualTo("[kotlin.jvm.functions.Function0<java.lang.Boolean>]")
+                assertThat(returnType.toString()).isEqualTo("void")
+            }
         }
     }
 
@@ -229,12 +279,21 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val lambdaType = fooClass.fields().single().type()
 
-            // Verify that the default string representation of the lambda type is the same as the
-            // string representation of the extended class type.
-            assertThat(lambdaType.toTypeString())
-                .isEqualTo(
-                    "kotlin.jvm.functions.Function1<kotlin.jvm.functions.Function1<? super java.lang.Boolean,kotlin.Unit>,kotlin.Unit>"
-                )
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(toTypeString())
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function1<kotlin.jvm.functions.Function1<? super java.lang.Boolean,kotlin.Unit>,kotlin.Unit>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(parameterTypes.toString())
+                    .isEqualTo(
+                        "[kotlin.jvm.functions.Function1<? super java.lang.Boolean,kotlin.Unit>]"
+                    )
+                assertThat(returnType.toString()).isEqualTo("void")
+            }
         }
     }
 }

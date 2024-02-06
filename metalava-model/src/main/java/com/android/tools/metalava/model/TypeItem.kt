@@ -902,6 +902,32 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     }
 }
 
+/**
+ * Represents a kotlin lambda type.
+ *
+ * This extends [ClassTypeItem] out of necessity because that is how lambdas have been represented
+ * in Metalava up until this was created and so until such time as all the code that consumes this
+ * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
+ */
+interface LambdaTypeItem : ClassTypeItem {
+    /** The type of the optional receiver. */
+    val receiverType: TypeItem?
+
+    /** The parameter types. */
+    val parameterTypes: List<TypeItem>
+
+    /** The return type. */
+    val returnType: TypeItem
+
+    override fun duplicate(): LambdaTypeItem =
+        duplicate(outerClassType?.duplicate(), arguments.map { it.duplicate() })
+
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): LambdaTypeItem
+}
+
 /** Represents a type variable type. */
 interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, ExceptionTypeItem {
     /** The name of the type variable */

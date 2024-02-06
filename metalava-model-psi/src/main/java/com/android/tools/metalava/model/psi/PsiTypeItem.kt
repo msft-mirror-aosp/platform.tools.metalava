@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -81,13 +82,13 @@ internal class PsiArrayTypeItem(
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that does not represent a type variable. */
-internal class PsiClassTypeItem(
-    private val codebase: Codebase,
+internal open class PsiClassTypeItem(
+    protected val codebase: Codebase,
     psiType: PsiType,
-    override val qualifiedName: String,
-    override val arguments: List<TypeArgumentTypeItem>,
-    override val outerClassType: PsiClassTypeItem?,
-    override val className: String,
+    final override val qualifiedName: String,
+    final override val arguments: List<TypeArgumentTypeItem>,
+    final override val outerClassType: PsiClassTypeItem?,
+    final override val className: String,
     modifiers: TypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(psiType, modifiers) {
 
@@ -109,6 +110,48 @@ internal class PsiClassTypeItem(
             className = className,
             modifiers = modifiers.duplicate()
         )
+}
+
+internal class PsiLambdaTypeItem(
+    codebase: Codebase,
+    psiType: PsiType,
+    qualifiedName: String,
+    arguments: List<TypeArgumentTypeItem>,
+    outerClassType: PsiClassTypeItem?,
+    className: String,
+    modifiers: TypeModifiers,
+    override val receiverType: TypeItem?,
+    override val parameterTypes: List<TypeItem>,
+    override val returnType: TypeItem,
+) :
+    PsiClassTypeItem(
+        codebase = codebase,
+        psiType = psiType,
+        qualifiedName = qualifiedName,
+        arguments = arguments,
+        outerClassType = outerClassType,
+        className = className,
+        modifiers = modifiers,
+    ),
+    LambdaTypeItem {
+
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): LambdaTypeItem {
+        return PsiLambdaTypeItem(
+            codebase = codebase,
+            psiType = psiType,
+            qualifiedName = qualifiedName,
+            arguments = arguments,
+            outerClassType = outerClass as? PsiClassTypeItem,
+            className = className,
+            modifiers = modifiers.duplicate(),
+            receiverType = receiverType,
+            parameterTypes = parameterTypes,
+            returnType = returnType,
+        )
+    }
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */
