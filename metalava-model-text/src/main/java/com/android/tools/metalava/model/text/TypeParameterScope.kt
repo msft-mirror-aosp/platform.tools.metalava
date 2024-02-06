@@ -50,7 +50,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 internal sealed class TypeParameterScope private constructor() {
 
     /** True if there are no type parameters in scope. */
-    abstract fun isEmpty(): Boolean
+    fun isEmpty() = this === empty
 
     /**
      * Create a nested [TypeParameterScope] that will delegate to this one for any
@@ -63,6 +63,9 @@ internal sealed class TypeParameterScope private constructor() {
 
     /** Finds the closest [TypeParameterItem] with the specified name. */
     abstract fun findTypeParameter(name: String): TypeParameterItem?
+
+    /** Finds the scope that provides at least one of the supplied [names] or [empty] otherwise. */
+    abstract fun findSignificantScope(names: Set<String>): TypeParameterScope
 
     companion object {
         val empty: TypeParameterScope = Empty
@@ -95,7 +98,15 @@ internal sealed class TypeParameterScope private constructor() {
          */
         private val nameToTypeParameterItem: Map<String, TypeParameterItem>
 
+        /**
+         * The set of type parameter names added by this scope; does not include names from
+         * enclosing scopes but does include any shadows of those names added in this scope.
+         */
+        private val namesAddedInThisScope: Set<String>
+
         init {
+            namesAddedInThisScope = list.map { it.name() }.toSet()
+
             // Construct a map by taking a mutable copy of the map from the enclosing scope, if
             // available, otherwise creating an empty map. Then adding all the type parameters that
             // are part of this, replacing (i.e. shadowing) any type parameters with the same name
@@ -108,15 +119,34 @@ internal sealed class TypeParameterScope private constructor() {
             nameToTypeParameterItem = mutableMap.toMap()
         }
 
-        override fun isEmpty() = nameToTypeParameterItem.isEmpty()
-
         override fun findTypeParameter(name: String) = nameToTypeParameterItem[name]
+
+        override fun findSignificantScope(names: Set<String>): TypeParameterScope {
+            // Fast path to avoid recursing up enclosing scopes.
+            if (names.isEmpty()) return empty
+
+            // If any of the supplied names are added in this scope then use this scope.
+            if (names.any { it in namesAddedInThisScope }) return this
+
+            // Otherwise, check the enclosing scope.
+            return enclosingScope.findSignificantScope(names)
+        }
+
+        override fun toString(): String {
+            return nameToTypeParameterItem.keys.joinToString(prefix = "Scope(", postfix = ")") {
+                "<$it>"
+            }
+        }
     }
 
     private object Empty : TypeParameterScope() {
 
-        override fun isEmpty() = true
-
         override fun findTypeParameter(name: String) = null
+
+        override fun findSignificantScope(names: Set<String>) = this
+
+        override fun toString(): String {
+            return "Scope()"
+        }
     }
 }

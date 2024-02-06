@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
@@ -25,6 +26,8 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.TypeVisitor
+import com.android.tools.metalava.model.VariableTypeItem
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
@@ -733,22 +736,69 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
          */
         private val forceClassToBeNonNull: Boolean,
     ) {
-        /** Map from [TypeParameterScope] to the [TextTypeItem] created for it. */
+        /**
+         * Map from [TypeParameterScope] to the [TextTypeItem] created for it.
+         *
+         * The [TypeParameterScope] that will be used to cache a type depends on the unqualified
+         * names used in the type. It will use the closest enclosing scope of the one supplied that
+         * adds at least one type parameter whose name is used in the type.
+         *
+         * See [TypeParameterScope.findSignificantScope].
+         */
         private val scopeToItem = mutableMapOf<TypeParameterScope, TextTypeItem>()
+
+        /**
+         * The set of unqualified names used by [type].
+         *
+         * This is determined solely by the contents of the [type] string and so will be the same
+         * for all [TypeItem]s cached in this entry.
+         *
+         * If this has not been set then no type items have been cached in this entry. It is set the
+         * first time that a [TypeItem] is cached.
+         */
+        private lateinit var unqualifiedNamesInType: Set<String>
 
         /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
         fun getTypeItem(typeParameterScope: TypeParameterScope): TextTypeItem {
-            scopeToItem[typeParameterScope]?.let { scopeTypeItem ->
-                cacheHit++
-                return scopeTypeItem
-            }
+            // If this is not the first time through then check to see if anything suitable has been
+            // cached.
+            val scopeForCachingOrNull =
+                if (::unqualifiedNamesInType.isInitialized) {
+                    // Find the scope to use for caching this type and then check to see if a
+                    // [TypeItem]
+                    // has been cached for that scope and if so return it. Otherwise, drop out.
+                    typeParameterScope.findSignificantScope(unqualifiedNamesInType).also {
+                        scopeForCaching ->
+                        scopeToItem[scopeForCaching]?.let {
+                            cacheHit++
+                            return it
+                        }
+                    }
+                } else {
+                    // This is the first time through, so [unqualifiedNamesInType] is not available
+                    // so drop through and initialize later.
+                    null
+                }
 
             // Parse the [type] to produce a [TypeItem].
             val typeItem = createTypeItem(typeParameterScope)
             cacheSize++
 
-            // Cache the [TypeItem].
-            scopeToItem[typeParameterScope] = typeItem
+            // Find the scope for caching if it was not found above.
+            val scopeForCaching =
+                scopeForCachingOrNull
+                    ?: let {
+                        // This will only happen if [unqualifiedNamesInType] is uninitialized so
+                        // make sure to initialize it.
+                        unqualifiedNamesInType = unqualifiedNameGatherer.gatherFrom(typeItem)
+
+                        // Find the scope for caching. It could not be found before because
+                        // [unqualifiedNamesInType] was not initialized.
+                        typeParameterScope.findSignificantScope(unqualifiedNamesInType)
+                    }
+
+            // Store the type item in the scope selected for caching.
+            scopeToItem[scopeForCaching] = typeItem
 
             // Return it.
             return typeItem
@@ -762,4 +812,57 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             return parseType(type, typeParameterScope, emptyList(), forceClassToBeNonNull)
         }
     }
+
+    /**
+     * A [TypeVisitor] that will extract all unqualified names from the type.
+     *
+     * These are the names that could be used as a type parameter name and so whose meaning could
+     * change depending on the [TypeParameterScope], i.e. the set of type parameters currently in
+     * scope.
+     */
+    private class UnqualifiedNameGatherer : BaseTypeVisitor() {
+
+        private val unqualifiedNames = mutableSetOf<String>()
+
+        override fun visit(primitiveType: PrimitiveTypeItem) {
+            // Primitive type names are added because Kotlin allows them to be shadowed by a type
+            // parameter.
+            unqualifiedNames.add(primitiveType.kind.primitiveName)
+        }
+
+        override fun visitClassType(classType: ClassTypeItem) {
+            // Classes in java.lang package can be represented in the type without the leading
+            // package, all other types must be fully qualified. At this point it is not clear
+            // whether the type used in the input type string was qualified or not as the package
+            // has been prepended so this assumes that they all are just to be on the safe side.
+            // It is only for legacy reasons that all `java.lang` package prefixes are stripped
+            // when generating the API signature files. See b/324047248.
+            val name = classType.qualifiedName
+            if (!name.contains('.')) {
+                unqualifiedNames.add(name)
+            } else {
+                val trimmed = TypeItem.stripJavaLangPrefix(name)
+                if (trimmed != name) {
+                    unqualifiedNames.add(trimmed)
+                }
+            }
+        }
+
+        override fun visitVariableType(variableType: VariableTypeItem) {
+            unqualifiedNames.add(variableType.name)
+        }
+
+        /** Gather the names from [typeItem] returning an immutable set of the unqualified names. */
+        fun gatherFrom(typeItem: TypeItem): Set<String> {
+            unqualifiedNames.clear()
+            typeItem.accept(this)
+            return unqualifiedNames.toSet()
+        }
+    }
+
+    /**
+     * An instance of [UnqualifiedNameGatherer] used for gathering all the unqualified names from
+     * all the [TypeItem]s cached by this.
+     */
+    private val unqualifiedNameGatherer = UnqualifiedNameGatherer()
 }
