@@ -40,7 +40,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 internal sealed class TypeParameterScope private constructor() {
 
     /** True if there are no type parameters in scope. */
-    fun isEmpty() = count == 0
+    abstract fun isEmpty(): Boolean
 
     /**
      * Create a nested [TypeParameterScope] that will delegate to this one for any
@@ -49,12 +49,10 @@ internal sealed class TypeParameterScope private constructor() {
     fun nestedScope(typeParameters: List<TypeParameterItem>) =
         // If the typeParameters is empty then just reuse this one, otherwise create a new scope
         // delegating to this.
-        if (typeParameters.isEmpty()) this else ListWrapper(typeParameters, this)
+        if (typeParameters.isEmpty()) this else MapWrapper(typeParameters, this)
 
     /** Finds the closest [TypeParameterItem] with the specified name. */
     abstract fun findTypeParameter(name: String): TypeParameterItem?
-
-    protected abstract val count: Int
 
     companion object {
         val empty: TypeParameterScope = Empty
@@ -74,21 +72,40 @@ internal sealed class TypeParameterScope private constructor() {
         }
     }
 
-    private class ListWrapper(
-        private val list: List<TypeParameterItem>,
+    private class MapWrapper(
+        list: List<TypeParameterItem>,
         private val enclosingScope: TypeParameterScope
     ) : TypeParameterScope() {
 
-        override val count: Int = list.size + enclosingScope.count
+        /**
+         * A mapping from name to [TypeParameterItem].
+         *
+         * Includes any [TypeParameterItem]s from the [enclosingScope] that are not shadowed by an
+         * item in the list.
+         */
+        private val nameToTypeParameterItem: Map<String, TypeParameterItem>
 
-        override fun findTypeParameter(name: String) =
-            // Search in this scope first, then delegate to the parent.
-            list.firstOrNull { it.name() == name } ?: enclosingScope.findTypeParameter(name)
+        init {
+            // Construct a map by taking a mutable copy of the map from the enclosing scope, if
+            // available, otherwise creating an empty map. Then adding all the type parameters that
+            // are part of this, replacing (i.e. shadowing) any type parameters with the same name
+            // from the enclosing scope.
+            val mutableMap =
+                if (enclosingScope is MapWrapper)
+                    enclosingScope.nameToTypeParameterItem.toMutableMap()
+                else mutableMapOf()
+            list.associateByTo(mutableMap) { it.name() }
+            nameToTypeParameterItem = mutableMap.toMap()
+        }
+
+        override fun isEmpty() = nameToTypeParameterItem.isEmpty()
+
+        override fun findTypeParameter(name: String) = nameToTypeParameterItem[name]
     }
 
     private object Empty : TypeParameterScope() {
 
-        override val count: Int = 0
+        override fun isEmpty() = true
 
         override fun findTypeParameter(name: String) = null
     }
