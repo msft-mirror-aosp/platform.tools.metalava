@@ -30,14 +30,18 @@ import kotlin.collections.HashMap
 internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: Boolean = false) {
 
     /**
-     * The cache key, incorporates the [TypeUse] as well as the type string as the [TypeUse] can
-     * affect the created [TypeItem].
+     * The cache key, incorporates the information from [TypeUse] and [kotlinStyleNulls] as well as
+     * the type string as they can all affect the created [TypeItem].
      *
      * e.g. [TypeUse.SUPER_TYPE] will cause the type to be treated as a super class and so always be
      * [TypeNullability.NONNULL] even if [kotlinStyleNulls] is `false` which would normally cause it
-     * to be [TypeNullability.PLATFORM].
+     * to be [TypeNullability.PLATFORM]. However, when [kotlinStyleNulls] is `true` then there is no
+     * difference between [TypeUse.SUPER_TYPE] and [TypeUse.GENERAL] as they will both cause a class
+     * type with no nullability suffix to be treated as [TypeNullability.NONNULL].
+     *
+     * That information is encapsulated in the [forceClassToBeNonNull] property.
      */
-    private data class Key(val typeUse: TypeUse, val type: String)
+    private data class Key(val forceClassToBeNonNull: Boolean, val type: String)
 
     /** The cache from [Key] to [TextTypeItem]. */
     private val typeCache = HashMap<Key, TextTypeItem>()
@@ -103,23 +107,29 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         typeUse: TypeUse = TypeUse.GENERAL,
     ): TextTypeItem {
         requests++
+
+        // Class types used as super types, i.e. in an extends or implements list are forced to be
+        // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
+        // same cache key for both so that they reuse cached types where possible.
+        val forceClassToBeNonNull = typeUse == TypeUse.SUPER_TYPE || kotlinStyleNulls
+
         // Only use the cache if there are no type parameters to prevent identically named type
         // variables from different contexts being parsed as the same type.
         // Also don't use the cache when there are type-use annotations not contained in the string.
         return if (typeParameterScope.isEmpty() && annotations.isEmpty()) {
-            val key = Key(typeUse, type)
+            val key = Key(forceClassToBeNonNull, type)
 
             // Check it in the cache and if not found then create it and put it into the cache
             typeCache[key]?.also { cacheHit++ }
                 ?: run {
                     // Create it, cache it and return
-                    parseType(type, typeParameterScope, annotations, typeUse).also {
+                    parseType(type, typeParameterScope, annotations, forceClassToBeNonNull).also {
                         typeCache[key] = it
                     }
                 }
         } else {
             cacheSkip++
-            parseType(type, typeParameterScope, annotations, typeUse)
+            parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
         }
     }
 
@@ -128,12 +138,19 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
-        typeUse: TypeUse = TypeUse.GENERAL,
+        // Forces a [ClassTypeItem] to have [TypeNullability.NONNULL]
+        forceClassToBeNonNull: Boolean = false,
     ): TextTypeItem {
         val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
         val allAnnotations = annotations + annotationsFromString
         val (withoutNullability, nullability) =
-            splitNullabilitySuffix(unannotated, kotlinStyleNulls)
+            splitNullabilitySuffix(
+                unannotated,
+                // If forceClassToBeNonNull is true then a plain class type without any nullability
+                // suffix must be treated as if it was not null, which is just how it would be
+                // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
+                kotlinStyleNulls || forceClassToBeNonNull
+            )
         val trimmed = withoutNullability.trim()
 
         // Figure out what kind of type this is.
@@ -154,7 +171,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             // Try parsing as an array.
             ?: asArray(trimmed, allAnnotations, nullability, typeParameterScope)
             // If it isn't anything else, parse the type as a class.
-            ?: asClass(trimmed, typeUse, typeParameterScope, allAnnotations, nullability)
+            ?: asClass(trimmed, typeParameterScope, allAnnotations, nullability)
     }
 
     /**
@@ -365,12 +382,11 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      */
     private fun asClass(
         type: String,
-        typeUse: TypeUse,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         nullability: TypeNullability?
     ): TextClassTypeItem {
-        return createClassType(type, typeUse, null, typeParameterScope, annotations, nullability)
+        return createClassType(type, null, typeParameterScope, annotations, nullability)
     }
 
     /**
@@ -381,7 +397,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      */
     private fun createClassType(
         type: String,
-        typeUse: TypeUse,
         outerClassType: TextClassTypeItem?,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
@@ -409,9 +424,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             if (remainder != null) {
                 modifiers(classAnnotations, TypeNullability.NONNULL)
             } else {
-                val actualNullability =
-                    if (typeUse == TypeUse.SUPER_TYPE) TypeNullability.NONNULL else nullability
-                modifiers(classAnnotations + annotations, actualNullability)
+                modifiers(classAnnotations + annotations, nullability)
             }
         val classType =
             TextClassTypeItem(codebase, qualifiedName, arguments, outerClassType, classModifiers)
@@ -425,8 +438,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             // This is an inner class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
-                // An inner class has the same type use as the outer class.
-                typeUse,
                 classType,
                 typeParameterScope,
                 annotations,
