@@ -1106,12 +1106,11 @@ class CommonTypeItemTest : BaseModelTest() {
             kotlin(
                 """
                     package test.pkg
-                    abstract class Foo<E> : MutableCollection<E> {
-                        override fun addAll(elements: Collection<E>): Boolean = true
-                        override fun removeAll(elements: Collection<E>): Boolean = true
+                    abstract class Foo<Z> : MutableCollection<Z> {
+                        override fun addAll(elements: Collection<Z>): Boolean = true
+                        override fun removeAll(elements: Collection<Z>): Boolean = true
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -1126,8 +1125,8 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(addAllParam.arguments).hasSize(1)
             val addAllWildcard = addAllParam.arguments.single()
             assertThat(addAllWildcard).isInstanceOf(WildcardTypeItem::class.java)
-            val allAllE = (addAllWildcard as WildcardTypeItem).extendsBound
-            allAllE!!.assertReferencesTypeParameter(typeParam)
+            val allAllZ = (addAllWildcard as WildcardTypeItem).extendsBound
+            allAllZ!!.assertReferencesTypeParameter(typeParam)
 
             // Defined in `java.util.Collection` as `removeAll(Collection<?> c)`
             // Appears in psi as a `PsiImmediateClassType` with no parameters
@@ -1137,8 +1136,8 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat((removeAllParam as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.util.Collection")
             assertThat(removeAllParam.arguments).hasSize(1)
-            val removeAllE = removeAllParam.arguments.single()
-            removeAllE.assertReferencesTypeParameter(typeParam)
+            val removeAllZ = removeAllParam.arguments.single()
+            removeAllZ.assertReferencesTypeParameter(typeParam)
         }
     }
 
