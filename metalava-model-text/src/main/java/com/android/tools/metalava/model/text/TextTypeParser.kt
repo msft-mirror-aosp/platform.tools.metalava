@@ -136,9 +136,17 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             splitNullabilitySuffix(unannotated, kotlinStyleNulls)
         val trimmed = withoutNullability.trim()
 
-        // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
-        return asPrimitive(type, trimmed, allAnnotations, nullability)
-            ?: asVariable(trimmed, typeParameterScope, allAnnotations, nullability)
+        // Figure out what kind of type this is.
+        //
+        // Start with variable as the type parameter scope allows us to determine whether something
+        // is a type parameter or not. Also, if a type parameter has the same name as a primitive
+        // type (possible in Kotlin, but not Java) then it will be treated as a type parameter not a
+        // primitive.
+        //
+        // Then try parsing as a primitive as while Kotlin classes can shadow primitive types
+        // they would need to be fully qualified.
+        return asVariable(trimmed, typeParameterScope, allAnnotations, nullability)
+            ?: asPrimitive(type, trimmed, allAnnotations, nullability)
             // Try parsing as a wildcard before trying to parse as an array.
             // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
             // not as an array of wildcards, for consistency with how this would be compiled.
